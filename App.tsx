@@ -15,7 +15,7 @@ import {
 } from './src/services/NotificationService';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 
-const SUPERWALL_IOS_KEY = 'sk_1bc10d28b1d03f80267cc985803abce2761e75d8d0f67209ea772922544c2685';
+const SUPERWALL_IOS_KEY = 'pk_1CHpmKHV-l-lYGShDBz1e';
 
 export default function App() {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
