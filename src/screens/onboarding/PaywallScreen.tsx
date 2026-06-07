@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePlacement, useSuperwall } from 'expo-superwall';
 import * as Haptics from 'expo-haptics';
@@ -128,6 +128,17 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
     );
   }
 
+  const activateBypass = async () => {
+    try {
+      setDebugInfo('Bypass tapped — activating account');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await activateAccount();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert('Bypass failed', msg);
+    }
+  };
+
   // If user dismissed the paywall, show a retry screen with diagnostics
   if (dismissed) {
     return (
@@ -151,6 +162,15 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.retryBtnText}>Subscribe</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.bypassBtn}
+          onPress={activateBypass}
+          accessibilityLabel="Test bypass"
+          accessibilityRole="button"
+        >
+          <Text style={[styles.bypassBtnText, { color: colors.textSecondary }]}>Use test bypass</Text>
+        </TouchableOpacity>
+
         {/* Debug info — tap 5x on the paw to reveal */}
         <TouchableOpacity
           style={styles.debugTap}
@@ -158,7 +178,7 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
           activeOpacity={1}
         >
           <Text style={[styles.versionText, { color: colors.textSecondary }]}>
-            SwapDog v1.0 Build 21
+            SwapDog v1.0 Build 23
           </Text>
         </TouchableOpacity>
 
@@ -199,6 +219,8 @@ const styles = StyleSheet.create({
   },
   retryBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
   loadingText: { marginTop: 16, fontSize: 14 },
+  bypassBtn: { marginTop: 14, paddingVertical: 10, paddingHorizontal: 14 },
+  bypassBtnText: { fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
   debugTap: { marginTop: 24, padding: 8 },
   versionText: { fontSize: 11, opacity: 0.5 },
   debugContainer: { marginTop: 8, maxHeight: 120, width: '100%' },
