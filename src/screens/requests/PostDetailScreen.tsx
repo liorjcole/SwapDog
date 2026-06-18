@@ -668,7 +668,9 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   value={rescheduleNote}
                   onChangeText={setRescheduleNote}
                   multiline
-                />
+                returnKeyType="done"
+                                  blurOnSubmit={true}
+                                  />
 
                 <TouchableOpacity
                   style={{ backgroundColor: '#FFD700', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 8 }}

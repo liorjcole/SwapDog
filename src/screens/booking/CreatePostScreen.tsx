@@ -588,7 +588,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         placeholder="9:00 AM"
                         placeholderTextColor={colors.textSecondary}
                         accessibilityLabel="Start time"
-                      />
+                      returnKeyType="done"
+                                              />
                     </View>
                     <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
                     <View style={styles.timeField}>
@@ -600,7 +601,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         placeholder="5:00 PM"
                         placeholderTextColor={colors.textSecondary}
                         accessibilityLabel="End time"
-                      />
+                      returnKeyType="done"
+                                              />
                     </View>
                   </View>
                 )}
@@ -624,7 +626,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         placeholder="8:00 AM"
                         placeholderTextColor={colors.textSecondary}
                         accessibilityLabel="Feeding time"
-                      />
+                      returnKeyType="done"
+                                              />
                     </View>
                   </View>
                 )}
@@ -702,6 +705,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                 numberOfLines={6}
                 textAlignVertical="top"
                 accessibilityLabel="Care details for the sitter"
+                returnKeyType="done"
+                blurOnSubmit={true}
               />
               <Text
                 style={[styles.charCount, { color: careDetails.length >= MIN_CARE_DETAILS ? colors.success : colors.textSecondary }]}
@@ -766,7 +771,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                       onChangeText={(t) => setPointsOffered(t.replace(/[^0-9]/g, ''))}
                       keyboardType="number-pad"
                       accessibilityLabel="Points offered"
-                    />
+                    returnKeyType="done"
+                                          />
                     <Text style={[styles.pointsUnit, { color: colors.textSecondary }]}>pts</Text>
                   </View>
 
@@ -801,7 +807,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                       onChangeText={setPaymentAmount}
                       keyboardType="decimal-pad"
                       accessibilityLabel="Payment amount in dollars"
-                    />
+                    returnKeyType="done"
+                                          />
                     <Text style={[styles.rateUnitLabel, { color: colors.textSecondary }]}>
                       {careType === 'overnight' ? '/day' : careType === 'feeding' ? ' flat' : '/hr'}
                     </Text>

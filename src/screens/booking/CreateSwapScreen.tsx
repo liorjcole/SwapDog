@@ -272,7 +272,8 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
               onChangeText={setPaymentAmount}
               keyboardType="decimal-pad"
               accessibilityLabel="Payment amount in dollars"
-            />
+            returnKeyType="done"
+                          />
           </View>
         )}
         <Text style={[styles.paymentTypeSummary, { color: colors.textSecondary }]}>
@@ -403,7 +404,8 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
           numberOfLines={6}
           textAlignVertical="top"
           accessibilityLabel="Care details for the dog watcher"
-        />
+        returnKeyType="done"
+                  />
         <Text style={[
           styles.charCount,
           {
@@ -427,7 +429,9 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
           numberOfLines={3}
           textAlignVertical="top"
           accessibilityLabel="Optional message to the other user"
-        />
+        returnKeyType="done"
+                  blurOnSubmit={true}
+                  />
       </View>
 
       <TouchableOpacity

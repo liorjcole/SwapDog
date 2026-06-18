@@ -96,7 +96,9 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
         multiline
         numberOfLines={4}
         accessibilityLabel="Bio"
-      />
+      returnKeyType="done"
+              blurOnSubmit={true}
+              />
       <TextInput
         style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
         placeholder="@yourinstagram (optional)"

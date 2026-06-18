@@ -190,7 +190,9 @@ const RescheduleReviewModal: React.FC<Props> = ({
                 onChangeText={setNote}
                 onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300)}
                 multiline
-              />
+              returnKeyType="done"
+                              blurOnSubmit={true}
+                              />
             </View>
           </ScrollView>
         </View>

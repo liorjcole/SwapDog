@@ -68,7 +68,9 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
         multiline
         numberOfLines={4}
         accessibilityLabel="Review comment, optional"
-      />
+      returnKeyType="done"
+              blurOnSubmit={true}
+              />
       <TouchableOpacity
         style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
         onPress={handleSubmit}
