@@ -29,17 +29,67 @@ export default function App() {
       const data = response?.notification?.request?.content?.data as
         | Record<string, string>
         | undefined;
-      if (data?.conversationId && navigationRef.current) {
-        navigationRef.current.navigate('Main', {
-          screen: 'MessagesTab',
-          params: {
-            screen: 'Chat',
-            params: {
-              conversationId: data.conversationId,
-              otherUserId: data.otherUserId ?? '',
-            },
-          },
-        } as never);
+      if (!data || !navigationRef.current) return;
+      const nav = navigationRef.current;
+
+      switch (data.type) {
+        case 'new_message':
+          // Open the specific chat conversation
+          if (data.conversationId) {
+            nav.navigate('Main', {
+              screen: 'MessagesTab',
+              params: {
+                screen: 'Chat',
+                params: {
+                  conversationId: data.conversationId,
+                  otherUserId: data.otherUserId ?? '',
+                },
+              },
+            } as never);
+          }
+          break;
+
+        case 'new_help_offer':
+          // Open the post detail to see who offered
+          if (data.postId) {
+            nav.navigate('Main', {
+              screen: 'RequestsTab',
+              params: {
+                screen: 'PostDetail',
+                params: { postId: data.postId },
+              },
+            } as never);
+          }
+          break;
+
+        case 'help_confirmed':
+          // Open the post detail to see the confirmation
+          if (data.postId) {
+            nav.navigate('Main', {
+              screen: 'RequestsTab',
+              params: {
+                screen: 'PostDetail',
+                params: { postId: data.postId },
+              },
+            } as never);
+          }
+          break;
+
+        default:
+          // Fallback: if it has a conversationId, open chat (backwards compat)
+          if (data.conversationId) {
+            nav.navigate('Main', {
+              screen: 'MessagesTab',
+              params: {
+                screen: 'Chat',
+                params: {
+                  conversationId: data.conversationId,
+                  otherUserId: data.otherUserId ?? '',
+                },
+              },
+            } as never);
+          }
+          break;
       }
     });
 

@@ -53,6 +53,7 @@ export interface User {
   location?: GeoPoint;
   locationName?: string;
   pushToken?: string;
+  pushTokens?: string[];
   isOnboarded: boolean;
   createdAt: Date;
   updatedAt: Date;

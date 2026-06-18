@@ -61,6 +61,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           location: data.location,
           locationName: data.locationName,
           pushToken: data.pushToken,
+          pushTokens: data.pushTokens,
           isOnboarded: data.isOnboarded ?? false,
           createdAt: toDate(data.createdAt),
           updatedAt: toDate(data.updatedAt),

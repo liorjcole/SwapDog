@@ -185,6 +185,7 @@ export const getMyReferrals = async (userId: string): Promise<import('../models/
         location: d.location,
         locationName: d.locationName,
         pushToken: d.pushToken,
+        pushTokens: d.pushTokens,
         isOnboarded: d.isOnboarded ?? false,
         createdAt: toDate(d.createdAt),
         updatedAt: toDate(d.updatedAt),

@@ -20,6 +20,7 @@ const parseUser = (id: string, data: Record<string, unknown>): User => ({
   location: data.location as GeoPoint | undefined,
   locationName: data.locationName as string | undefined,
   pushToken: data.pushToken as string | undefined,
+  pushTokens: data.pushTokens as string[] | undefined,
   isOnboarded: (data.isOnboarded as boolean) ?? false,
   createdAt: toDate(data.createdAt as Parameters<typeof toDate>[0]),
   updatedAt: toDate(data.updatedAt as Parameters<typeof toDate>[0]),

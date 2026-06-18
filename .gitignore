@@ -15,3 +15,7 @@ google-services.json
 
 # One-time cleanup scripts (sensitive — contain Firebase config, not for CI)
 scripts/
+
+# Firebase Cloud Functions build output
+functions/lib/
+functions/node_modules/

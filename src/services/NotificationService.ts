@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { SPLASH_COLOR } from '../config/theme';
 import { db } from '../config/firebase';
 
@@ -53,7 +53,11 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
 };
 
 export const savePushToken = async (userId: string, token: string): Promise<void> => {
-  await updateDoc(doc(db, 'users', userId), { pushToken: token });
+  // Save to both pushToken (legacy single) and pushTokens (array for multi-device)
+  await updateDoc(doc(db, 'users', userId), {
+    pushToken: token,
+    pushTokens: arrayUnion(token),
+  });
 };
 
 export const scheduleLocalNotification = async (
