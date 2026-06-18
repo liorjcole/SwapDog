@@ -94,11 +94,11 @@ const LocationSetupScreen: React.FC<Props> = () => {
           <TouchableOpacity
             style={[styles.btn, { backgroundColor: colors.primary }]}
             onPress={handleGetLocation}
-            accessibilityLabel="Enable location"
+            accessibilityLabel="Use my current location"
             accessibilityRole="button"
             accessibilityHint="Grants location access to find nearby dog owners"
           >
-            <Text style={styles.btnText}>Enable Location</Text>
+            <Text style={styles.btnText}>Use My Current Location</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleSkip}

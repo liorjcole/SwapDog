@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, InputAccessoryView, Keyboard } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -11,7 +11,6 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { db } from '../../config/firebase';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { useOnboarding } from '../../contexts/OnboardingContext';
-import { Ionicons } from '@expo/vector-icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<OnboardingStackParamList, 'ProfileSetup'>;
@@ -26,7 +25,6 @@ const cleanIgHandle = (raw: string): string => {
   return s.replace(/^@/, '');
 };
 
-const BIO_ACCESSORY_ID = 'bio-keyboard-bar';
 
 const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
@@ -155,7 +153,6 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         multiline
         numberOfLines={4}
         accessibilityLabel="Bio, optional"
-        inputAccessoryViewID={BIO_ACCESSORY_ID}
         onLayout={(e) => { inputY['bio'] = e.nativeEvent.layout.y; }}
         onFocus={() => scrollToInput('bio')}
       />
@@ -185,15 +182,6 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
       </TouchableOpacity>
     </ScrollView>
 
-      {/* "Done" toolbar above keyboard for the bio multiline field */}
-      <InputAccessoryView nativeID={BIO_ACCESSORY_ID}>
-        <View style={[styles.keyboardBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-          <View style={{ flex: 1 }} />
-          <TouchableOpacity onPress={() => Keyboard.dismiss()} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}>
-            <Ionicons name="checkmark-circle" size={30} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-      </InputAccessoryView>
     </View>
   );
 };
@@ -211,17 +199,6 @@ const styles = StyleSheet.create({
   fieldHint: { fontSize: 12, marginTop: 4, marginBottom: 8, paddingHorizontal: 4 },
   input: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, fontSize: 15 },
   textArea: { height: 100, textAlignVertical: 'top' },
-  keyboardBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  keyboardDone: {
-    fontSize: 17,
-    fontWeight: '600',
-  },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm },
   btnText: { color: '#fff', ...typography.button } });
 
