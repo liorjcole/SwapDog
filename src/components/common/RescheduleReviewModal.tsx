@@ -83,7 +83,7 @@ const RescheduleReviewModal: React.FC<Props> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <View style={[styles.container, { backgroundColor: colors.background }]}>
           <ScrollView
         automaticallyAdjustKeyboardInsets={true} ref={scrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">

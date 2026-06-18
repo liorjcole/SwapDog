@@ -344,7 +344,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
         automaticallyAdjustKeyboardInsets={true}
         style={[styles.container, { backgroundColor: colors.background }]}
@@ -609,7 +609,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                 {/* Feeding time */}
                 {careType === 'feeding' && (
                   <View style={styles.timeRow}>
-                    <View style={{ flex: 1 }}>
+                    <View style={{ flex: 1, backgroundColor: colors.background }}>
                       <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Feeding Time</Text>
                       <TextInput
                         style={[styles.timeInput, { borderColor: colors.border, backgroundColor: colors.background, color: colors.text }]}

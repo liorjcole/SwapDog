@@ -337,7 +337,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
           <Text style={[styles.modalTitle, { color: colors.text }]}>Change Location</Text>
           <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>

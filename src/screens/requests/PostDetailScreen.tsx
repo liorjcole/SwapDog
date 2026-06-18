@@ -577,7 +577,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         animationType="slide"
         onRequestClose={() => setHelpModalVisible(false)}
       >
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
           <TouchableOpacity
             style={StyleSheet.absoluteFillObject}
             activeOpacity={1}
@@ -618,7 +618,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
       {/* ── Reschedule Modal ── */}
         <Modal visible={showRescheduleModal} transparent animationType="slide">
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: colors.background }}>
             <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
               <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 }}>
                 <Text style={{ color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: 16 }}>Propose New Dates</Text>

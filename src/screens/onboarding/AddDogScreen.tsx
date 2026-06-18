@@ -209,7 +209,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
         automaticallyAdjustKeyboardInsets={true} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
       <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
@@ -421,7 +421,7 @@ const THUMB_SIZE = 80;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flexGrow: 1, padding: spacing.lg, paddingTop: 100 },
+  content: { flexGrow: 1, padding: spacing.lg, paddingTop: spacing.lg },
   title: { ...typography.h2, textAlign: 'center', marginBottom: spacing.xs },
   sub: { ...typography.body, textAlign: 'center', marginBottom: spacing.xl },
   input: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, fontSize: 15 },

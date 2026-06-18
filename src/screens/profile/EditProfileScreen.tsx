@@ -55,7 +55,7 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
         automaticallyAdjustKeyboardInsets={true} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
       <TouchableOpacity

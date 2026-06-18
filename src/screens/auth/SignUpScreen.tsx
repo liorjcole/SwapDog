@@ -50,7 +50,7 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
         automaticallyAdjustKeyboardInsets={true} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.logo} accessibilityElementsHidden>🐾</Text>

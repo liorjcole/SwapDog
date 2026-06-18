@@ -94,7 +94,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
         automaticallyAdjustKeyboardInsets={true}
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -170,7 +170,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flexGrow: 1, padding: spacing.lg, paddingTop: 100, justifyContent: 'center' },
+  content: { flexGrow: 1, padding: spacing.lg, paddingTop: spacing.lg, justifyContent: 'center' },
   title: { ...typography.h2, textAlign: 'center', marginBottom: spacing.sm },
   sub: { ...typography.body, textAlign: 'center', marginBottom: spacing.xl },
   photoPicker: { alignItems: 'center', marginBottom: spacing.lg },

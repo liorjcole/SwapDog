@@ -106,7 +106,7 @@ const ContractScreen: React.FC<ContractScreenProps> = ({
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
     <View style={[styles.outer, { backgroundColor: colors.background }]}>
       {/* ── Header — shown only in onboarding; nav bar title handles it in read-only/profile view ── */}
       {!readOnly && (

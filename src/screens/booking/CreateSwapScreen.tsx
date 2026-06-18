@@ -150,7 +150,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
     d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
         automaticallyAdjustKeyboardInsets={true}
       style={[styles.container, { backgroundColor: colors.background }]}

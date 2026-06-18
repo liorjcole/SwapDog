@@ -149,7 +149,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
         automaticallyAdjustKeyboardInsets={true} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
 

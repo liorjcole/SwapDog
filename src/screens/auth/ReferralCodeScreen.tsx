@@ -77,7 +77,7 @@ const ReferralCodeScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>

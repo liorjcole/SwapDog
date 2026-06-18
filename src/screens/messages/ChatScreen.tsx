@@ -174,7 +174,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       {/* ── Custom in-component header — always visible, always has back ── */}
       <View
         style={[

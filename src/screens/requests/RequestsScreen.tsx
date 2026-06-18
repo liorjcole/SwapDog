@@ -507,7 +507,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
     const calDays = buildCalendarDays();
 
     return (
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
         ref={scrollViewRef}
         contentContainerStyle={styles.calendarScroll}

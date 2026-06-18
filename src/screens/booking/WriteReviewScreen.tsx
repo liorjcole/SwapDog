@@ -47,7 +47,7 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
         automaticallyAdjustKeyboardInsets={true} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={[styles.title, { color: colors.text }]}>{route.params?.reviewRole === 'sitter' ? 'Rate the Pet Sitter' : route.params?.reviewRole === 'owner' ? 'Rate the Pet Owner' : 'How was your experience?'}</Text>
