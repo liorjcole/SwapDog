@@ -75,6 +75,7 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
         />
         <View style={styles.passwordWrap}>
           <TextInput
+            key={showPassword ? 'pw-visible' : 'pw-hidden'}
             style={[styles.input, styles.passwordInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
             placeholder="Password (min 6 characters)"
             placeholderTextColor={colors.textSecondary}
@@ -98,6 +99,7 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
         <View style={styles.passwordWrap}>
           <TextInput
+            key={showConfirm ? 'cf-visible' : 'cf-hidden'}
             style={[styles.input, styles.passwordInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
             placeholder="Confirm Password"
             placeholderTextColor={colors.textSecondary}

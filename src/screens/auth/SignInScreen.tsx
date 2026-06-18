@@ -80,6 +80,7 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
         />
         <View style={styles.passwordWrap}>
           <TextInput
+            key={showPassword ? 'pw-visible' : 'pw-hidden'}
             style={[styles.input, styles.passwordInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
             placeholder="Password"
             placeholderTextColor={colors.textSecondary}
