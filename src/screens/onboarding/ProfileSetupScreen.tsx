@@ -33,6 +33,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   const { user } = useAuthContext();
   const { displayName, setDisplayName, bio, setBio, instagramHandle, setInstagramHandle, photoURL, setPhotoURL } = useOnboarding();
   const [friendReferralCode, setFriendReferralCode] = useState('');
+  const [showReferralField, setShowReferralField] = useState(false);
   const [loading, setLoading] = useState(false);
 
   /** Track y-offsets of inputs so we can scroll to them on focus */
@@ -203,20 +204,34 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         onFocus={() => scrollToInput('ig')}
       />
 
-      <TextInput
-        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-        placeholder="Referred by a friend? Enter their code (optional)"
-        placeholderTextColor={colors.textSecondary}
-        value={friendReferralCode}
-        onChangeText={(t) => setFriendReferralCode(t.toUpperCase())}
-        autoCapitalize="characters"
-        autoCorrect={false}
-        accessibilityLabel="Referral code from a friend, optional"
-        returnKeyType="done"
-        blurOnSubmit={true}
-        onLayout={(e) => { inputY['referral'] = e.nativeEvent.layout.y; }}
-        onFocus={() => scrollToInput('referral')}
-      />
+      {!showReferralField ? (
+        <TouchableOpacity
+          onPress={() => setShowReferralField(true)}
+          style={styles.referralLink}
+          accessibilityLabel="Tap to enter a referral code"
+          accessibilityRole="button"
+        >
+          <Text style={[styles.referralLinkText, { color: colors.textSecondary }]}>
+            Referred by a friend? Tap to add their code
+          </Text>
+        </TouchableOpacity>
+      ) : (
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+          placeholder="Paste referral code"
+          placeholderTextColor={colors.textSecondary}
+          value={friendReferralCode}
+          onChangeText={(t) => setFriendReferralCode(t.toUpperCase())}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          autoFocus
+          accessibilityLabel="Referral code from a friend"
+          returnKeyType="done"
+          blurOnSubmit={true}
+          onLayout={(e) => { inputY['referral'] = e.nativeEvent.layout.y; }}
+          onFocus={() => scrollToInput('referral')}
+        />
+      )}
 
       <TouchableOpacity
         style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
@@ -246,6 +261,8 @@ const styles = StyleSheet.create({
   fieldHint: { fontSize: 12, marginTop: 4, marginBottom: 8, paddingHorizontal: 4 },
   input: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, fontSize: 15 },
   textArea: { minHeight: 100, textAlignVertical: 'top' },
+  referralLink: { alignSelf: 'center', paddingVertical: spacing.sm, marginBottom: spacing.md },
+  referralLinkText: { fontSize: 14, textDecorationLine: 'underline' },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm },
   btnText: { color: '#fff', ...typography.button } });
 
