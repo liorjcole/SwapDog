@@ -12,10 +12,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, Platform, Switch, Image } from 'react-native';
+  Alert, Platform, Switch, Image, InputAccessoryView, Keyboard } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -697,6 +698,10 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                 accessibilityLabel="Care details for the sitter"
                 returnKeyType="done"
                 blurOnSubmit={true}
+                autoCorrect={true}
+                spellCheck={true}
+                autoCapitalize="sentences"
+                inputAccessoryViewID="careDetailsDone"
               />
               <Text
                 style={[styles.charCount, { color: careDetails.length >= MIN_CARE_DETAILS ? colors.success : colors.textSecondary }]}
@@ -836,6 +841,20 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
           </>
         )}
       </ScrollView>
+      {Platform.OS === 'ios' && (
+        <InputAccessoryView nativeID="careDetailsDone">
+          <View style={styles.keyboardBar}>
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity
+              onPress={() => Keyboard.dismiss()}
+              style={styles.keyboardDoneBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="checkmark-circle" size={28} color="#007AFF" />
+            </TouchableOpacity>
+          </View>
+        </InputAccessoryView>
+      )}
     </View>
   );
 };
@@ -947,6 +966,17 @@ const styles = StyleSheet.create({
 
   // Submit
   submitBtn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm },
-  submitBtnText: { color: '#fff', ...typography.button } });
+  submitBtnText: { color: '#fff', ...typography.button },
+  keyboardBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#D1D5DB',
+  },
+  keyboardDoneBtn: {
+    padding: 4,
+  },
+});
 
 export default CreatePostScreen;
