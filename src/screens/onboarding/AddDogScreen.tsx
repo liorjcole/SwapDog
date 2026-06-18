@@ -364,13 +364,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={[styles.addAnotherBtnText, { color: colors.primary }]}>➕ Add Another Dog</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        onPress={() => navigation.navigate('Paywall')}
-        accessibilityLabel="Skip adding a dog"
-        accessibilityRole="button"
-      >
-        <Text style={[styles.skip, { color: colors.textSecondary }]}>Skip for now</Text>
-      </TouchableOpacity>
+
     </ScrollView>
     </KeyboardAvoidingView>
   );
