@@ -174,7 +174,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
       />
       <TextInput
         style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-        placeholder="Tell the community about yourself! Your experience with dogs, what makes you a great pet parent (someone they should trust with their pup and whose pup they'd like to care for as well!)"
+        placeholder="Tell the community about yourself (why someone should trust you with their pup and why they'd like you to look after theirs!)"
         placeholderTextColor={colors.textSecondary}
         value={bio}
         onChangeText={setBio}
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   photoHint: { fontSize: 14, fontWeight: '600' },
   fieldHint: { fontSize: 12, marginTop: 4, marginBottom: 8, paddingHorizontal: 4 },
   input: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, fontSize: 15 },
-  textArea: { minHeight: 100, textAlignVertical: 'top' },
+  textArea: { minHeight: 140, textAlignVertical: 'top', paddingTop: spacing.sm },
   referralLink: { alignSelf: 'center', paddingVertical: spacing.sm, marginBottom: spacing.md },
   referralLinkText: { fontSize: 14, textDecorationLine: 'underline' },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm },
