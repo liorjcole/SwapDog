@@ -8,7 +8,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useMessaging } from '../../hooks/useMessaging';
 import { Conversation } from '../../models/types';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { db } from '../../config/firebase';
 import { spacing, borderRadius, shadow } from '../../config/theme';
 import EmptyStateView from '../../components/common/EmptyStateView';
 

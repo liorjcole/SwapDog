@@ -35,6 +35,18 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [sending, setSending] = useState(false);
   const [otherUserName, setOtherUserName] = useState('Chat');
+
+  // Resolve other user's display name for header
+  useEffect(() => {
+    if (!otherUserId || otherUserId === 'swapdog-team') {
+      setOtherUserName(otherUserId === 'swapdog-team' ? '🐾 WatchDog Team' : 'Chat');
+      return;
+    }
+    getDoc(firestoreDoc(db, 'users', otherUserId)).then((snap) => {
+      const data = snap.data();
+      if (data?.displayName) setOtherUserName(data.displayName);
+    }).catch(() => {});
+  }, [otherUserId]);
   const listRef = useRef<FlatList<Message>>(null);
 
   // Mark conversation as read when the user opens the chat
