@@ -253,8 +253,8 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         value={form.name}
         onChangeText={(v) => set('name', v)}
         accessibilityLabel="Dog's name"
-          returnKeyType="next"
-          blurOnSubmit={false}
+          returnKeyType="done"
+          
       />
       <TextInput
         style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
