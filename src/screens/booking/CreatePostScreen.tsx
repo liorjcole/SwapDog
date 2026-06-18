@@ -198,16 +198,52 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     if (!primaryCareType && addOnCareTypes.size === 0) {
       Alert.alert('Required', 'Please select at least one type of care.'); return;
     }
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    if (startDate < todayStart) {
-      Alert.alert('Invalid dates', 'Start date cannot be in the past.'); return;
+    // Build the full requested care datetime
+    const now = new Date();
+    const parseTime12 = (t: string): { h: number; m: number } => {
+      try {
+        const [timePart, meridiem] = t.trim().split(' ');
+        let [h, m] = timePart.split(':').map(Number);
+        if (meridiem === 'PM' && h !== 12) h += 12;
+        if (meridiem === 'AM' && h === 12) h = 0;
+        return { h, m };
+      } catch { return { h: 9, m: 0 }; }
+    };
+
+    // For overnight: care starts on startDate (assume check-in at noon if no time)
+    // For non-overnight: care starts on startDate at startTime
+    const careStart = new Date(startDate);
+    if (careType !== 'overnight') {
+      const { h, m } = parseTime12(startTime);
+      careStart.setHours(h, m, 0, 0);
+    } else {
+      careStart.setHours(12, 0, 0, 0); // assume noon check-in for overnight
     }
+
+    // Block if date/time has already passed
+    if (careStart < now) {
+      Alert.alert('Date has passed', "The date and time you selected has already passed. Please choose a future date.");
+      return;
+    }
+
     if (careType === 'overnight' && endDate <= startDate) {
       Alert.alert('Invalid dates', 'End date must be after start date.'); return;
     }
-    if (careType === 'overnight' && endDate < todayStart) {
-      Alert.alert('Invalid dates', 'End date cannot be in the past.'); return;
+
+    // 24-hour warning (non-blocking — uses a Promise to wait for user choice)
+    const hoursUntilCare = (careStart.getTime() - now.getTime()) / (1000 * 60 * 60);
+    if (hoursUntilCare < 24) {
+      const proceed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Heads up! ⏰',
+          "Posts are more likely to get a response when posted more than 24 hours in advance — but let's see what happens!",
+          [
+            { text: 'Go Back', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Post Anyway', onPress: () => resolve(true) },
+          ]
+        );
+      });
+      if (!proceed) return;
     }
     if (careDetails.trim().length < MIN_CARE_DETAILS) {
       Alert.alert('Care Details Required', `Please provide at least ${MIN_CARE_DETAILS} characters`);
