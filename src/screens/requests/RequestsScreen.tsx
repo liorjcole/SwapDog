@@ -131,7 +131,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const { user } = useAuthContext();
   const { getMyPosts, cancelPost, getAcceptedPosts, saveSitterReminderIds } = useSwaps();
 
-  const [tab, setTab] = useState<TabType>('mine');
+  const [tab, setTab] = useState<TabType>('commitments');
   const scrollViewRef = useRef<ScrollView>(null);
   const [flashDates, setFlashDates] = useState<{ start: Date; end: Date } | null>(null);
   const flashAnim = useRef(new Animated.Value(1)).current;
@@ -723,11 +723,11 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   if (loading) return <LoadingSpinner />;
 
   const tabs: { key: TabType; label: string }[] = [
-    { key: 'mine', label: 'My Posts' },
     {
       key: 'commitments',
       label: `Commitments${acceptedPosts.length > 0 ? ` (${acceptedPosts.length})` : ''}`,
     },
+    { key: 'mine', label: 'My Posts' },
   ];
 
   return (
