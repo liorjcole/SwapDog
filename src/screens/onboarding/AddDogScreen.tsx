@@ -1,7 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch,
-  Image, Platform, ActivityIndicator, Linking, Animated as RNAnimated, LayoutAnimation } from 'react-native';
+  Image, Platform, ActivityIndicator, Linking, Animated as RNAnimated, LayoutAnimation,
+  Modal, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../config/firebase';
@@ -46,6 +48,8 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
   const { dogForm: form, setDogForm: setForm, updateDogForm: set, savedDogs, savedCount, addSavedDog, removeSavedDog, popLastSavedDog, resetDogForm } = useOnboarding();
   const { scrollRef, onScroll, refFor, scrollToInput } = useKeyboardScroll();
+  const insets = useSafeAreaInsets();
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [showRefChart, setShowRefChart] = useState(false);
 
@@ -126,24 +130,18 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
 
   const pickPhoto = async () => {
-    // Phase 1: Collect cropped photos — picker stays open until user cancels or max reached
-    const localUris: string[] = [];
-    let totalCount = form.photoURLs.length;
+    const remaining = MAX_PHOTOS - form.photoURLs.length;
+    if (remaining <= 0) return;
 
-    while (totalCount < MAX_PHOTOS) {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: 'images',
-        allowsMultipleSelection: false,
-        allowsEditing: true,
-        aspect: [1, 1] as [number, number],
-        quality: 0.8,
-      });
-      if (result.canceled || !result.assets?.length) break; // user cancelled — done picking
-      localUris.push(result.assets[0].uri);
-      totalCount++;
-    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.length) return;
 
-    if (localUris.length === 0) return;
+    const localUris = result.assets.map((a) => a.uri).slice(0, remaining);
 
     // Phase 2: Show local thumbnails immediately, then upload in background
     const localPhotos = [...form.photoURLs, ...localUris].slice(0, MAX_PHOTOS);
@@ -357,26 +355,24 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       <Text style={[styles.label, { color: colors.text }]}>Photos ({form.photoURLs.length}/{MAX_PHOTOS})</Text>
       <View style={styles.photoGrid}>
         {form.photoURLs.map((uri, index) => (
-          <View key={uri + index} style={styles.photoThumb}>
+          <TouchableOpacity
+            key={uri + index}
+            style={styles.photoThumb}
+            onPress={() => setPreviewIndex(index)}
+            activeOpacity={0.8}
+            accessibilityLabel={index === 0 ? 'Primary photo — tap to view full screen' : `Photo ${index + 1} — tap to view full screen`}
+            accessibilityRole="button"
+          >
             <Image
               source={{ uri }}
               style={styles.thumbImg}
-              accessibilityLabel={index === 0 ? 'Primary photo' : `Photo ${index + 1}`}
             />
             {index === 0 && (
               <View style={[styles.primaryBadge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.primaryBadgeText}>Primary</Text>
               </View>
             )}
-            <TouchableOpacity
-              style={[styles.removeBtn, { backgroundColor: colors.error }]}
-              onPress={() => removePhoto(index)}
-              accessibilityLabel={`Remove photo ${index + 1}`}
-              accessibilityRole="button"
-            >
-              <Text style={styles.removeBtnText}>✕</Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         ))}
         {form.photoURLs.length < MAX_PHOTOS && (
           <TouchableOpacity
@@ -744,5 +740,43 @@ const styles = StyleSheet.create({
   savedDogDelete: { marginLeft: 'auto', padding: 6 },
   savedDogDeleteText: { fontSize: 16, color: '#FF3B30', fontWeight: '700' },
   savedDogsHint: { fontSize: 13, marginTop: 6, fontStyle: 'italic' } });
+
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+
+const previewStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeBtn: {
+    position: 'absolute',
+    right: 20,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeBtnText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  zoomContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: SCREEN_W,
+    height: SCREEN_H,
+  },
+  fullImage: {
+    width: SCREEN_W,
+    height: SCREEN_H * 0.75,
+  },
+});
 
 export default AddDogScreen;

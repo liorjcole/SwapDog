@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, ActivityIndicator } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, ActivityIndicator , Modal, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
@@ -25,6 +26,8 @@ type Props = {
 const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
   const { scrollRef, onScroll, refFor, scrollToInput } = useKeyboardScroll();
+  const insets = useSafeAreaInsets();
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const { user } = useAuthContext();
   const { getDog, updateDog, createDog, deleteDog } = useDogs();
 
@@ -64,29 +67,21 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [dogId]);
 
   const handleAddPhoto = async () => {
-    if (photoURLs.length >= 10) {
+    const remaining = 10 - photoURLs.length;
+    if (remaining <= 0) {
       Alert.alert('Limit reached', 'You can add up to 10 photos per dog');
       return;
     }
 
-    // Phase 1: Collect all cropped photos — picker stays open until cancel or max
-    const localUris: string[] = [];
-    let totalCount = photoURLs.length;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.length) return;
 
-    while (totalCount < 10) {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: 'images',
-        allowsMultipleSelection: false,
-        allowsEditing: true,
-        aspect: [1, 1] as [number, number],
-        quality: 0.8,
-      });
-      if (result.canceled || !result.assets?.length) break;
-      localUris.push(result.assets[0].uri);
-      totalCount++;
-    }
-
-    if (localUris.length === 0) return;
+    const localUris = result.assets.map((a) => a.uri).slice(0, remaining);
 
     // Phase 2: Show local thumbnails immediately, upload in background
     setPhotoURLs((prev) => [...prev, ...localUris].slice(0, 10));
@@ -192,26 +187,24 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
       <Text style={[styles.label, { color: colors.text }]}>Photos ({photoURLs.length}/10)</Text>
       <View style={styles.photoGrid}>
         {photoURLs.map((uri, index) => (
-          <View key={uri + index} style={styles.photoThumb}>
+          <TouchableOpacity
+            key={uri + index}
+            style={styles.photoThumb}
+            onPress={() => setPreviewIndex(index)}
+            activeOpacity={0.8}
+            accessibilityLabel={index === 0 ? 'Primary photo — tap to view' : `Photo ${index + 1} — tap to view`}
+            accessibilityRole="button"
+          >
             <Image
               source={{ uri }}
               style={styles.thumbImg}
-              accessibilityLabel={index === 0 ? 'Primary photo' : `Photo ${index + 1}`}
             />
             {index === 0 && (
               <View style={[styles.primaryBadge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.primaryBadgeText}>Primary</Text>
               </View>
             )}
-            <TouchableOpacity
-              style={[styles.removePhotoBtn, { backgroundColor: colors.error }]}
-              onPress={() => handleRemovePhoto(index)}
-              accessibilityLabel={`Remove photo ${index + 1}`}
-              accessibilityRole="button"
-            >
-              <Text style={styles.removePhotoBtnText}>✕</Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         ))}
         {photoURLs.length < 10 && (
           <TouchableOpacity
@@ -382,5 +375,43 @@ const styles = StyleSheet.create({
   ageBtn: { width: 32, height: 32, borderRadius: borderRadius.sm, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   ageBtnText: { fontSize: 18, lineHeight: 22 },
   ageValue: { fontSize: 18, fontWeight: '700', minWidth: 28, textAlign: 'center' } });
+
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+
+const previewStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeBtn: {
+    position: 'absolute',
+    right: 20,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeBtnText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  zoomContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: SCREEN_W,
+    height: SCREEN_H,
+  },
+  fullImage: {
+    width: SCREEN_W,
+    height: SCREEN_H * 0.75,
+  },
+});
 
 export default EditDogScreen;
