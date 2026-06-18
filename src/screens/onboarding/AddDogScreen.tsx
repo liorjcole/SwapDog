@@ -192,6 +192,14 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       Alert.alert('Photo Required', 'Please add at least one photo of your dog');
       return null;
     }
+    if (!form.weightLbs || form.weightLbs <= 0) {
+      Alert.alert('Required', "Please enter your dog's weight");
+      return null;
+    }
+    if (form.dogBio.trim().length < 20) {
+      Alert.alert('Required', 'Please write at least 20 characters about your dog');
+      return null;
+    }
     if (!user) return null;
     setLoading(true);
     try {
@@ -567,8 +575,10 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           autoCapitalize="sentences"
           onFocus={() => scrollToInput('dogBio')}
         />
-        <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
-          This helps other dog parents know what to expect
+        <Text style={[styles.fieldHint, { color: form.dogBio.trim().length >= 20 ? colors.success : colors.textSecondary }]}>
+          {form.dogBio.trim().length < 20
+            ? `${form.dogBio.trim().length}/20 chars minimum`
+            : `${form.dogBio.trim().length} chars ✓`}
         </Text>
       </View>
 
