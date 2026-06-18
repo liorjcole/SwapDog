@@ -370,6 +370,9 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         placeholderTextColor={colors.textSecondary}
         value={form.breed}
         onChangeText={(v) => set('breed', v)}
+        autoCorrect={true}
+        spellCheck={true}
+        autoCapitalize="words"
         accessibilityLabel="Dog's breed"
         returnKeyType="done"
         onLayout={(e) => { inputY['breed'] = e.nativeEvent.layout.y; }}
