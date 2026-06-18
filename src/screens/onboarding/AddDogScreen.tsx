@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch,
   Image, Platform, ActivityIndicator, Linking } from 'react-native';
@@ -43,9 +43,51 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const { user } = useAuthContext();
   const { createDog, deleteDog } = useDogs();
 
-  const { dogForm: form, setDogForm: setForm, updateDogForm: set, savedDogs, savedCount, addSavedDog, removeSavedDog, resetDogForm } = useOnboarding();
+  const { dogForm: form, setDogForm: setForm, updateDogForm: set, savedDogs, savedCount, addSavedDog, removeSavedDog, popLastSavedDog, resetDogForm } = useOnboarding();
   const scrollRef = useRef<ScrollView>(null);
   const [loading, setLoading] = useState(false);
+
+  // Custom back: go to previous dog instead of ProfileSetup
+  const handleBack = useCallback(() => {
+    if (savedCount > 0) {
+      const popped = popLastSavedDog();
+      if (popped?.id) {
+        deleteDog(popped.id).catch(() => {});
+      }
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: 0, animated: false });
+      }, 50);
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: 0, animated: false });
+      }, 300);
+    } else {
+      navigation.goBack();
+    }
+  }, [savedCount, popLastSavedDog, deleteDog, navigation]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: savedCount > 0 ? () => (
+        <TouchableOpacity
+          onPress={handleBack}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={{ marginLeft: -8 }}
+        >
+          <Text style={{ fontSize: 28, color: colors.primary, fontWeight: '300' }}>{'‹'}</Text>
+        </TouchableOpacity>
+      ) : undefined,
+    });
+  }, [navigation, savedCount, handleBack, colors.primary]);
+
+  // Intercept swipe-back gesture too
+  useEffect(() => {
+    if (savedCount === 0) return;
+    const unsub = navigation.addListener('beforeRemove', (e) => {
+      e.preventDefault();
+      handleBack();
+    });
+    return unsub;
+  }, [navigation, savedCount, handleBack]);
 
   /** Track y-offsets of inputs so we can scroll to them on focus */
   const inputY = useRef<Record<string, number>>({}).current;
@@ -140,7 +182,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     const dogId = await saveDog();
     if (dogId) {
       const justSavedName = form.name.trim();
-      addSavedDog({ id: dogId, name: justSavedName, breed: form.breed, photoURL: form.photoURLs[0] });
+      addSavedDog({ id: dogId, name: justSavedName, breed: form.breed, photoURL: form.photoURLs[0], formSnapshot: { ...form } });
       setTransitionDogName(justSavedName);
       setTransitionMode('continue');
       setShowTransition(true);
@@ -165,7 +207,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     const dogId = await saveDog();
     if (dogId) {
       const justSavedName = form.name.trim();
-      addSavedDog({ id: dogId, name: justSavedName, breed: form.breed, photoURL: form.photoURLs[0] });
+      addSavedDog({ id: dogId, name: justSavedName, breed: form.breed, photoURL: form.photoURLs[0], formSnapshot: { ...form } });
       setTransitionDogName(justSavedName);
       setTransitionMode('addAnother');
       setShowTransition(true);

@@ -36,6 +36,7 @@ export interface SavedDog {
   name: string;
   breed: string;
   photoURL?: string;
+  formSnapshot?: DogForm;
 }
 
 // ─── Full onboarding state ───
@@ -67,6 +68,7 @@ interface OnboardingContextType extends OnboardingState {
   resetDogForm: () => void;
   addSavedDog: (dog: SavedDog) => void;
   removeSavedDog: (id: string) => void;
+  popLastSavedDog: () => SavedDog | null;
   setLocationName: (v: string | null) => void;
   resetAll: () => void;
 }
@@ -94,6 +96,17 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setSavedCount((c) => c + 1);
   }, []);
 
+  const popLastSavedDog = useCallback((): SavedDog | null => {
+    const last = savedDogs[savedDogs.length - 1];
+    if (!last) return null;
+    setSavedDogs((prev) => prev.slice(0, -1));
+    // Restore the form to the popped dog's snapshot
+    if (last.formSnapshot) {
+      setDogForm(last.formSnapshot);
+    }
+    return last;
+  }, [savedDogs]);
+
   const removeSavedDog = useCallback((id: string) => {
     setSavedDogs((prev) => prev.filter((d) => d.id !== id));
     setSavedCount((c) => Math.max(0, c - 1));
@@ -118,7 +131,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         instagramHandle, setInstagramHandle,
         photoURL, setPhotoURL,
         dogForm, setDogForm, updateDogForm, resetDogForm,
-        savedDogs, savedCount, addSavedDog, removeSavedDog,
+        savedDogs, savedCount, addSavedDog, removeSavedDog, popLastSavedDog,
         locationName, setLocationName,
         resetAll,
       }}
