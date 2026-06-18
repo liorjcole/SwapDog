@@ -217,7 +217,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId }
 
         {post.status === 'open' && currentUserId && (post.respondedBy ?? []).some(r => r.userId === currentUserId) && (
           <View style={styles.respondedBadge}>
-            <Text style={styles.respondedBadgeText}>You Responded</Text>
+            <Text style={styles.respondedBadgeText}>Messaged ✓</Text>
           </View>
         )}
 

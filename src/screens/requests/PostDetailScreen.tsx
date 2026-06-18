@@ -889,9 +889,21 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           const alreadyResponded = respondents.some((r) => r.userId === user?.uid);
           if (alreadyResponded) {
             return (
-              <View style={[styles.helpBtn, styles.helpBtnAlreadyResponded]} accessibilityLabel="Already responded">
-                <Text style={[styles.helpBtnText, { color: '#636E72' }]}>Already Responded ✓</Text>
-              </View>
+              <TouchableOpacity
+                style={[styles.helpBtn, styles.helpBtnAlreadyResponded]}
+                accessibilityLabel="Messaged. Tap to view conversation"
+                accessibilityRole="button"
+                onPress={async () => {
+                  try {
+                    const convId = await getOrCreateConversation(user!.uid, post.posterId, post.id);
+                    navigation.navigate('Chat' as any, { conversationId: convId, otherUserId: post.posterId });
+                  } catch {
+                    Alert.alert('Error', 'Could not open conversation');
+                  }
+                }}
+              >
+                <Text style={[styles.helpBtnText, { color: colors.primary, fontWeight: '700' }]}>Messaged! Tap to view conversation →</Text>
+              </TouchableOpacity>
             );
           }
           return (
@@ -1067,7 +1079,7 @@ const styles = StyleSheet.create({
 
   // Help button
   helpBtn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm, marginBottom: spacing.sm, marginHorizontal: spacing.md },
-  helpBtnAlreadyResponded: { backgroundColor: '#E8E8E8' },
+  helpBtnAlreadyResponded: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#FF2D55' },
   helpBtnText: { color: '#fff', ...typography.button, fontSize: 17 },
 
   // Owner note
