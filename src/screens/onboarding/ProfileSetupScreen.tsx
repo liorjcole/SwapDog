@@ -11,6 +11,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { db } from '../../config/firebase';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { useOnboarding } from '../../contexts/OnboardingContext';
+import { Ionicons } from '@expo/vector-icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<OnboardingStackParamList, 'ProfileSetup'>;
@@ -189,7 +190,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         <View style={[styles.keyboardBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <View style={{ flex: 1 }} />
           <TouchableOpacity onPress={() => Keyboard.dismiss()} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}>
-            <Text style={[styles.keyboardDone, { color: colors.primary }]}>Done</Text>
+            <Ionicons name="checkmark-circle" size={30} color={colors.primary} />
           </TouchableOpacity>
         </View>
       </InputAccessoryView>

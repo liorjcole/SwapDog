@@ -45,9 +45,9 @@ const OnboardingStack: React.FC = () => {
                 );
               }}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={{ marginLeft: -8 }}
+              style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}
             >
-              <Text style={{ fontSize: 28, color: colors.primary, fontWeight: '300' }}>{'‹'}</Text>
+              <Text style={{ fontSize: 20, color: '#FFFFFF', fontWeight: '600', marginLeft: -2, marginTop: -1 }}>{'‹'}</Text>
             </TouchableOpacity>
           ),
         }}
