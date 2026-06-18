@@ -573,8 +573,8 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         />
         <Text style={[styles.fieldHint, { color: form.dogBio.trim().length >= 20 ? colors.success : colors.textSecondary }]}>
           {form.dogBio.trim().length < 20
-            ? `${form.dogBio.trim().length}/20 chars minimum`
-            : `${form.dogBio.trim().length} chars ✓`}
+            ? `${form.dogBio.trim().length}/20 characters minimum`
+            : `${form.dogBio.trim().length} characters ✓`}
         </Text>
       </View>
 
