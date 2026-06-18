@@ -196,8 +196,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     if (selectedDogs.length === 0) {
       Alert.alert('Required', 'Please select at least one dog'); return;
     }
-    if (!primaryCareType) {
-      Alert.alert('Required', 'Please select either Overnight or Daytime sitting — this tells sitters what kind of care you need.'); return;
+    if (!primaryCareType && addOnCareTypes.size === 0) {
+      Alert.alert('Required', 'Please select at least one type of care.'); return;
     }
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -223,7 +223,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
       if (!amt || amt <= 0) {
         Alert.alert('Invalid Payment', 'Please enter a valid dollar amount'); return;
       }
-      if (careType === 'daySitting' && (!daySittingHours || daySittingHours <= 0)) {
+      if (careType !== 'overnight' && (!daySittingHours || daySittingHours <= 0)) {
         Alert.alert('Invalid Times', 'End time must be after start time'); return;
       }
     } else {
@@ -272,7 +272,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
       if (addOnCareTypes.has('feeding')) {
         careTypeFields.feedingTime = feedingTime;
       }
-      if (primaryCareType === 'daySitting') {
+      if (primaryCareType !== 'overnight') {
         careTypeFields.startTime = startTime;
         careTypeFields.endTime = endTime;
       }
@@ -520,11 +520,11 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* ── Dynamic Sections ── */}
 
-        {/* ── Date section (shows when primary care type selected) ── */}
-        {primaryCareType !== null && (primaryCareType === 'overnight' || primaryCareType === 'daySitting') && (
+        {/* ── Date/Time section (always shows when any care type selected) ── */}
+        {(primaryCareType !== null || addOnCareTypes.size > 0) && (
               <View style={[styles.section, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  📅 {careType === 'overnight' ? 'Dates Needed' : 'Date'}
+                  📅 {careType === 'overnight' ? 'Dates Needed' : 'Date & Time'}
                 </Text>
                 <TouchableOpacity
                   style={[styles.dateButton, { borderColor: '#FFFFFF' }]}
@@ -591,7 +591,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                 )}
 
                 {/* Time fields for day sitting */}
-                {careType === 'daySitting' && (
+                {careType !== 'overnight' && (
                   <View style={styles.timeRow}>
                     <View style={styles.timeField}>
                       <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
@@ -620,7 +620,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                     </View>
                   </View>
                 )}
-                {careType === 'daySitting' && daySittingHours && daySittingHours > 0 && (
+                {careType !== 'overnight' && daySittingHours && daySittingHours > 0 && (
                   <View style={[styles.dateSummary, { backgroundColor: colors.background }]}>
                     <Text style={[styles.dateSummaryText, { color: colors.textSecondary }]}>
                       {daySittingHours} hr{daySittingHours !== 1 ? 's' : ''} of sitting
