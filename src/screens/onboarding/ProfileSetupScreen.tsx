@@ -10,6 +10,7 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { db } from '../../config/firebase';
 import { spacing, borderRadius, typography } from '../../config/theme';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<OnboardingStackParamList, 'ProfileSetup'>;
