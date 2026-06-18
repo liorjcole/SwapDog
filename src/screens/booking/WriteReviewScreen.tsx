@@ -29,10 +29,15 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
     setLoading(true);
     try {
       await createReview({
+        postId: route.params?.swapRequestId ?? '',
         reviewerId: user.uid,
+        reviewerName: 'Anonymous',
         revieweeId: route.params?.revieweeId ?? '',
-        swapRequestId: route.params?.swapRequestId ?? '',
+        targetType: route.params?.reviewRole === 'sitter' ? 'caregiver' : 'owner',
         rating,
+        note: comment.trim() || undefined,
+        // Legacy compat fields
+        swapRequestId: route.params?.swapRequestId ?? '',
         comment: comment.trim() || undefined,
         reviewRole: route.params?.reviewRole ?? undefined });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

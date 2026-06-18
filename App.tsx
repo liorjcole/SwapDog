@@ -83,6 +83,14 @@ export default function App() {
           } as never);
           break;
 
+        case 'review_prompt':
+          // Open the profile tab — the pending review popup will trigger on mount
+          nav.navigate('Main', {
+            screen: 'ProfileTab',
+            params: { screen: 'Profile' },
+          } as never);
+          break;
+
         default:
           // Fallback: if it has a conversationId, open chat (backwards compat)
           if (data.conversationId) {

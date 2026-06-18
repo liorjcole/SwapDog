@@ -268,13 +268,43 @@ export interface Message {
   };
 }
 
+export type ReviewTargetType = 'owner' | 'caregiver' | 'dog';
+
 export interface Review {
   id: string;
+  /** The post this review is for */
+  postId: string;
+  /** Who wrote the review */
   reviewerId: string;
+  reviewerName: string;
+  /** The user whose profile this review appears on */
   revieweeId: string;
-  swapRequestId: string;
+  /** What is being reviewed */
+  targetType: ReviewTargetType;
+  /** If targetType === 'dog', which dog */
+  dogId?: string;
+  dogName?: string;
+  /** 1–5 star rating */
   rating: number;
+  /** Optional written note */
+  note?: string;
+  createdAt: Date;
+
+  // Legacy compat
+  swapRequestId?: string;
   comment?: string;
   reviewRole?: 'owner' | 'sitter';
+}
+
+/** Pending review flag stored on the user doc */
+export interface PendingReview {
+  postId: string;
+  /** 'owner' = you posted it, review the caregiver + nothing else
+   *  'caregiver' = you sat, review each dog then the owner */
+  role: 'owner' | 'caregiver';
+  otherUserId: string;
+  otherUserName: string;
+  dogIds: string[];
+  dogNames: string[];
   createdAt: Date;
 }

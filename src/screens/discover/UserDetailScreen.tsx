@@ -13,7 +13,7 @@ import { useDogs } from '../../hooks/useDogs';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useReviews } from '../../hooks/useReviews';
 import { useMessaging } from '../../hooks/useMessaging';
-import { User, Dog, SwapPost } from '../../models/types';
+import { User, Dog, SwapPost, Review } from '../../models/types';
 import { spacing, borderRadius, shadow, typography } from '../../config/theme';
 import { formatDogAge } from '../../utils/formatDogAge';
 import StarRating from '../../components/common/StarRating';
@@ -61,7 +61,8 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const { getReviewsForUser } = useReviews();
-  const [reviews, setReviews] = useState<{ rating: number; text: string; reviewerName: string }[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewFilter, setReviewFilter] = useState<string>('all');
 
   useEffect(() => {
     const load = async () => {
@@ -81,7 +82,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       // Load reviews
       try {
         const revs = await getReviewsForUser(userId);
-        setReviews(revs.map((r: any) => ({ rating: r.rating ?? 0, text: r.text ?? '', reviewerName: r.reviewerName ?? 'Anonymous' })));
+        setReviews(revs);
       } catch { /* non-fatal */ }
       setLoading(false);
     };
@@ -191,21 +192,111 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         ))}
       </View>
 
-      {/* ── Reviews ── */}
+      {/* ── Reviews with filters ── */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Reviews</Text>
+
+        {reviews.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+            {/* "All" filter */}
+            <TouchableOpacity
+              onPress={() => setReviewFilter('all')}
+              style={[
+                styles.filterChip,
+                { borderColor: reviewFilter === 'all' ? colors.primary : colors.border,
+                  backgroundColor: reviewFilter === 'all' ? colors.primary + '15' : 'transparent' },
+              ]}
+            >
+              <Text style={[styles.filterText, { color: reviewFilter === 'all' ? colors.primary : colors.textSecondary }]}>
+                All ({reviews.length})
+              </Text>
+            </TouchableOpacity>
+
+            {/* "As Owner" filter */}
+            {reviews.some((r) => r.targetType === 'owner') && (
+              <TouchableOpacity
+                onPress={() => setReviewFilter('owner')}
+                style={[
+                  styles.filterChip,
+                  { borderColor: reviewFilter === 'owner' ? colors.primary : colors.border,
+                    backgroundColor: reviewFilter === 'owner' ? colors.primary + '15' : 'transparent' },
+                ]}
+              >
+                <Text style={[styles.filterText, { color: reviewFilter === 'owner' ? colors.primary : colors.textSecondary }]}>
+                  As Owner ({reviews.filter((r) => r.targetType === 'owner').length})
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* "As Caregiver" filter */}
+            {reviews.some((r) => r.targetType === 'caregiver') && (
+              <TouchableOpacity
+                onPress={() => setReviewFilter('caregiver')}
+                style={[
+                  styles.filterChip,
+                  { borderColor: reviewFilter === 'caregiver' ? colors.primary : colors.border,
+                    backgroundColor: reviewFilter === 'caregiver' ? colors.primary + '15' : 'transparent' },
+                ]}
+              >
+                <Text style={[styles.filterText, { color: reviewFilter === 'caregiver' ? colors.primary : colors.textSecondary }]}>
+                  As Caregiver ({reviews.filter((r) => r.targetType === 'caregiver').length})
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Per-dog filters */}
+            {dogs.map((dog) => {
+              const dogRevs = reviews.filter((r) => r.targetType === 'dog' && r.dogId === dog.id);
+              if (dogRevs.length === 0) return null;
+              return (
+                <TouchableOpacity
+                  key={dog.id}
+                  onPress={() => setReviewFilter('dog:' + dog.id)}
+                  style={[
+                    styles.filterChip,
+                    { borderColor: reviewFilter === 'dog:' + dog.id ? colors.primary : colors.border,
+                      backgroundColor: reviewFilter === 'dog:' + dog.id ? colors.primary + '15' : 'transparent' },
+                  ]}
+                >
+                  <Text style={[styles.filterText, { color: reviewFilter === 'dog:' + dog.id ? colors.primary : colors.textSecondary }]}>
+                    🐾 {dog.name} ({dogRevs.length})
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {/* Filtered review list */}
         {reviews.length === 0 ? (
           <Text style={{ color: colors.textSecondary, fontSize: 14 }}>No reviews yet</Text>
         ) : (
-          reviews.map((rev, idx) => (
-            <View key={idx} style={{ marginBottom: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                <StarRating rating={Math.round(rev.rating)} />
-                <Text style={{ color: colors.textSecondary, fontSize: 12, marginLeft: 8 }}>{rev.reviewerName}</Text>
+          reviews
+            .filter((r) => {
+              if (reviewFilter === 'all') return true;
+              if (reviewFilter === 'owner') return r.targetType === 'owner';
+              if (reviewFilter === 'caregiver') return r.targetType === 'caregiver';
+              if (reviewFilter.startsWith('dog:')) return r.targetType === 'dog' && r.dogId === reviewFilter.replace('dog:', '');
+              return true;
+            })
+            .map((rev) => (
+              <View key={rev.id} style={[styles.reviewCard, { backgroundColor: colors.surface }]}>
+                <View style={styles.reviewHeader}>
+                  <StarRating rating={Math.round(rev.rating)} size={16} />
+                  <Text style={[styles.reviewBadge, {
+                    color: rev.targetType === 'dog' ? '#FF9500' : rev.targetType === 'caregiver' ? '#34C759' : colors.primary,
+                  }]}>
+                    {rev.targetType === 'dog' ? ('🐾 ' + (rev.dogName ?? 'Dog')) : rev.targetType === 'caregiver' ? '🤝 Caregiver' : '👤 Owner'}
+                  </Text>
+                </View>
+                {(rev.note || rev.comment) ? (
+                  <Text style={[styles.reviewNote, { color: colors.text }]}>{rev.note || rev.comment}</Text>
+                ) : null}
+                <Text style={[styles.reviewMeta, { color: colors.textSecondary }]}>
+                  {rev.reviewerName} • {rev.createdAt instanceof Date ? rev.createdAt.toLocaleDateString() : ''}
+                </Text>
               </View>
-              {rev.text ? <Text style={{ color: colors.text, fontSize: 14 }}>{rev.text}</Text> : null}
-            </View>
-          ))
+            ))
         )}
       </View>
 
@@ -260,6 +351,15 @@ const styles = StyleSheet.create({
   dogPhoto: { width: 50, height: 50, borderRadius: 25, marginRight: 12 },
   dogPhotoPlaceholder: { width: 50, height: 50, borderRadius: 25, marginRight: 12, alignItems: 'center', justifyContent: 'center' },
   dogCardInfo: { flex: 1 },
+  // Reviews
+  filterRow: { marginBottom: spacing.md },
+  filterChip: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8 },
+  filterText: { fontSize: 13, fontWeight: '600' },
+  reviewCard: { padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.sm },
+  reviewHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  reviewBadge: { fontSize: 12, fontWeight: '700' },
+  reviewNote: { fontSize: 14, lineHeight: 20, marginBottom: 6 },
+  reviewMeta: { fontSize: 12 },
 });
 
 export default UserDetailScreen;

@@ -52,6 +52,14 @@ export type MessagesStackParamList = {
 export type ProfileStackParamList = {
   Referral: undefined;
   Profile: undefined;
+  Review: {
+    postId: string;
+    role: 'owner' | 'caregiver';
+    otherUserId: string;
+    otherUserName: string;
+    dogIds: string[];
+    dogNames: string[];
+  };
   EditProfile: undefined;
   /** dogId is optional: omit (or pass undefined) to create a new dog */
   EditDog: { dogId?: string };

@@ -45,6 +45,7 @@ import PointsHistoryScreen from '../screens/profile/PointsHistoryScreen';
 import ConductStandardsScreen from '../screens/onboarding/ConductStandardsScreen';
 import MyAgreementScreen from '../screens/profile/MyAgreementScreen';
 import ReferralScreen from '../screens/profile/ReferralScreen';
+import ReviewScreen from '../screens/reviews/ReviewScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const DiscoverStack = createNativeStackNavigator<DiscoverStackParamList>();
@@ -137,6 +138,7 @@ const ProfileNavigator: React.FC = () => {
       }}
     >
       <ProfileStack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile', headerShown: true }} />
+      <ProfileStack.Screen name="Review" component={ReviewScreen} options={{ title: 'Leave a Review', presentation: 'modal' }} />
       <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
       <ProfileStack.Screen
         name="EditDog"
@@ -223,6 +225,7 @@ const MainTabNavigator: React.FC = () => {
   const [showReschedulePopup, setShowReschedulePopup] = useState(false);
   const dismissedPostIds = useRef<Set<string>>(new Set());
   const checkedReferralReward = useRef(false);
+  const checkedPendingReview = useRef(false);
   const tabNavigation = useNavigation();
 
   // ── Check for pending referral reward on app open ──────────────────────────
@@ -264,6 +267,51 @@ const MainTabNavigator: React.FC = () => {
         });
       } catch (err) {
         console.error('[ReferralReward] Check failed:', err);
+      }
+    })();
+  }, [user]);
+
+  // ── Check for pending review on app open ─────────────────────────────────
+  useEffect(() => {
+    if (!user || checkedPendingReview.current) return;
+    checkedPendingReview.current = true;
+
+    (async () => {
+      try {
+        const userDocSnap = await getDoc(doc(db, 'users', user.uid));
+        if (!userDocSnap.exists()) return;
+        const data = userDocSnap.data();
+        const pending = data?.pendingReview;
+        if (!pending) return;
+
+        const otherName = (pending.otherUserName as string) || 'the other person';
+
+        setCelebrationQueue((prev) => [
+          ...prev,
+          {
+            title: 'How did it go? ⭐',
+            subtitle: 'Leave a review for ' + otherName,
+            emoji: '📝',
+            actionLabel: 'Leave Review',
+            onAction: () => {
+              tabNavigation.dispatch(
+                CommonActions.navigate('ProfileTab', {
+                  screen: 'Review',
+                  params: {
+                    postId: pending.postId as string,
+                    role: pending.role as 'owner' | 'caregiver',
+                    otherUserId: pending.otherUserId as string,
+                    otherUserName: pending.otherUserName as string,
+                    dogIds: (pending.dogIds as string[]) ?? [],
+                    dogNames: (pending.dogNames as string[]) ?? [],
+                  },
+                })
+              );
+            },
+          },
+        ]);
+      } catch (err) {
+        console.error('[PendingReview] Check failed:', err);
       }
     })();
   }, [user]);

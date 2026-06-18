@@ -375,3 +375,100 @@ export const onReferralUsed = onDocumentUpdated(
     }
   }
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. onPostCompleted — fires when a post status changes to "completed"
+//    Sends push notifications to both owner and caregiver to leave a review.
+//    Also sets pendingReview flag on both user docs for in-app popup.
+// ─────────────────────────────────────────────────────────────────────────────
+export const onPostCompleted = onDocumentUpdated(
+  "posts/{postId}",
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!before || !after) return;
+
+    const postId = event.params.postId;
+    const hadCompleted = before.status === "completed";
+    const nowCompleted = after.status === "completed";
+
+    // Only fire on the transition TO completed
+    if (hadCompleted || !nowCompleted) return;
+
+    const ownerId = after.posterId as string;
+    const caregiverId = after.claimedBy as string | undefined;
+    if (!caregiverId) return; // No caregiver assigned
+
+    // Gather dog info
+    const dogIds: string[] = (after.dogIds as string[]) ?? [after.dogId as string].filter(Boolean);
+    const dogNames: string[] = (after.dogNames as string[]) ?? [after.dogName as string].filter(Boolean);
+
+    try {
+      const ownerDoc = await admin.firestore().doc(`users/${ownerId}`).get();
+      const caregiverDoc = await admin.firestore().doc(`users/${caregiverId}`).get();
+      const ownerData = ownerDoc.data();
+      const caregiverData = caregiverDoc.data();
+      if (!ownerData || !caregiverData) return;
+
+      const ownerName = (ownerData.displayName as string) || "The owner";
+      const caregiverName = (caregiverData.displayName as string) || "The caregiver";
+      const dogNameStr = dogNames.length > 0 ? dogNames.join(" & ") : "your pup";
+
+      const now = admin.firestore.FieldValue.serverTimestamp();
+
+      // ── Set pendingReview on the OWNER (they review the caregiver) ──
+      await admin.firestore().doc(`users/${ownerId}`).update({
+        pendingReview: {
+          postId,
+          role: "owner",
+          otherUserId: caregiverId,
+          otherUserName: caregiverName,
+          dogIds,
+          dogNames,
+          createdAt: now,
+        },
+      });
+
+      // ── Set pendingReview on the CAREGIVER (they review each dog + the owner) ──
+      await admin.firestore().doc(`users/${caregiverId}`).update({
+        pendingReview: {
+          postId,
+          role: "caregiver",
+          otherUserId: ownerId,
+          otherUserName: ownerName,
+          dogIds,
+          dogNames,
+          createdAt: now,
+        },
+      });
+
+      // ── Push notification to OWNER ──
+      const ownerTokens = await getUserTokens(ownerId);
+      if (ownerTokens.length > 0) {
+        await sendPushNotifications(
+          ownerId,
+          ownerTokens,
+          "How was the care? ⭐",
+          `Leave a review for ${caregiverName} — how did they do with ${dogNameStr}?`,
+          { type: "review_prompt", postId },
+        );
+      }
+
+      // ── Push notification to CAREGIVER ──
+      const caregiverTokens = await getUserTokens(caregiverId);
+      if (caregiverTokens.length > 0) {
+        await sendPushNotifications(
+          caregiverId,
+          caregiverTokens,
+          "How did it go? ⭐",
+          `Leave a review for ${ownerName} and ${dogNameStr}!`,
+          { type: "review_prompt", postId },
+        );
+      }
+
+      console.log(`[onPostCompleted] Review prompts sent for post ${postId}`);
+    } catch (error) {
+      console.error("[onPostCompleted] Failed:", error);
+    }
+  }
+);
