@@ -59,7 +59,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   // Custom back: go to previous dog instead of ProfileSetup
-  const handleBack = useCallback(() => {
+  const doGoBack = useCallback(() => {
     if (savedCount > 0) {
       const popped = popLastSavedDog();
       if (popped?.id) {
@@ -75,6 +75,22 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       navigation.goBack();
     }
   }, [savedCount, popLastSavedDog, deleteDog, navigation]);
+
+  const handleBack = useCallback(() => {
+    if (savedCount > 0) {
+      // Warn that unsaved progress on the current dog will be lost
+      Alert.alert(
+        'Lose progress?',
+        'Any progress on this dog will be lost forever if you go back.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Go Back', style: 'destructive', onPress: doGoBack },
+        ]
+      );
+    } else {
+      navigation.goBack();
+    }
+  }, [savedCount, doGoBack, navigation]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
