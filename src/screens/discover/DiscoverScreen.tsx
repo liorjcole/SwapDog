@@ -459,7 +459,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { userProfile } = useAuthContext();
   const { getUsersByLocation } = useUsers();
-  const { getMyPosts, getAreaPosts } = useSwaps();
+  const { getAreaPosts } = useSwaps();
   const { getOrCreateConversation, sendMessage } = useMessaging();
 
   const { location, loading: locationLoading, setLocationOverride, clearLocationOverride } = useDiscoverLocation();
@@ -471,8 +471,6 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
   const [postsLoading, setPostsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
-  const [myOpenPost, setMyOpenPost] = useState<SwapPost | null>(null);
-  const [broadcastSending, setBroadcastSending] = useState(false);
   const [mapViewHeight, setMapViewHeight] = useState(MAP_HEIGHT_DEFAULT);
   // Track whether first location+data fetch has completed (eliminates feed flash)
   const [initialLoadDone, setInitialLoadDone] = useState(false);
@@ -542,7 +540,6 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     }
   }, [location, radiusMiles, userProfile?.id, getUsersByLocation]);
 
-
   // ── Fetch area posts ──────────────────────────────────────────────────────
   const fetchAreaPosts = useCallback(async () => {
     if (!location) return;
@@ -576,14 +573,6 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
       if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
     };
   }, [fetchNearby, fetchAreaPosts]);
-
-  // ── Load user's own open post ──────────────────────────────────────────────
-  useEffect(() => {
-    if (!userProfile?.id) return;
-    void getMyPosts(userProfile.id).then((posts) => {
-      setMyOpenPost(posts.find((p) => p.status === 'open') ?? null);
-    });
-  }, [userProfile?.id]);
 
   // ── Map zoom helpers ──────────────────────────────────────────────────────
   const animateMapToRadius = useCallback(
@@ -643,45 +632,6 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     [location, animateMapToRadius, mapViewHeight],
   );
 
-  // ── Broadcast helpers ──────────────────────────────────────────────────────
-  const buildPostMessage = useCallback((post: SwapPost): string => {
-    const start = smartDate(post.startDate);
-    const end = smartDate(post.endDate);
-    return `Hey! I posted a request for dog sitting — check it out!\n\nDog: ${post.dogName}${post.dogBreed ? ` (${post.dogBreed})` : ''}\nDates: ${start} – ${end}\nDetails: ${post.careDetails}`;
-  }, []);
-
-  const handleBroadcast = useCallback(() => {
-    if (!myOpenPost || !userProfile?.id || nearbyUsers.length === 0) return;
-    const count = nearbyUsers.length;
-    const miles = radiusMiles < 10 ? radiusMiles.toFixed(1) : Math.round(radiusMiles).toString();
-    Alert.alert(
-      '📢 Share My Post Nearby',
-      `Send your post to ${count} dog owner${count !== 1 ? 's' : ''} within ${miles} mi?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send to All',
-          onPress: async () => {
-            setBroadcastSending(true);
-            try {
-              const msg = buildPostMessage(myOpenPost);
-              await Promise.all(
-                nearbyUsers.map(async (nu) => {
-                  const convId = await getOrCreateConversation(userProfile.id, nu.user.id);
-                  await sendMessage(convId, userProfile.id, msg);
-                }),
-              );
-              Alert.alert('Done!', `Post sent to ${count} dog owner${count !== 1 ? 's' : ''}!`);
-            } catch {
-              Alert.alert('Error', 'Something went wrong. Some messages may not have sent.');
-            } finally {
-              setBroadcastSending(false);
-            }
-          } },
-      ],
-    );
-  }, [myOpenPost, userProfile?.id, nearbyUsers, radiusMiles, buildPostMessage, getOrCreateConversation, sendMessage]);
-
   // ── Location confirm ──────────────────────────────────────────────────────
   const handleLocationConfirm = useCallback(async (coords: GeoPoint, label: string) => {
     await setLocationOverride(coords, label);
@@ -712,8 +662,6 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     } else {
       displayPosts.forEach((p) => items.push({ kind: 'post', id: p.id, post: p }));
     }
-
-
 
     return items;
   }, [areaPosts, nearbyUsers, radiusMiles]);
@@ -783,26 +731,6 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
 
   const keyExtractor = useCallback((item: FeedItem) => item.id, []);
 
-  // ── Broadcast button (ListHeaderComponent) ─────────────────────────────────
-  const listHeader = useMemo(() => {
-    if (!myOpenPost || nearbyUsers.length === 0) return null;
-    return (
-      <TouchableOpacity
-        style={[styles.broadcastBtn, { backgroundColor: RED, opacity: broadcastSending ? 0.7 : 1 }]}
-        onPress={handleBroadcast}
-        disabled={broadcastSending}
-        accessibilityLabel={`Share your post with all ${nearbyUsers.length} nearby dog owners`}
-        accessibilityRole="button"
-      >
-        {broadcastSending ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.broadcastBtnText}>Share My Post Nearby</Text>
-        )}
-      </TouchableOpacity>
-    );
-  }, [myOpenPost, nearbyUsers.length, broadcastSending, handleBroadcast]);
-
   // ── Loading state ────────────────────────────────────────────────────────────
   if (locationLoading || !location) {
     return (
@@ -824,7 +752,6 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     longitude: location.coords.longitude,
     latitudeDelta: Math.max(0.01, (radiusMiles / 69) * 2 * (MAP_HEIGHT_DEFAULT / CIRCLE_SIZE)),
     longitudeDelta: Math.max(0.01, (radiusMiles / 69) * 2 * (MAP_HEIGHT_DEFAULT / CIRCLE_SIZE)) };
-
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -916,7 +843,6 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
           data={feedData}
           keyExtractor={keyExtractor}
           renderItem={renderFeedItem}
-          ListHeaderComponent={listHeader}
           contentContainerStyle={styles.list}
           onScroll={handleListScroll}
           scrollEventThrottle={16}
@@ -972,9 +898,6 @@ const styles = StyleSheet.create({
 
   listLoadingContainer: { flex: 1, paddingTop: spacing.md },
   list: { padding: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xl * 2 },
-
-  broadcastBtn: { marginTop: spacing.lg, marginBottom: spacing.md, padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center' },
-  broadcastBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   // Section headers
   sectionHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: 0, marginBottom: spacing.sm, gap: spacing.sm },
