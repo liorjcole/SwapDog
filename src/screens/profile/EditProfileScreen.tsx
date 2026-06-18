@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   changePhoto: { fontSize: 14, fontWeight: '600' },
   fieldHint: { fontSize: 12, marginTop: 4, marginBottom: 4, paddingHorizontal: 4 },
   input: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, fontSize: 15 },
-  textArea: { height: 100, textAlignVertical: 'top' },
+  textArea: { minHeight: 100, textAlignVertical: 'top' },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center' },
   btnText: { color: '#fff', ...typography.button } });
 
