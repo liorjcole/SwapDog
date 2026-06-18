@@ -36,6 +36,17 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
 
   const pickImage = async () => {
+    Alert.alert(
+      'Add Your Profile Photo',
+      "This is your dog parent profile photo so be sure to choose a pic of you not your pup! Don't worry… your dog's photos come next :)",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Choose Photo', onPress: async () => { await openImagePicker(); } },
+      ]
+    );
+  };
+
+  const openImagePicker = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -98,7 +109,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.photoPlaceholderText} accessibilityElementsHidden>📷</Text>
           </View>
         )}
-        <Text style={[styles.photoHint, { color: colors.primary }]}>Add Photo</Text>
+        <Text style={[styles.photoHint, { color: colors.primary }]}>Add Your Profile Photo</Text>
       </TouchableOpacity>
 
       <TextInput
