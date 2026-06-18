@@ -60,6 +60,21 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleNext = async () => {
     if (!displayName.trim()) { Alert.alert('Required', 'Please enter your name'); return; }
+    if (!instagramHandle.trim()) {
+      Alert.alert(
+        'Are you sure?',
+        "Are you sure you don\u2019t want to add your Instagram? Your IG helps the other dog parents see you\u2019re a real, trustworthy person.",
+        [
+          { text: 'Add Instagram', style: 'cancel' },
+          { text: 'Skip', onPress: () => proceedToSave() },
+        ]
+      );
+      return;
+    }
+    await proceedToSave();
+  };
+
+  const proceedToSave = async () => {
     if (!user) return;
     setLoading(true);
     try {
