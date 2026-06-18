@@ -82,7 +82,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
       contentContainerStyle={styles.content}
     >
       <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">Set up your profile</Text>
-      <Text style={[styles.sub, { color: colors.textSecondary }]}>Tell the community about yourself — your experience with dogs, why you love them, and what makes you a great dog parent. This helps neighbors feel comfortable trusting you with their pup and excited to look after yours.</Text>
+      <Text style={[styles.sub, { color: colors.textSecondary }]}>Tell the community about yourself — your experience with dogs, why you love them, and what makes you a great dog parent. This helps neighbors feel comfortable trusting you with their pup and excited to look after yours. This content will be visible on your profile!</Text>
 
       <TouchableOpacity
         style={styles.photoPicker}
