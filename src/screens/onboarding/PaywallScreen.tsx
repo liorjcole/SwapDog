@@ -8,6 +8,7 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { OnboardingStackParamList } from '../../navigation/types';
+import { spacing } from '../../config/theme';
 
 const RED = '#FF2D55';
 
