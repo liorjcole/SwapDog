@@ -86,7 +86,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [photoURL, setPhotoURL] = useState('');
   const [dogForm, setDogForm] = useState<DogForm>(blankDogForm());
   const [savedDogs, setSavedDogs] = useState<SavedDog[]>([]);
-  const [savedCount, setSavedCount] = useState(0);
+  const savedCount = savedDogs.length;
   const [locationName, setLocationName] = useState<string | null>(null);
 
   const updateDogForm = useCallback(<K extends keyof DogForm>(key: K, value: DogForm[K]) => {
@@ -97,23 +97,25 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const addSavedDog = useCallback((dog: SavedDog) => {
     setSavedDogs((prev) => [...prev, dog]);
-    setSavedCount((c) => c + 1);
   }, []);
 
   const popLastSavedDog = useCallback((): SavedDog | null => {
-    const last = savedDogs[savedDogs.length - 1];
-    if (!last) return null;
-    setSavedDogs((prev) => prev.slice(0, -1));
-    // Restore the form to the popped dog's snapshot
-    if (last.formSnapshot) {
-      setDogForm(last.formSnapshot);
+    // Use functional updater to read CURRENT savedDogs (avoids stale closure)
+    let popped: SavedDog | null = null;
+    setSavedDogs((prev) => {
+      if (prev.length === 0) return prev;
+      popped = prev[prev.length - 1];
+      return prev.slice(0, -1);
+    });
+    // React runs the updater function synchronously, so popped is set here
+    if (popped && (popped as SavedDog).formSnapshot) {
+      setDogForm((popped as SavedDog).formSnapshot!);
     }
-    return last;
-  }, [savedDogs]);
+    return popped;
+  }, []);
 
   const removeSavedDog = useCallback((id: string) => {
     setSavedDogs((prev) => prev.filter((d) => d.id !== id));
-    setSavedCount((c) => Math.max(0, c - 1));
   }, []);
 
   const resetAll = useCallback(() => {
@@ -123,7 +125,6 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setPhotoURL('');
     setDogForm(blankDogForm());
     setSavedDogs([]);
-    setSavedCount(0);
     setLocationName(null);
   }, []);
 

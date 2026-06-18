@@ -228,25 +228,21 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleDeleteCurrentDog = () => {
-    const currentDogNumber = savedCount + 1;
-    const currentOrdinal = ordinalWord(currentDogNumber);
+    const currentOrdinal = ordinalWord(savedCount + 1);
     Alert.alert(
       `Remove your ${currentOrdinal} dog?`,
-      `This will delete ${form.name.trim() || 'this dog'} and all their info from your account.`,
+      `This will discard ${form.name.trim() || 'this dog'} and go back to your previous dog.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Remove',
           style: 'destructive',
           onPress: () => {
-            // Remove the last saved dog from Firestore + context
-            const lastDog = savedDogs[savedDogs.length - 1];
-            if (lastDog) {
-              deleteDog(lastDog.id).catch(() => {});
-              removeSavedDog(lastDog.id);
+            // Discard current form, pop previous dog and restore its data
+            const popped = popLastSavedDog();
+            if (popped?.id) {
+              deleteDog(popped.id).catch(() => {});
             }
-            resetDogForm();
-            // Double-scroll: once immediately after state update, once after layout settles
             setTimeout(() => {
               scrollRef.current?.scrollTo({ y: 0, animated: false });
             }, 50);
@@ -273,13 +269,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
             try {
               await deleteDog(dogId);
               removeSavedDog(dogId);
-              resetDogForm();
-              setTimeout(() => {
-                scrollRef.current?.scrollTo({ y: 0, animated: false });
-              }, 50);
-              setTimeout(() => {
-                scrollRef.current?.scrollTo({ y: 0, animated: false });
-              }, 300);
+              // Don't reset the current form — only the specific saved dog was removed
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch (e: unknown) {
               Alert.alert('Error', e instanceof Error ? e.message : 'Failed to remove dog');
