@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -26,6 +26,7 @@ const cleanIgHandle = (raw: string): string => {
 
 const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
+  const scrollRef = useRef<ScrollView>(null);
   const { user } = useAuthContext();
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
@@ -96,9 +97,11 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
+        ref={scrollRef}
         automaticallyAdjustKeyboardInsets={true}
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.content}
     >
       <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">Set up your profile</Text>
       <Text style={[styles.sub, { color: colors.textSecondary }]}>Tell the community about yourself and your experience with dogs! This helps the dog parents in your neighborhood feel comfortable trusting you with their pup and excited to look after yours :)</Text>
@@ -131,7 +134,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
       />
       <TextInput
         style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-        placeholder="Share your experience with dogs, your lifestyle, and what makes you a great pet sitter..."
+        placeholder="Tell the community about yourself! Your experience with dogs, what makes you a great pet parent (someone they should trust with their pup and whose pup they'd like to care for as well!)"
         placeholderTextColor={colors.textSecondary}
         value={bio}
         onChangeText={setBio}
@@ -170,7 +173,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flexGrow: 1, padding: spacing.lg, paddingTop: spacing.lg, justifyContent: 'center' },
+  content: { flexGrow: 1, padding: spacing.lg, paddingTop: spacing.lg },
   title: { ...typography.h2, textAlign: 'center', marginBottom: spacing.sm },
   sub: { ...typography.body, textAlign: 'center', marginBottom: spacing.xl },
   photoPicker: { alignItems: 'center', marginBottom: spacing.lg },

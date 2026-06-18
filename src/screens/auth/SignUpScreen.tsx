@@ -120,7 +120,7 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flexGrow: 1, padding: spacing.lg, justifyContent: 'center' },
+  content: { flexGrow: 1, padding: spacing.lg, paddingTop: 120 },
   logo: { fontSize: 56, textAlign: 'center', marginBottom: spacing.md },
   title: { ...typography.h2, textAlign: 'center', marginBottom: spacing.xs },
   sub: { ...typography.body, textAlign: 'center', marginBottom: spacing.xl },
