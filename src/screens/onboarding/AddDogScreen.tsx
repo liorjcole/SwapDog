@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch,
-  Image, Platform, ActivityIndicator } from 'react-native';
+  Image, Platform, ActivityIndicator, Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../config/firebase';
@@ -14,6 +14,20 @@ import { useDogs } from '../../hooks/useDogs';
 import { DogSize, DogSex, EnergyLevel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import Chip from '../../components/common/Chip';
+import DogAddedTransition from '../../components/onboarding/DogAddedTransition';
+
+const MAX_DOGS = 10;
+
+const ordinal = (n: number) => {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
+
+const ordinalWord = (n: number): string => {
+  const words = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
+  return words[n - 1] || ordinal(n);
+};
 
 const MAX_PHOTOS = 10;
 
@@ -46,6 +60,8 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   // Track dogs saved this session
   const [savedCount, setSavedCount] = useState(0);
   const [savedDogs, setSavedDogs] = useState<Array<{ name: string; breed: string; photoURL?: string }>>([]);
+  const [showTransition, setShowTransition] = useState(false);
+  const [transitionDogName, setTransitionDogName] = useState('');
 
   const set = <K extends keyof ReturnType<typeof blankForm>>(
     key: K,
@@ -132,12 +148,26 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleAddAnother = async () => {
+    if (savedCount + 1 >= MAX_DOGS) {
+      Alert.alert(
+        '10 Dog Limit Reached',
+        'Reach out to support to request a special account for 10+ dogs!',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Email Support',
+            onPress: () => Linking.openURL('mailto:david@joinwatchdog.com?subject=Request%20for%2010%2B%20Dogs%20Account'),
+          },
+        ]
+      );
+      return;
+    }
     const dogId = await saveDog();
     if (dogId) {
-      // Save the dog info for display
-      setSavedDogs((prev) => [...prev, { id: dogId, name: form.name, breed: form.breed, photoURL: form.photoURLs[0] }]);
-      // Reset the form to blank so the user can enter another dog
-      setForm(blankForm());
+      const justSavedName = form.name.trim();
+      setSavedDogs((prev) => [...prev, { id: dogId, name: justSavedName, breed: form.breed, photoURL: form.photoURLs[0] }]);
+      setTransitionDogName(justSavedName);
+      setShowTransition(true);
     }
   };
 
@@ -183,7 +213,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     <ScrollView
         automaticallyAdjustKeyboardInsets={true} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
       <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
-        {savedCount === 0 ? 'Add your dog' : `Add dog #${savedCount + 1}`}
+        {savedCount === 0 ? 'Add your dog' : `Add your ${ordinalWord(savedCount + 1)} dog`}
       </Text>
       <Text style={[styles.sub, { color: colors.textSecondary }]}>
         {savedCount === 0
@@ -346,18 +376,43 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       </TouchableOpacity>
 
       {/* Add Another Dog — saves current dog and loops back to blank form */}
-      <TouchableOpacity
-        style={[styles.addAnotherBtn, { borderColor: colors.primary, opacity: loading ? 0.5 : 1 }]}
-        onPress={handleAddAnother}
-        disabled={loading}
-        accessibilityLabel="Add another dog"
-        accessibilityRole="button"
-      >
-        <Text style={[styles.addAnotherBtnText, { color: colors.primary }]}>➕ Add Another Dog</Text>
-      </TouchableOpacity>
+      {savedCount + 1 < MAX_DOGS ? (
+        <TouchableOpacity
+          style={[styles.addAnotherBtn, { borderColor: colors.primary, opacity: loading ? 0.5 : 1 }]}
+          onPress={handleAddAnother}
+          disabled={loading}
+          accessibilityLabel="Add another dog"
+          accessibilityRole="button"
+        >
+          <Text style={[styles.addAnotherBtnText, { color: colors.primary }]}>➕ Add Another Dog</Text>
+        </TouchableOpacity>
+      ) : savedCount + 1 >= MAX_DOGS ? (
+        <TouchableOpacity
+          style={[styles.addAnotherBtn, { borderColor: colors.textSecondary, opacity: 0.8 }]}
+          onPress={() => Linking.openURL('mailto:david@joinwatchdog.com?subject=Request%20for%2010%2B%20Dogs%20Account')}
+          accessibilityLabel="Contact support for more than 10 dogs"
+          accessibilityRole="button"
+        >
+          <Text style={[styles.addAnotherBtnText, { color: colors.textSecondary }]}>
+            10 dog limit reached — email david@joinwatchdog.com for a special account!
+          </Text>
+        </TouchableOpacity>
+      ) : null}
 
 
     </ScrollView>
+
+      {showTransition && (
+        <DogAddedTransition
+          dogName={transitionDogName}
+          dogNumber={savedCount}
+          nextDogNumber={savedCount + 1}
+          onFinish={() => {
+            setShowTransition(false);
+            setForm(blankForm());
+          }}
+        />
+      )}
     </View>
   );
 };
