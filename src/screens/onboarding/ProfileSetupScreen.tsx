@@ -82,7 +82,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
       contentContainerStyle={styles.content}
     >
       <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">Set up your profile</Text>
-      <Text style={[styles.sub, { color: colors.textSecondary }]}>Tell the community about yourself</Text>
+      <Text style={[styles.sub, { color: colors.textSecondary }]}>Tell the community about yourself — your experience with dogs, why you love them, and what makes you a great dog parent. This helps neighbors feel comfortable trusting you with their pup and excited to look after yours.</Text>
 
       <TouchableOpacity
         style={styles.photoPicker}
@@ -132,7 +132,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         accessibilityLabel="Instagram handle, optional"
           returnKeyType="done"
       />
-      <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>This will be visible on your profile so others can connect with you.</Text>
+
 
       <TouchableOpacity
         style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
