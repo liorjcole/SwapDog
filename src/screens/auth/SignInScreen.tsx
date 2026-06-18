@@ -64,7 +64,7 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.logo} accessibilityElementsHidden>🐾</Text>
-        <Text style={[styles.title, { color: colors.text }]}>Welcome back</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Sign in</Text>
         <Text style={[styles.sub, { color: colors.textSecondary }]}>Sign in to WatchDog</Text>
 
         <TextInput
