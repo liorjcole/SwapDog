@@ -302,7 +302,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       </Text>
       <Text style={[styles.sub, { color: colors.textSecondary }]}>
         {savedCount === 0
-          ? 'Tell us about your furry friend'
+          ? "Fill out your pup's profile!"
           : `${savedCount} dog${savedCount > 1 ? 's' : ''} added — keep going!`}
       </Text>
 
