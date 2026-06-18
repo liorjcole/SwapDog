@@ -7,6 +7,7 @@ export interface DogForm {
   breed: string;
   ageYears: number;
   ageMonths: number;
+  weightLbs: number;
   size: DogSize;
   sex: DogSex;
   energy: EnergyLevel;
@@ -21,6 +22,7 @@ export const blankDogForm = (): DogForm => ({
   breed: '',
   ageYears: 0,
   ageMonths: 1,
+  weightLbs: 0,
   size: DogSize.medium,
   sex: DogSex.male,
   energy: EnergyLevel.moderate,

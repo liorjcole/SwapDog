@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch,
-  Image, Platform, ActivityIndicator, Linking } from 'react-native';
+  Image, Platform, ActivityIndicator, Linking, Animated as RNAnimated, LayoutAnimation } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../config/firebase';
@@ -46,6 +46,16 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const { dogForm: form, setDogForm: setForm, updateDogForm: set, savedDogs, savedCount, addSavedDog, removeSavedDog, popLastSavedDog, resetDogForm } = useOnboarding();
   const scrollRef = useRef<ScrollView>(null);
   const [loading, setLoading] = useState(false);
+  const [showRefChart, setShowRefChart] = useState(false);
+
+  // Auto-map weight to size category
+  const weightToSize = (lbs: number): DogSize => {
+    if (lbs <= 0) return DogSize.medium;
+    if (lbs <= 15) return DogSize.small;
+    if (lbs <= 50) return DogSize.medium;
+    if (lbs <= 100) return DogSize.large;
+    return DogSize.extra_large;
+  };
 
   // Custom back: go to previous dog instead of ProfileSetup
   const handleBack = useCallback(() => {
@@ -161,7 +171,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         breed: form.breed.trim(),
         ageYears: form.ageYears,
         ageMonths: form.ageYears === 0 ? form.ageMonths : form.ageMonths,
-        size: form.size,
+        size: weightToSize(form.weightLbs),
         sex: form.sex,
         energyLevel: form.energy,
         photoURLs: form.photoURLs,
@@ -430,12 +440,57 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={[styles.ageHint, { color: colors.textSecondary }]}>Months required for puppies under 1 year</Text>
       )}
 
-      <Text style={[styles.label, { color: colors.text }]}>Size</Text>
-      <View style={styles.chips}>
-        {([DogSize.small, DogSize.medium, DogSize.large, DogSize.extra_large] as DogSize[]).map((s) => (
-          <Chip key={s} label={s.replace('_', ' ')} selected={form.size === s} onPress={() => set('size', s)} />
-        ))}
-      </View>
+      <Text style={[styles.label, { color: colors.text }]}>Weight (lbs)</Text>
+      <TextInput
+        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+        placeholder="Estimated weight in pounds"
+        placeholderTextColor={colors.textSecondary}
+        value={form.weightLbs > 0 ? String(form.weightLbs) : ''}
+        onChangeText={(v) => {
+          const num = parseInt(v.replace(/[^0-9]/g, ''), 10);
+          set('weightLbs', isNaN(num) ? 0 : num);
+        }}
+        keyboardType="number-pad"
+        returnKeyType="done"
+        accessibilityLabel="Dog weight in pounds"
+        onLayout={(e) => { inputY['weight'] = e.nativeEvent.layout.y; }}
+        onFocus={() => scrollToInput('weight')}
+      />
+      <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>An estimate is totally fine!</Text>
+      <TouchableOpacity
+        onPress={() => {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          setShowRefChart((v) => !v);
+        }}
+        style={styles.refChartToggle}
+        accessibilityLabel={showRefChart ? 'Hide reference chart' : 'Show reference chart'}
+        accessibilityRole="button"
+      >
+        <Text style={[styles.refChartToggleText, { color: colors.primary }]}>
+          {showRefChart ? 'Hide chart ▲' : 'Not sure? ▼'}
+        </Text>
+      </TouchableOpacity>
+      {showRefChart && (
+        <View style={[styles.refChart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.refChartTitle, { color: colors.text }]}>Reference Chart</Text>
+          <View style={styles.refChartRow}>
+            <Text style={[styles.refChartBreed, { color: colors.textSecondary }]}>Yorkie</Text>
+            <Text style={[styles.refChartWeight, { color: colors.text }]}>~5 lb</Text>
+          </View>
+          <View style={styles.refChartRow}>
+            <Text style={[styles.refChartBreed, { color: colors.textSecondary }]}>Corgi</Text>
+            <Text style={[styles.refChartWeight, { color: colors.text }]}>~25 lb</Text>
+          </View>
+          <View style={styles.refChartRow}>
+            <Text style={[styles.refChartBreed, { color: colors.textSecondary }]}>Labrador</Text>
+            <Text style={[styles.refChartWeight, { color: colors.text }]}>~65 lb</Text>
+          </View>
+          <View style={styles.refChartRow}>
+            <Text style={[styles.refChartBreed, { color: colors.textSecondary }]}>Great Dane</Text>
+            <Text style={[styles.refChartWeight, { color: colors.text }]}>~140 lb</Text>
+          </View>
+        </View>
+      )}
 
       <Text style={[styles.label, { color: colors.text }]}>Sex</Text>
       <View style={styles.chips}>
@@ -565,6 +620,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FF3B30',
   },
+  fieldHint: { fontSize: 12, color: '#999', marginTop: -8, marginBottom: 4 },
+  refChartToggle: { alignSelf: 'flex-start', marginBottom: spacing.sm, paddingVertical: 4 },
+  refChartToggleText: { fontSize: 14, fontWeight: '600' },
+  refChart: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md },
+  refChartTitle: { fontSize: 14, fontWeight: '700', marginBottom: spacing.sm },
+  refChartRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.1)' },
+  refChartBreed: { fontSize: 14 },
+  refChartWeight: { fontSize: 14, fontWeight: '600' },
   skip: { textAlign: 'center', fontSize: 15, marginBottom: spacing.lg },
   // Photo grid
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md, gap: spacing.xs },
