@@ -117,21 +117,19 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
 
   const pickPhoto = async () => {
-    if (form.photoURLs.length >= MAX_PHOTOS) {
-      Alert.alert('Limit reached', `You can add up to ${MAX_PHOTOS} photos`);
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
-      allowsMultipleSelection: false,
-      allowsEditing: true,
-      aspect: [1, 1] as [number, number],
-      quality: 0.8 });
-    if (result.canceled || !result.assets?.length) return;
-    setUploadingPhoto(true);
-    try {
-      const uriList: string[] = [];
-      for (const asset of result.assets.slice(0, MAX_PHOTOS - form.photoURLs.length)) {
+    // Loop: keep re-opening the camera roll until user cancels or max reached
+    let currentPhotos = [...form.photoURLs];
+    while (currentPhotos.length < MAX_PHOTOS) {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images',
+        allowsMultipleSelection: false,
+        allowsEditing: true,
+        aspect: [1, 1] as [number, number],
+        quality: 0.8 });
+      if (result.canceled || !result.assets?.length) return;
+      setUploadingPhoto(true);
+      try {
+        const asset = result.assets[0];
         const tempId = `temp_${user?.uid ?? 'anon'}_${Date.now()}`;
         const response = await fetch(asset.uri);
         if (!response) throw new Error('Failed to read image file');
@@ -139,13 +137,17 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         const fileRef = storageRef(storage, `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
         await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
         const downloadURL = await getDownloadURL(fileRef);
-        uriList.push(downloadURL);
+        currentPhotos = [...currentPhotos, downloadURL].slice(0, MAX_PHOTOS);
+        set('photoURLs', currentPhotos);
+      } catch {
+        Alert.alert('Error', 'Failed to upload photo. Please try again.');
+        return;
+      } finally {
+        setUploadingPhoto(false);
       }
-      set('photoURLs', [...form.photoURLs, ...uriList].slice(0, MAX_PHOTOS));
-    } catch {
-      Alert.alert('Error', 'Failed to upload photo. Please try again.');
-    } finally {
-      setUploadingPhoto(false);
+    }
+    if (currentPhotos.length >= MAX_PHOTOS) {
+      Alert.alert('All set!', `You've added ${MAX_PHOTOS} photos.`);
     }
   };
 
