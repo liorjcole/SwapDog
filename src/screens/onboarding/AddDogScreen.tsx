@@ -191,9 +191,13 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
               removeSavedDog(lastDog.id);
             }
             resetDogForm();
+            // Double-scroll: once immediately after state update, once after layout settles
             setTimeout(() => {
               scrollRef.current?.scrollTo({ y: 0, animated: false });
             }, 50);
+            setTimeout(() => {
+              scrollRef.current?.scrollTo({ y: 0, animated: false });
+            }, 300);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           },
         },
@@ -214,6 +218,13 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
             try {
               await deleteDog(dogId);
               removeSavedDog(dogId);
+              resetDogForm();
+              setTimeout(() => {
+                scrollRef.current?.scrollTo({ y: 0, animated: false });
+              }, 50);
+              setTimeout(() => {
+                scrollRef.current?.scrollTo({ y: 0, animated: false });
+              }, 300);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch (e: unknown) {
               Alert.alert('Error', e instanceof Error ? e.message : 'Failed to remove dog');
@@ -466,6 +477,9 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
               setTimeout(() => {
                 scrollRef.current?.scrollTo({ y: 0, animated: false });
               }, 50);
+              setTimeout(() => {
+                scrollRef.current?.scrollTo({ y: 0, animated: false });
+              }, 300);
             }
           }}
         />
