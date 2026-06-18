@@ -152,6 +152,8 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         onChangeText={setBio}
         multiline
         numberOfLines={4}
+        returnKeyType="done"
+        blurOnSubmit={true}
         accessibilityLabel="Bio, optional"
         onLayout={(e) => { inputY['bio'] = e.nativeEvent.layout.y; }}
         onFocus={() => scrollToInput('bio')}
