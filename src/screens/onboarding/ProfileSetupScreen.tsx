@@ -63,7 +63,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
     if (!instagramHandle.trim()) {
       Alert.alert(
         'Reconsider adding your Instagram?',
-        "Are you sure you don\u2019t want to add your Instagram? Your IG helps the other dog parents see you\u2019re a real, trustworthy person.",
+        "Your IG helps the other dog parents see you're a real, trustworthy person.",
         [
           { text: 'Add Instagram', style: 'cancel' },
           { text: 'Skip', onPress: () => proceedToSave() },
