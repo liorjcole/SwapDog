@@ -654,14 +654,14 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1 },
   switchLabel: { fontSize: 15 },
-  btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.lg, marginBottom: spacing.sm },
+  btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.lg, marginBottom: spacing.md },
   btnText: { color: '#fff', ...typography.button },
   addAnotherBtn: {
     borderWidth: 2,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     alignItems: 'center',
-    marginBottom: spacing.md },
+    marginBottom: spacing.xl },
   addAnotherBtnText: { fontSize: 15, fontWeight: '700' },
   deleteCurrentBtn: {
     alignItems: 'center',
