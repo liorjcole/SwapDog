@@ -48,6 +48,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
+  const [transitionMode, setTransitionMode] = useState<'addAnother' | 'continue'>('addAnother');
   const [transitionDogName, setTransitionDogName] = useState('');
 
 
@@ -126,7 +127,11 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const handleContinue = async () => {
     const dogId = await saveDog();
     if (dogId) {
-      navigation.navigate('Paywall');
+      const justSavedName = form.name.trim();
+      addSavedDog({ id: dogId, name: justSavedName, breed: form.breed, photoURL: form.photoURLs[0] });
+      setTransitionDogName(justSavedName);
+      setTransitionMode('continue');
+      setShowTransition(true);
     }
   };
 
@@ -150,8 +155,36 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       const justSavedName = form.name.trim();
       addSavedDog({ id: dogId, name: justSavedName, breed: form.breed, photoURL: form.photoURLs[0] });
       setTransitionDogName(justSavedName);
+      setTransitionMode('addAnother');
       setShowTransition(true);
     }
+  };
+
+  const handleDeleteCurrentDog = () => {
+    const currentDogNumber = savedCount + 1;
+    const currentOrdinal = ordinalWord(currentDogNumber);
+    Alert.alert(
+      `Remove your ${currentOrdinal} dog?`,
+      `This will delete ${form.name.trim() || 'this dog'} and all their info from your account.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            // Remove the last saved dog from Firestore + context
+            const lastDog = savedDogs[savedDogs.length - 1];
+            if (lastDog) {
+              deleteDog(lastDog.id).catch(() => {});
+              removeSavedDog(lastDog.id);
+            }
+            resetDogForm();
+            scrollRef.current?.scrollTo({ y: 0, animated: false });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          },
+        },
+      ]
+    );
   };
 
   const handleDeleteSavedDog = (dogId: string, dogName: string) => {
@@ -381,6 +414,19 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       ) : null}
 
+      {/* Delete current dog — only shown for 2nd+ dog */}
+      {savedCount > 0 && (
+        <TouchableOpacity
+          style={styles.deleteCurrentBtn}
+          onPress={handleDeleteCurrentDog}
+          accessibilityLabel={`Delete ${ordinalWord(savedCount + 1)} dog`}
+          accessibilityRole="button"
+        >
+          <Text style={styles.deleteCurrentBtnText}>
+            Delete {ordinalWord(savedCount + 1)} dog
+          </Text>
+        </TouchableOpacity>
+      )}
 
     </ScrollView>
 
@@ -388,11 +434,17 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         <DogAddedTransition
           dogName={transitionDogName}
           dogNumber={savedCount}
+          allDogs={savedDogs.map((d) => ({ name: d.name }))}
+          mode={transitionMode}
           nextDogNumber={savedCount + 1}
           onFinish={() => {
             setShowTransition(false);
-            resetDogForm();
-            scrollRef.current?.scrollTo({ y: 0, animated: false });
+            if (transitionMode === 'continue') {
+              navigation.navigate('Paywall');
+            } else {
+              resetDogForm();
+              scrollRef.current?.scrollTo({ y: 0, animated: false });
+            }
           }}
         />
       )}
@@ -421,6 +473,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md },
   addAnotherBtnText: { fontSize: 15, fontWeight: '700' },
+  deleteCurrentBtn: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  deleteCurrentBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FF3B30',
+  },
   skip: { textAlign: 'center', fontSize: 15, marginBottom: spacing.lg },
   // Photo grid
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md, gap: spacing.xs },

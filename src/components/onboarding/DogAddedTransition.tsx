@@ -17,11 +17,23 @@ const CONFETTI_COLORS = [
 
 const NUM_CONFETTI = 40;
 
+interface DogEntry {
+  name: string;
+}
+
 interface Props {
+  /** The dog that was just saved (always shown with the big title) */
   dogName: string;
-  dogNumber: number;      // 1-based — the dog that was just saved
-  nextDogNumber: number;  // the dog they're about to add
-  onFinish: () => void;   // called when animation completes
+  /** 1-based — the dog that was just saved */
+  dogNumber: number;
+  /** All dogs INCLUDING the one just saved — shown as a roster when > 1 */
+  allDogs: DogEntry[];
+  /** What happens after the animation */
+  mode: 'addAnother' | 'continue';
+  /** Only used when mode='addAnother' */
+  nextDogNumber?: number;
+  /** Called when animation completes */
+  onFinish: () => void;
 }
 
 const ordinal = (n: number) => {
@@ -42,7 +54,9 @@ interface ConfettiPiece {
   animRotate: Animated.Value;
 }
 
-const DogAddedTransition: React.FC<Props> = ({ dogName, dogNumber, nextDogNumber, onFinish }) => {
+const DogAddedTransition: React.FC<Props> = ({
+  dogName, dogNumber, allDogs, mode, nextDogNumber, onFinish,
+}) => {
   // --- Confetti pieces ---
   const confetti = useRef<ConfettiPiece[]>(
     Array.from({ length: NUM_CONFETTI }, () => ({
@@ -61,12 +75,23 @@ const DogAddedTransition: React.FC<Props> = ({ dogName, dogNumber, nextDogNumber
   // --- Text animations ---
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const titleScale = useRef(new Animated.Value(0.5)).current;
+
+  // Roster row animations (one per dog)
+  const rosterAnims = useRef(
+    allDogs.map(() => ({
+      opacity: new Animated.Value(0),
+      translateX: new Animated.Value(-20),
+    }))
+  ).current;
+
   const lineHeight = useRef(new Animated.Value(0)).current;
   const arrowOpacity = useRef(new Animated.Value(0)).current;
   const arrowTranslateY = useRef(new Animated.Value(-10)).current;
   const nextTextOpacity = useRef(new Animated.Value(0)).current;
   const nextTextScale = useRef(new Animated.Value(0.5)).current;
   const fadeOut = useRef(new Animated.Value(1)).current;
+
+  const showRoster = allDogs.length > 1;
 
   useEffect(() => {
     // 1. Start confetti
@@ -102,35 +127,70 @@ const DogAddedTransition: React.FC<Props> = ({ dogName, dogNumber, nextDogNumber
       ]).start();
     });
 
-    // 2. Title fades in + scales up: "You added your first dog!"
-    Animated.sequence([
-      Animated.delay(200),
+    // Build the main content sequence
+    const sequence: Animated.CompositeAnimation[] = [];
+
+    // 2. Title: "🎉 You added [dogName]!"
+    sequence.push(Animated.delay(200));
+    sequence.push(
       Animated.parallel([
         Animated.timing(titleOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
         Animated.spring(titleScale, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
-      ]),
-      // 3. Line grows down
-      Animated.delay(400),
-      Animated.timing(lineHeight, { toValue: 80, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-      // 4. Arrow appears
+      ])
+    );
+
+    // 3. Roster rows stagger in (only when multiple dogs)
+    if (showRoster) {
+      sequence.push(Animated.delay(400));
+      rosterAnims.forEach((anim, i) => {
+        sequence.push(Animated.delay(i === 0 ? 0 : 200));
+        sequence.push(
+          Animated.parallel([
+            Animated.timing(anim.opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+            Animated.timing(anim.translateX, { toValue: 0, duration: 350, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+          ])
+        );
+      });
+    }
+
+    // 4. Line grows down
+    sequence.push(Animated.delay(showRoster ? 300 : 400));
+    sequence.push(
+      Animated.timing(lineHeight, { toValue: 80, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: false })
+    );
+
+    // 5. Arrow appears
+    sequence.push(
       Animated.parallel([
         Animated.timing(arrowOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
         Animated.timing(arrowTranslateY, { toValue: 0, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      ]),
-      // 5. "Now adding your second dog!" fades in
-      Animated.delay(200),
+      ])
+    );
+
+    // 6. Bottom text
+    sequence.push(Animated.delay(200));
+    sequence.push(
       Animated.parallel([
         Animated.timing(nextTextOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
         Animated.spring(nextTextScale, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
-      ]),
-      // 6. Hold for a moment
-      Animated.delay(1000),
-      // 7. Fade everything out
-      Animated.timing(fadeOut, { toValue: 0, duration: 400, useNativeDriver: true }),
-    ]).start(() => {
+      ])
+    );
+
+    // 7. Hold + fade out
+    sequence.push(Animated.delay(1200));
+    sequence.push(
+      Animated.timing(fadeOut, { toValue: 0, duration: 400, useNativeDriver: true })
+    );
+
+    Animated.sequence(sequence).start(() => {
       onFinish();
     });
   }, []);
+
+  // Bottom text based on mode
+  const bottomText = mode === 'continue'
+    ? 'Confirm your account! ✨'
+    : `Now adding your ${ordinal(nextDogNumber ?? dogNumber + 1)} dog! 🐾`;
 
   return (
     <Animated.View style={[styles.overlay, { opacity: fadeOut }]}>
@@ -165,7 +225,7 @@ const DogAddedTransition: React.FC<Props> = ({ dogName, dogNumber, nextDogNumber
 
       {/* Center content */}
       <View style={styles.center}>
-        {/* "You added your first dog!" */}
+        {/* "🎉 You added [dogName]!" */}
         <Animated.Text
           style={[
             styles.addedText,
@@ -180,6 +240,26 @@ const DogAddedTransition: React.FC<Props> = ({ dogName, dogNumber, nextDogNumber
             That's your {ordinal(dogNumber)} dog!
           </Text>
         </Animated.Text>
+
+        {/* Dog roster — shows all dogs when multiple */}
+        {showRoster && (
+          <View style={styles.roster}>
+            {allDogs.map((dog, i) => (
+              <Animated.Text
+                key={i}
+                style={[
+                  styles.rosterRow,
+                  {
+                    opacity: rosterAnims[i]?.opacity ?? 1,
+                    transform: [{ translateX: rosterAnims[i]?.translateX ?? 0 }],
+                  },
+                ]}
+              >
+                🐾 {dog.name}
+              </Animated.Text>
+            ))}
+          </View>
+        )}
 
         {/* Animated line */}
         <Animated.View
@@ -202,7 +282,7 @@ const DogAddedTransition: React.FC<Props> = ({ dogName, dogNumber, nextDogNumber
           ▼
         </Animated.Text>
 
-        {/* "Now adding your second dog!" */}
+        {/* Bottom text — "Confirm your account!" or "Now adding your Nth dog!" */}
         <Animated.Text
           style={[
             styles.nextText,
@@ -212,7 +292,7 @@ const DogAddedTransition: React.FC<Props> = ({ dogName, dogNumber, nextDogNumber
             },
           ]}
         >
-          Now adding your {ordinal(nextDogNumber)} dog! 🐾
+          {bottomText}
         </Animated.Text>
       </View>
     </Animated.View>
@@ -246,6 +326,16 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '500',
     color: 'rgba(255,255,255,0.7)',
+  },
+  roster: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  rosterRow: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.85)',
+    marginVertical: 4,
   },
   line: {
     width: 3,
