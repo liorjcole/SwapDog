@@ -502,6 +502,9 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={[styles.refChartBreed, { color: colors.textSecondary }]}>Great Dane</Text>
             <Text style={[styles.refChartWeight, { color: colors.text }]}>~140 lb</Text>
           </View>
+          <Text style={[styles.refChartNote, { color: colors.textSecondary }]}>
+            *typically skews lighter for female dogs, heavier for males
+          </Text>
         </View>
       )}
 
@@ -665,6 +668,7 @@ const styles = StyleSheet.create({
   refChartRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.1)' },
   refChartBreed: { fontSize: 14 },
   refChartWeight: { fontSize: 14, fontWeight: '600' },
+  refChartNote: { fontSize: 12, fontStyle: 'italic', marginTop: spacing.sm },
   skip: { textAlign: 'center', fontSize: 15, marginBottom: spacing.lg },
   // Photo grid
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md, gap: spacing.xs },
