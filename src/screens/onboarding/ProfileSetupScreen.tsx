@@ -99,7 +99,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
@@ -177,7 +177,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flexGrow: 1, padding: spacing.lg, paddingTop: 60, justifyContent: 'center' },
+  content: { flexGrow: 1, padding: spacing.lg, paddingTop: 100, justifyContent: 'center' },
   title: { ...typography.h2, textAlign: 'center', marginBottom: spacing.sm },
   sub: { ...typography.body, textAlign: 'center', marginBottom: spacing.xl },
   photoPicker: { alignItems: 'center', marginBottom: spacing.lg },

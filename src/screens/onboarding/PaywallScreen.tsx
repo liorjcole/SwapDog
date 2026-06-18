@@ -207,7 +207,7 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, paddingTop: 60 },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, paddingTop: 100 },
   emoji: { fontSize: 56, marginBottom: 16 },
   title: { fontSize: 24, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
   subtitle: { fontSize: 15, textAlign: 'center', marginBottom: 32, paddingHorizontal: 20 },

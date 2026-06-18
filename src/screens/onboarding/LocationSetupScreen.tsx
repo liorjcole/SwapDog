@@ -113,7 +113,7 @@ const LocationSetupScreen: React.FC<Props> = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: spacing.lg, paddingTop: 60, justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, padding: spacing.lg, paddingTop: 100, justifyContent: 'center', alignItems: 'center' },
   emoji: { fontSize: 64, marginBottom: spacing.lg },
   title: { ...typography.h2, textAlign: 'center', marginBottom: spacing.sm },
   sub: { ...typography.body, textAlign: 'center', marginBottom: spacing.xl },
