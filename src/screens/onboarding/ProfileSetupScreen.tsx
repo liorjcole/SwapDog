@@ -202,33 +202,32 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         />
       </View>
 
-      {!showReferralField ? (
-        <TouchableOpacity
-          onPress={() => setShowReferralField(true)}
-          style={styles.referralLink}
-          accessibilityLabel="Tap to enter a referral code"
-          accessibilityRole="button"
-        >
-          <Text style={[styles.referralLinkText, { color: colors.textSecondary }]}>
-            Referred by a friend? Tap to add their code
-          </Text>
-        </TouchableOpacity>
-      ) : (
+      <TouchableOpacity
+        onPress={() => setShowReferralField(!showReferralField)}
+        style={styles.referralLink}
+        accessibilityLabel={showReferralField ? 'Hide referral code field' : 'Tap to enter a referral code'}
+        accessibilityRole="button"
+      >
+        <Text style={[styles.referralLinkText, { color: colors.textSecondary }]}>
+          Referred by a friend? Tap to add their code
+        </Text>
+      </TouchableOpacity>
+      {showReferralField && (
         <View ref={refFor('referral')}>
           <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-          placeholder="Paste referral code"
-          placeholderTextColor={colors.textSecondary}
-          value={friendReferralCode}
-          onChangeText={(t) => setFriendReferralCode(t.toUpperCase())}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          autoFocus
-          accessibilityLabel="Referral code from a friend"
-          returnKeyType="done"
-          blurOnSubmit={true}
-          onFocus={() => scrollToInput('referral')}
-        />
+            style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+            placeholder="Paste referral code"
+            placeholderTextColor={colors.textSecondary}
+            value={friendReferralCode}
+            onChangeText={(t) => setFriendReferralCode(t.toUpperCase())}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            autoFocus
+            accessibilityLabel="Referral code from a friend"
+            returnKeyType="done"
+            blurOnSubmit={true}
+            onFocus={() => scrollToInput('referral')}
+          />
         </View>
       )}
 
