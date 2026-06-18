@@ -7,6 +7,7 @@ import {
   ScrollView,
   Share,
   ActivityIndicator,
+  Clipboard,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -58,8 +59,9 @@ const ReferralScreen: React.FC<Props> = ({ navigation: _navigation }) => {
     try {
       await Share.share({
         message:
-          `🐾 Join me on WatchDog — neighbors helping neighbors with pet sitting, walking & more! ` +
-          `Sign up here: ${APP_LINK}?ref=${referralCode}`,
+          `🐾 Join me on WatchDog — neighbors helping neighbors with pet sitting, walking & more!\n\n` +
+          `Use my referral code: ${referralCode}\n\n` +
+          `Sign up here: ${APP_LINK}`,
         title: 'Join WatchDog',
       });
     } catch {
@@ -98,10 +100,30 @@ const ReferralScreen: React.FC<Props> = ({ navigation: _navigation }) => {
 
       {/* ── SUB-TASK 4: Points incentive text above Share button ── */}
       <Text style={[styles.pointsText, { color: colors.text }]}>
-        🎉 Earn 2 points for every friend who joins!
+        🎉 Earn 3 points for every friend who joins!
       </Text>
 
-      {/* ── SUB-TASK 3: Red Share button only — referral code is never shown as text ── */}
+      {/* ── Personal referral code display ── */}
+      {referralCode ? (
+        <View style={styles.codeCard}>
+          <Text style={[styles.codeLabel, { color: colors.textSecondary }]}>Your Personal Code</Text>
+          <View style={styles.codeRow}>
+            <Text style={[styles.codeText, { color: colors.text }]}>{referralCode}</Text>
+            <TouchableOpacity
+              onPress={() => {
+                Clipboard.setString(referralCode);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }}
+              style={[styles.copyBtn, { borderColor: colors.border }]}
+              accessibilityLabel="Copy referral code"
+            >
+              <Text style={[styles.copyBtnText, { color: colors.primary }]}>Copy</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
+
+      {/* ── Share button ── */}
       {codeGenerating ? (
         <ActivityIndicator
           color={colors.primary}
@@ -159,6 +181,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing.md,
   },
+
+  // ── Code display ──
+  codeCard: {
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  codeLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  codeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  codeText: { fontSize: 28, fontWeight: '800', letterSpacing: 3 },
+  copyBtn: { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6 },
+  copyBtnText: { fontSize: 14, fontWeight: '700' },
 
   // ── Red Share button ──
   shareBtn: {

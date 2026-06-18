@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import { Text, View } from 'react-native';
 import {
   MainTabParamList,
@@ -12,7 +13,7 @@ import {
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useMessaging } from '../hooks/useMessaging';
-import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, addDoc, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, addDoc, getDocs, getDoc, deleteField } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { smartDate } from '../utils/dateHelpers';
 import RescheduleReviewModal from '../components/common/RescheduleReviewModal';
@@ -221,6 +222,51 @@ const MainTabNavigator: React.FC = () => {
   const [celebrationQueue, setCelebrationQueue] = useState<CelebrationItem[]>([]);
   const [showReschedulePopup, setShowReschedulePopup] = useState(false);
   const dismissedPostIds = useRef<Set<string>>(new Set());
+  const checkedReferralReward = useRef(false);
+  const tabNavigation = useNavigation();
+
+  // ── Check for pending referral reward on app open ──────────────────────────
+  useEffect(() => {
+    if (!user || checkedReferralReward.current) return;
+    checkedReferralReward.current = true;
+
+    (async () => {
+      try {
+        const userDocSnap = await getDoc(doc(db, 'users', user.uid));
+        if (!userDocSnap.exists()) return;
+        const data = userDocSnap.data();
+        const reward = data?.pendingReferralReward;
+        if (!reward) return;
+
+        const fromName = (reward.fromUserName as string) || 'Someone';
+        const pts = (reward.points as number) || 3;
+
+        // Show confetti celebration with "Invite more?" button
+        setCelebrationQueue((prev) => [
+          ...prev,
+          {
+            title: 'You earned ' + pts + ' points! 🎉',
+            subtitle: fromName + ' joined WatchDog using your referral code!',
+            emoji: '🐾',
+            actionLabel: 'Invite more friends?',
+            onAction: () => {
+              tabNavigation.dispatch(
+                CommonActions.navigate('ProfileTab', { screen: 'Referral' })
+              );
+            },
+          },
+        ]);
+
+        // Clear the pending reward flag so it doesn't show again
+        await updateDoc(doc(db, 'users', user.uid), {
+          pendingReferralReward: deleteField(),
+          updatedAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error('[ReferralReward] Check failed:', err);
+      }
+    })();
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;

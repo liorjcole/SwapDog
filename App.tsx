@@ -75,6 +75,14 @@ export default function App() {
           }
           break;
 
+        case 'referral_reward':
+          // Open the invite/referral screen to encourage more invites
+          nav.navigate('Main', {
+            screen: 'ProfileTab',
+            params: { screen: 'Referral' },
+          } as never);
+          break;
+
         default:
           // Fallback: if it has a conversationId, open chat (backwards compat)
           if (data.conversationId) {

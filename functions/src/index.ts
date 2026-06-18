@@ -301,3 +301,77 @@ export const onHelpConfirmed = onDocumentUpdated(
     );
   }
 );
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 4. REFERRAL CODE USED — award 3 points to referrer
+//    Trigger: users/{userId} updated (referredBy field set)
+//    Notifies: the REFERRER with push notification + in-app reward flag
+//    Awards: 3 points to referrer's balance + logs in pointsHistory
+// ═══════════════════════════════════════════════════════════════════════════════
+export const onReferralUsed = onDocumentUpdated(
+  "users/{userId}",
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after) return;
+
+    // Only fire when referredBy transitions from empty/null to a real userId
+    const hadReferrer = before.referredBy && (before.referredBy as string).length > 0;
+    const hasReferrer = after.referredBy && (after.referredBy as string).length > 0;
+    if (hadReferrer || !hasReferrer) return;
+
+    const referrerId = after.referredBy as string;
+    const newUserId = event.params.userId;
+    const newUserName = (after.displayName as string) || "Someone";
+
+    // Prevent self-referral
+    if (referrerId === newUserId) return;
+
+    const REFERRAL_REWARD = 3;
+
+    try {
+      // 1. Award 3 points to the referrer
+      await db.collection("users").doc(referrerId).update({
+        points: admin.firestore.FieldValue.increment(REFERRAL_REWARD),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // 2. Log in referrer's pointsHistory subcollection
+      await db.collection("users").doc(referrerId).collection("pointsHistory").add({
+        type: "referral",
+        description: `Referral reward — ${newUserName} joined using your code`,
+        points: REFERRAL_REWARD,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // 3. Set a pending reward flag so the app shows confetti on next open
+      await db.collection("users").doc(referrerId).update({
+        pendingReferralReward: {
+          fromUserId: newUserId,
+          fromUserName: newUserName,
+          points: REFERRAL_REWARD,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+      });
+
+      // 4. Send push notification to referrer
+      const tokens = await getUserTokens(referrerId);
+      if (tokens.length > 0) {
+        await sendPushNotifications(
+          referrerId,
+          tokens,
+          "You earned 3 points! 🎉",
+          `${newUserName} joined WatchDog using your referral code!`,
+          {
+            type: "referral_reward",
+            fromUserId: newUserId,
+          }
+        );
+      }
+
+      console.log(`[onReferralUsed] Awarded ${REFERRAL_REWARD} pts to ${referrerId} for referring ${newUserId}`);
+    } catch (error) {
+      console.error("[onReferralUsed] Failed:", error);
+    }
+  }
+);

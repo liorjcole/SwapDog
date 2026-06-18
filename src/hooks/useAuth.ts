@@ -3,7 +3,7 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../config/firebase';
 import { generateReferralCode, redeemReferralCode } from './useReferrals';
@@ -17,7 +17,7 @@ export const useAuth = () => {
    * - Redeems the referral code (increments usedCount)
    * - Generates a unique referralCode for the new user
    * - Sets accountStatus = 'pending_approval' (they've passed the gate)
-   * - Sets points = 0
+   * - Seeds points = 5 (welcome bonus)
    */
   const signUp = async (email: string, password: string): Promise<void> => {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
@@ -65,6 +65,14 @@ export const useAuth = () => {
       accountStatus: 'pending_approval',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+    });
+
+    // Log the welcome bonus in points history
+    await addDoc(collection(db, 'users', uid, 'pointsHistory'), {
+      type: 'bonus',
+      description: 'Welcome bonus — thanks for joining WatchDog!',
+      points: 5,
+      createdAt: serverTimestamp(),
     });
   };
 

@@ -11,6 +11,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { db } from '../../config/firebase';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { useOnboarding } from '../../contexts/OnboardingContext';
+import { validateReferralCode, redeemReferralCode } from '../../hooks/useReferrals';
 
 type Props = {
   navigation: NativeStackNavigationProp<OnboardingStackParamList, 'ProfileSetup'>;
@@ -31,6 +32,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   const scrollRef = useRef<ScrollView>(null);
   const { user } = useAuthContext();
   const { displayName, setDisplayName, bio, setBio, instagramHandle, setInstagramHandle, photoURL, setPhotoURL } = useOnboarding();
+  const [friendReferralCode, setFriendReferralCode] = useState('');
   const [loading, setLoading] = useState(false);
 
   /** Track y-offsets of inputs so we can scroll to them on focus */
@@ -90,6 +92,26 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
     if (!user) return;
     setLoading(true);
     try {
+      // Validate + redeem friend's referral code if entered
+      let referredBy: string | null = null;
+      const trimmedCode = friendReferralCode.trim();
+      if (trimmedCode) {
+        const codeResult = await validateReferralCode(trimmedCode);
+        if (!codeResult) {
+          Alert.alert('Invalid Code', 'That referral code is invalid or expired. You can skip this field.');
+          setLoading(false);
+          return;
+        }
+        if (codeResult.createdBy === user.uid) {
+          Alert.alert('Invalid Code', "You can't use your own referral code!");
+          setLoading(false);
+          return;
+        }
+        referredBy = codeResult.createdBy;
+        // Redeem the code (increments usage, sets referredBy on user doc)
+        await redeemReferralCode(trimmedCode, user.uid);
+      }
+
       await setDoc(doc(db, 'users', user.uid), {
         email: user.email,
         displayName: displayName.trim(),
@@ -97,6 +119,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         instagramHandle: cleanIgHandle(instagramHandle) || '',
         photoURL,
         isOnboarded: false,
+        ...(referredBy ? { referredBy } : {}),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp() });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -180,6 +203,20 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         onFocus={() => scrollToInput('ig')}
       />
 
+      <TextInput
+        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+        placeholder="Referred by a friend? Enter their code (optional)"
+        placeholderTextColor={colors.textSecondary}
+        value={friendReferralCode}
+        onChangeText={(t) => setFriendReferralCode(t.toUpperCase())}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        accessibilityLabel="Referral code from a friend, optional"
+        returnKeyType="done"
+        blurOnSubmit={true}
+        onLayout={(e) => { inputY['referral'] = e.nativeEvent.layout.y; }}
+        onFocus={() => scrollToInput('referral')}
+      />
 
       <TouchableOpacity
         style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}

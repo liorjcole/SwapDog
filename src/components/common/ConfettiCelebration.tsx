@@ -23,6 +23,8 @@ export interface CelebrationItem {
   title: string;
   subtitle?: string;
   emoji?: string;
+  actionLabel?: string;   // e.g. "Invite more?"
+  onAction?: () => void;  // called when actionLabel button is tapped
 }
 
 interface Props {
@@ -136,6 +138,16 @@ const ConfettiCelebration: React.FC<Props> = ({ queue, onDismissAll }) => {
           <Text style={styles.cardEmoji}>{current.emoji || '\U0001F389'}</Text>
           <Text style={styles.cardTitle}>{current.title}</Text>
           {current.subtitle ? <Text style={styles.cardSubtitle}>{current.subtitle}</Text> : null}
+          {current.actionLabel && current.onAction && (
+            <TouchableOpacity
+              onPress={() => { handleDismiss(); current.onAction?.(); }}
+              style={styles.actionBtn}
+              accessibilityLabel={current.actionLabel}
+              accessibilityRole="button"
+            >
+              <Text style={styles.actionBtnText}>{current.actionLabel}</Text>
+            </TouchableOpacity>
+          )}
           {queue.length > 1 && (
             <Text style={styles.queueHint}>
               {currentIndex + 1} of {queue.length} — tap to continue
@@ -166,6 +178,8 @@ const styles = StyleSheet.create({
   cardEmoji: { fontSize: 56, marginBottom: 12 },
   cardTitle: { fontSize: 24, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: 8 },
   cardSubtitle: { fontSize: 16, color: 'rgba(255,255,255,0.7)', textAlign: 'center', lineHeight: 22 },
+  actionBtn: { marginTop: 16, backgroundColor: '#FF2D55', borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 },
+  actionBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
   queueHint: { fontSize: 12, color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginTop: 16 },
 });
 
