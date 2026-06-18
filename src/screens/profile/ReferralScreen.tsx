@@ -103,27 +103,7 @@ const ReferralScreen: React.FC<Props> = ({ navigation: _navigation }) => {
         🎉 Earn 3 points for every friend who joins!
       </Text>
 
-      {/* ── Personal referral code display ── */}
-      {referralCode ? (
-        <View style={styles.codeCard}>
-          <Text style={[styles.codeLabel, { color: colors.textSecondary }]}>Your Personal Code</Text>
-          <View style={styles.codeRow}>
-            <Text style={[styles.codeText, { color: colors.text }]}>{referralCode}</Text>
-            <TouchableOpacity
-              onPress={() => {
-                Clipboard.setString(referralCode);
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              }}
-              style={[styles.copyBtn, { borderColor: colors.border }]}
-              accessibilityLabel="Copy referral code"
-            >
-              <Text style={[styles.copyBtnText, { color: colors.primary }]}>Copy</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : null}
-
-      {/* ── Share button ── */}
+      {/* ── Share button (primary CTA) ── */}
       {codeGenerating ? (
         <ActivityIndicator
           color={colors.primary}
@@ -145,6 +125,23 @@ const ReferralScreen: React.FC<Props> = ({ navigation: _navigation }) => {
           <Text style={styles.shareBtnText}>🔗  Share</Text>
         </TouchableOpacity>
       )}
+
+      {/* ── Personal referral code (plain text below share button) ── */}
+      {referralCode ? (
+        <TouchableOpacity
+          style={styles.codeRow}
+          onPress={() => {
+            Clipboard.setString(referralCode);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }}
+          accessibilityLabel="Copy referral code"
+        >
+          <Text style={[styles.codeLabel, { color: colors.textSecondary }]}>
+            Your code: <Text style={[styles.codeValue, { color: colors.text }]}>{referralCode}</Text>
+          </Text>
+          <Text style={[styles.copyHint, { color: colors.primary }]}>Copy</Text>
+        </TouchableOpacity>
+      ) : null}
     </ScrollView>
   );
 };
@@ -182,20 +179,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
-  // ── Code display ──
-  codeCard: {
-    borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+  // ── Code display (plain text) ──
+  codeRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.md,
+    gap: 8,
   },
-  codeLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
-  codeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  codeText: { fontSize: 28, fontWeight: '800', letterSpacing: 3 },
-  copyBtn: { borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6 },
-  copyBtnText: { fontSize: 14, fontWeight: '700' },
+  codeLabel: { fontSize: 14 },
+  codeValue: { fontSize: 14 },
+  copyHint: { fontSize: 14, fontWeight: '600' },
 
   // ── Red Share button ──
   shareBtn: {
