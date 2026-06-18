@@ -68,6 +68,10 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleNext = async () => {
     if (!displayName.trim()) { Alert.alert('Required', 'Please enter your name'); return; }
+    if (!photoURL) {
+      Alert.alert('Photo Required', 'Please add a profile photo so other dog parents can see who you are');
+      return;
+    }
     if (!instagramHandle.trim()) {
       Alert.alert(
         'Reconsider adding your Instagram?',

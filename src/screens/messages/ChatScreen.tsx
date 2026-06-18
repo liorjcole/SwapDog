@@ -244,6 +244,9 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           returnKeyType="send"
           blurOnSubmit={true}
           onSubmitEditing={handleSend}
+          autoCorrect={true}
+          spellCheck={true}
+          autoCapitalize="sentences"
           accessibilityLabel="Message input"
           accessibilityRole="none"
         />

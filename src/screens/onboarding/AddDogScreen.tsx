@@ -164,6 +164,10 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       Alert.alert('Required', 'Please enter your dog\'s age');
       return null;
     }
+    if (form.photoURLs.length === 0) {
+      Alert.alert('Photo Required', 'Please add at least one photo of your dog');
+      return null;
+    }
     if (!user) return null;
     setLoading(true);
     try {
@@ -364,6 +368,8 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         onChangeText={(v) => set('name', v)}
         accessibilityLabel="Dog's name"
         returnKeyType="done"
+        blurOnSubmit={true}
+        autoCapitalize="words"
         onLayout={(e) => { inputY['dogName'] = e.nativeEvent.layout.y; }}
         onFocus={() => scrollToInput('dogName')}
       />
