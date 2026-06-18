@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Platform } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -174,7 +174,11 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
       {/* ── Custom in-component header — always visible, always has back ── */}
       <View
         style={[
@@ -202,7 +206,6 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
       </View>
 
       <FlatList
-        automaticallyAdjustKeyboardInsets={true}
         ref={listRef}
         data={messages}
         keyExtractor={(m) => m.id}
@@ -232,7 +235,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           onRespond={handleRescheduleRespond}
         />
       )}
-      <View style={[styles.inputRow, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+      <View style={[styles.inputRow, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
         <TextInput
           style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
           placeholder="Message..."
@@ -241,9 +244,6 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           onChangeText={setText}
           multiline
           maxLength={1000}
-          returnKeyType="send"
-          blurOnSubmit={true}
-          onSubmitEditing={handleSend}
           autoCorrect={true}
           spellCheck={true}
           autoCapitalize="sentences"
@@ -261,7 +261,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={styles.sendBtnText}>➤</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
