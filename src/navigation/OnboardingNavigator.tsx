@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from './types';
 import ProfileSetupScreen from '../screens/onboarding/ProfileSetupScreen';
@@ -42,13 +42,17 @@ const OnboardingNavigator: React.FC = () => {
       <Stack.Screen
         name="ProfileSetup"
         component={ProfileSetupScreen}
-        listeners={({ navigation }) => ({
-          beforeRemove: (e) => {
-            // Intercept the back gesture / button on the first screen
-            e.preventDefault();
-            handleExitFromFirst();
-          },
-        })}
+        options={{
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={handleExitFromFirst}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.backBtn}
+            >
+              <Text style={styles.backArrow}>‹</Text>
+            </TouchableOpacity>
+          ),
+        }}
       />
       <Stack.Screen name="AddDog" component={AddDogScreen} />
       <Stack.Screen name="LocationSetup" component={LocationSetupScreen} />
@@ -56,5 +60,17 @@ const OnboardingNavigator: React.FC = () => {
     </Stack.Navigator>
   );
 };
+
+const styles = StyleSheet.create({
+  backBtn: {
+    paddingRight: 8,
+  },
+  backArrow: {
+    fontSize: 34,
+    fontWeight: '300',
+    color: '#007AFF',
+    marginTop: -2,
+  },
+});
 
 export default OnboardingNavigator;
