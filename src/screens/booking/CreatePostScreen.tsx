@@ -34,26 +34,17 @@ const MIN_CARE_DETAILS = 50;
 const RED = '#FF2D55';
 
 // Walk duration options: 15-min increments up to 3 hours
-const WALK_DURATIONS: { label: string; minutes: number }[] = [
-  { label: '15 min', minutes: 15 },
-  { label: '30 min', minutes: 30 },
-  { label: '45 min', minutes: 45 },
-  { label: '1 hr', minutes: 60 },
-  { label: '1 hr 15 min', minutes: 75 },
-  { label: '1 hr 30 min', minutes: 90 },
-  { label: '1 hr 45 min', minutes: 105 },
-  { label: '2 hr', minutes: 120 },
-  { label: '2 hr 15 min', minutes: 135 },
-  { label: '2 hr 30 min', minutes: 150 },
-  { label: '2 hr 45 min', minutes: 165 },
-  { label: '3 hr', minutes: 180 },
-];
+const WALK_MINUTES = Array.from({ length: 60 }, (_, i) => i + 1);
 
-const CARE_TYPE_OPTIONS: { type: CareType; icon: string; label: string }[] = [
+const PRIMARY_CARE_OPTIONS: { type: 'overnight' | 'daySitting'; icon: string; label: string }[] = [
   { type: 'overnight', icon: '🏠', label: 'Overnight sitting' },
   { type: 'daySitting', icon: '☀️', label: 'Daytime sitting' },
+];
+
+const ADDON_CARE_OPTIONS: { type: CareType; icon: string; label: string }[] = [
   { type: 'feeding', icon: '🍽️', label: 'Feeding' },
   { type: 'dogWalking', icon: '🐕', label: 'Walk' },
+  { type: 'playtime', icon: '🎾', label: 'Playtime' },
 ];
 
 type Props = {
@@ -73,7 +64,22 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [submitting, setSubmitting] = useState(false);
 
   // Care type
-  const [careType, setCareType] = useState<CareType | null>(null);
+  const [primaryCareType, setPrimaryCareType] = useState<'overnight' | 'daySitting' | null>(null);
+  const [addOnCareTypes, setAddOnCareTypes] = useState<Set<CareType>>(new Set());
+  const [walkCount, setWalkCount] = useState(1);
+  const [playtimeDetails, setPlaytimeDetails] = useState('');
+  const toggleAddOn = (type: CareType) => {
+    setAddOnCareTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
+  };
+
+  // Derived: primary care type for conditional fields
+  const careType = primaryCareType;
+
 
   // Dates — used for overnight (range) and daySitting/feeding (single)
   const [startDate, setStartDate] = useState(() => {
@@ -158,9 +164,6 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     }
   }, [startTime, endTime]);
 
-  const walkHours = useMemo(() => {
-    return parseFloat((walkDurationMinutes / 60).toFixed(4));
-  }, [walkDurationMinutes]);
 
   /** Total payment — flat amount for the whole job */
   const totalPayment = useMemo(() => {
@@ -193,8 +196,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     if (selectedDogs.length === 0) {
       Alert.alert('Required', 'Please select at least one dog'); return;
     }
-    if (!careType) {
-      Alert.alert('Required', 'Please select a type of care'); return;
+    if (!primaryCareType) {
+      Alert.alert('Required', 'Please select either Overnight or Daytime sitting — this tells sitters what kind of care you need.'); return;
     }
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -258,19 +261,23 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         : {};
 
       // Care-type-specific optional fields
-      const careTypeFields: Record<string, unknown> = { careType };
+      const careTypeFields: Record<string, unknown> = { careType: primaryCareType, addOnCareTypes: Array.from(addOnCareTypes) };
       if (offerPoints) {
         careTypeFields.pointsOffered = parseInt(pointsOffered, 10);
       }
-      if (careType === 'dogWalking') {
+      if (addOnCareTypes.has('dogWalking')) {
         careTypeFields.walkDurationMinutes = walkDurationMinutes;
+        careTypeFields.walkCount = walkCount;
       }
-      if (careType === 'feeding') {
+      if (addOnCareTypes.has('feeding')) {
         careTypeFields.feedingTime = feedingTime;
       }
-      if (careType === 'daySitting') {
+      if (primaryCareType === 'daySitting') {
         careTypeFields.startTime = startTime;
         careTypeFields.endTime = endTime;
+      }
+      if (addOnCareTypes.has('playtime') && playtimeDetails.trim()) {
+        careTypeFields.playtimeDetails = playtimeDetails.trim();
       }
 
       // Determine effective start/end date for non-range types
@@ -435,12 +442,14 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         {/* ── Section 2: Type of Care ── */}
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>🐾 Type of Care</Text>
-          <Text style={[styles.careTypeHint, { color: colors.textSecondary }]}>
-            Select the type of care you need. The form will adapt to your choice.
+
+          {/* Primary — must pick one */}
+          <Text style={[styles.careTypeHint, { color: colors.textSecondary, marginBottom: 8 }]}>
+            What kind of sitting do you need?
           </Text>
           <View style={styles.careTypeGrid}>
-            {CARE_TYPE_OPTIONS.map(({ type, icon, label }) => {
-              const isSelected = careType === type;
+            {PRIMARY_CARE_OPTIONS.map(({ type, icon, label }) => {
+              const isSelected = primaryCareType === type;
               return (
                 <TouchableOpacity
                   key={type}
@@ -452,7 +461,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                       borderWidth: isSelected ? 2.5 : 1 },
                   ]}
                   onPress={() => {
-                    setCareType(type);
+                    setPrimaryCareType(prev => prev === type ? null : type);
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }}
                   accessibilityLabel={label}
@@ -470,13 +479,49 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
               );
             })}
           </View>
+
+          {/* Add-ons — tap to toggle */}
+          <Text style={[styles.careTypeHint, { color: colors.textSecondary, marginTop: 16, marginBottom: 8 }]}>
+            Anything else? (optional)
+          </Text>
+          <View style={styles.careTypeGrid}>
+            {ADDON_CARE_OPTIONS.map(({ type, icon, label }) => {
+              const isSelected = addOnCareTypes.has(type);
+              return (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.careTypeCard,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: isSelected ? RED : colors.border,
+                      borderWidth: isSelected ? 2.5 : 1 },
+                  ]}
+                  onPress={() => {
+                    toggleAddOn(type);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  accessibilityLabel={label}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: isSelected }}
+                >
+                  <Text style={styles.careTypeIcon}>{icon}</Text>
+                  <Text style={[styles.careTypeLabel, { color: colors.text }]}>{label}</Text>
+                  {isSelected && (
+                    <View style={styles.careTypeCheckmark}>
+                      <Text style={styles.careTypeCheckmarkText}>✓</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
-        {/* ── Dynamic Sections (only after care type is selected) ── */}
-        {careType !== null && (
-          <>
-            {/* ── Overnight / Day Sitting / Feeding: Date section ── */}
-            {careType !== 'dogWalking' && (
+        {/* ── Dynamic Sections ── */}
+
+        {/* ── Date section (shows when primary care type selected) ── */}
+        {primaryCareType !== null && (primaryCareType === 'overnight' || primaryCareType === 'daySitting') && (
               <View style={[styles.section, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
                   📅 {careType === 'overnight' ? 'Dates Needed' : 'Date'}
@@ -583,43 +628,48 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                   </View>
                 )}
 
-                {/* Feeding time */}
-                {careType === 'feeding' && (
-                  <View style={styles.timeRow}>
-                    <View style={{ flex: 1, backgroundColor: colors.background }}>
-                      <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Feeding Time</Text>
-                      <TextInput
-                        style={[styles.timeInput, { borderColor: colors.border, backgroundColor: colors.background, color: colors.text }]}
-                        value={feedingTime}
-                        onChangeText={setFeedingTime}
-                        placeholder="8:00 AM"
-                        placeholderTextColor={colors.textSecondary}
-                        accessibilityLabel="Feeding time"
-                      returnKeyType="done"
-                                              />
-                    </View>
-                  </View>
-                )}
               </View>
             )}
 
-            {/* ── Dog Walking: Duration Selector ── */}
-            {careType === 'dogWalking' && (
+        {/* ── Feeding Details (add-on) ── */}
+            {addOnCareTypes.has('feeding') && (
               <View style={[styles.section, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>⏱️ Walk Duration</Text>
-                <Text style={[styles.careTypeHint, { color: colors.textSecondary }]}>
-                  Choose the length of the walk
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>🍽️ Feeding Details</Text>
+                <View style={styles.timeRow}>
+                  <View style={{ flex: 1, backgroundColor: colors.background }}>
+                    <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Feeding Time</Text>
+                    <TextInput
+                      style={[styles.timeInput, { borderColor: colors.border, backgroundColor: colors.background, color: colors.text }]}
+                      value={feedingTime}
+                      onChangeText={setFeedingTime}
+                      placeholder="8:00 AM"
+                      placeholderTextColor={colors.textSecondary}
+                      accessibilityLabel="Feeding time"
+                      returnKeyType="done"
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
+
+        {/* ── Walk Details (add-on) ── */}
+            {addOnCareTypes.has('dogWalking') && (
+              <View style={[styles.section, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>🐕 Walk Details</Text>
+
+                <Text style={[styles.careTypeHint, { color: colors.textSecondary, marginBottom: 8 }]}>
+                  Duration per walk
                 </Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.durationPillsRow}
                 >
-                  {WALK_DURATIONS.map(({ label, minutes }) => {
-                    const isSelected = walkDurationMinutes === minutes;
+                  {WALK_MINUTES.map((min) => {
+                    const isSelected = walkDurationMinutes === min;
                     return (
                       <TouchableOpacity
-                        key={minutes}
+                        key={min}
                         style={[
                           styles.durationPill,
                           {
@@ -627,10 +677,10 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                             borderColor: isSelected ? RED : colors.border },
                         ]}
                         onPress={() => {
-                          setWalkDurationMinutes(minutes);
+                          setWalkDurationMinutes(min);
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         }}
-                        accessibilityLabel={label}
+                        accessibilityLabel={`${min} minute${min !== 1 ? 's' : ''}`}
                         accessibilityRole="radio"
                         accessibilityState={{ checked: isSelected }}
                       >
@@ -638,17 +688,73 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                           styles.durationPillText,
                           { color: isSelected ? '#fff' : colors.text },
                         ]}>
-                          {label}
+                          {min} min
                         </Text>
                       </TouchableOpacity>
                     );
                   })}
                 </ScrollView>
+
+                <Text style={[styles.careTypeHint, { color: colors.textSecondary, marginTop: 16, marginBottom: 8 }]}>
+                  How many walks?
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <TouchableOpacity
+                    style={[styles.durationPill, { backgroundColor: colors.background, borderColor: colors.border, paddingHorizontal: 16 }]}
+                    onPress={() => setWalkCount(Math.max(1, walkCount - 1))}
+                  >
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>−</Text>
+                  </TouchableOpacity>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, minWidth: 30, textAlign: 'center' }}>
+                    {walkCount}
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.durationPill, { backgroundColor: colors.background, borderColor: colors.border, paddingHorizontal: 16 }]}
+                    onPress={() => setWalkCount(walkCount + 1)}
+                  >
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>+</Text>
+                  </TouchableOpacity>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary }}>walk{walkCount !== 1 ? 's' : ''} per day</Text>
+                </View>
+
+                <Text style={[styles.fieldHint, { color: colors.textSecondary, marginTop: 12, fontStyle: 'italic' }]}>
+                  If there are more details about the walk — like where to find the leash, specific times, or preferred routes — add them to the Care Details section below.
+                </Text>
               </View>
             )}
 
-            {/* ── Care Details ── */}
-            <View style={[styles.section, { backgroundColor: colors.surface }]}>
+        {/* ── Playtime Details (add-on) ── */}
+            {addOnCareTypes.has('playtime') && (
+              <View style={[styles.section, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>🎾 Playtime Details</Text>
+                <Text style={[styles.careTypeHint, { color: colors.textSecondary, marginBottom: 8 }]}>
+                  How often and how should they play with your dog?
+                </Text>
+                <TextInput
+                  style={[
+                    styles.careInput,
+                    { backgroundColor: colors.background, borderColor: colors.border, color: colors.text, minHeight: 80 },
+                  ]}
+                  placeholder="e.g. Play fetch in the backyard for 20 min twice a day. She loves tug-of-war too..."
+                  placeholderTextColor={colors.textSecondary}
+                  value={playtimeDetails}
+                  onChangeText={setPlaytimeDetails}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  maxLength={500}
+                  autoCorrect={true}
+                  spellCheck={true}
+                  autoCapitalize="sentences"
+                  returnKeyType="done"
+                  blurOnSubmit={true}
+                />
+              </View>
+            )}
+
+        {/* ── Care Details ── */}
+        {(primaryCareType !== null || addOnCareTypes.size > 0) && (
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>📋 Care Details</Text>
               <Text style={[styles.careHint, { color: colors.textSecondary }]}>
                 Tell potential sitters what they need to know — schedule, feeding, medications, special needs, behavioral notes.
@@ -686,8 +792,9 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                 {careDetails.length} chars{careDetails.length < MIN_CARE_DETAILS ? ` (min ${MIN_CARE_DETAILS})` : ' ✓'}
               </Text>
             </View>
+        )}
 
-            {/* ── Compensation ── */}
+        {/* ── Compensation ── */}
             <View style={[styles.section, { backgroundColor: colors.surface }]}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Compensation</Text>
 
@@ -815,8 +922,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
             >
               <Text style={styles.submitBtnText}>{submitting ? 'Posting...' : 'Post Request 🐾'}</Text>
             </TouchableOpacity>
-          </>
-        )}
+
       </ScrollView>
       {Platform.OS === 'ios' && (
         <InputAccessoryView nativeID="careDetailsDone">

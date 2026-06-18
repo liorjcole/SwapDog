@@ -104,7 +104,7 @@ export interface Dog {
   updatedAt: Date;
 }
 
-export type CareType = 'overnight' | 'daySitting' | 'feeding' | 'dogWalking';
+export type CareType = 'overnight' | 'daySitting' | 'feeding' | 'dogWalking' | 'playtime';
 
 export type PaymentType = 'points' | 'payment' | 'either';
 export type SitterPreference = 'points' | 'payment';
