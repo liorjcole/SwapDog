@@ -1,8 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, Alert,
-  KeyboardAvoidingView, Platform, ScrollView,
-} from 'react-native';
+  View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, Alert, Platform, ScrollView } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
 import { spacing, borderRadius } from '../../config/theme';
@@ -29,8 +27,7 @@ interface Props {
 
 const RescheduleReviewModal: React.FC<Props> = ({
   visible, onClose, proposedStart, proposedEnd, originalStart, originalEnd,
-  proposerName, proposerNote, onRespond,
-}) => {
+  proposerName, proposerNote, onRespond }) => {
   const { colors } = useTheme();
   const [note, setNote] = useState('');
   const scrollRef = useRef<ScrollView>(null);
@@ -86,13 +83,10 @@ const RescheduleReviewModal: React.FC<Props> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-        style={styles.overlay}
-      >
+      <View style={{ flex: 1 }}>
         <View style={[styles.container, { backgroundColor: colors.background }]}>
-          <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView
+        automaticallyAdjustKeyboardInsets={true} ref={scrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Header with X close */}
             <View style={styles.header}>
               <Text style={[styles.title, { color: colors.text }]}>Reschedule Request</Text>
@@ -196,7 +190,7 @@ const RescheduleReviewModal: React.FC<Props> = ({
             </View>
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };
@@ -228,7 +222,6 @@ const styles = StyleSheet.create({
   datePickerText: { fontSize: 18, fontWeight: '600', minWidth: 120, textAlign: 'center' },
   toText: { textAlign: 'center', fontSize: 13 },
   noteInput: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.sm, marginTop: spacing.sm, minHeight: 60 },
-  noteInputField: { fontSize: 15, minHeight: 40 },
-});
+  noteInputField: { fontSize: 15, minHeight: 40 } });
 
 export default RescheduleReviewModal;

@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image,
-  KeyboardAvoidingView, Platform,
-} from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -51,8 +49,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
-    });
+      quality: 0.8 });
     if (!result.canceled && result.assets[0]) {
       setPhotoURL(result.assets[0].uri);
     }
@@ -86,8 +83,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         photoURL,
         isOnboarded: false,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+        updatedAt: serverTimestamp() });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       navigation.navigate('AddDog');
     } catch (error: unknown) {
@@ -98,12 +94,9 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <View style={{ flex: 1 }}>
     <ScrollView
+        automaticallyAdjustKeyboardInsets={true}
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
     >
@@ -171,7 +164,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={styles.btnText}>{loading ? 'Saving...' : 'Next →'}</Text>
       </TouchableOpacity>
     </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -189,7 +182,6 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, fontSize: 15 },
   textArea: { height: 100, textAlignVertical: 'top' },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm },
-  btnText: { color: '#fff', ...typography.button },
-});
+  btnText: { color: '#fff', ...typography.button } });
 
 export default ProfileSetupScreen;

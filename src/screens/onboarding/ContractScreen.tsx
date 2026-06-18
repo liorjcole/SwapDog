@@ -10,9 +10,7 @@ import {
   NativeScrollEvent,
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+  Platform } from 'react-native';
 import * as Haptics from 'expo-haptics'
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { sendWelcomeMessageIfNeeded } from '../../hooks/useMessaging';
@@ -36,48 +34,40 @@ const today = new Date();
 const FORMATTED_DATE = today.toLocaleDateString('en-US', {
   year: 'numeric',
   month: 'long',
-  day: 'numeric',
-});
+  day: 'numeric' });
 
 const CONTRACT_SECTIONS = [
   {
     number: '1.',
     title: 'MEMBERSHIP OBLIGATIONS',
-    body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
-  },
+    body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.' },
   {
     number: '2.',
     title: 'PET CARE STANDARDS',
-    body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident.',
-  },
+    body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident.' },
   {
     number: '3.',
     title: 'COMMUNITY CONDUCT',
-    body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem.',
-  },
+    body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem.' },
   {
     number: '4.',
     title: 'LIABILITY & RESPONSIBILITY',
-    body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam. Nisi ut aliquid ex ea commodi consequatur quis autem vel eum iure.',
-  },
+    body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam. Nisi ut aliquid ex ea commodi consequatur quis autem vel eum iure.' },
   {
     number: '5.',
     title: 'TERMINATION',
-    body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.',
-  },
+    body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.' },
   {
     number: '6.',
     title: 'REFERRAL ACCOUNTABILITY',
-    body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Members who refer others are partially accountable for their referrals\' conduct within the community. Referrers agree to support and guide those they bring into the WatchDog family.',
-  },
+    body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Members who refer others are partially accountable for their referrals\' conduct within the community. Referrers agree to support and guide those they bring into the WatchDog family.' },
 ];
 
 const ContractScreen: React.FC<ContractScreenProps> = ({
   readOnly = false,
   signedName,
   signedDate,
-  onSigned,
-}) => {
+  onSigned }) => {
   const { colors } = useTheme();
   const { user, refreshUserProfile } = useAuthContext();
   const scrollRef = useRef<ScrollView>(null);
@@ -103,8 +93,7 @@ const ContractScreen: React.FC<ContractScreenProps> = ({
     try {
       await updateDoc(doc(db, 'users', user.uid), {
         contractSignedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+        updatedAt: serverTimestamp() });
       // Send welcome message the first time (idempotent)
       await sendWelcomeMessageIfNeeded(user.uid);
       await refreshUserProfile();
@@ -117,11 +106,7 @@ const ContractScreen: React.FC<ContractScreenProps> = ({
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-    >
+    <View style={{ flex: 1 }}>
     <View style={[styles.outer, { backgroundColor: colors.background }]}>
       {/* ── Header — shown only in onboarding; nav bar title handles it in read-only/profile view ── */}
       {!readOnly && (
@@ -134,6 +119,7 @@ const ContractScreen: React.FC<ContractScreenProps> = ({
       )}
 
       <ScrollView
+        automaticallyAdjustKeyboardInsets={true}
         ref={scrollRef}
         onScroll={handleScroll}
         scrollEventThrottle={16}
@@ -206,8 +192,7 @@ const ContractScreen: React.FC<ContractScreenProps> = ({
                 {
                   color: colors.text,
                   borderColor: reachedBottom ? colors.primary : colors.border,
-                  backgroundColor: colors.background,
-                },
+                  backgroundColor: colors.background },
               ]}
               placeholder="Type your full legal name"
               placeholderTextColor={colors.textSecondary}
@@ -239,8 +224,7 @@ const ContractScreen: React.FC<ContractScreenProps> = ({
                   styles.checkbox,
                   {
                     borderColor: reachedBottom ? colors.primary : colors.border,
-                    backgroundColor: checked ? colors.primary : 'transparent',
-                  },
+                    backgroundColor: checked ? colors.primary : 'transparent' },
                 ]}
               >
                 {checked && <Text style={styles.checkmark}>✓</Text>}
@@ -274,7 +258,7 @@ const ContractScreen: React.FC<ContractScreenProps> = ({
         <View style={styles.bottomPadding} />
       </ScrollView>
     </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -284,8 +268,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 60,
     paddingBottom: spacing.lg,
-    paddingHorizontal: spacing.lg,
-  },
+    paddingHorizontal: spacing.lg },
   headerIcon: { fontSize: 36, marginBottom: spacing.xs },
   headerTitle: { ...typography.h2, textAlign: 'center' },
   scrollContent: { padding: spacing.md, paddingTop: spacing.sm },
@@ -293,77 +276,63 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
-    marginBottom: spacing.lg,
-  },
+    marginBottom: spacing.lg },
   noteText: {
     ...typography.body,
     lineHeight: 24,
-    fontStyle: 'italic',
-  },
+    fontStyle: 'italic' },
   contractTitle: {
     ...typography.h2,
     textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
+    marginBottom: spacing.sm },
   effectiveDate: {
     ...typography.bodySmall,
     textAlign: 'center',
-    marginBottom: spacing.lg,
-  },
+    marginBottom: spacing.lg },
   sectionCard: {
     borderRadius: borderRadius.lg,
     padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
+    marginBottom: spacing.sm },
   sectionTitle: {
     ...typography.h3,
     fontSize: 15,
-    marginBottom: spacing.xs,
-  },
+    marginBottom: spacing.xs },
   sectionBody: {
     ...typography.bodySmall,
-    lineHeight: 22,
-  },
+    lineHeight: 22 },
   divider: {
     height: 1.5,
     marginVertical: spacing.lg,
-    borderRadius: 1,
-  },
+    borderRadius: 1 },
   signatureCard: {
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
+    marginBottom: spacing.md },
   scrollHint: {
     textAlign: 'center',
     fontSize: 13,
     marginBottom: spacing.md,
-    fontStyle: 'italic',
-  },
+    fontStyle: 'italic' },
   signatureLabel: {
     ...typography.caption,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     marginBottom: spacing.sm,
-    fontWeight: '600',
-  },
+    fontWeight: '600' },
   nameInput: {
     borderWidth: 1.5,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     fontSize: 16,
     fontStyle: 'italic',
-    marginBottom: spacing.md,
-  },
+    marginBottom: spacing.md },
   dateText: {
     ...typography.bodySmall,
-    marginBottom: spacing.lg,
-  },
+    marginBottom: spacing.lg },
   checkRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: spacing.lg,
-  },
+    marginBottom: spacing.lg },
   checkbox: {
     width: 22,
     height: 22,
@@ -373,15 +342,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: spacing.sm,
     marginTop: 1,
-    flexShrink: 0,
-  },
+    flexShrink: 0 },
   checkmark: { color: '#fff', fontSize: 13, fontWeight: '700' },
   checkLabel: { flex: 1, fontSize: 14, lineHeight: 20 },
   acceptBtn: {
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
+    alignItems: 'center' },
   acceptBtnText: { color: '#fff', ...typography.button },
   // Read-only signed display
   signedName: {
@@ -391,12 +358,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.5,
     borderColor: '#ccc',
     paddingBottom: spacing.sm,
-    marginBottom: spacing.sm,
-  },
+    marginBottom: spacing.sm },
   signedDate: {
-    ...typography.bodySmall,
-  },
-  bottomPadding: { height: 40 },
-});
+    ...typography.bodySmall },
+  bottomPadding: { height: 40 } });
 
 export default ContractScreen;

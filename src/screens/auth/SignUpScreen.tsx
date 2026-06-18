@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, ScrollView,
-} from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, Alert, ScrollView } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
@@ -51,12 +50,9 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-    >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        automaticallyAdjustKeyboardInsets={true} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.logo} accessibilityElementsHidden>🐾</Text>
         <Text style={[styles.title, { color: colors.text }]}>Create account</Text>
         <Text style={[styles.sub, { color: colors.textSecondary }]}>Join the WatchDog community</Text>
@@ -118,7 +114,7 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={[styles.link, { color: colors.primary }]}>Already have an account? <Text style={styles.linkBold}>Sign In</Text></Text>
         </TouchableOpacity>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -133,17 +129,14 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.md,
-    fontSize: 16,
-  },
+    fontSize: 16 },
   btn: {
     padding: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
-    marginBottom: spacing.md,
-  },
+    marginBottom: spacing.md },
   btnText: { color: '#fff', ...typography.button },
   link: { textAlign: 'center', fontSize: 15 },
-  linkBold: { fontWeight: '700' },
-});
+  linkBold: { fontWeight: '700' } });
 
 export default SignUpScreen;

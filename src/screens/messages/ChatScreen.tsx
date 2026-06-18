@@ -1,8 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet,
-  KeyboardAvoidingView, Platform,
-} from 'react-native';
+  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -71,8 +69,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
       // Cross-tab navigation: came from another stack.
       // Navigate to the ConversationsList in MessagesTab.
       (navigation as any).getParent()?.navigate('MessagesTab', {
-        screen: 'ConversationsList',
-      });
+        screen: 'ConversationsList' });
     }
   };
 
@@ -111,8 +108,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
         rescheduleProposedEnd: data.rescheduleProposedEnd ? toDate(data.rescheduleProposedEnd) : (msg.metadata.proposedEnd ? new Date(msg.metadata.proposedEnd) : undefined),
         rescheduleNote: data.rescheduleNote,
         rescheduleProposedBy: data.rescheduleProposedBy,
-        createdAt: toDate(data.createdAt),
-      } as SwapPost;
+        createdAt: toDate(data.createdAt) } as SwapPost;
       setReschedulePost(post);
       setShowRescheduleModal(true);
     } catch (err) {
@@ -137,8 +133,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           status: 'claimed',
           rescheduleProposedStart: null, rescheduleProposedEnd: null,
           rescheduleNote: null, rescheduleProposedBy: null,
-          updatedAt: fsServerTimestamp(),
-        });
+          updatedAt: fsServerTimestamp() });
         msgText = note
           ? `I accept the new dates (${smartDate(reschedulePost.rescheduleProposedStart!)}\u2013${smartDate(reschedulePost.rescheduleProposedEnd!)}). ${note}`
           : `I accept the new dates (${smartDate(reschedulePost.rescheduleProposedStart!)}\u2013${smartDate(reschedulePost.rescheduleProposedEnd!)}).`;
@@ -147,15 +142,13 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           status: 'claimed',
           rescheduleProposedStart: null, rescheduleProposedEnd: null,
           rescheduleNote: null, rescheduleProposedBy: null,
-          updatedAt: fsServerTimestamp(),
-        });
+          updatedAt: fsServerTimestamp() });
         msgText = note ? `I can't do the new dates. ${note}` : `I can't do the proposed dates.`;
       } else if (action === 'propose') {
         await firestoreUpdateDoc(postRef, {
           rescheduleProposedStart: newStart, rescheduleProposedEnd: newEnd,
           rescheduleNote: note || null, rescheduleProposedBy: user.uid,
-          updatedAt: fsServerTimestamp(),
-        });
+          updatedAt: fsServerTimestamp() });
         msgText = note
           ? `How about ${smartDate(newStart!)}\u2013${smartDate(newEnd!)} instead? ${note}`
           : `How about ${smartDate(newStart!)}\u2013${smartDate(newEnd!)} instead?`;
@@ -165,15 +158,13 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
         const msgType = action === 'propose' ? 'reschedule' : 'text';
         const msgData: Record<string, any> = {
           conversationId, senderId: user.uid, text: msgText,
-          read: false, createdAt: fsServerTimestamp(), type: msgType,
-        };
+          read: false, createdAt: fsServerTimestamp(), type: msgType };
         if (action === 'propose' && newStart && newEnd) {
           msgData.metadata = { postId: reschedulePost.id, proposedStart: newStart.toISOString(), proposedEnd: newEnd.toISOString() };
         }
         await fsAddDoc(collection(db, 'conversations', conversationId, 'messages'), msgData);
         await firestoreUpdateDoc(firestoreDoc(db, 'conversations', conversationId), {
-          lastMessage: msgText, lastMessageAt: fsServerTimestamp(), updatedAt: fsServerTimestamp(),
-        });
+          lastMessage: msgText, lastMessageAt: fsServerTimestamp(), updatedAt: fsServerTimestamp() });
       }
       setShowRescheduleModal(false);
       setReschedulePost(null);
@@ -183,11 +174,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <View style={{ flex: 1 }}>
       {/* ── Custom in-component header — always visible, always has back ── */}
       <View
         style={[
@@ -195,8 +182,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           {
             backgroundColor: colors.surface,
             paddingTop: insets.top + 8,
-            borderBottomColor: colors.border,
-          },
+            borderBottomColor: colors.border },
         ]}
       >
         <TouchableOpacity
@@ -216,6 +202,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
       </View>
 
       <FlatList
+        automaticallyAdjustKeyboardInsets={true}
         ref={listRef}
         data={messages}
         keyExtractor={(m) => m.id}
@@ -271,7 +258,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={styles.sendBtnText}>➤</Text>
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -283,26 +270,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
+    borderBottomWidth: StyleSheet.hairlineWidth },
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     minWidth: 50,
     paddingLeft: 4,
-    paddingRight: 8,
-  },
+    paddingRight: 8 },
   backIcon: {
     fontSize: 36,
     lineHeight: 40,
-    fontWeight: '300',
-  },
+    fontWeight: '300' },
   headerTitle: {
     flex: 1,
     fontSize: 18,
     fontWeight: '700',
-    textAlign: 'center',
-  },
+    textAlign: 'center' },
   headerSpacer: { minWidth: 50 },
   // ── Chat body ──────────────────────────────────────────────────────────────
   list: { padding: spacing.xs },
@@ -310,8 +293,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     padding: spacing.sm,
-    borderTopWidth: 1,
-  },
+    borderTopWidth: 1 },
   input: {
     flex: 1,
     borderWidth: 1,
@@ -320,13 +302,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     maxHeight: 100,
     marginRight: spacing.sm,
-    fontSize: 15,
-  },
+    fontSize: 15 },
   sendBtn: {
     width: 40, height: 40, borderRadius: 20,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  sendBtnText: { color: '#fff', fontSize: 16 },
-});
+    justifyContent: 'center', alignItems: 'center' },
+  sendBtnText: { color: '#fff', fontSize: 16 } });
 
 export default ChatScreen;

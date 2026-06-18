@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Platform, ScrollView } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
@@ -34,8 +34,7 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
         swapRequestId: route.params?.swapRequestId ?? '',
         rating,
         comment: comment.trim() || undefined,
-        reviewRole: route.params?.reviewRole ?? undefined,
-      });
+        reviewRole: route.params?.reviewRole ?? undefined });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Review submitted!', 'Thanks for your feedback', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -48,12 +47,9 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        automaticallyAdjustKeyboardInsets={true} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={[styles.title, { color: colors.text }]}>{route.params?.reviewRole === 'sitter' ? 'Rate the Pet Sitter' : route.params?.reviewRole === 'owner' ? 'Rate the Pet Owner' : 'How was your experience?'}</Text>
       <Text style={[styles.sub, { color: colors.textSecondary }]}>Your review helps the community</Text>
       <View style={styles.ratingContainer} accessibilityRole="adjustable" accessibilityLabel={`Selected rating: ${rating} of 5 stars`}>
@@ -81,7 +77,7 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
         <Text style={styles.btnText}>{loading ? 'Submitting...' : 'Submit Review'}</Text>
       </TouchableOpacity>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -92,10 +88,8 @@ const styles = StyleSheet.create({
   ratingContainer: { alignItems: 'center', marginBottom: spacing.xl },
   input: {
     borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md,
-    fontSize: 15, height: 100, textAlignVertical: 'top', marginBottom: spacing.lg,
-  },
+    fontSize: 15, height: 100, textAlignVertical: 'top', marginBottom: spacing.lg },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center' },
-  btnText: { color: '#fff', ...typography.button },
-});
+  btnText: { color: '#fff', ...typography.button } });
 
 export default WriteReviewScreen;

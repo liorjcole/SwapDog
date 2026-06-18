@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch,
-  Image, KeyboardAvoidingView, Platform, ActivityIndicator,
-} from 'react-native';
+  Image, Platform, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../config/firebase';
@@ -34,8 +33,7 @@ const blankForm = () => ({
   goodWithDogs: false,
   goodWithKids: false,
   vaccinated: false,
-  photoURLs: [] as string[],
-});
+  photoURLs: [] as string[] });
 
 const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
@@ -63,8 +61,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       mediaTypes: 'images',
       allowsMultipleSelection: true,
       allowsEditing: false,
-      quality: 0.8,
-    });
+      quality: 0.8 });
     if (result.canceled) return;
     setUploadingPhoto(true);
     try {
@@ -115,8 +112,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         photoURLs: form.photoURLs,
         isGoodWithDogs: form.goodWithDogs,
         isGoodWithKids: form.goodWithKids,
-        vaccinated: form.vaccinated,
-      });
+        vaccinated: form.vaccinated });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSavedCount((c) => c + 1);
       return dogId;
@@ -163,8 +159,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
             } catch (e: unknown) {
               Alert.alert('Error', e instanceof Error ? e.message : 'Failed to remove dog');
             }
-          },
-        },
+          } },
       ],
     );
   };
@@ -184,12 +179,9 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
+    <View style={{ flex: 1 }}>
+    <ScrollView
+        automaticallyAdjustKeyboardInsets={true} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
       <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
         {savedCount === 0 ? 'Add your dog' : `Add dog #${savedCount + 1}`}
       </Text>
@@ -366,7 +358,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
 
     </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -389,8 +381,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.md,
     alignItems: 'center',
-    marginBottom: spacing.md,
-  },
+    marginBottom: spacing.md },
   addAnotherBtnText: { fontSize: 15, fontWeight: '700' },
   skip: { textAlign: 'center', fontSize: 15, marginBottom: spacing.lg },
   // Photo grid
@@ -421,7 +412,6 @@ const styles = StyleSheet.create({
   savedDogName: { fontSize: 15, fontWeight: '500' },
   savedDogDelete: { marginLeft: 'auto', padding: 6 },
   savedDogDeleteText: { fontSize: 16, color: '#FF3B30', fontWeight: '700' },
-  savedDogsHint: { fontSize: 13, marginTop: 6, fontStyle: 'italic' },
-});
+  savedDogsHint: { fontSize: 13, marginTop: 6, fontStyle: 'italic' } });
 
 export default AddDogScreen;

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, ScrollView,
-} from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, Alert, ScrollView } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { AuthStackParamList } from '../../navigation/types';
@@ -43,8 +42,7 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
           [
             {
               text: 'OK',
-              onPress: () => navigation.navigate('SignUp', { email: email.trim() }),
-            },
+              onPress: () => navigation.navigate('SignUp', { email: email.trim() }) },
           ],
         );
       } else {
@@ -57,12 +55,9 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-    >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        automaticallyAdjustKeyboardInsets={true} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.logo} accessibilityElementsHidden>🐾</Text>
         <Text style={[styles.title, { color: colors.text }]}>Sign in</Text>
         <Text style={[styles.sub, { color: colors.textSecondary }]}>Sign in to WatchDog</Text>
@@ -115,7 +110,7 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={[styles.link, { color: colors.primary }]}>Don't have an account? <Text style={styles.linkBold}>Sign Up</Text></Text>
         </TouchableOpacity>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -130,17 +125,14 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.md,
-    fontSize: 16,
-  },
+    fontSize: 16 },
   btn: {
     padding: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
-    marginBottom: spacing.md,
-  },
+    marginBottom: spacing.md },
   btnText: { color: '#fff', ...typography.button },
   link: { textAlign: 'center', fontSize: 15 },
-  linkBold: { fontWeight: '700' },
-});
+  linkBold: { fontWeight: '700' } });
 
 export default SignInScreen;

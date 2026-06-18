@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
-} from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, ActivityIndicator } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
@@ -72,8 +70,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
       mediaTypes: 'images',
       allowsEditing: true,
       aspect: [1, 1] as [number, number],
-      quality: 0.8,
-    });
+      quality: 0.8 });
     if (result.canceled || !result.assets[0]) return;
     setUploadingPhoto(true);
     try {
@@ -113,8 +110,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           size,
           sex,
           energyLevel: energy,
-          photoURLs,
-        });
+          photoURLs });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         navigation.goBack();
       } else {
@@ -126,8 +122,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           size,
           sex,
           energyLevel: energy,
-          photoURLs,
-        });
+          photoURLs });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         navigation.goBack();
       }
@@ -147,20 +142,16 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         onPress: async () => {
           await deleteDog(dogId);
           navigation.goBack();
-        },
-      },
+        } },
     ]);
   };
 
   if (loading) return <LoadingSpinner />;
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
+    <View style={{ flex: 1 }}>
+    <ScrollView
+        automaticallyAdjustKeyboardInsets={true} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
 
       {isCreateMode && (
         <Text style={[styles.createTitle, { color: colors.text }]}>Add a New Dog 🐶</Text>
@@ -319,7 +310,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         </TouchableOpacity>
       )}
     </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -353,7 +344,6 @@ const styles = StyleSheet.create({
   ageControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   ageBtn: { width: 32, height: 32, borderRadius: borderRadius.sm, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   ageBtnText: { fontSize: 18, lineHeight: 22 },
-  ageValue: { fontSize: 18, fontWeight: '700', minWidth: 28, textAlign: 'center' },
-});
+  ageValue: { fontSize: 18, fontWeight: '700', minWidth: 28, textAlign: 'center' } });
 
 export default EditDogScreen;

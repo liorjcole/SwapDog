@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Platform, Switch, KeyboardAvoidingView,
-} from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Platform, Switch } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -133,8 +132,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
         status: SwapStatus.pending,
         pointsCost,
         paymentOffered: paymentAmountNum,
-        paymentType,
-      });
+        paymentType });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Sent!', 'Swap request sent successfully', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -152,12 +150,9 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
     d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <View style={{ flex: 1 }}>
     <ScrollView
+        automaticallyAdjustKeyboardInsets={true}
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
@@ -295,8 +290,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
                   styles.dogSelectorTab,
                   {
                     backgroundColor: selectedMyDogId === dog.id ? colors.primary : colors.background,
-                    borderColor: colors.border,
-                  },
+                    borderColor: colors.border },
                 ]}
                 onPress={() => setSelectedMyDogId(dog.id)}
                 accessibilityLabel={dog.name}
@@ -356,8 +350,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
                 styles.dogRow,
                 {
                   backgroundColor: colors.background,
-                  borderColor: selectedReceiverDogs.includes(dog.id) ? colors.secondary : colors.border,
-                },
+                  borderColor: selectedReceiverDogs.includes(dog.id) ? colors.secondary : colors.border },
               ]}
               onPress={() => toggleReceiverDog(dog.id)}
               accessibilityLabel={dog.name}
@@ -393,8 +386,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
               borderColor: careDetails.trim().length > 0 && careDetails.trim().length < MIN_CARE_DETAILS
                 ? colors.error
                 : colors.border,
-              color: colors.text,
-            },
+              color: colors.text },
           ]}
           placeholder="e.g. Bella eats twice a day (7am and 6pm). She needs a 30-min walk every morning. Takes allergy medication in food..."
           placeholderTextColor={colors.textSecondary}
@@ -409,8 +401,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
         <Text style={[
           styles.charCount,
           {
-            color: careDetails.length >= MIN_CARE_DETAILS ? colors.success : colors.textSecondary,
-          },
+            color: careDetails.length >= MIN_CARE_DETAILS ? colors.success : colors.textSecondary },
         ]}>
           {careDetails.length} chars{careDetails.length < MIN_CARE_DETAILS ? ` (min ${MIN_CARE_DETAILS})` : ' ✓'}
         </Text>
@@ -444,7 +435,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
         <Text style={styles.submitBtnText}>{submitting ? 'Sending...' : 'Send Swap Request 🔄'}</Text>
       </TouchableOpacity>
     </ScrollView>
-  </KeyboardAvoidingView>
+  </View>
   );
 };
 
@@ -460,16 +451,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 2,
-    elevation: 1,
-  },
+    elevation: 1 },
   sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: spacing.sm },
   // Dates
   dateButton: {
     borderWidth: 1.5,
     borderRadius: borderRadius.md,
     padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
+    marginBottom: spacing.sm },
   dateButtonLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   dateButtonValue: { fontSize: 16, fontWeight: '600' },
   dateRange: { padding: spacing.sm, borderRadius: borderRadius.sm, alignItems: 'center', marginTop: spacing.xs },
@@ -480,8 +469,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.sm,
     alignItems: 'center',
-    marginTop: spacing.sm,
-  },
+    marginTop: spacing.sm },
   pointsCostText: { fontSize: 16, fontWeight: '700' },
   // Payment option
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
@@ -496,8 +484,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.sm,
     fontSize: 18,
-    fontWeight: '600',
-  },
+    fontWeight: '600' },
   paymentTypeSummary: { fontSize: 13, fontStyle: 'italic' },
   // Dog selector
   dogSelector: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm },
@@ -524,7 +511,6 @@ const styles = StyleSheet.create({
   messageInput: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, fontSize: 14, minHeight: 80 },
   // Submit
   submitBtn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm },
-  submitBtnText: { color: '#fff', ...typography.button },
-});
+  submitBtnText: { color: '#fff', ...typography.button } });
 
 export default CreateSwapScreen;

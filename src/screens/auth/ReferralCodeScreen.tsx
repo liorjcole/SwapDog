@@ -5,11 +5,9 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Animated,
-} from 'react-native';
+  Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -79,11 +77,7 @@ const ReferralCodeScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-    >
+    <View style={{ flex: 1 }}>
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
@@ -116,8 +110,7 @@ const ReferralCodeScreen: React.FC<Props> = ({ navigation }) => {
               {
                 backgroundColor: colors.background,
                 borderColor: error ? colors.error : colors.border,
-                color: colors.text,
-              },
+                color: colors.text },
             ]}
             placeholder="e.g. SWPD2024"
             placeholderTextColor={colors.textSecondary}
@@ -165,48 +158,40 @@ const ReferralCodeScreen: React.FC<Props> = ({ navigation }) => {
           Don't have a code? Ask an existing WatchDog member to invite you.
         </Text>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
+    flex: 1 },
   content: {
     flex: 1,
     paddingHorizontal: spacing.lg,
-    justifyContent: 'center',
-  },
+    justifyContent: 'center' },
   header: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
+    marginBottom: spacing.xl },
   paws: {
     fontSize: 64,
-    marginBottom: spacing.md,
-  },
+    marginBottom: spacing.md },
   title: {
     ...typography.h1,
     textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
+    marginBottom: spacing.sm },
   subtitle: {
     ...typography.body,
     textAlign: 'center',
-    lineHeight: 24,
-  },
+    lineHeight: 24 },
   card: {
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
-    marginBottom: spacing.lg,
-  },
+    marginBottom: spacing.lg },
   label: {
     ...typography.caption,
     fontWeight: '700',
     letterSpacing: 1.2,
-    marginBottom: spacing.sm,
-  },
+    marginBottom: spacing.sm },
   input: {
     borderWidth: 1.5,
     borderRadius: borderRadius.md,
@@ -216,33 +201,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 4,
     textAlign: 'center',
-    marginBottom: spacing.md,
-  },
+    marginBottom: spacing.md },
   errorRow: {
-    marginBottom: spacing.sm,
-  },
+    marginBottom: spacing.sm },
   errorText: {
     ...typography.bodySmall,
     textAlign: 'center',
-    fontWeight: '600',
-  },
+    fontWeight: '600' },
   button: {
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
-  },
+    minHeight: 52 },
   buttonText: {
     color: '#fff',
     ...typography.button,
-    fontSize: 17,
-  },
+    fontSize: 17 },
   footer: {
     ...typography.bodySmall,
     textAlign: 'center',
-    lineHeight: 20,
-  },
-});
+    lineHeight: 20 } });
 
 export default ReferralCodeScreen;

@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image,
-  KeyboardAvoidingView, Platform, Linking,
-} from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -34,8 +32,7 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
-    });
+      quality: 0.8 });
     if (!result.canceled && result.assets[0]) {
       setPhotoURL(result.assets[0].uri);
     }
@@ -58,12 +55,9 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
+    <View style={{ flex: 1 }}>
+    <ScrollView
+        automaticallyAdjustKeyboardInsets={true} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
       <TouchableOpacity
         style={styles.photoPicker}
         onPress={pickImage}
@@ -121,7 +115,7 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
         <Text style={styles.btnText}>{loading ? 'Saving...' : 'Save Changes'}</Text>
       </TouchableOpacity>
     </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -135,7 +129,6 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, fontSize: 15 },
   textArea: { height: 100, textAlignVertical: 'top' },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center' },
-  btnText: { color: '#fff', ...typography.button },
-});
+  btnText: { color: '#fff', ...typography.button } });
 
 export default EditProfileScreen;

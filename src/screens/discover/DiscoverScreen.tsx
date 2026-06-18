@@ -4,8 +4,7 @@ import React, {
   useRef,
   useCallback,
   useMemo,
-  memo,
-} from 'react';
+  memo } from 'react';
 import {
   View,
   Text,
@@ -15,7 +14,6 @@ import {
   Image,
   Alert,
   Modal,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   Dimensions,
@@ -23,8 +21,7 @@ import {
   PanResponder,
   TextInput,
   ListRenderItem,
-  RefreshControl,
-} from 'react-native';
+  RefreshControl } from 'react-native';
 import MapView, { Marker, Region } from 'react-native-maps';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
@@ -137,8 +134,7 @@ const RadiusSelector: React.FC<RadiusSelectorProps> = memo(({ radiusMiles, onSel
               {
                 backgroundColor: 'transparent',
                 borderColor: active ? '#FFFFFF' : colors.border,
-                borderWidth: active ? 2 : 1.5,
-              },
+                borderWidth: active ? 2 : 1.5 },
             ]}
             accessibilityLabel={`Set radius to ${r} mile${r > 1 ? 's' : ''}`}
             accessibilityState={{ selected: active }}
@@ -296,8 +292,7 @@ interface NominatimResult {
 }
 
 const LocationModal: React.FC<LocationModalProps> = ({
-  visible, onClose, onConfirm, onUseCurrentLocation, isOverride,
-}) => {
+  visible, onClose, onConfirm, onUseCurrentLocation, isOverride }) => {
   const { colors } = useTheme();
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
@@ -342,7 +337,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0} style={styles.modalOverlay}>
+      <View style={{ flex: 1 }}>
         <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
           <Text style={[styles.modalTitle, { color: colors.text }]}>Change Location</Text>
           <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
@@ -398,7 +393,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
             <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };
@@ -502,8 +497,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         const snapTarget = clamped < midDown ? MAP_HEIGHT_MIN : clamped > midUp ? MAP_HEIGHT_MAX : MAP_HEIGHT_DEFAULT;
         committedMapHeight.current = snapTarget;
         Animated.spring(mapHeightAnim, { toValue: snapTarget, useNativeDriver: false, bounciness: 4 }).start();
-      },
-    }),
+      } }),
   ).current;
 
   // ── Fetch nearby users ─────────────────────────────────────────────────────
@@ -521,8 +515,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
             location.coords.latitude, location.coords.longitude,
             u.location!.latitude, u.location!.longitude,
           ),
-          dogCount: 0,
-        }))
+          dogCount: 0 }))
         .sort((a, b) => a.distanceMiles - b.distanceMiles);
       setNearbyUsers(withDistance);
       lastUsersRef.current = withDistance;
@@ -620,8 +613,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
               latitude: location.coords.latitude,
               longitude: location.coords.longitude,
               latitudeDelta: region.latitudeDelta,
-              longitudeDelta: region.longitudeDelta,
-            },
+              longitudeDelta: region.longitudeDelta },
             300,
           );
         }
@@ -672,8 +664,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
             } finally {
               setBroadcastSending(false);
             }
-          },
-        },
+          } },
       ],
     );
   }, [myOpenPost, userProfile?.id, nearbyUsers, radiusMiles, buildPostMessage, getOrCreateConversation, sendMessage]);
@@ -814,8 +805,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     latitude: location.coords.latitude,
     longitude: location.coords.longitude,
     latitudeDelta: Math.max(0.01, (radiusMiles / 69) * 2 * (MAP_HEIGHT_DEFAULT / CIRCLE_SIZE)),
-    longitudeDelta: Math.max(0.01, (radiusMiles / 69) * 2 * (MAP_HEIGHT_DEFAULT / CIRCLE_SIZE)),
-  };
+    longitudeDelta: Math.max(0.01, (radiusMiles / 69) * 2 * (MAP_HEIGHT_DEFAULT / CIRCLE_SIZE)) };
 
 
   return (
@@ -827,8 +817,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
           height: mapHeightAnim,
           borderBottomLeftRadius: borderRadius.lg,
           borderBottomRightRadius: borderRadius.lg,
-          overflow: 'hidden',
-        }]}
+          overflow: 'hidden' }]}
         onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h > 0) setMapViewHeight(h); }}
       >
         <MapView
@@ -851,8 +840,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
                 key={nu.user.id}
                 coordinate={{
                   latitude: nu.user.location.latitude,
-                  longitude: nu.user.location.longitude,
-                }}
+                  longitude: nu.user.location.longitude }}
                 anchor={{ x: 0.5, y: 0.5 }}
               >
                 <View style={styles.userDot} />
@@ -865,8 +853,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
           <View style={[styles.circleOverlay, {
             width: CIRCLE_SIZE, height: CIRCLE_SIZE,
             borderRadius: CIRCLE_SIZE / 2,
-            borderColor: RED, backgroundColor: RED + '1A',
-          }]} />
+            borderColor: RED, backgroundColor: RED + '1A' }]} />
           <Text style={[styles.circleRadiusLabel, { color: RED }]}>
             {radiusMiles < 10 ? radiusMiles.toFixed(1) : Math.round(radiusMiles).toString()} mi
           </Text>
@@ -1037,7 +1024,6 @@ const styles = StyleSheet.create({
   modalBtnOutline: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', borderWidth: 1.5, marginBottom: spacing.sm },
   modalBtnOutlineText: { fontSize: 15, fontWeight: '600' },
   modalCancel: { alignItems: 'center', paddingVertical: spacing.sm },
-  modalCancelText: { fontSize: 15 },
-});
+  modalCancelText: { fontSize: 15 } });
 
 export default DiscoverScreen;

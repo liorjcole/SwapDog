@@ -12,8 +12,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, Platform, Switch, KeyboardAvoidingView, Image,
-} from 'react-native';
+  Alert, Platform, Switch, Image } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
@@ -279,8 +278,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
             totalUnits: careType === 'overnight' ? dayCount
               : careType === 'daySitting' ? daySittingHours
               : careType === 'dogWalking' ? walkHours
-              : 1,
-          }
+              : 1 }
         : {};
 
       // Care-type-specific optional fields
@@ -324,8 +322,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         pointsCost: offerPoints ? parseInt(pointsOffered, 10) : 0,
         ...paymentFields,
         ...careTypeFields,
-        status: 'open' as const,
-      };
+        status: 'open' as const };
 
       const cleanData = Object.fromEntries(
         Object.entries(postData).filter(([, v]) => v !== undefined)
@@ -347,12 +344,9 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <View style={{ flex: 1 }}>
       <ScrollView
+        automaticallyAdjustKeyboardInsets={true}
         style={[styles.container, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -390,8 +384,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         {
                           backgroundColor: colors.background,
                           borderColor: isSelected ? RED : colors.border,
-                          borderWidth: isSelected ? 2.5 : 1,
-                        },
+                          borderWidth: isSelected ? 2.5 : 1 },
                       ]}
                       onPress={() => toggleDog(dog.id)}
                       accessibilityLabel={`${dog.name}${isSelected ? ', selected' : ''}`}
@@ -479,8 +472,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                     {
                       backgroundColor: colors.background,
                       borderColor: isSelected ? RED : colors.border,
-                      borderWidth: isSelected ? 2.5 : 1,
-                    },
+                      borderWidth: isSelected ? 2.5 : 1 },
                   ]}
                   onPress={() => {
                     setCareType(type);
@@ -655,8 +647,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                           styles.durationPill,
                           {
                             backgroundColor: isSelected ? RED : colors.background,
-                            borderColor: isSelected ? RED : colors.border,
-                          },
+                            borderColor: isSelected ? RED : colors.border },
                         ]}
                         onPress={() => {
                           setWalkDurationMinutes(minutes);
@@ -694,8 +685,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                       careDetails.trim().length > 0 && careDetails.trim().length < MIN_CARE_DETAILS
                         ? colors.error
                         : colors.border,
-                    color: colors.text,
-                  },
+                    color: colors.text },
                 ]}
                 placeholder="e.g. Bella eats twice a day (7am and 6pm). She needs a 30-min walk every morning..."
                 placeholderTextColor={colors.textSecondary}
@@ -846,7 +836,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
           </>
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -863,8 +853,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 2,
-    elevation: 1,
-  },
+    elevation: 1 },
   sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: spacing.sm },
 
   // Dog multi-select
@@ -899,8 +888,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 80,
-    position: 'relative',
-  },
+    position: 'relative' },
   careTypeIcon: { fontSize: 28, marginBottom: 4 },
   careTypeLabel: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
   careTypeCheckmark: { position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: 11, backgroundColor: RED, alignItems: 'center', justifyContent: 'center' },
@@ -959,7 +947,6 @@ const styles = StyleSheet.create({
 
   // Submit
   submitBtn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm },
-  submitBtnText: { color: '#fff', ...typography.button },
-});
+  submitBtnText: { color: '#fff', ...typography.button } });
 
 export default CreatePostScreen;

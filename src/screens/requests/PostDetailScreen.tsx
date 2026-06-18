@@ -23,9 +23,7 @@ import {
   StatusBar,
   SafeAreaView,
   TextInput,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+  Platform } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
@@ -426,8 +424,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   startDate: post.startDate,
                   dogName: dogDisplayName,
                   ownerName: post.posterName,
-                  sitterName: helperName,
-                });
+                  sitterName: helperName });
                 if (ownerIds.length > 0) await saveOwnerReminderIds(post.id, ownerIds);
               }
             } catch (reminderErr) {
@@ -438,8 +435,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           } finally {
             setApprovingId(null);
           }
-        },
-      },
+        } },
     ]);
   };
 
@@ -474,8 +470,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         rescheduleNote: rescheduleNote.trim() || null,
         rescheduleProposedBy: user.uid,
         status: 'reschedulePending',
-        updatedAt: serverTimestamp(),
-      });
+        updatedAt: serverTimestamp() });
       // Send a typed reschedule message so the chat can render "Review Reschedule" link
       const convId = await getOrCreateConversation(user.uid, sitterId, post.id);
       const startStr = smartDate(rescheduleStart);
@@ -492,14 +487,11 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         metadata: {
           postId: post.id,
           proposedStart: rescheduleStart.toISOString(),
-          proposedEnd: rescheduleEnd.toISOString(),
-        },
-      });
+          proposedEnd: rescheduleEnd.toISOString() } });
       await updateDoc(doc(db, 'conversations', convId), {
         lastMessage: msgText,
         lastMessageAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+        updatedAt: serverTimestamp() });
       setShowRescheduleModal(false);
       setRescheduleNote('');
       setPost((prev) => prev ? { ...prev, status: 'reschedulePending' as any, rescheduleProposedStart: rescheduleStart, rescheduleProposedEnd: rescheduleEnd, rescheduleProposedBy: user.uid } : prev);
@@ -533,8 +525,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             } catch (err) {
               Alert.alert('Error', err instanceof Error ? err.message : 'Could not cancel booking');
             }
-          },
-        },
+          } },
       ]
     );
   };
@@ -586,11 +577,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         animationType="slide"
         onRequestClose={() => setHelpModalVisible(false)}
       >
-        <KeyboardAvoidingView
-          style={styles.helpModalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-        >
+        <View style={{ flex: 1 }}>
           <TouchableOpacity
             style={StyleSheet.absoluteFillObject}
             activeOpacity={1}
@@ -619,7 +606,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   <Text style={[styles.helpModalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
                 </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
 
@@ -631,7 +618,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
       {/* ── Reschedule Modal ── */}
         <Modal visible={showRescheduleModal} transparent animationType="slide">
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0} style={{ flex: 1 }}>
+          <View style={{ flex: 1 }}>
             <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
               <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 }}>
                 <Text style={{ color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: 16 }}>Propose New Dates</Text>
@@ -686,7 +673,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 </TouchableOpacity>
               </View>
             </View>
-          </KeyboardAvoidingView>
+          </View>
         </Modal>
 
       <FullscreenPhotoModal
@@ -697,6 +684,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       />
 
       <ScrollView
+        automaticallyAdjustKeyboardInsets={true}
         style={[styles.container, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.content}
       >
@@ -946,8 +934,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                       } catch (err) {
                         Alert.alert('Error', err instanceof Error ? err.message : 'Failed to delete');
                       }
-                    },
-                  },
+                    } },
                 ],
               );
             }}
@@ -974,8 +961,7 @@ const carouselStyles = StyleSheet.create({
   dotsRow: { position: 'absolute', bottom: 12, width: '100%', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 3.5 },
   dotActive: { backgroundColor: '#FFFFFF', width: 9, height: 9, borderRadius: 4.5 },
-  dotInactive: { backgroundColor: 'rgba(255,255,255,0.45)' },
-});
+  dotInactive: { backgroundColor: 'rgba(255,255,255,0.45)' } });
 
 // ─── Modal Styles ─────────────────────────────────────────────────────────────
 
@@ -990,8 +976,7 @@ const modalStyles = StyleSheet.create({
   dotsRow: { paddingBottom: 24, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 3.5 },
   dotActive: { backgroundColor: '#FFFFFF', width: 9, height: 9, borderRadius: 4.5 },
-  dotInactive: { backgroundColor: 'rgba(255,255,255,0.4)' },
-});
+  dotInactive: { backgroundColor: 'rgba(255,255,255,0.4)' } });
 
 // ─── Screen Styles ────────────────────────────────────────────────────────────
 
@@ -1013,8 +998,7 @@ const styles = StyleSheet.create({
     marginBottom: 0,
     borderRadius: borderRadius.lg,
     borderWidth: 1.5,
-    padding: spacing.md,
-  },
+    padding: spacing.md },
   careTypeBannerIcon: { fontSize: 30 },
   careTypeBannerLabel: { fontSize: 17, fontWeight: '800', marginBottom: 2 },
   careTypeSchedule: { fontSize: 14, fontWeight: '500' },
@@ -1098,8 +1082,6 @@ const styles = StyleSheet.create({
   helpModalAcceptBtn: { borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginBottom: spacing.sm },
   helpModalBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   helpModalCancelLink: { alignItems: 'center', paddingVertical: spacing.sm },
-  helpModalCancelText: { fontSize: 14 },
-
-});
+  helpModalCancelText: { fontSize: 14 } });
 
 export default PostDetailScreen;
