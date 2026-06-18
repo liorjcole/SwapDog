@@ -46,6 +46,17 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const { dogForm: form, setDogForm: setForm, updateDogForm: set, savedDogs, savedCount, addSavedDog, removeSavedDog, resetDogForm } = useOnboarding();
   const scrollRef = useRef<ScrollView>(null);
   const [loading, setLoading] = useState(false);
+
+  /** Track y-offsets of inputs so we can scroll to them on focus */
+  const inputY = useRef<Record<string, number>>({}).current;
+  const scrollToInput = (key: string) => {
+    const y = inputY[key];
+    if (y !== undefined) {
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: Math.max(0, y - 100), animated: true });
+      }, 300);
+    }
+  };
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
   const [transitionMode, setTransitionMode] = useState<'addAnother' | 'continue'>('addAnother');
@@ -290,8 +301,9 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         value={form.name}
         onChangeText={(v) => set('name', v)}
         accessibilityLabel="Dog's name"
-          returnKeyType="done"
-          
+        returnKeyType="done"
+        onLayout={(e) => { inputY['dogName'] = e.nativeEvent.layout.y; }}
+        onFocus={() => scrollToInput('dogName')}
       />
       <TextInput
         style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
@@ -300,7 +312,9 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         value={form.breed}
         onChangeText={(v) => set('breed', v)}
         accessibilityLabel="Dog's breed"
-          returnKeyType="done"
+        returnKeyType="done"
+        onLayout={(e) => { inputY['breed'] = e.nativeEvent.layout.y; }}
+        onFocus={() => scrollToInput('breed')}
       />
 
       {/* Age pickers */}

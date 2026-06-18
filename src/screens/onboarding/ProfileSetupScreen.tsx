@@ -32,6 +32,17 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   const { displayName, setDisplayName, bio, setBio, instagramHandle, setInstagramHandle, photoURL, setPhotoURL } = useOnboarding();
   const [loading, setLoading] = useState(false);
 
+  /** Track y-offsets of inputs so we can scroll to them on focus */
+  const inputY = useRef<Record<string, number>>({}).current;
+  const scrollToInput = (key: string) => {
+    const y = inputY[key];
+    if (y !== undefined) {
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: Math.max(0, y - 100), animated: true });
+      }, 300);
+    }
+  };
+
   const pickImage = async () => {
     Alert.alert(
       'Add Your Profile Photo',
@@ -128,7 +139,9 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         value={displayName}
         onChangeText={setDisplayName}
         accessibilityLabel="Your display name"
-          returnKeyType="done"
+        returnKeyType="done"
+        onLayout={(e) => { inputY['name'] = e.nativeEvent.layout.y; }}
+        onFocus={() => scrollToInput('name')}
       />
       <TextInput
         style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
@@ -139,9 +152,11 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         multiline
         numberOfLines={4}
         accessibilityLabel="Bio, optional"
-      returnKeyType="done"
-              blurOnSubmit={true}
-              />
+        returnKeyType="done"
+        blurOnSubmit={true}
+        onLayout={(e) => { inputY['bio'] = e.nativeEvent.layout.y; }}
+        onFocus={() => scrollToInput('bio')}
+      />
       <TextInput
         style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
         placeholder="@yourinstagram (optional)"
@@ -151,7 +166,9 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         autoCapitalize="none"
         autoCorrect={false}
         accessibilityLabel="Instagram handle, optional"
-          returnKeyType="done"
+        returnKeyType="done"
+        onLayout={(e) => { inputY['ig'] = e.nativeEvent.layout.y; }}
+        onFocus={() => scrollToInput('ig')}
       />
 
 
