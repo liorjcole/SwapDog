@@ -847,7 +847,9 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   <Text style={[styles.dogName, { color: colors.text }]}>{dName}</Text>
                   {dBreed ? <Text style={[styles.dogBreed, { color: colors.textSecondary }]}>{dBreed}</Text> : null}
                 </View>
-                <Text style={{ color: '#999', fontSize: 20 }}>›</Text>
+                <View style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: colors.primary, fontSize: 18, fontWeight: '600', marginLeft: 1 }}>›</Text>
+                </View>
               </TouchableOpacity>
             );
           })}
