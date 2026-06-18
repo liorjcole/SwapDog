@@ -348,7 +348,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       {savedCount === 0 && (
         <View style={[styles.multiDogHint, { backgroundColor: colors.primary + '12' }]}>
           <Text style={[styles.multiDogHintText, { color: colors.primary }]}>
-            🐾  Have multiple dogs? You'll be able to add them one at a time after this one.
+            🐾  Have multiple dogs? You'll be able to add them one at a time after this!
           </Text>
         </View>
       )}
