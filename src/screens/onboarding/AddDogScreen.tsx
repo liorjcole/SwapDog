@@ -337,6 +337,14 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           : `${savedCount} dog${savedCount > 1 ? 's' : ''} added — keep going!`}
       </Text>
 
+      {savedCount === 0 && (
+        <View style={[styles.multiDogHint, { backgroundColor: colors.primary + '12' }]}>
+          <Text style={[styles.multiDogHintText, { color: colors.primary }]}>
+            🐾  Have multiple dogs? You'll be able to add them one at a time after this one.
+          </Text>
+        </View>
+      )}
+
       {/* Photo grid */}
       <Text style={[styles.label, { color: colors.text }]}>Photos ({form.photoURLs.length}/{MAX_PHOTOS})</Text>
       <View style={styles.photoGrid}>
@@ -648,7 +656,19 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flexGrow: 1, padding: spacing.lg, paddingTop: spacing.lg },
   title: { ...typography.h2, textAlign: 'center', marginBottom: spacing.xs },
-  sub: { ...typography.body, textAlign: 'center', marginBottom: spacing.xl },
+  sub: { ...typography.body, textAlign: 'center', marginBottom: spacing.md },
+  multiDogHint: {
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  multiDogHintText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   input: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, fontSize: 15 },
   label: { fontSize: 15, fontWeight: '600', marginBottom: spacing.sm, marginTop: spacing.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
