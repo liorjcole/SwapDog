@@ -191,7 +191,9 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
               removeSavedDog(lastDog.id);
             }
             resetDogForm();
-            scrollRef.current?.scrollTo({ y: 0, animated: false });
+            setTimeout(() => {
+              scrollRef.current?.scrollTo({ y: 0, animated: false });
+            }, 50);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           },
         },
@@ -238,7 +240,10 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
-        automaticallyAdjustKeyboardInsets={true} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
+        ref={scrollRef}
+        automaticallyAdjustKeyboardInsets={true}
+        keyboardShouldPersistTaps="handled"
+        style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
       <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
         {savedCount === 0 ? 'Add your dog' : `Add your ${ordinalWord(savedCount + 1)} dog`}
       </Text>
@@ -458,7 +463,9 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
               navigation.navigate('Paywall');
             } else {
               resetDogForm();
-              scrollRef.current?.scrollTo({ y: 0, animated: false });
+              setTimeout(() => {
+                scrollRef.current?.scrollTo({ y: 0, animated: false });
+              }, 50);
             }
           }}
         />
