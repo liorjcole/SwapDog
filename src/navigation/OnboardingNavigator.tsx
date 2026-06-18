@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, TouchableOpacity, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from './types';
 import ProfileSetupScreen from '../screens/onboarding/ProfileSetupScreen';
@@ -31,20 +31,27 @@ const OnboardingStack: React.FC = () => {
       <Stack.Screen
         name="ProfileSetup"
         component={ProfileSetupScreen}
-        options={{ headerBackVisible: true }}
-        listeners={{
-          beforeRemove: (e) => {
-            e.preventDefault();
-            Alert.alert(
-              'Are you sure you want to exit?',
-              "Your progress won't be saved.",
-              [
-                { text: 'Stay', style: 'cancel' },
-                { text: 'Exit', style: 'destructive', onPress: () => signOut() },
-              ]
-            );
-          },
+        options={{
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => {
+                Alert.alert(
+                  'Are you sure you want to exit?',
+                  "Your progress won't be saved.",
+                  [
+                    { text: 'Stay', style: 'cancel' },
+                    { text: 'Exit', style: 'destructive', onPress: () => signOut() },
+                  ]
+                );
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ marginLeft: -8 }}
+            >
+              <Text style={{ fontSize: 28, color: colors.primary, fontWeight: '300' }}>{'‹'}</Text>
+            </TouchableOpacity>
+          ),
         }}
+
       />
       <Stack.Screen name="AddDog" component={AddDogScreen} />
       <Stack.Screen name="LocationSetup" component={LocationSetupScreen} />
