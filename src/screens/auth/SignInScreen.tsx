@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, Alert, ScrollView } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { AuthStackParamList } from '../../navigation/types';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -20,6 +21,7 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSignIn = async () => {
@@ -76,19 +78,30 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
           accessibilityLabel="Email address"
           accessibilityRole="none"
         />
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-          placeholder="Password"
-          placeholderTextColor={colors.textSecondary}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoComplete="password"
-          returnKeyType="done"
-          onSubmitEditing={handleSignIn}
-          accessibilityLabel="Password"
-          accessibilityRole="none"
-        />
+        <View style={styles.passwordWrap}>
+          <TextInput
+            style={[styles.input, styles.passwordInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+            placeholder="Password"
+            placeholderTextColor={colors.textSecondary}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            autoComplete="password"
+            returnKeyType="done"
+            onSubmitEditing={handleSignIn}
+            accessibilityLabel="Password"
+            accessibilityRole="none"
+          />
+          <TouchableOpacity
+            style={styles.eyeBtn}
+            onPress={() => setShowPassword((v) => !v)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+            accessibilityRole="button"
+          >
+            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
@@ -132,6 +145,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md },
   btnText: { color: '#fff', ...typography.button },
+  passwordWrap: { position: 'relative', marginBottom: spacing.md },
+  passwordInput: { marginBottom: 0, paddingRight: 48 },
+  eyeBtn: { position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' },
   link: { textAlign: 'center', fontSize: 15 },
   linkBold: { fontWeight: '700' } });
 

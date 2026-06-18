@@ -4,6 +4,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { AuthStackParamList } from '../../navigation/types';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -22,6 +23,8 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleSignUp = async () => {
     if (!email.trim() || !password.trim() || !confirm.trim()) {
@@ -70,30 +73,52 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
           blurOnSubmit={false}
           accessibilityRole="none"
         />
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-          placeholder="Password (min 6 characters)"
-          placeholderTextColor={colors.textSecondary}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          accessibilityLabel="Password, minimum 6 characters"
-          returnKeyType="next"
-          blurOnSubmit={false}
-          accessibilityRole="none"
-        />
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-          placeholder="Confirm Password"
-          placeholderTextColor={colors.textSecondary}
-          value={confirm}
-          onChangeText={setConfirm}
-          secureTextEntry
-          accessibilityLabel="Confirm password"
-          returnKeyType="done"
-          onSubmitEditing={handleSignUp}
-          accessibilityRole="none"
-        />
+        <View style={styles.passwordWrap}>
+          <TextInput
+            style={[styles.input, styles.passwordInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+            placeholder="Password (min 6 characters)"
+            placeholderTextColor={colors.textSecondary}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            accessibilityLabel="Password, minimum 6 characters"
+            returnKeyType="next"
+            blurOnSubmit={false}
+            accessibilityRole="none"
+          />
+          <TouchableOpacity
+            style={styles.eyeBtn}
+            onPress={() => setShowPassword((v) => !v)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+            accessibilityRole="button"
+          >
+            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.passwordWrap}>
+          <TextInput
+            style={[styles.input, styles.passwordInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+            placeholder="Confirm Password"
+            placeholderTextColor={colors.textSecondary}
+            value={confirm}
+            onChangeText={setConfirm}
+            secureTextEntry={!showConfirm}
+            accessibilityLabel="Confirm password"
+            returnKeyType="done"
+            onSubmitEditing={handleSignUp}
+            accessibilityRole="none"
+          />
+          <TouchableOpacity
+            style={styles.eyeBtn}
+            onPress={() => setShowConfirm((v) => !v)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
+            accessibilityRole="button"
+          >
+            <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
@@ -136,6 +161,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md },
   btnText: { color: '#fff', ...typography.button },
+  passwordWrap: { position: 'relative', marginBottom: spacing.md },
+  passwordInput: { marginBottom: 0, paddingRight: 48 },
+  eyeBtn: { position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' },
   link: { textAlign: 'center', fontSize: 15 },
   linkBold: { fontWeight: '700' } });
 
