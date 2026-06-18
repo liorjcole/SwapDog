@@ -691,6 +691,15 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* ── Photo Carousel (swipeable, all dog photos) ── */}
         <PhotoCarouselSection photos={allPhotos} onPhotoPress={handlePhotoPress} />
 
+        {/* ── Status Badge (top of post) ── */}
+        <View style={{ alignItems: 'flex-start', paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
+          <View style={[styles.statusBadge, { backgroundColor: post.status === 'open' ? '#00B89420' : post.status === 'reschedulePending' ? '#F39C1225' : '#63727220' }]}>
+            <Text style={[styles.statusBadgeText, { color: post.status === 'open' ? '#00B894' : post.status === 'reschedulePending' ? '#F39C12' : '#636E72' }]}>
+              {post.status === 'reschedulePending' ? 'RESCHEDULE PENDING' : post.status.toUpperCase()}
+            </Text>
+          </View>
+        </View>
+
         {/* ── Reschedule / Cancel banner (owner, claimed post) ── */}
         {isOwner && post.status === 'claimed' && !isJustApproved && (
           <View style={[styles.rescheduleBanner, { backgroundColor: '#3D2E00', borderColor: '#FFD700' }]}>
@@ -790,13 +799,14 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
 
         {/* ── Owner (clickable → full profile) ── */}
-        <TouchableOpacity
-          style={[styles.section, { backgroundColor: colors.surface, ...shadow.sm }]}
-          onPress={() => navigation.navigate('UserDetail', { userId: post.posterId })}
-          accessibilityLabel={`View ${post.posterName}'s profile`}
-          accessibilityRole="button"
-        >
-          <View style={styles.posterRow}>
+        <View style={[styles.section, { backgroundColor: colors.surface, ...shadow.sm }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Owner</Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('UserDetail', { userId: post.posterId })}
+            accessibilityLabel={`View ${post.posterName}'s profile`}
+            accessibilityRole="button"
+            style={styles.posterRow}
+          >
             {post.posterPhotoURL ? (
               <Image source={{ uri: post.posterPhotoURL }} style={[styles.posterAvatar, { borderColor: colors.border }]} />
             ) : (
@@ -805,25 +815,20 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               </View>
             )}
             <View style={styles.posterInfo}>
-              <View style={styles.posterNameRow}>
-                <Text style={[styles.posterName, { color: colors.text }]}>{post.posterName}</Text>
-                <Text style={styles.ownerLabel}> (owner)</Text>
-              </View>
+              <Text style={[styles.posterName, { color: colors.text }]}>{post.posterName}</Text>
               <Text style={[styles.postedAt, { color: colors.textSecondary }]}>
                 Posted {smartDate(post.createdAt)}
               </Text>
             </View>
-            <View style={[styles.statusBadge, { backgroundColor: post.status === 'open' ? '#00B89420' : post.status === 'reschedulePending' ? '#F39C1225' : '#63727220' }]}>
-              <Text style={[styles.statusBadgeText, { color: post.status === 'open' ? '#00B894' : post.status === 'reschedulePending' ? '#F39C12' : '#636E72' }]}>
-                {post.status === 'reschedulePending' ? 'RESCHEDULE PENDING' : post.status.toUpperCase()}
-              </Text>
+            <View style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: colors.primary, fontSize: 18, fontWeight: '600', marginLeft: 1 }}>›</Text>
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
 
         {/* ── Dogs (each clickable → DogDetail) ── */}
         <View style={[styles.section, { backgroundColor: colors.surface, ...shadow.sm }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Dog{post.dogIds && post.dogIds.length > 1 ? 's' : ''}</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{post.dogIds && post.dogIds.length > 1 ? 'Pups' : 'Pup'}</Text>
           {(post.dogIds && post.dogIds.length > 0 ? post.dogIds : [post.dogId]).filter(Boolean).map((dId, idx) => {
             const dName = post.dogNames?.[idx] ?? post.dogName ?? 'Dog';
             const dBreed = post.dogBreeds?.[idx] ?? post.dogBreed ?? '';
