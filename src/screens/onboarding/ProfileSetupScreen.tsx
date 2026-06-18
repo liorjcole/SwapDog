@@ -179,7 +179,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flexGrow: 1, padding: spacing.lg, justifyContent: 'center' },
-  title: { ...typography.h2, textAlign: 'center', marginBottom: spacing.xs },
+  title: { ...typography.h2, textAlign: 'center', marginBottom: spacing.sm },
   sub: { ...typography.body, textAlign: 'center', marginBottom: spacing.xl },
   photoPicker: { alignItems: 'center', marginBottom: spacing.lg },
   photo: { width: 90, height: 90, borderRadius: 45, marginBottom: spacing.xs },
