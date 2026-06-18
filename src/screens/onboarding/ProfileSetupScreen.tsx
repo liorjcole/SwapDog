@@ -134,8 +134,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         value={displayName}
         onChangeText={setDisplayName}
         accessibilityLabel="Your display name"
-          returnKeyType="next"
-          blurOnSubmit={false}
+          returnKeyType="done"
       />
       <TextInput
         style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
