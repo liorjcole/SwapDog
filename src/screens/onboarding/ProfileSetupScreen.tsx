@@ -62,7 +62,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
     if (!displayName.trim()) { Alert.alert('Required', 'Please enter your name'); return; }
     if (!instagramHandle.trim()) {
       Alert.alert(
-        'Are you sure?',
+        'Reconsider adding your Instagram?',
         "Are you sure you don\u2019t want to add your Instagram? Your IG helps the other dog parents see you\u2019re a real, trustworthy person.",
         [
           { text: 'Add Instagram', style: 'cancel' },
