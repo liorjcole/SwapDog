@@ -76,7 +76,7 @@ const DiscoverNavigator: React.FC = () => {
       <DiscoverStack.Screen name="DogDetail" component={DogDetailScreen} options={{ title: 'Dog Profile' }} />
       <DiscoverStack.Screen name="CreateSwap" component={CreateSwapScreen} options={{ title: 'Request Swap', presentation: 'modal' }} />
       <DiscoverStack.Screen name="PostDetail" component={PostDetailScreen} options={{ title: 'Post Details' }} />
-      <DiscoverStack.Screen name="CreatePost" component={CreatePostScreen} options={{ title: 'Post a Request', presentation: 'modal' }} />
+      <DiscoverStack.Screen name="CreatePost" component={CreatePostScreen} options={{ title: 'Create Post', presentation: 'modal' }} />
       <DiscoverStack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat', headerShown: false }} />
     </DiscoverStack.Navigator>
   );
@@ -99,7 +99,7 @@ const RequestsNavigator: React.FC = () => {
       <RequestsStack.Screen name="PostDetail" component={PostDetailScreen} options={{ title: 'Post Details' }} />
       <RequestsStack.Screen name="UserDetail" component={UserDetailScreen} options={{ title: 'Profile' }} />
       <RequestsStack.Screen name="DogDetail" component={DogDetailScreen} options={{ title: 'Dog Profile' }} />
-      <RequestsStack.Screen name="CreatePost" component={CreatePostScreen} options={{ title: 'Post a Request', presentation: 'modal' }} />
+      <RequestsStack.Screen name="CreatePost" component={CreatePostScreen} options={{ title: 'Create Post', presentation: 'modal' }} />
       <RequestsStack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat', headerShown: false }} />
     </RequestsStack.Navigator>
   );

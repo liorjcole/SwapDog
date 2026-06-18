@@ -767,10 +767,10 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
               <TouchableOpacity
                 style={styles.postRequestCard}
                 onPress={() => navigation.navigate('CreatePost')}
-                accessibilityLabel="Post a request"
+                accessibilityLabel="Create a new post"
                 accessibilityRole="button"
               >
-                <Text style={styles.postRequestCardText}>Post a Request</Text>
+                <Text style={styles.postRequestCardText}>Create Post</Text>
               </TouchableOpacity>
             }
             refreshControl={

@@ -353,7 +353,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={[styles.pageTitle, { color: colors.text }]} accessibilityRole="header">
-          Post a Request 📋
+          Create Post 📋
         </Text>
         <Text style={[styles.pageSubtitle, { color: colors.textSecondary }]}>
           Your post will be visible to WatchDog members in your area.

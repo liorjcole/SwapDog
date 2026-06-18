@@ -402,21 +402,34 @@ const LocationModal: React.FC<LocationModalProps> = ({
 
 interface SectionHeaderRowProps {
   item: FeedItemSectionHeader;
+  onCreatePost?: () => void;
 }
-const SectionHeaderRow: React.FC<SectionHeaderRowProps> = memo(({ item }) => {
+const SectionHeaderRow: React.FC<SectionHeaderRowProps> = memo(({ item, onCreatePost }) => {
   const { colors } = useTheme();
   return (
-    <View
-      style={[
-        styles.sectionHeader,
-        { backgroundColor: 'transparent' },
-      ]}
-    >
-      <Text style={[styles.sectionHeaderText, { color: '#FFFFFF', fontSize: item.isPosts ? 20 : 16, fontWeight: '800' as const }]}>
-        {item.title}
-      </Text>
-      {item.count > 0 && (
-        <View style={[styles.sectionBadge, { backgroundColor: colors.textSecondary }]}>
+    <View style={{ backgroundColor: 'transparent', paddingVertical: spacing.md, marginBottom: spacing.sm }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={[styles.sectionHeaderText, { color: '#FFFFFF', fontSize: item.isPosts ? 20 : 16, fontWeight: '800' as const, flex: 1 }]}>
+          {item.title}
+        </Text>
+        {item.isPosts && onCreatePost && (
+          <TouchableOpacity
+            onPress={onCreatePost}
+            style={styles.createPostBtn}
+            accessibilityLabel="Create a new post"
+            accessibilityRole="button"
+          >
+            <Text style={styles.createPostBtnText}>Create Post</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {item.isPosts && item.count > 0 && (
+        <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: 4 }}>
+          {item.count} active {item.count === 1 ? 'post' : 'posts'}
+        </Text>
+      )}
+      {!item.isPosts && item.count > 0 && (
+        <View style={[styles.sectionBadge, { backgroundColor: colors.textSecondary, alignSelf: 'flex-start', marginTop: 4 }]}>
           <Text style={styles.sectionBadgeText}>{item.count}</Text>
         </View>
       )}
@@ -736,11 +749,16 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     [navigation],
   );
 
+  const handleNavigateToCreatePost = useCallback(
+    () => navigation.navigate('CreatePost'),
+    [navigation],
+  );
+
   const renderFeedItem: ListRenderItem<FeedItem> = useCallback(
     ({ item }) => {
       switch (item.kind) {
         case 'section_header':
-          return <SectionHeaderRow item={item} />;
+          return <SectionHeaderRow item={item} onCreatePost={item.isPosts ? handleNavigateToCreatePost : undefined} />;
         case 'post':
           return <PostCard post={item.post} onPress={handleNavigateToPost} currentUserId={userProfile?.id} />;
         case 'user':
@@ -963,6 +981,8 @@ const styles = StyleSheet.create({
   sectionHeaderText: { fontSize: 20, fontWeight: '800', flex: 1, letterSpacing: 0.3 },
   sectionBadge: { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   sectionBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  createPostBtn: { backgroundColor: '#FF2D55', borderRadius: borderRadius.full, paddingHorizontal: 16, paddingVertical: 8 },
+  createPostBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
 
   sectionEmpty: { paddingVertical: spacing.md, paddingHorizontal: spacing.sm, marginBottom: spacing.sm, borderRadius: borderRadius.md, alignItems: 'center' },
   sectionEmptyText: { fontSize: 13, fontStyle: 'italic' },
