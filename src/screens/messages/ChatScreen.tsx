@@ -24,6 +24,7 @@ type Props = {
 
 const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   const conversationId = route.params?.conversationId ?? '';
+  const otherUserId = route.params?.otherUserId ?? '';
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAuthContext();
@@ -33,6 +34,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   const [reschedulePost, setReschedulePost] = useState<SwapPost | null>(null);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [sending, setSending] = useState(false);
+  const [otherUserName, setOtherUserName] = useState('Chat');
   const listRef = useRef<FlatList<Message>>(null);
 
   // Mark conversation as read when the user opens the chat
@@ -199,7 +201,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={[styles.backIcon, { color: colors.primary }]}>‹</Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
-          Chat
+          {otherUserName}
         </Text>
         {/* right spacer to keep title centred */}
         <View style={styles.headerSpacer} />

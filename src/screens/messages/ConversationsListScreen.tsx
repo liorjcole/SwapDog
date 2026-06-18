@@ -7,6 +7,8 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useMessaging } from '../../hooks/useMessaging';
 import { Conversation } from '../../models/types';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import { spacing, borderRadius, shadow } from '../../config/theme';
 import EmptyStateView from '../../components/common/EmptyStateView';
 
@@ -16,10 +18,10 @@ type Props = {
 
 const SYSTEM_SENDER_ID = 'swapdog-team';
 
-const getOtherParticipantLabel = (participantIds: string[], myUid: string): string => {
+const getOtherParticipantLabel = (participantIds: string[], myUid: string, names: Record<string, string>): string => {
   const otherId = participantIds.find((id) => id !== myUid) ?? '';
   if (otherId === SYSTEM_SENDER_ID) return '🐾 WatchDog Team';
-  return otherId; // fallback; real app would resolve display name
+  return names[otherId] ?? 'Loading...';
 };
 
 const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
@@ -27,6 +29,7 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
   const { user } = useAuthContext();
   const { subscribeToConversations } = useMessaging();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [nameCache, setNameCache] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -34,9 +37,29 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
     return unsub;
   }, [user]);
 
+  // Resolve display names for all other participants
+  useEffect(() => {
+    if (!user) return;
+    const otherIds: string[] = conversations
+      .flatMap((c) => c.participantIds)
+      .filter((id) => id !== user.uid && id !== SYSTEM_SENDER_ID && !nameCache[id]);
+    const unique = Array.from(new Set(otherIds));
+    if (unique.length === 0) return;
+
+    unique.forEach(async (uid) => {
+      try {
+        const snap = await getDoc(doc(db, 'users', uid));
+        const data = snap.data();
+        if (data?.displayName) {
+          setNameCache((prev) => ({ ...prev, [uid]: data.displayName }));
+        }
+      } catch { /* skip */ }
+    });
+  }, [conversations, user]);
+
   const renderItem = ({ item }: { item: Conversation }) => {
     const otherId = item.participantIds.find((id) => id !== user?.uid) ?? '';
-    const otherLabel = getOtherParticipantLabel(item.participantIds, user?.uid ?? '');
+    const otherLabel = getOtherParticipantLabel(item.participantIds, user?.uid ?? '', nameCache);
     const unread = item.unreadCounts[user?.uid ?? ''] ?? 0;
 
     return (
