@@ -71,10 +71,11 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: 'images',
-      allowsMultipleSelection: true,
-      allowsEditing: false,
+      allowsMultipleSelection: false,
+      allowsEditing: true,
+      aspect: [1, 1] as [number, number],
       quality: 0.8 });
-    if (result.canceled) return;
+    if (result.canceled || !result.assets?.length) return;
     setUploadingPhoto(true);
     try {
       const uriList: string[] = [];
