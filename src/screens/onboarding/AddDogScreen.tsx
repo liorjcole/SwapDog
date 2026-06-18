@@ -117,36 +117,51 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
 
   const pickPhoto = async () => {
-    // Loop: keep re-opening the camera roll until user cancels or max reached
-    let currentPhotos = [...form.photoURLs];
-    while (currentPhotos.length < MAX_PHOTOS) {
+    // Phase 1: Collect cropped photos — picker stays open until user cancels or max reached
+    const localUris: string[] = [];
+    let totalCount = form.photoURLs.length;
+
+    while (totalCount < MAX_PHOTOS) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: 'images',
         allowsMultipleSelection: false,
         allowsEditing: true,
         aspect: [1, 1] as [number, number],
-        quality: 0.8 });
-      if (result.canceled || !result.assets?.length) return;
-      setUploadingPhoto(true);
+        quality: 0.8,
+      });
+      if (result.canceled || !result.assets?.length) break; // user cancelled — done picking
+      localUris.push(result.assets[0].uri);
+      totalCount++;
+    }
+
+    if (localUris.length === 0) return;
+
+    // Phase 2: Show local thumbnails immediately, then upload in background
+    const localPhotos = [...form.photoURLs, ...localUris].slice(0, MAX_PHOTOS);
+    set('photoURLs', localPhotos);
+    setUploadingPhoto(true);
+
+    const uploaded: string[] = [...form.photoURLs];
+    for (const uri of localUris) {
       try {
-        const asset = result.assets[0];
         const tempId = `temp_${user?.uid ?? 'anon'}_${Date.now()}`;
-        const response = await fetch(asset.uri);
+        const response = await fetch(uri);
         if (!response) throw new Error('Failed to read image file');
         const blob = await response.blob();
         const fileRef = storageRef(storage, `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
         await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
         const downloadURL = await getDownloadURL(fileRef);
-        currentPhotos = [...currentPhotos, downloadURL].slice(0, MAX_PHOTOS);
-        set('photoURLs', currentPhotos);
+        uploaded.push(downloadURL);
       } catch {
-        Alert.alert('Error', 'Failed to upload photo. Please try again.');
-        return;
-      } finally {
-        setUploadingPhoto(false);
+        Alert.alert('Error', 'One photo failed to upload. You can try adding it again.');
       }
     }
-    if (currentPhotos.length >= MAX_PHOTOS) {
+
+    // Replace local URIs with real download URLs
+    set('photoURLs', uploaded.slice(0, MAX_PHOTOS));
+    setUploadingPhoto(false);
+
+    if (uploaded.length >= MAX_PHOTOS) {
       Alert.alert('All set!', `You've added ${MAX_PHOTOS} photos.`);
     }
   };

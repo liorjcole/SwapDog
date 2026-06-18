@@ -66,27 +66,55 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
       Alert.alert('Limit reached', 'You can add up to 10 photos per dog');
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
-      allowsEditing: true,
-      aspect: [1, 1] as [number, number],
-      quality: 0.8 });
-    if (result.canceled || !result.assets[0]) return;
+
+    // Phase 1: Collect all cropped photos — picker stays open until cancel or max
+    const localUris: string[] = [];
+    let totalCount = photoURLs.length;
+
+    while (totalCount < 10) {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images',
+        allowsMultipleSelection: false,
+        allowsEditing: true,
+        aspect: [1, 1] as [number, number],
+        quality: 0.8,
+      });
+      if (result.canceled || !result.assets?.length) break;
+      localUris.push(result.assets[0].uri);
+      totalCount++;
+    }
+
+    if (localUris.length === 0) return;
+
+    // Phase 2: Show local thumbnails immediately, upload in background
+    setPhotoURLs((prev) => [...prev, ...localUris].slice(0, 10));
     setUploadingPhoto(true);
-    try {
-      const asset = result.assets[0];
-      const tempId = dogId ?? `temp_${user?.uid ?? 'anon'}_${Date.now()}`;
-      const response = await fetch(asset.uri);
-      if (!response) throw new Error('Failed to read image file');
-      const blob = await response.blob();
-      const fileRef = storageRef(storage, `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
-      await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
-      const downloadURL = await getDownloadURL(fileRef);
-      setPhotoURLs((prev) => [...prev, downloadURL].slice(0, 10));
-    } catch {
-      Alert.alert('Error', 'Failed to upload photo. Please try again.');
-    } finally {
-      setUploadingPhoto(false);
+
+    const newURLs: string[] = [];
+    for (const uri of localUris) {
+      try {
+        const tempId = dogId ?? `temp_${user?.uid ?? 'anon'}_${Date.now()}`;
+        const response = await fetch(uri);
+        if (!response) throw new Error('Failed to read image file');
+        const blob = await response.blob();
+        const fileRef = storageRef(storage, `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
+        await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
+        const downloadURL = await getDownloadURL(fileRef);
+        newURLs.push(downloadURL);
+      } catch {
+        Alert.alert('Error', 'One photo failed to upload. You can try adding it again.');
+      }
+    }
+
+    // Replace local URIs with real download URLs
+    setPhotoURLs((prev) => {
+      const existing = prev.filter((u) => !localUris.includes(u));
+      return [...existing, ...newURLs].slice(0, 10);
+    });
+    setUploadingPhoto(false);
+
+    if (photoURLs.length + newURLs.length >= 10) {
+      Alert.alert('All set!', "You've added 10 photos.");
     }
   };
 
