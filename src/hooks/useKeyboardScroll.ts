@@ -1,19 +1,18 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
-import { ScrollView, Keyboard, Platform, Dimensions } from 'react-native';
+import { ScrollView, Keyboard, Platform, Dimensions, View, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 
 /**
  * Hook that scrolls the bottom of an input group to sit exactly
  * at the top of the keyboard when the input is focused.
  *
- * Each input group (input + any subtext below) is wrapped in a View
- * with onLayout recording both Y and height. On focus, we calculate:
- *   scrollY = (groupY + groupHeight) - (screenHeight - keyboardHeight)
- *
- * This places the bottom edge of the group flush with the keyboard top.
+ * Uses measureInWindow() at focus time to get the ACTUAL screen
+ * position of each input group, regardless of View nesting depth.
+ * This eliminates stale-layout and wrong-parent-offset bugs.
  */
 export function useKeyboardScroll() {
   const scrollRef = useRef<ScrollView>(null);
-  const inputLayout = useRef<Record<string, { y: number; height: number }>>({}).current;
+  const viewRefs = useRef<Record<string, View | null>>({});
+  const scrollY = useRef(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const keyboardHeightRef = useRef(0);
 
@@ -38,43 +37,70 @@ export function useKeyboardScroll() {
     };
   }, []);
 
+  /** Attach to ScrollView's onScroll to track current offset. */
+  const onScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollY.current = e.nativeEvent.contentOffset.y;
+    },
+    [],
+  );
+
   /**
-   * Call from the wrapping View's onLayout to register an input group.
+   * Returns a ref callback for a wrapper View. Use instead of onLayout:
+   *   <View ref={refFor('dogName')}>
+   */
+  const refFor = useCallback(
+    (key: string) =>
+      (node: View | null) => {
+        viewRefs.current[key] = node;
+      },
+    [],
+  );
+
+  /**
+   * Legacy adapter — screens that still use onLayout can call this,
+   * but the values are ignored. Kept so TypeScript doesn't break
+   * while screens are migrated.
    */
   const registerInputGroup = useCallback(
-    (key: string, y: number, height: number) => {
-      inputLayout[key] = { y, height };
+    (_key: string, _y: number, _height: number) => {
+      // no-op — replaced by refFor()
     },
-    [inputLayout],
+    [],
   );
 
   /**
    * Call from the TextInput's onFocus to scroll the group into position.
-   * Adds a small 12px breathing room below the group.
+   * Measures the View's actual window position at call time.
    */
   const scrollToInput = useCallback(
     (key: string) => {
-      const layout = inputLayout[key];
-      if (!layout) return;
+      const view = viewRefs.current[key];
+      if (!view) return;
 
       // Wait for keyboard to animate in
       setTimeout(() => {
-        const kbHeight = keyboardHeightRef.current || 336; // fallback ~iPhone keyboard
-        const screenHeight = Dimensions.get('window').height;
-        const visibleArea = screenHeight - kbHeight;
+        view.measureInWindow((_x: number, winY: number, _w: number, h: number) => {
+          if (winY === undefined) return; // measurement failed
+          const kbHeight = keyboardHeightRef.current || 336;
+          const screenHeight = Dimensions.get('window').height;
+          const visibleArea = screenHeight - kbHeight;
 
-        // We want the bottom of the group at the top of the keyboard (with 12px gap)
-        const groupBottom = layout.y + layout.height + 12;
-        const scrollY = groupBottom - visibleArea;
+          // Bottom of input group + 12px breathing room
+          const groupBottom = winY + h + 12;
 
-        scrollRef.current?.scrollTo({
-          y: Math.max(0, scrollY),
-          animated: true,
+          if (groupBottom > visibleArea) {
+            const overshoot = groupBottom - visibleArea;
+            scrollRef.current?.scrollTo({
+              y: scrollY.current + overshoot,
+              animated: true,
+            });
+          }
         });
       }, 350);
     },
-    [inputLayout],
+    [],
   );
 
-  return { scrollRef, registerInputGroup, scrollToInput, keyboardHeight };
+  return { scrollRef, onScroll, refFor, registerInputGroup, scrollToInput, keyboardHeight };
 }

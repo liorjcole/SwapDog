@@ -45,7 +45,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const { createDog, deleteDog } = useDogs();
 
   const { dogForm: form, setDogForm: setForm, updateDogForm: set, savedDogs, savedCount, addSavedDog, removeSavedDog, popLastSavedDog, resetDogForm } = useOnboarding();
-  const { scrollRef, registerInputGroup, scrollToInput } = useKeyboardScroll();
+  const { scrollRef, onScroll, refFor, scrollToInput } = useKeyboardScroll();
   const [loading, setLoading] = useState(false);
   const [showRefChart, setShowRefChart] = useState(false);
 
@@ -400,7 +400,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         )}
       </View>
 
-      <View onLayout={(e) => registerInputGroup('dogName', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+      <View ref={refFor('dogName')}>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="Dog's name"
@@ -414,7 +414,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           onFocus={() => scrollToInput('dogName')}
         />
       </View>
-      <View onLayout={(e) => registerInputGroup('breed', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+      <View ref={refFor('breed')}>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="Breed"
@@ -481,7 +481,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={[styles.ageHint, { color: colors.textSecondary }]}>Months required for puppies under 1 year</Text>
       )}
 
-      <View onLayout={(e) => registerInputGroup('weight', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+      <View ref={refFor('weight')}>
         <Text style={[styles.label, { color: colors.text }]}>Weight (lbs)</Text>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
@@ -555,7 +555,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       <SwitchRow label="Vaccinated" value={form.vaccinated} onChange={(v) => set('vaccinated', v)} />
 
       {/* Dog bio / about field */}
-      <View onLayout={(e) => registerInputGroup('dogBio', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+      <View ref={refFor('dogBio')}>
         <Text style={[styles.label, { color: colors.text, marginTop: spacing.md }]}>
           About {form.name.trim() || 'Your Dog'}
         </Text>

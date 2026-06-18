@@ -20,7 +20,7 @@ const cleanIgHandle = (raw: string): string => {
 
 const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ navigation }) => {
   const { colors } = useTheme();
-  const { scrollRef, registerInputGroup, scrollToInput } = useKeyboardScroll();
+  const { scrollRef, onScroll, refFor, scrollToInput } = useKeyboardScroll();
   const { user, userProfile, refreshUserProfile } = useAuthContext();
   const { updateUser } = useUsers();
   const [displayName, setDisplayName] = useState(userProfile?.displayName ?? '');
@@ -74,7 +74,7 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
         />
         <Text style={[styles.changePhoto, { color: colors.primary }]}>Change Photo</Text>
       </TouchableOpacity>
-      <View onLayout={(e) => registerInputGroup('name', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+      <View ref={refFor('name')}>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="Display name"
@@ -87,7 +87,7 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
           onFocus={() => scrollToInput('name')}
         />
       </View>
-      <View onLayout={(e) => registerInputGroup('bio', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+      <View ref={refFor('bio')}>
         <TextInput
           style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="Share your experience with dogs, your lifestyle, and what makes you a great pet sitter..."
@@ -102,7 +102,7 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
           onFocus={() => scrollToInput('bio')}
         />
       </View>
-      <View onLayout={(e) => registerInputGroup('ig', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+      <View ref={refFor('ig')}>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="@yourinstagram (optional)"

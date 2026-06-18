@@ -24,7 +24,7 @@ type Props = {
 
 const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
-  const { scrollRef, registerInputGroup, scrollToInput } = useKeyboardScroll();
+  const { scrollRef, onScroll, refFor, scrollToInput } = useKeyboardScroll();
   const { user } = useAuthContext();
   const { getDog, updateDog, createDog, deleteDog } = useDogs();
 
@@ -230,7 +230,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         )}
       </View>
 
-      <View onLayout={(e) => registerInputGroup('name', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+      <View ref={refFor('name')}>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           value={name}
@@ -243,7 +243,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           onFocus={() => scrollToInput('name')}
         />
       </View>
-      <View onLayout={(e) => registerInputGroup('breed', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+      <View ref={refFor('breed')}>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           value={breed}

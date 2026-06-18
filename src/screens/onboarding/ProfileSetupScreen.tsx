@@ -30,7 +30,7 @@ const cleanIgHandle = (raw: string): string => {
 
 const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
-  const { scrollRef, registerInputGroup, scrollToInput } = useKeyboardScroll();
+  const { scrollRef, onScroll, refFor, scrollToInput } = useKeyboardScroll();
   const { user } = useAuthContext();
   const { displayName, setDisplayName, bio, setBio, instagramHandle, setInstagramHandle, photoURL, setPhotoURL } = useOnboarding();
   const [friendReferralCode, setFriendReferralCode] = useState('');
@@ -129,6 +129,8 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
         ref={scrollRef}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         automaticallyAdjustKeyboardInsets={true}
         keyboardShouldPersistTaps="handled"
         style={[styles.container, { backgroundColor: colors.background }]}
@@ -154,8 +156,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={[styles.photoHint, { color: colors.primary }]}>Add Your Profile Photo</Text>
       </TouchableOpacity>
 
-      <View onLayout={(e) => registerInputGroup('name', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
-        <View onLayout={(e) => registerInputGroup('bio', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+      <View ref={refFor('name')}>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="Your name"
@@ -167,37 +168,38 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
           onFocus={() => scrollToInput('name')}
         />
       </View>
-      <TextInput
-        style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-        placeholder="Tell the community about yourself (why someone should trust you with their pup and why they'd like you to look after theirs!)"
-        placeholderTextColor={colors.textSecondary}
-        value={bio}
-        onChangeText={setBio}
-        multiline
-        numberOfLines={4}
-        returnKeyType="done"
-        blurOnSubmit={true}
-        autoCorrect={true}
-        spellCheck={true}
-        autoCapitalize="sentences"
-        textContentType="none"
-        accessibilityLabel="Bio, optional"
-        onFocus={() => scrollToInput('bio')}
-      />
-      </View>
-      <View onLayout={(e) => registerInputGroup('ig', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+      <View ref={refFor('bio')}>
         <TextInput
-        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-        placeholder="@yourinstagram (optional)"
-        placeholderTextColor={colors.textSecondary}
-        value={instagramHandle}
-        onChangeText={setInstagramHandle}
-        autoCapitalize="none"
-        autoCorrect={false}
-        accessibilityLabel="Instagram handle, optional"
-        returnKeyType="done"
-        onFocus={() => scrollToInput('ig')}
-      />
+          style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+          placeholder="Tell the community about yourself (why someone should trust you with their pup and why they'd like you to look after theirs!)"
+          placeholderTextColor={colors.textSecondary}
+          value={bio}
+          onChangeText={setBio}
+          multiline
+          numberOfLines={4}
+          returnKeyType="done"
+          blurOnSubmit={true}
+          autoCorrect={true}
+          spellCheck={true}
+          autoCapitalize="sentences"
+          textContentType="none"
+          accessibilityLabel="Bio, optional"
+          onFocus={() => scrollToInput('bio')}
+        />
+      </View>
+      <View ref={refFor('ig')}>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+          placeholder="@yourinstagram (optional)"
+          placeholderTextColor={colors.textSecondary}
+          value={instagramHandle}
+          onChangeText={setInstagramHandle}
+          autoCapitalize="none"
+          autoCorrect={false}
+          accessibilityLabel="Instagram handle, optional"
+          returnKeyType="done"
+          onFocus={() => scrollToInput('ig')}
+        />
       </View>
 
       {!showReferralField ? (
@@ -212,7 +214,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
           </Text>
         </TouchableOpacity>
       ) : (
-        <View onLayout={(e) => registerInputGroup('referral', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+        <View ref={refFor('referral')}>
           <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="Paste referral code"

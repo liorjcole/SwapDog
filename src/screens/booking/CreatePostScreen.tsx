@@ -53,7 +53,7 @@ type Props = {
 
 const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
-  const { scrollRef: kbScrollRef, registerInputGroup, scrollToInput } = useKeyboardScroll();
+  const { scrollRef: kbScrollRef, onScroll: kbOnScroll, refFor, scrollToInput } = useKeyboardScroll();
   const { user, userProfile } = useAuthContext();
   const { getDogsByOwner } = useDogs();
   const { createPost } = useSwaps();
@@ -627,7 +627,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
 
                 {/* Time fields for day sitting */}
                 {careType !== 'overnight' && (
-                  <View style={styles.timeRow}>
+                  <View ref={refFor('startTime')} style={styles.timeRow}>
                     <View style={styles.timeField}>
                       <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
                       <TextInput
@@ -637,8 +637,9 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         placeholder="9:00 AM"
                         placeholderTextColor={colors.textSecondary}
                         accessibilityLabel="Start time"
-                      returnKeyType="done"
-                                              />
+                        returnKeyType="done"
+                        onFocus={() => scrollToInput('startTime')}
+                      />
                     </View>
                     <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
                     <View style={styles.timeField}>
@@ -650,8 +651,9 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         placeholder="5:00 PM"
                         placeholderTextColor={colors.textSecondary}
                         accessibilityLabel="End time"
-                      returnKeyType="done"
-                                              />
+                        returnKeyType="done"
+                        onFocus={() => scrollToInput('startTime')}
+                      />
                     </View>
                   </View>
                 )}
@@ -668,7 +670,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* ── Feeding Details (add-on) ── */}
             {addOnCareTypes.has('feeding') && (
-              <View style={[styles.section, { backgroundColor: colors.surface }]}>
+              <View ref={refFor('feeding')} style={[styles.section, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>🍽️ Feeding Details</Text>
                 <View style={styles.timeRow}>
                   <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -681,6 +683,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                       placeholderTextColor={colors.textSecondary}
                       accessibilityLabel="Feeding time"
                       returnKeyType="done"
+                      onFocus={() => scrollToInput('feeding')}
                     />
                   </View>
                 </View>
@@ -764,7 +767,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* ── Playtime Details (add-on) ── */}
             {addOnCareTypes.has('playtime') && (
-              <View style={[styles.section, { backgroundColor: colors.surface }]}>
+              <View ref={refFor('playtime')} style={[styles.section, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>🎾 Playtime Details</Text>
                 <Text style={[styles.careTypeHint, { color: colors.textSecondary, marginBottom: 8 }]}>
                   How often and how should they play with your dog?
@@ -787,13 +790,14 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                   autoCapitalize="sentences"
                   returnKeyType="done"
                   blurOnSubmit={true}
+                  onFocus={() => scrollToInput('playtime')}
                 />
               </View>
             )}
 
         {/* ── Care Details ── */}
         {(primaryCareType !== null || addOnCareTypes.size > 0) && (
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+        <View ref={refFor('careDetails')} style={[styles.section, { backgroundColor: colors.surface }]}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>📋 Care Details</Text>
               <Text style={[styles.careHint, { color: colors.textSecondary }]}>
                 Tell potential sitters what they need to know — schedule, feeding, medications, special needs, behavioral notes.
@@ -880,7 +884,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                     How many points is this job worth?
                   </Text>
                   <View style={{ height: 12 }} />
-                  <View style={styles.pointsInputRow}>
+                  <View ref={refFor('points')} style={styles.pointsInputRow}>
                     <TextInput
                       style={[styles.pointsInput, { borderColor: '#FFFFFF', backgroundColor: colors.background, color: colors.text }]}
                       placeholder="e.g. 5"
@@ -889,8 +893,9 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                       onChangeText={(t) => setPointsOffered(t.replace(/[^0-9]/g, ''))}
                       keyboardType="number-pad"
                       accessibilityLabel="Points offered"
-                    returnKeyType="done"
-                                          />
+                      returnKeyType="done"
+                      onFocus={() => scrollToInput('points')}
+                    />
                     <Text style={[styles.pointsUnit, { color: colors.textSecondary }]}>pts</Text>
                   </View>
 
@@ -915,7 +920,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
 
               {offerMoney && (
                 <>
-                  <View style={styles.paymentInputRow}>
+                  <View ref={refFor('payment')} style={styles.paymentInputRow}>
                     <Text style={[styles.dollarSign, { color: colors.text }]}>$</Text>
                     <TextInput
                       style={[styles.paymentInput, { borderColor: colors.border, backgroundColor: colors.background, color: colors.text }]}
@@ -925,8 +930,9 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                       onChangeText={setPaymentAmount}
                       keyboardType="decimal-pad"
                       accessibilityLabel="Payment amount in dollars"
-                    returnKeyType="done"
-                                          />
+                      returnKeyType="done"
+                      onFocus={() => scrollToInput('payment')}
+                    />
                     <Text style={[styles.rateUnitLabel, { color: colors.textSecondary }]}>
                       for the job
                     </Text>
