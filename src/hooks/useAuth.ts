@@ -20,60 +20,71 @@ export const useAuth = () => {
    * - Seeds points = 5 (welcome bonus)
    */
   const signUp = async (email: string, password: string): Promise<void> => {
+    // Step 1: Create the Firebase Auth user — this is the only step that
+    // should surface an error to the user. Once auth succeeds the auth-state
+    // listener navigates away, so any subsequent Firestore errors would show
+    // a misleading "Oops!" alert on the next screen.
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     const uid = credential.user.uid;
 
-    // Read the referral code they entered at the gate
-    let referredBy: string | undefined;
-    let usedCode: string | undefined;
-
+    // Step 2: Post-auth setup (referral, user doc, points).
+    // Wrapped in its own try/catch so failures here never bubble up as a
+    // user-facing "Oops!" error — auth already succeeded.
     try {
-      const storedCode = await AsyncStorage.getItem(REFERRAL_STORAGE_KEY);
-      if (storedCode) {
-        usedCode = storedCode;
-        // Find the code doc to get createdBy
-        const q = query(
-          collection(db, 'referral_codes'),
-          where('code', '==', storedCode),
-        );
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          referredBy = snap.docs[0].data().createdBy as string;
+      // Read the referral code they entered at the gate
+      let referredBy: string | undefined;
+      let usedCode: string | undefined;
+
+      try {
+        const storedCode = await AsyncStorage.getItem(REFERRAL_STORAGE_KEY);
+        if (storedCode) {
+          usedCode = storedCode;
+          const q = query(
+            collection(db, 'referral_codes'),
+            where('code', '==', storedCode),
+          );
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            referredBy = snap.docs[0].data().createdBy as string;
+          }
+          await redeemReferralCode(storedCode, uid);
         }
-        // Redeem the code
-        await redeemReferralCode(storedCode, uid);
+      } catch {
+        // Non-fatal — proceed without referral linkage
       }
-    } catch {
-      // Non-fatal — proceed without referral linkage
+
+      // Generate this user's own referral code
+      const newReferralCode = await generateReferralCode(uid);
+
+      // Write user doc
+      await setDoc(doc(db, 'users', uid), {
+        email: credential.user.email,
+        displayName: '',
+        photoURL: '',
+        bio: '',
+        isOnboarded: false,
+        referredBy: referredBy ?? null,
+        referralCodeUsed: usedCode ?? null,
+        referralCode: newReferralCode,
+        points: 5,
+        accountStatus: 'pending_approval',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      // Log the welcome bonus in points history
+      await addDoc(collection(db, 'users', uid, 'pointsHistory'), {
+        type: 'bonus',
+        description: 'Welcome bonus — thanks for joining WatchDog!',
+        points: 5,
+        createdAt: serverTimestamp(),
+      });
+    } catch (postAuthErr) {
+      // Log but don't throw — the user is already authenticated and
+      // navigated to the onboarding flow. The auth-context listener will
+      // retry fetching the user doc when the profile screen loads.
+      console.warn('[useAuth] Post-signup setup failed (non-fatal):', postAuthErr);
     }
-
-    // Generate this user's own referral code
-    const newReferralCode = await generateReferralCode(uid);
-
-    // Write user doc
-    await setDoc(doc(db, 'users', uid), {
-      email: credential.user.email,
-      displayName: '',
-      photoURL: '',
-      bio: '',
-      isOnboarded: false,
-      // Referral fields
-      referredBy: referredBy ?? null,
-      referralCodeUsed: usedCode ?? null,
-      referralCode: newReferralCode,
-      points: 5,
-      accountStatus: 'pending_approval',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    // Log the welcome bonus in points history
-    await addDoc(collection(db, 'users', uid, 'pointsHistory'), {
-      type: 'bonus',
-      description: 'Welcome bonus — thanks for joining WatchDog!',
-      points: 5,
-      createdAt: serverTimestamp(),
-    });
   };
 
   const signIn = async (email: string, password: string): Promise<void> => {
