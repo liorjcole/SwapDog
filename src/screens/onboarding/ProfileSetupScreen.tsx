@@ -154,6 +154,10 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         numberOfLines={4}
         returnKeyType="done"
         blurOnSubmit={true}
+        autoCorrect={true}
+        spellCheck={true}
+        autoCapitalize="sentences"
+        textContentType="none"
         accessibilityLabel="Bio, optional"
         onLayout={(e) => { inputY['bio'] = e.nativeEvent.layout.y; }}
         onFocus={() => scrollToInput('bio')}
