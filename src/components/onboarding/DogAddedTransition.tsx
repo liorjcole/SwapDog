@@ -235,10 +235,15 @@ const DogAddedTransition: React.FC<Props> = ({
             },
           ]}
         >
-          🎉 You added {dogName}!{'\n'}
-          <Text style={styles.addedSubText}>
-            That's your {ordinal(dogNumber)} dog!
-          </Text>
+          🎉 You added {dogName}!
+          {showRoster && (
+            <>
+              {'\n'}
+              <Text style={styles.addedSubText}>
+                That's your {ordinal(dogNumber)} dog!
+              </Text>
+            </>
+          )}
         </Animated.Text>
 
         {/* Dog roster — shows all dogs when multiple */}
