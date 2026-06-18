@@ -4,10 +4,10 @@
  * - Care type selector (4 options: overnight, daySitting, feeding, dogWalking)
  * - Dynamic form per care type
  * - Points: poster sets the amount (pointsOffered)
- * - Overnight: date range + day rate only
- * - Day sitting: single date + start/end time + hourly rate only
- * - Feeding: single date + feeding time + flat rate per visit
- * - Dog walking: no calendar + duration pill selector + hourly rate
+ * - Overnight: date range + flat amount for whole job
+ * - Day sitting: single date + start/end time + flat amount for whole job
+ * - Feeding: single date + feeding time + flat amount for whole job
+ * - Dog walking: no calendar + duration pill selector + flat amount for whole job
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -162,43 +162,21 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     return parseFloat((walkDurationMinutes / 60).toFixed(4));
   }, [walkDurationMinutes]);
 
-  /** Total payment calculation per care type */
+  /** Total payment — flat amount for the whole job */
   const totalPayment = useMemo(() => {
     if (!offerMoney) return undefined;
     const amt = parseFloat(paymentAmount);
     if (!amt || amt <= 0) return undefined;
-    if (careType === 'overnight') return parseFloat((amt * dayCount).toFixed(2));
-    if (careType === 'daySitting') {
-      if (!daySittingHours || daySittingHours <= 0) return undefined;
-      return parseFloat((amt * daySittingHours).toFixed(2));
-    }
-    if (careType === 'feeding') return parseFloat(amt.toFixed(2)); // flat per visit
-    if (careType === 'dogWalking') return parseFloat((amt * walkHours).toFixed(2));
-    return undefined;
-  }, [offerMoney, paymentAmount, careType, dayCount, daySittingHours, walkHours]);
+    return parseFloat(amt.toFixed(2));
+  }, [offerMoney, paymentAmount]);
 
-  /** Breakdown label */
+  /** Breakdown label — flat amount for the whole job */
   const paymentBreakdownLabel = useMemo(() => {
     if (!offerMoney) return null;
     const amt = parseFloat(paymentAmount);
     if (!amt || amt <= 0) return null;
-    if (careType === 'overnight') {
-      const total = (amt * dayCount).toFixed(2);
-      return `💰 $${total} total ($${amt}/day × ${dayCount} day${dayCount !== 1 ? 's' : ''})`;
-    }
-    if (careType === 'daySitting' && daySittingHours && daySittingHours > 0) {
-      const total = (amt * daySittingHours).toFixed(2);
-      return `💰 $${total} total ($${amt}/hr × ${daySittingHours} hr${daySittingHours !== 1 ? 's' : ''})`;
-    }
-    if (careType === 'feeding') {
-      return `💰 $${amt.toFixed(2)} per visit`;
-    }
-    if (careType === 'dogWalking') {
-      const total = (amt * walkHours).toFixed(2);
-      return `💰 $${total} total ($${amt}/hr × ${walkDurationMinutes} min)`;
-    }
-    return null;
-  }, [offerMoney, paymentAmount, careType, dayCount, daySittingHours, walkHours, walkDurationMinutes]);
+    return `💰 $${amt.toFixed(2)} for the whole job`;
+  }, [offerMoney, paymentAmount]);
 
   const formatDate = (d: Date) =>
     d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
@@ -272,16 +250,11 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         .map((d) => d.photoURLs?.[0])
         .filter((url): url is string => Boolean(url));
 
-      // Build payment fields conditionally
+      // Build payment fields conditionally — flat amount for the whole job
       const paymentFields = offerMoney
         ? {
             paymentAmount: parseFloat(paymentAmount),
-            paymentRate: (careType === 'overnight' ? 'per_day' : 'per_hour') as 'per_day' | 'per_hour',
-            totalPayment: totalPayment ?? undefined,
-            totalUnits: careType === 'overnight' ? dayCount
-              : careType === 'daySitting' ? daySittingHours
-              : careType === 'dogWalking' ? walkHours
-              : 1 }
+            totalPayment: totalPayment ?? undefined }
         : {};
 
       // Care-type-specific optional fields
@@ -809,7 +782,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                     returnKeyType="done"
                                           />
                     <Text style={[styles.rateUnitLabel, { color: colors.textSecondary }]}>
-                      {careType === 'overnight' ? '/day' : careType === 'feeding' ? ' flat' : '/hr'}
+                      for the job
                     </Text>
                   </View>
 
