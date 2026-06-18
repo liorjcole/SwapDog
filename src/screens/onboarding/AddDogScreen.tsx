@@ -16,6 +16,7 @@ import { spacing, borderRadius, typography } from '../../config/theme';
 import Chip from '../../components/common/Chip';
 import DogAddedTransition from '../../components/onboarding/DogAddedTransition';
 import { useOnboarding } from '../../contexts/OnboardingContext';
+import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 
 const MAX_DOGS = 10;
 
@@ -44,7 +45,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const { createDog, deleteDog } = useDogs();
 
   const { dogForm: form, setDogForm: setForm, updateDogForm: set, savedDogs, savedCount, addSavedDog, removeSavedDog, popLastSavedDog, resetDogForm } = useOnboarding();
-  const scrollRef = useRef<ScrollView>(null);
+  const { scrollRef, registerInputGroup, scrollToInput } = useKeyboardScroll();
   const [loading, setLoading] = useState(false);
   const [showRefChart, setShowRefChart] = useState(false);
 
@@ -100,15 +101,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   }, [navigation, savedCount, handleBack]);
 
   /** Track y-offsets of inputs so we can scroll to them on focus */
-  const inputY = useRef<Record<string, number>>({}).current;
-  const scrollToInput = (key: string) => {
-    const y = inputY[key];
-    if (y !== undefined) {
-      setTimeout(() => {
-        scrollRef.current?.scrollTo({ y: Math.max(0, y - 100), animated: true });
-      }, 300);
-    }
-  };
+  // Input scroll handled by useKeyboardScroll hook
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
   const [transitionMode, setTransitionMode] = useState<'addAnother' | 'continue'>('addAnother');
@@ -375,33 +368,35 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         )}
       </View>
 
-      <TextInput
-        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-        placeholder="Dog's name"
-        placeholderTextColor={colors.textSecondary}
-        value={form.name}
-        onChangeText={(v) => set('name', v)}
-        accessibilityLabel="Dog's name"
-        returnKeyType="done"
-        blurOnSubmit={true}
-        autoCapitalize="words"
-        onLayout={(e) => { inputY['dogName'] = e.nativeEvent.layout.y; }}
-        onFocus={() => scrollToInput('dogName')}
-      />
-      <TextInput
-        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-        placeholder="Breed"
-        placeholderTextColor={colors.textSecondary}
-        value={form.breed}
-        onChangeText={(v) => set('breed', v)}
-        autoCorrect={true}
-        spellCheck={true}
-        autoCapitalize="words"
-        accessibilityLabel="Dog's breed"
-        returnKeyType="done"
-        onLayout={(e) => { inputY['breed'] = e.nativeEvent.layout.y; }}
-        onFocus={() => scrollToInput('breed')}
-      />
+      <View onLayout={(e) => registerInputGroup('dogName', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+          placeholder="Dog's name"
+          placeholderTextColor={colors.textSecondary}
+          value={form.name}
+          onChangeText={(v) => set('name', v)}
+          accessibilityLabel="Dog's name"
+          returnKeyType="done"
+          blurOnSubmit={true}
+          autoCapitalize="words"
+          onFocus={() => scrollToInput('dogName')}
+        />
+      </View>
+      <View onLayout={(e) => registerInputGroup('breed', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+          placeholder="Breed"
+          placeholderTextColor={colors.textSecondary}
+          value={form.breed}
+          onChangeText={(v) => set('breed', v)}
+          autoCorrect={true}
+          spellCheck={true}
+          autoCapitalize="words"
+          accessibilityLabel="Dog's breed"
+          returnKeyType="done"
+          onFocus={() => scrollToInput('breed')}
+        />
+      </View>
 
       {/* Age pickers */}
       <Text style={[styles.label, { color: colors.text }]}>Age</Text>
@@ -454,22 +449,23 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={[styles.ageHint, { color: colors.textSecondary }]}>Months required for puppies under 1 year</Text>
       )}
 
-      <Text style={[styles.label, { color: colors.text }]}>Weight (lbs)</Text>
-      <TextInput
-        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-        placeholder="Estimated weight in pounds"
-        placeholderTextColor={colors.textSecondary}
-        value={form.weightLbs > 0 ? String(form.weightLbs) : ''}
-        onChangeText={(v) => {
-          const num = parseInt(v.replace(/[^0-9]/g, ''), 10);
-          set('weightLbs', isNaN(num) ? 0 : num);
-        }}
-        keyboardType="number-pad"
-        returnKeyType="done"
-        accessibilityLabel="Dog weight in pounds"
-        onLayout={(e) => { inputY['weight'] = e.nativeEvent.layout.y; }}
-        onFocus={() => scrollToInput('weight')}
-      />
+      <View onLayout={(e) => registerInputGroup('weight', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+        <Text style={[styles.label, { color: colors.text }]}>Weight (lbs)</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+          placeholder="Estimated weight in pounds"
+          placeholderTextColor={colors.textSecondary}
+          value={form.weightLbs > 0 ? String(form.weightLbs) : ''}
+          onChangeText={(v) => {
+            const num = parseInt(v.replace(/[^0-9]/g, ''), 10);
+            set('weightLbs', isNaN(num) ? 0 : num);
+          }}
+          keyboardType="number-pad"
+          returnKeyType="done"
+          accessibilityLabel="Dog weight in pounds"
+          onFocus={() => scrollToInput('weight')}
+        />
+      </View>
       <TouchableOpacity
         onPress={() => {
           LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -527,27 +523,30 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       <SwitchRow label="Vaccinated" value={form.vaccinated} onChange={(v) => set('vaccinated', v)} />
 
       {/* Dog bio / about field */}
-      <Text style={[styles.label, { color: colors.text, marginTop: spacing.md }]}>
-        About {form.name.trim() || 'Your Dog'}
-      </Text>
-      <TextInput
-        style={[styles.input, styles.dogBioInput, { borderColor: colors.border, color: colors.text }]}
-        placeholder="Share their personality, quirks, favorite things, anything a new friend should know..."
-        placeholderTextColor={colors.textSecondary}
-        value={form.dogBio}
-        onChangeText={(v) => set('dogBio', v)}
-        multiline
-        numberOfLines={4}
-        textAlignVertical="top"
-        maxLength={500}
-        returnKeyType="default"
-        autoCorrect={true}
-        spellCheck={true}
-        autoCapitalize="sentences"
-      />
-      <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
-        This helps other dog parents know what to expect
-      </Text>
+      <View onLayout={(e) => registerInputGroup('dogBio', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+        <Text style={[styles.label, { color: colors.text, marginTop: spacing.md }]}>
+          About {form.name.trim() || 'Your Dog'}
+        </Text>
+        <TextInput
+          style={[styles.input, styles.dogBioInput, { borderColor: colors.border, color: colors.text }]}
+          placeholder="Share their personality, quirks, favorite things, anything a new friend should know..."
+          placeholderTextColor={colors.textSecondary}
+          value={form.dogBio}
+          onChangeText={(v) => set('dogBio', v)}
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+          maxLength={500}
+          returnKeyType="default"
+          autoCorrect={true}
+          spellCheck={true}
+          autoCapitalize="sentences"
+          onFocus={() => scrollToInput('dogBio')}
+        />
+        <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
+          This helps other dog parents know what to expect
+        </Text>
+      </View>
 
       {/* Primary CTA — saves current dog and proceeds to location */}
       <TouchableOpacity

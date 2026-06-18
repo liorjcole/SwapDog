@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { useUsers } from '../../hooks/useUsers';
 import { spacing, borderRadius, typography } from '../../config/theme';
 
@@ -19,6 +20,7 @@ const cleanIgHandle = (raw: string): string => {
 
 const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ navigation }) => {
   const { colors } = useTheme();
+  const { scrollRef, registerInputGroup, scrollToInput } = useKeyboardScroll();
   const { user, userProfile, refreshUserProfile } = useAuthContext();
   const { updateUser } = useUsers();
   const [displayName, setDisplayName] = useState(userProfile?.displayName ?? '');
@@ -57,6 +59,7 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
+        ref={scrollRef}
         automaticallyAdjustKeyboardInsets={true} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
       <TouchableOpacity
         style={styles.photoPicker}
@@ -71,40 +74,49 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
         />
         <Text style={[styles.changePhoto, { color: colors.primary }]}>Change Photo</Text>
       </TouchableOpacity>
-      <TextInput
-        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-        placeholder="Display name"
-        placeholderTextColor={colors.textSecondary}
-        value={displayName}
-        onChangeText={setDisplayName}
-        accessibilityLabel="Display name"
+      <View onLayout={(e) => registerInputGroup('name', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+          placeholder="Display name"
+          placeholderTextColor={colors.textSecondary}
+          value={displayName}
+          onChangeText={setDisplayName}
+          accessibilityLabel="Display name"
           returnKeyType="next"
           blurOnSubmit={false}
-      />
-      <TextInput
-        style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-        placeholder="Share your experience with dogs, your lifestyle, and what makes you a great pet sitter..."
-        placeholderTextColor={colors.textSecondary}
-        value={bio}
-        onChangeText={setBio}
-        multiline
-        numberOfLines={4}
-        accessibilityLabel="Bio"
-      returnKeyType="done"
-              blurOnSubmit={true}
-              />
-      <TextInput
-        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-        placeholder="@yourinstagram (optional)"
-        placeholderTextColor={colors.textSecondary}
-        value={instagramHandle}
-        onChangeText={setInstagramHandle}
-        autoCapitalize="none"
-        autoCorrect={false}
-        accessibilityLabel="Instagram handle, optional"
+          onFocus={() => scrollToInput('name')}
+        />
+      </View>
+      <View onLayout={(e) => registerInputGroup('bio', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+        <TextInput
+          style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+          placeholder="Share your experience with dogs, your lifestyle, and what makes you a great pet sitter..."
+          placeholderTextColor={colors.textSecondary}
+          value={bio}
+          onChangeText={setBio}
+          multiline
+          numberOfLines={4}
+          accessibilityLabel="Bio"
           returnKeyType="done"
-      />
-      <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>Visible on your profile</Text>
+          blurOnSubmit={true}
+          onFocus={() => scrollToInput('bio')}
+        />
+      </View>
+      <View onLayout={(e) => registerInputGroup('ig', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+          placeholder="@yourinstagram (optional)"
+          placeholderTextColor={colors.textSecondary}
+          value={instagramHandle}
+          onChangeText={setInstagramHandle}
+          autoCapitalize="none"
+          autoCorrect={false}
+          accessibilityLabel="Instagram handle, optional"
+          returnKeyType="done"
+          onFocus={() => scrollToInput('ig')}
+        />
+        <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>Visible on your profile</Text>
+      </View>
       <TouchableOpacity
         style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
         onPress={handleSave}

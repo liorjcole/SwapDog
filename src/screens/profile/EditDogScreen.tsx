@@ -9,6 +9,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage
 import { storage } from '../../config/firebase';
 import { ProfileStackParamList } from '../../navigation/types';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useDogs } from '../../hooks/useDogs';
 import { Dog, DogSize, DogSex, EnergyLevel } from '../../models/types';
@@ -23,6 +24,7 @@ type Props = {
 
 const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
+  const { scrollRef, registerInputGroup, scrollToInput } = useKeyboardScroll();
   const { user } = useAuthContext();
   const { getDog, updateDog, createDog, deleteDog } = useDogs();
 
@@ -179,6 +181,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
+        ref={scrollRef}
         automaticallyAdjustKeyboardInsets={true} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
 
       {isCreateMode && (
@@ -227,25 +230,31 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         )}
       </View>
 
-      <TextInput
-        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-        value={name}
-        onChangeText={setName}
-        placeholder="Dog name"
-        placeholderTextColor={colors.textSecondary}
-        accessibilityLabel="Dog name"
+      <View onLayout={(e) => registerInputGroup('name', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+          value={name}
+          onChangeText={setName}
+          placeholder="Dog name"
+          placeholderTextColor={colors.textSecondary}
+          accessibilityLabel="Dog name"
           returnKeyType="next"
           blurOnSubmit={false}
-      />
-      <TextInput
-        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-        value={breed}
-        onChangeText={setBreed}
-        placeholder="Breed"
-        placeholderTextColor={colors.textSecondary}
-        accessibilityLabel="Dog breed"
+          onFocus={() => scrollToInput('name')}
+        />
+      </View>
+      <View onLayout={(e) => registerInputGroup('breed', e.nativeEvent.layout.y, e.nativeEvent.layout.height)}>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+          value={breed}
+          onChangeText={setBreed}
+          placeholder="Breed"
+          placeholderTextColor={colors.textSecondary}
+          accessibilityLabel="Dog breed"
           returnKeyType="done"
-      />
+          onFocus={() => scrollToInput('breed')}
+        />
+      </View>
 
       {/* Age pickers */}
       <Text style={[styles.label, { color: colors.text }]}>Age</Text>

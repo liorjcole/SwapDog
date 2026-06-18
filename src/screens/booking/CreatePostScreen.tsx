@@ -21,6 +21,7 @@ import * as Location from 'expo-location';
 import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { useDogs } from '../../hooks/useDogs';
 import { useSwaps } from '../../hooks/useSwaps';
 import { Dog, CompensationType, CareType } from '../../models/types';
@@ -61,6 +62,7 @@ type Props = {
 
 const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
+  const { scrollRef: kbScrollRef, registerInputGroup, scrollToInput } = useKeyboardScroll();
   const { user, userProfile } = useAuthContext();
   const { getDogsByOwner } = useDogs();
   const { createPost } = useSwaps();
@@ -347,6 +349,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
+        ref={kbScrollRef}
         automaticallyAdjustKeyboardInsets={true}
         style={[styles.container, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.content}
@@ -702,6 +705,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                 spellCheck={true}
                 autoCapitalize="sentences"
                 inputAccessoryViewID="careDetailsDone"
+                onFocus={() => scrollToInput('careDetails')}
               />
               <Text
                 style={[styles.charCount, { color: careDetails.length >= MIN_CARE_DETAILS ? colors.success : colors.textSecondary }]}
