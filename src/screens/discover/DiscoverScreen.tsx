@@ -19,6 +19,7 @@ import {
   Dimensions,
   Animated,
   PanResponder,
+  KeyboardAvoidingView,
   TextInput,
   ListRenderItem,
   RefreshControl } from 'react-native';
@@ -28,6 +29,7 @@ import * as Haptics from 'expo-haptics';
 import { DiscoverStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AvatarImage from '../../components/common/AvatarImage';
 import { smartDate } from '../../utils/dateHelpers';
 import { useUsers } from '../../hooks/useUsers';
@@ -294,6 +296,7 @@ interface NominatimResult {
 const LocationModal: React.FC<LocationModalProps> = ({
   visible, onClose, onConfirm, onUseCurrentLocation, isOverride }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
   const [fetching, setFetching] = useState(false);
@@ -336,16 +339,27 @@ const LocationModal: React.FC<LocationModalProps> = ({
   }, [onConfirm]);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
-        <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>Change Location</Text>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: colors.background }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={[styles.modalSheet, { paddingTop: Math.max(insets.top, 16) + 8 }]}>
+          {/* Header row with title + Cancel */}
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Change Location</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <Text style={[styles.modalCancelText, { color: colors.primary }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+
           <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
             Search for a city, neighborhood, or address to find dogs nearby.
           </Text>
+
           <View style={styles.autocompleteWrapper}>
             <TextInput
-              style={[styles.searchInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+              style={[styles.searchInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               placeholder="e.g. Brooklyn, NY or 27 Ridge Dr"
               placeholderTextColor={colors.textSecondary}
               value={query}
@@ -379,6 +393,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
               </View>
             )}
           </View>
+
           {isOverride && (
             <TouchableOpacity
               style={[styles.modalBtnOutline, { borderColor: colors.secondary }]}
@@ -389,11 +404,8 @@ const LocationModal: React.FC<LocationModalProps> = ({
               </Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={onClose} style={styles.modalCancel}>
-            <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
-          </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -954,8 +966,9 @@ const styles = StyleSheet.create({
 
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
-  modalSheet: { borderTopLeftRadius: borderRadius.lg, borderTopRightRadius: borderRadius.lg, padding: spacing.lg, paddingBottom: spacing.xl },
-  modalTitle: { ...typography.h3, marginBottom: spacing.xs },
+  modalSheet: { flex: 1, paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  modalTitle: { ...typography.h3 },
   modalSubtitle: { ...typography.bodySmall, marginBottom: spacing.md },
   autocompleteWrapper: { marginBottom: spacing.md, zIndex: 10 },
   searchInput: { borderWidth: 1.5, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, height: 48, fontSize: 16, marginBottom: 4 },
@@ -966,7 +979,6 @@ const styles = StyleSheet.create({
   resolvingText: { fontSize: 14 },
   modalBtnOutline: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', borderWidth: 1.5, marginBottom: spacing.sm },
   modalBtnOutlineText: { fontSize: 15, fontWeight: '600' },
-  modalCancel: { alignItems: 'center', paddingVertical: spacing.sm },
-  modalCancelText: { fontSize: 15 } });
+  modalCancelText: { fontSize: 16, fontWeight: '600' } });
 
 export default DiscoverScreen;
