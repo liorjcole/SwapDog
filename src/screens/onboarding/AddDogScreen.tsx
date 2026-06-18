@@ -470,7 +470,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         onLayout={(e) => { inputY['weight'] = e.nativeEvent.layout.y; }}
         onFocus={() => scrollToInput('weight')}
       />
-      <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>An estimate is totally fine!</Text>
       <TouchableOpacity
         onPress={() => {
           LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
