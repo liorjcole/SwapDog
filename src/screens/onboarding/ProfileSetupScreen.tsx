@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, InputAccessoryView, Keyboard } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -24,6 +24,8 @@ const cleanIgHandle = (raw: string): string => {
   if (urlMatch) return urlMatch[1];
   return s.replace(/^@/, '');
 };
+
+const BIO_ACCESSORY_ID = 'bio-keyboard-bar';
 
 const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
@@ -152,8 +154,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         multiline
         numberOfLines={4}
         accessibilityLabel="Bio, optional"
-        returnKeyType="done"
-        blurOnSubmit={true}
+        inputAccessoryViewID={BIO_ACCESSORY_ID}
         onLayout={(e) => { inputY['bio'] = e.nativeEvent.layout.y; }}
         onFocus={() => scrollToInput('bio')}
       />
@@ -182,6 +183,16 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={styles.btnText}>{loading ? 'Saving...' : 'Next →'}</Text>
       </TouchableOpacity>
     </ScrollView>
+
+      {/* "Done" toolbar above keyboard for the bio multiline field */}
+      <InputAccessoryView nativeID={BIO_ACCESSORY_ID}>
+        <View style={[styles.keyboardBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity onPress={() => Keyboard.dismiss()} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}>
+            <Text style={[styles.keyboardDone, { color: colors.primary }]}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      </InputAccessoryView>
     </View>
   );
 };
@@ -199,6 +210,17 @@ const styles = StyleSheet.create({
   fieldHint: { fontSize: 12, marginTop: 4, marginBottom: 8, paddingHorizontal: 4 },
   input: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, fontSize: 15 },
   textArea: { height: 100, textAlignVertical: 'top' },
+  keyboardBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  keyboardDone: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm },
   btnText: { color: '#fff', ...typography.button } });
 
