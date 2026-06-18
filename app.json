@@ -43,6 +43,11 @@
         }
       ],
       "./plugins/withIAPCapability"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "cb305cfc-b8e5-44f8-83c9-3f354a243eab"
+      }
+    }
   }
 }

@@ -9,8 +9,8 @@ import OnboardingNavigator from './OnboardingNavigator';
 import MainTabNavigator from './MainTabNavigator';
 import ConductStandardsScreen from '../screens/onboarding/ConductStandardsScreen';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { requestNotificationPermissions } from '../services/ReminderService';
 import { sendWelcomeMessageIfNeeded } from '../hooks/useMessaging';
+import { registerForPushNotifications, savePushToken } from '../services/NotificationService';
 
 const REFERRAL_STORAGE_KEY = '@swapdog_referral_code';
 
@@ -46,14 +46,19 @@ const AppNavigator: React.FC = () => {
     return () => sub.remove();
   }, []);
 
-  // Request notification permissions when an active user lands in the app
+  // Register for push notifications as soon as user is authenticated.
+  // This requests iOS permission (shows the system prompt) and saves
+  // the Expo push token to Firestore so Cloud Functions can send pushes.
   useEffect(() => {
-    if (!user || !userProfile) return;
-    if (userProfile.accountStatus !== 'active') return;
-    requestNotificationPermissions().catch((e) =>
-      console.warn('[AppNavigator] requestNotificationPermissions failed:', e)
-    );
-  }, [user?.uid, userProfile?.accountStatus]);
+    if (!user) return;
+    registerForPushNotifications()
+      .then((token) => {
+        if (token) return savePushToken(user.uid, token);
+      })
+      .catch((e) =>
+        console.warn('[AppNavigator] push registration failed:', e)
+      );
+  }, [user?.uid]);
 
   // Send welcome message for any active+signed user who didn't receive it
   // at contract-signing time (e.g. users who signed before this feature shipped).
