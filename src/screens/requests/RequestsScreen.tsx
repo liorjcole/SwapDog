@@ -916,7 +916,7 @@ const styles = StyleSheet.create({
   },
   calDayNum: { fontSize: 14, fontWeight: '500' },
   calDots: { flexDirection: 'row', gap: 2, marginTop: 1 },
-  calDot: { width: 6, height: 6, borderRadius: 3 },
+  calDot: { width: 10, height: 10, borderRadius: 5 },
 
   // Legend
   calLegend: {
@@ -927,7 +927,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   calLegendItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  calLegendText: { fontSize: 11 },
+  calLegendText: { fontSize: 14 },
 
   // Section header for all commitments list
   allCommitmentsHeader: { borderTopWidth: 1, paddingTop: spacing.md, marginBottom: spacing.sm },
