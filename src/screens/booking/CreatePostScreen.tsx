@@ -66,7 +66,6 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   // Care type
   const [primaryCareType, setPrimaryCareType] = useState<'overnight' | 'daySitting' | null>(null);
   const [addOnCareTypes, setAddOnCareTypes] = useState<Set<CareType>>(new Set());
-  const [walkCount, setWalkCount] = useState(1);
   const [playtimeDetails, setPlaytimeDetails] = useState('');
   const toggleAddOn = (type: CareType) => {
     setAddOnCareTypes(prev => {
@@ -101,7 +100,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [feedingTime, setFeedingTime] = useState('8:00 AM');
 
   // Walk duration
-  const [walkDurationMinutes, setWalkDurationMinutes] = useState<number>(30);
+  const [walks, setWalks] = useState<number[]>([30]); // array of durations in minutes
 
   // Care details
   const [careDetails, setCareDetails] = useState('');
@@ -266,8 +265,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         careTypeFields.pointsOffered = parseInt(pointsOffered, 10);
       }
       if (addOnCareTypes.has('dogWalking')) {
-        careTypeFields.walkDurationMinutes = walkDurationMinutes;
-        careTypeFields.walkCount = walkCount;
+        careTypeFields.walks = walks; // array of durations
+        careTypeFields.walkCount = walks.length;
       }
       if (addOnCareTypes.has('feeding')) {
         careTypeFields.feedingTime = feedingTime;
@@ -657,65 +656,69 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
               <View style={[styles.section, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>🐕 Walk Details</Text>
 
-                <Text style={[styles.careTypeHint, { color: colors.textSecondary, marginBottom: 8 }]}>
-                  Duration per walk
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.durationPillsRow}
-                >
-                  {WALK_MINUTES.map((min) => {
-                    const isSelected = walkDurationMinutes === min;
-                    return (
-                      <TouchableOpacity
-                        key={min}
-                        style={[
-                          styles.durationPill,
-                          {
-                            backgroundColor: isSelected ? RED : colors.background,
-                            borderColor: isSelected ? RED : colors.border },
-                        ]}
-                        onPress={() => {
-                          setWalkDurationMinutes(min);
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        }}
-                        accessibilityLabel={`${min} minute${min !== 1 ? 's' : ''}`}
-                        accessibilityRole="radio"
-                        accessibilityState={{ checked: isSelected }}
-                      >
-                        <Text style={[
-                          styles.durationPillText,
-                          { color: isSelected ? '#fff' : colors.text },
-                        ]}>
-                          {min} min
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+                {walks.map((dur, idx) => (
+                  <View key={idx} style={{ marginBottom: 16 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <Text style={[styles.careTypeHint, { color: colors.textSecondary }]}>
+                        Walk {idx + 1} — duration
+                      </Text>
+                      {walks.length > 1 && (
+                        <TouchableOpacity
+                          onPress={() => setWalks(walks.filter((_, i) => i !== idx))}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text style={{ fontSize: 13, color: colors.error, fontWeight: '600' }}>Remove</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.durationPillsRow}
+                    >
+                      {WALK_MINUTES.map((min) => {
+                        const isSelected = dur === min;
+                        return (
+                          <TouchableOpacity
+                            key={min}
+                            style={[
+                              styles.durationPill,
+                              {
+                                backgroundColor: isSelected ? RED : colors.background,
+                                borderColor: isSelected ? RED : colors.border },
+                            ]}
+                            onPress={() => {
+                              const updated = [...walks];
+                              updated[idx] = min;
+                              setWalks(updated);
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            }}
+                            accessibilityLabel={`Walk ${idx + 1}: ${min} minute${min !== 1 ? 's' : ''}`}
+                            accessibilityRole="radio"
+                            accessibilityState={{ checked: isSelected }}
+                          >
+                            <Text style={[
+                              styles.durationPillText,
+                              { color: isSelected ? '#fff' : colors.text },
+                            ]}>
+                              {min} min
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                ))}
 
-                <Text style={[styles.careTypeHint, { color: colors.textSecondary, marginTop: 16, marginBottom: 8 }]}>
-                  How many walks?
-                </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <TouchableOpacity
-                    style={[styles.durationPill, { backgroundColor: colors.background, borderColor: colors.border, paddingHorizontal: 16 }]}
-                    onPress={() => setWalkCount(Math.max(1, walkCount - 1))}
-                  >
-                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, minWidth: 30, textAlign: 'center' }}>
-                    {walkCount}
-                  </Text>
-                  <TouchableOpacity
-                    style={[styles.durationPill, { backgroundColor: colors.background, borderColor: colors.border, paddingHorizontal: 16 }]}
-                    onPress={() => setWalkCount(walkCount + 1)}
-                  >
-                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>+</Text>
-                  </TouchableOpacity>
-                  <Text style={{ fontSize: 14, color: colors.textSecondary }}>walk{walkCount !== 1 ? 's' : ''} per day</Text>
-                </View>
+                <TouchableOpacity
+                  style={[styles.addAnotherWalkBtn, { borderColor: colors.primary }]}
+                  onPress={() => {
+                    setWalks([...walks, 30]);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <Text style={[styles.addAnotherWalkBtnText, { color: colors.primary }]}>➕ Add Another Walk</Text>
+                </TouchableOpacity>
 
                 <Text style={[styles.fieldHint, { color: colors.textSecondary, marginTop: 12, fontStyle: 'italic' }]}>
                   If there are more details about the walk — like where to find the leash, specific times, or preferred routes — add them to the Care Details section below.
