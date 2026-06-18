@@ -179,7 +179,8 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         photoURLs: form.photoURLs,
         isGoodWithDogs: form.goodWithDogs,
         isGoodWithKids: form.goodWithKids,
-        vaccinated: form.vaccinated });
+        vaccinated: form.vaccinated,
+        ...(form.dogBio.trim() ? { bio: form.dogBio.trim() } : {}) });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       return dogId;
     } catch (error: unknown) {
@@ -512,6 +513,29 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       <SwitchRow label="Good with kids" value={form.goodWithKids} onChange={(v) => set('goodWithKids', v)} />
       <SwitchRow label="Vaccinated" value={form.vaccinated} onChange={(v) => set('vaccinated', v)} />
 
+      {/* Dog bio / about field */}
+      <Text style={[styles.label, { color: colors.text, marginTop: spacing.md }]}>
+        About {form.name.trim() || 'Your Dog'}
+      </Text>
+      <TextInput
+        style={[styles.input, styles.dogBioInput, { borderColor: colors.border, color: colors.text }]}
+        placeholder="Share their personality, quirks, favorite things, anything a new friend should know..."
+        placeholderTextColor={colors.textSecondary}
+        value={form.dogBio}
+        onChangeText={(v) => set('dogBio', v)}
+        multiline
+        numberOfLines={4}
+        textAlignVertical="top"
+        maxLength={500}
+        returnKeyType="default"
+        autoCorrect={true}
+        spellCheck={true}
+        autoCapitalize="sentences"
+      />
+      <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
+        This helps other dog parents know what to expect
+      </Text>
+
       {/* Primary CTA — saves current dog and proceeds to location */}
       <TouchableOpacity
         style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
@@ -622,6 +646,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FF3B30',
   },
+  dogBioInput: { minHeight: 100, paddingTop: spacing.md },
   fieldHint: { fontSize: 12, color: '#999', marginTop: -8, marginBottom: 4 },
   refChartToggle: { alignSelf: 'flex-start', marginBottom: spacing.sm, paddingVertical: 4 },
   refChartToggleText: { fontSize: 14, fontWeight: '600' },
