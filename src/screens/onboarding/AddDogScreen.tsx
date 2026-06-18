@@ -15,6 +15,7 @@ import { DogSize, DogSex, EnergyLevel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import Chip from '../../components/common/Chip';
 import DogAddedTransition from '../../components/onboarding/DogAddedTransition';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 
 const MAX_DOGS = 10;
 
@@ -35,38 +36,20 @@ type Props = {
   navigation: NativeStackNavigationProp<OnboardingStackParamList, 'AddDog'>;
 };
 
-/** Blank form state — returned after each successful dog creation to reset the form */
-const blankForm = () => ({
-  name: '',
-  breed: '',
-  ageYears: 0,
-  ageMonths: 1,
-  size: DogSize.medium,
-  sex: DogSex.male,
-  energy: EnergyLevel.moderate,
-  goodWithDogs: false,
-  goodWithKids: false,
-  vaccinated: false,
-  photoURLs: [] as string[] });
+
 
 const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user } = useAuthContext();
   const { createDog, deleteDog } = useDogs();
 
-  const [form, setForm] = useState(blankForm());
+  const { dogForm: form, setDogForm: setForm, updateDogForm: set, savedDogs, savedCount, addSavedDog, removeSavedDog, resetDogForm } = useOnboarding();
   const [loading, setLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  // Track dogs saved this session
-  const [savedCount, setSavedCount] = useState(0);
-  const [savedDogs, setSavedDogs] = useState<Array<{ name: string; breed: string; photoURL?: string }>>([]);
   const [showTransition, setShowTransition] = useState(false);
   const [transitionDogName, setTransitionDogName] = useState('');
 
-  const set = <K extends keyof ReturnType<typeof blankForm>>(
-    key: K,
-    value: ReturnType<typeof blankForm>[K],
-  ) => setForm((f) => ({ ...f, [key]: value }));
+
 
   const pickPhoto = async () => {
     if (form.photoURLs.length >= MAX_PHOTOS) {
@@ -130,7 +113,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         isGoodWithKids: form.goodWithKids,
         vaccinated: form.vaccinated });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setSavedCount((c) => c + 1);
       return dogId;
     } catch (error: unknown) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Failed to add dog');
@@ -165,7 +147,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     const dogId = await saveDog();
     if (dogId) {
       const justSavedName = form.name.trim();
-      setSavedDogs((prev) => [...prev, { id: dogId, name: justSavedName, breed: form.breed, photoURL: form.photoURLs[0] }]);
+      addSavedDog({ id: dogId, name: justSavedName, breed: form.breed, photoURL: form.photoURLs[0] });
       setTransitionDogName(justSavedName);
       setShowTransition(true);
     }
@@ -183,8 +165,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           onPress: async () => {
             try {
               await deleteDog(dogId);
-              setSavedDogs((prev) => prev.filter((d) => d.id !== dogId));
-              setSavedCount((c) => Math.max(0, c - 1));
+              removeSavedDog(dogId);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch (e: unknown) {
               Alert.alert('Error', e instanceof Error ? e.message : 'Failed to remove dog');
@@ -409,7 +390,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           nextDogNumber={savedCount + 1}
           onFinish={() => {
             setShowTransition(false);
-            setForm(blankForm());
+            resetDogForm();
           }}
         />
       )}

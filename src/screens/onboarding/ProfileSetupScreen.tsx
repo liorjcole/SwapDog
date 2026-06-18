@@ -28,10 +28,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const scrollRef = useRef<ScrollView>(null);
   const { user } = useAuthContext();
-  const [displayName, setDisplayName] = useState('');
-  const [bio, setBio] = useState('');
-  const [instagramHandle, setInstagramHandle] = useState('');
-  const [photoURL, setPhotoURL] = useState('');
+  const { displayName, setDisplayName, bio, setBio, instagramHandle, setInstagramHandle, photoURL, setPhotoURL } = useOnboarding();
   const [loading, setLoading] = useState(false);
 
   const pickImage = async () => {

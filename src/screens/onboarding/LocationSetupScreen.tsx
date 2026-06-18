@@ -10,6 +10,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { db } from '../../config/firebase';
 import { registerForPushNotifications, savePushToken } from '../../services/NotificationService';
 import { spacing, borderRadius, typography } from '../../config/theme';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<OnboardingStackParamList, 'LocationSetup'>;
@@ -18,8 +19,8 @@ type Props = {
 const LocationSetupScreen: React.FC<Props> = () => {
   const { colors } = useTheme();
   const { user, refreshUserProfile } = useAuthContext();
+  const { locationName, setLocationName } = useOnboarding();
   const [loading, setLoading] = useState(false);
-  const [locationName, setLocationName] = useState<string | null>(null);
 
   const handleGetLocation = async () => {
     setLoading(true);

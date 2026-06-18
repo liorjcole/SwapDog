@@ -8,10 +8,11 @@ import LocationSetupScreen from '../screens/onboarding/LocationSetupScreen';
 import PaywallScreen from '../screens/onboarding/PaywallScreen';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
+import { OnboardingProvider } from '../contexts/OnboardingContext';
 
 const Stack = createNativeStackNavigator<OnboardingStackParamList>();
 
-const OnboardingNavigator: React.FC = () => {
+const OnboardingStack: React.FC = () => {
   const { signOut } = useAuth();
   const { colors } = useTheme();
 
@@ -30,9 +31,7 @@ const OnboardingNavigator: React.FC = () => {
       <Stack.Screen
         name="ProfileSetup"
         component={ProfileSetupScreen}
-        options={{
-          headerBackVisible: true,
-        }}
+        options={{ headerBackVisible: true }}
         listeners={{
           beforeRemove: (e) => {
             e.preventDefault();
@@ -41,11 +40,7 @@ const OnboardingNavigator: React.FC = () => {
               "Your progress won't be saved.",
               [
                 { text: 'Stay', style: 'cancel' },
-                {
-                  text: 'Exit',
-                  style: 'destructive',
-                  onPress: () => signOut(),
-                },
+                { text: 'Exit', style: 'destructive', onPress: () => signOut() },
               ]
             );
           },
@@ -57,5 +52,12 @@ const OnboardingNavigator: React.FC = () => {
     </Stack.Navigator>
   );
 };
+
+// Wrap entire navigator so all screens share the same onboarding state
+const OnboardingNavigator: React.FC = () => (
+  <OnboardingProvider>
+    <OnboardingStack />
+  </OnboardingProvider>
+);
 
 export default OnboardingNavigator;
