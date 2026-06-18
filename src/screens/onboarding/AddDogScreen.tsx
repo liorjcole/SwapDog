@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch,
   Image, Platform, ActivityIndicator, Linking } from 'react-native';
@@ -44,6 +44,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const { createDog, deleteDog } = useDogs();
 
   const { dogForm: form, setDogForm: setForm, updateDogForm: set, savedDogs, savedCount, addSavedDog, removeSavedDog, resetDogForm } = useOnboarding();
+  const scrollRef = useRef<ScrollView>(null);
   const [loading, setLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
@@ -391,6 +392,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           onFinish={() => {
             setShowTransition(false);
             resetDogForm();
+            scrollRef.current?.scrollTo({ y: 0, animated: false });
           }}
         />
       )}
