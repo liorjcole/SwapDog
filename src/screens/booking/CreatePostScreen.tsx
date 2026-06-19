@@ -1537,14 +1537,8 @@ const MAX_PLAY_SESSIONS = 5;
               {/* Recommended points */}
               {recommendedPoints.total > 0 && (
                 <View style={styles.recBox}>
-                  <View style={styles.recHeader}>
-                    <Text style={[styles.recLabel, { color: colors.textSecondary }]}>Suggested</Text>
-                    <Text style={[styles.recValue, { color: colors.primary }]}>
-                      {recommendedPoints.total} pts
-                    </Text>
-                  </View>
-                  <Text style={[styles.recSubtext, { color: colors.textSecondary }]}>
-                    Based on the care you've selected — but it's ultimately up to you
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 20 }}>
+                    Suggested <Text style={{ fontWeight: '700', color: colors.primary }}>{recommendedPoints.total} pts</Text> based on the care you've selected… but it's ultimately up to you!
                   </Text>
 
                   {/* Expandable pricing guide */}
