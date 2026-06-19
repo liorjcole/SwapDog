@@ -1111,16 +1111,22 @@ const MAX_PLAY_SESSIONS = 5;
                       />
                     )}
 
-
+                    {/* Add another feeding — inside last card */}
+                    {idx === feedingSlots.length - 1 && (
+                      <TouchableOpacity
+                        style={[styles.addSessionBtn, { borderColor: colors.primary, marginTop: 16 }]}
+                        onPress={addFeedingSlot}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
+                          ➕ Add Feeding #{feedingSlots.length + 1}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 ))}
 
-                <TouchableOpacity
-                  style={[styles.addFeedingBtn, { borderColor: colors.primary }]}
-                  onPress={addFeedingSlot}
-                >
-                  <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>➕ Add Another Feeding</Text>
-                </TouchableOpacity>
+
               </View>
             )}
 
@@ -1222,21 +1228,24 @@ const MAX_PLAY_SESSIONS = 5;
                     <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
                       {wsStartTime} → {wsEndTime}  •  {wsDurText}
                     </Text>
+
+                    {/* Add another walk — inside last card */}
+                    {wIdx === walkSessions.length - 1 && walkSessions.length < MAX_WALK_SESSIONS && (
+                      <TouchableOpacity
+                        style={[styles.addSessionBtn, { borderColor: colors.primary, marginTop: 16 }]}
+                        onPress={addWalkSession}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
+                          ➕ Add Walk #{walkSessions.length + 1}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                   );
                 })}
 
-                {walkSessions.length < MAX_WALK_SESSIONS && (
-                  <TouchableOpacity
-                    style={[styles.addSessionBtn, { borderColor: colors.primary }]}
-                    onPress={addWalkSession}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
-                      ➕ Add Walk #{walkSessions.length + 1}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+
               </>
             )}
 
@@ -1414,21 +1423,23 @@ const MAX_PLAY_SESSIONS = 5;
                         </View>
                       </>
                     )}
+
+                    {/* Add another session — inside last card */}
+                    {pIdx === playSessions.length - 1 && playSessions.length < MAX_PLAY_SESSIONS && (
+                      <TouchableOpacity
+                        style={[styles.addSessionBtn, { borderColor: colors.primary, marginTop: 16 }]}
+                        onPress={addPlaySession}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
+                          ➕ Add Playtime Session #{playSessions.length + 1}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 ))}
 
-                {/* Add another session button */}
-                {playSessions.length < MAX_PLAY_SESSIONS && (
-                  <TouchableOpacity
-                    style={[styles.addSessionBtn, { borderColor: colors.primary }]}
-                    onPress={addPlaySession}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
-                      ➕ Add Playtime Session #{playSessions.length + 1}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+
               </>
             )}
 
