@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch,
   Image, Platform, ActivityIndicator, Linking, Animated as RNAnimated, LayoutAnimation,
-  Dimensions, Keyboard, Modal } from 'react-native';
+  Dimensions, Keyboard, Modal, InputAccessoryView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -363,6 +363,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   return (
+    <>
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
         ref={scrollRef}
@@ -652,6 +653,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           autoCorrect={true}
           spellCheck={true}
           autoCapitalize="sentences"
+          inputAccessoryViewID="dogBioDoneBar"
         />
         <Text style={[styles.fieldHint, { color: form.dogBio.trim().length >= 20 ? colors.success : colors.textSecondary }]}>
           {form.dogBio.trim().length < 20
@@ -738,6 +740,17 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
 
     </View>
+    {Platform.OS === 'ios' && (
+      <InputAccessoryView nativeID="dogBioDoneBar">
+        <View style={styles.kbToolbar}>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.kbDoneBtn}>
+            <Text style={styles.kbDoneText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      </InputAccessoryView>
+    )}
+    </>
   );
 };
 

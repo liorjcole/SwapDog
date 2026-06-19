@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, Linking } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, Linking, InputAccessoryView, Keyboard } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -57,6 +57,7 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
   };
 
   return (
+    <>
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
         ref={scrollRef}
@@ -100,6 +101,7 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
           returnKeyType="done"
           blurOnSubmit={true}
           onFocus={() => scrollToInput('bio')}
+          inputAccessoryViewID="bioDoneBar"
         />
       </View>
       <View ref={refFor('ig')}>
@@ -130,6 +132,17 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
 
 
     </View>
+    {Platform.OS === 'ios' && (
+      <InputAccessoryView nativeID="bioDoneBar">
+        <View style={styles.kbToolbar}>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.kbDoneBtn}>
+            <Text style={styles.kbDoneText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      </InputAccessoryView>
+    )}
+    </>
   );
 };
 
@@ -165,6 +178,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '700',
+  },
+  kbToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#8E8E93',
+    backgroundColor: '#D1D5DB',
+  },
+  kbDoneBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  kbDoneText: {
+    color: '#007AFF',
+    fontSize: 17,
+    fontWeight: '600',
   },
 });
 

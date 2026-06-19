@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, InputAccessoryView, Keyboard } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -126,6 +126,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
+    <>
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
         ref={scrollRef}
@@ -185,6 +186,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
           textContentType="none"
           accessibilityLabel="Bio, optional"
           onFocus={() => scrollToInput('bio')}
+          inputAccessoryViewID="bioDoneBar"
         />
       </View>
       <View ref={refFor('ig')}>
@@ -245,6 +247,17 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
 
 
     </View>
+    {Platform.OS === 'ios' && (
+      <InputAccessoryView nativeID="bioDoneBar">
+        <View style={styles.kbToolbar}>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.kbDoneBtn}>
+            <Text style={styles.kbDoneText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      </InputAccessoryView>
+    )}
+    </>
   );
 };
 
@@ -286,6 +299,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '700',
+  },
+  kbToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#8E8E93',
+    backgroundColor: '#D1D5DB',
+  },
+  kbDoneBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  kbDoneText: {
+    color: '#007AFF',
+    fontSize: 17,
+    fontWeight: '600',
   },
 });
 
