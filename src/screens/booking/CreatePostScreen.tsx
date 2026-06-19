@@ -1181,7 +1181,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                           How long should this play session be?
                         </Text>
                         <View style={styles.durationRow}>
-                          {[15, 30, 45, 60, 90, 120].map((mins) => (
+                          {[15, 30, 60, 90, 120].map((mins) => (
                             <TouchableOpacity
                               key={mins}
                               style={[
