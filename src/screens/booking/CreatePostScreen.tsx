@@ -1685,7 +1685,7 @@ const MAX_PLAY_SESSIONS = 5;
                       return (
                         <View style={styles.insufficientWarning}>
                           <Text style={styles.insufficientWarningText}>
-                            ⚠️ You only have {balance.toFixed(1)} points — need {pts}
+                            ⚠️ You only have {balance.toFixed(1)} points
                           </Text>
                         </View>
                       );
