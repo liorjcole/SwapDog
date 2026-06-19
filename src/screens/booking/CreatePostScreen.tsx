@@ -1061,7 +1061,30 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('feeding') && (
               <View style={[styles.section, { backgroundColor: colors.surface }]}>
                 {feedingSlots.map((slot, idx) => (
-                  <View key={idx} style={{ marginBottom: idx < feedingSlots.length - 1 ? 20 : 0 }}>
+                  <View key={idx} style={{ marginBottom: idx < feedingSlots.length - 1 ? 20 : 0, paddingTop: 28, position: 'relative' as const }}>
+                    {/* ✕ delete — absolute top right */}
+                    <TouchableOpacity
+                      onPress={() => Alert.alert(
+                        feedingSlots.length === 1 ? 'Remove Feeding' : `Remove Feeding #${idx + 1}`,
+                        feedingSlots.length === 1
+                          ? 'Are you sure you want to remove feeding from this post?'
+                          : 'Are you sure you want to remove this feeding?',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Remove', style: 'destructive', onPress: () => {
+                            if (feedingSlots.length === 1) {
+                              setAddOnCareTypes(prev => { const n = new Set(prev); n.delete('feeding'); return n; });
+                            } else {
+                              removeFeedingSlot(idx);
+                            }
+                          }},
+                        ]
+                      )}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{ position: 'absolute', top: 4, right: 0, zIndex: 10, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(255,59,48,0.15)', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Text style={{ fontSize: 13, color: '#FF3B30', fontWeight: '700', lineHeight: 14 }}>✕</Text>
+                    </TouchableOpacity>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: collapsedFeedings.has(idx) ? 0 : 6 }}>
                       <TouchableOpacity
                         onPress={() => toggleCollapse(setCollapsedFeedings, idx)}
@@ -1097,18 +1120,7 @@ const MAX_PLAY_SESSIONS = 5;
                             </Text>
                           </TouchableOpacity>
                         )}
-                        {feedingSlots.length > 1 && (
-                          <TouchableOpacity
-                            onPress={() => Alert.alert('Remove Feeding', 'Are you sure you want to remove this feeding?', [
-                              { text: 'Cancel', style: 'cancel' },
-                              { text: 'Remove', style: 'destructive', onPress: () => removeFeedingSlot(idx) },
-                            ])}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(255,59,48,0.15)', alignItems: 'center', justifyContent: 'center' }}
-                          >
-                            <Text style={{ fontSize: 13, color: '#FF3B30', fontWeight: '700', lineHeight: 14 }}>✕</Text>
-                          </TouchableOpacity>
-                        )}
+
                       </View>
                     </View>
                     {!collapsedFeedings.has(idx) && (
@@ -1181,7 +1193,30 @@ const MAX_PLAY_SESSIONS = 5;
                     ? `${Math.floor(wsDurMins / 60)}h ${wsDurMins % 60 > 0 ? `${wsDurMins % 60}m` : ''} walk`.trim()
                     : `${wsDurMins}m walk`;
                   return (
-                  <View key={wIdx} style={[styles.section, { backgroundColor: colors.surface }]}>
+                  <View key={wIdx} style={[styles.section, { backgroundColor: colors.surface, paddingTop: 36 }]}>
+                    {/* ✕ delete — absolute top right */}
+                    <TouchableOpacity
+                      onPress={() => Alert.alert(
+                        walkSessions.length === 1 ? 'Remove Walk' : `Remove Walk #${wIdx + 1}`,
+                        walkSessions.length === 1
+                          ? 'Are you sure you want to remove walking from this post?'
+                          : 'Are you sure you want to remove this walk?',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Remove', style: 'destructive', onPress: () => {
+                            if (walkSessions.length === 1) {
+                              setAddOnCareTypes(prev => { const n = new Set(prev); n.delete('dogWalking'); return n; });
+                            } else {
+                              removeWalkSession(wIdx);
+                            }
+                          }},
+                        ]
+                      )}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{ position: 'absolute', top: 10, right: 12, zIndex: 10, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(255,59,48,0.15)', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Text style={{ fontSize: 13, color: '#FF3B30', fontWeight: '700', lineHeight: 14 }}>✕</Text>
+                    </TouchableOpacity>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: collapsedWalks.has(wIdx) ? 0 : 12 }}>
                       <TouchableOpacity
                         onPress={() => toggleCollapse(setCollapsedWalks, wIdx)}
@@ -1217,18 +1252,7 @@ const MAX_PLAY_SESSIONS = 5;
                             </Text>
                           </TouchableOpacity>
                         )}
-                        {walkSessions.length > 1 && (
-                          <TouchableOpacity
-                            onPress={() => Alert.alert('Remove Walk', 'Are you sure you want to remove this walk?', [
-                              { text: 'Cancel', style: 'cancel' },
-                              { text: 'Remove', style: 'destructive', onPress: () => removeWalkSession(wIdx) },
-                            ])}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(255,59,48,0.15)', alignItems: 'center', justifyContent: 'center' }}
-                          >
-                            <Text style={{ fontSize: 13, color: '#FF3B30', fontWeight: '700', lineHeight: 14 }}>✕</Text>
-                          </TouchableOpacity>
-                        )}
+
                       </View>
                     </View>
                     {!collapsedWalks.has(wIdx) && (
@@ -1320,8 +1344,31 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('playtime') && (
               <>
                 {playSessions.map((pSession, pIdx) => (
-                  <View key={pIdx} style={[styles.section, { backgroundColor: colors.surface }]}>
-                    {/* Header row: title + repeat daily + remove */}
+                  <View key={pIdx} style={[styles.section, { backgroundColor: colors.surface, paddingTop: 36 }]}>
+                    {/* ✕ delete — absolute top right */}
+                    <TouchableOpacity
+                      onPress={() => Alert.alert(
+                        playSessions.length === 1 ? 'Remove Playtime' : `Remove Playtime #${pIdx + 1}`,
+                        playSessions.length === 1
+                          ? 'Are you sure you want to remove playtime from this post?'
+                          : 'Are you sure you want to remove this session?',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Remove', style: 'destructive', onPress: () => {
+                            if (playSessions.length === 1) {
+                              setAddOnCareTypes(prev => { const n = new Set(prev); n.delete('playtime'); return n; });
+                            } else {
+                              removePlaySession(pIdx);
+                            }
+                          }},
+                        ]
+                      )}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{ position: 'absolute', top: 10, right: 12, zIndex: 10, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(255,59,48,0.15)', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Text style={{ fontSize: 13, color: '#FF3B30', fontWeight: '700', lineHeight: 14 }}>✕</Text>
+                    </TouchableOpacity>
+                    {/* Header row: title + repeat daily */}
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: collapsedPlay.has(pIdx) ? 0 : 12 }}>
                       <TouchableOpacity
                         onPress={() => toggleCollapse(setCollapsedPlay, pIdx)}
@@ -1362,19 +1409,7 @@ const MAX_PLAY_SESSIONS = 5;
                             </Text>
                           </TouchableOpacity>
                         )}
-                        {/* Remove button — only if more than 1 session */}
-                        {playSessions.length > 1 && (
-                          <TouchableOpacity
-                            onPress={() => Alert.alert('Remove Playtime', 'Are you sure you want to remove this session?', [
-                              { text: 'Cancel', style: 'cancel' },
-                              { text: 'Remove', style: 'destructive', onPress: () => removePlaySession(pIdx) },
-                            ])}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(255,59,48,0.15)', alignItems: 'center', justifyContent: 'center' }}
-                          >
-                            <Text style={{ fontSize: 13, color: '#FF3B30', fontWeight: '700', lineHeight: 14 }}>✕</Text>
-                          </TouchableOpacity>
-                        )}
+
                       </View>
                     </View>
                     {!collapsedPlay.has(pIdx) && (
