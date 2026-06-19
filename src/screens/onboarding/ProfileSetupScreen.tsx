@@ -114,8 +114,8 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         photoURL,
         isOnboarded: false,
         ...(referredBy ? { referredBy } : {}),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp() });
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       navigation.navigate('AddDog');
     } catch (error: unknown) {
