@@ -53,10 +53,15 @@ export const useAuth = () => {
         // Non-fatal — proceed without referral linkage
       }
 
-      // Generate this user's own referral code
-      const newReferralCode = await generateReferralCode(uid);
+      // Generate referral code — non-fatal if it fails
+      let newReferralCode = '';
+      try {
+        newReferralCode = await generateReferralCode(uid);
+      } catch {
+        console.warn('[useAuth] Referral code generation failed (non-fatal)');
+      }
 
-      // Write user doc
+      // Write user doc — this MUST succeed for points to be seeded
       await setDoc(doc(db, 'users', uid), {
         email: credential.user.email,
         displayName: '',
@@ -72,13 +77,17 @@ export const useAuth = () => {
         updatedAt: serverTimestamp(),
       });
 
-      // Log the welcome bonus in points history
-      await addDoc(collection(db, 'users', uid, 'pointsHistory'), {
-        type: 'bonus',
-        description: 'Welcome bonus — thanks for joining WatchDog!',
-        points: 5,
-        createdAt: serverTimestamp(),
-      });
+      // Log the welcome bonus in points history (non-fatal)
+      try {
+        await addDoc(collection(db, 'users', uid, 'pointsHistory'), {
+          type: 'bonus',
+          description: 'Welcome bonus — thanks for joining WatchDog!',
+          points: 5,
+          createdAt: serverTimestamp(),
+        });
+      } catch {
+        console.warn('[useAuth] Points history write failed (non-fatal — points still seeded on user doc)');
+      }
     } catch (postAuthErr) {
       // Log but don't throw — the user is already authenticated and
       // navigated to the onboarding flow. The auth-context listener will

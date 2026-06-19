@@ -17,6 +17,21 @@ service cloud.firestore {
         || isAdmin()
       );
       allow delete: if false;
+
+      // Points history: user can read/create their own entries
+      match /pointsHistory/{entryId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update, delete: if false;
+      }
+
+      // Favorites subcollection: user can read/write their own favorites
+      match /favorites/{favoriteId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // Dogs: read if authenticated, write if owner or admin
