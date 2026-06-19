@@ -19,6 +19,9 @@ import {
   Modal,
   PanResponder,
   Animated,
+  LayoutAnimation,
+  UIManager,
+  Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -26,6 +29,7 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
+import { useMessaging } from '../../hooks/useMessaging';
 import { useTheme } from '../../contexts/ThemeContext';
 import { smartDate } from '../../utils/dateHelpers';
 import { useSwaps } from '../../hooks/useSwaps';
@@ -130,8 +134,15 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user } = useAuthContext();
   const { getMyPosts, cancelPost, getAcceptedPosts, saveSitterReminderIds } = useSwaps();
+  const { getOrCreateConversation } = useMessaging();
 
   const [tab, setTab] = useState<TabType>('commitments');
+  const [expandedCommitId, setExpandedCommitId] = useState<string | null>(null);
+
+  // Enable LayoutAnimation on Android
+  if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
   const scrollViewRef = useRef<ScrollView>(null);
   const [flashDates, setFlashDates] = useState<{ start: Date; end: Date } | null>(null);
   const flashAnim = useRef(new Animated.Value(1)).current;
@@ -460,8 +471,49 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   // ── Commitment card ───────────────────────────────────────────────────────
+  const handleMessageFromCommitment = async (post: SwapPost) => {
+    if (!user?.uid) return;
+    const isMyDog = post.posterId === user.uid;
+    const otherUserId = isMyDog ? post.claimedBy : post.posterId;
+    if (!otherUserId) return;
+    try {
+      const convId = await getOrCreateConversation(user.uid, otherUserId, post.id);
+      navigation.navigate('Chat', { conversationId: convId, otherUserId });
+    } catch (err) {
+      console.warn('[RequestsScreen] Failed to open chat:', err);
+    }
+  };
+
+  const handleCancelCommitment = (post: SwapPost) => {
+    Alert.alert(
+      'Cancel this commitment?',
+      `This will cancel the ${post.dogName} care request. The other person will be notified.`,
+      [
+        { text: 'Keep it', style: 'cancel' },
+        {
+          text: 'Yes, cancel',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelPost(post.id);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+              fetchPosts();
+            } catch (err) {
+              console.warn('[RequestsScreen] Cancel failed:', err);
+              Alert.alert('Oops', 'Failed to cancel. Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const toggleExpand = (postId: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedCommitId((prev) => (prev === postId ? null : postId));
+  };
+
   const renderCommitmentCard = (post: SwapPost, onCardPress?: () => void) => {
-    if (!onCardPress) onCardPress = () => handleCommitmentTap(post);
     const isMyDog = post.posterId === user?.uid;
     const accentColor = isMyDog ? RED : TEAL;
     const roleLabel = isMyDog ? 'Your dog' : "You're watching";
@@ -470,35 +522,105 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
       : post.posterName;
     const startStr = smartDate(post.startDate);
     const endStr = smartDate(post.endDate, { includeYear: true });
+    const isExpanded = expandedCommitId === post.id;
+    const careSummary = getCareTypeSummary(post);
+
+    const onPress = onCardPress
+      ? onCardPress
+      : () => toggleExpand(post.id);
 
     return (
-      <TouchableOpacity
-        key={post.id}
-        style={[
-          styles.commitCard,
-          { backgroundColor: colors.surface, borderLeftColor: accentColor, ...shadow.sm },
-        ]}
-        onPress={onCardPress}
-        accessibilityRole="button"
-        accessibilityLabel={`${roleLabel}: ${post.dogName} with ${otherName}`}
-      >
-        <View style={styles.commitCardInner}>
-          <View style={styles.commitInfo}>
-            <Text style={[styles.commitRoleLabel, { color: accentColor }]}>{roleLabel}</Text>
-            <Text style={[styles.commitDogName, { color: colors.text }]}>{post.dogName}</Text>
-            <Text style={[styles.commitOther, { color: colors.textSecondary }]}>{otherName}</Text>
-            <Text style={[styles.commitDates, { color: colors.textSecondary }]}>
-              {startStr} – {endStr}
+      <View key={post.id}>
+        <TouchableOpacity
+          style={[
+            styles.commitCard,
+            { backgroundColor: colors.surface, borderLeftColor: accentColor, ...shadow.sm },
+            isExpanded && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 },
+          ]}
+          onPress={onPress}
+          accessibilityRole="button"
+          accessibilityLabel={`${roleLabel}: ${post.dogName} with ${otherName}`}
+          accessibilityState={{ expanded: isExpanded }}
+        >
+          <View style={styles.commitCardInner}>
+            <View style={styles.commitInfo}>
+              <Text style={[styles.commitRoleLabel, { color: accentColor }]}>{roleLabel}</Text>
+              <Text style={[styles.commitDogName, { color: colors.text }]}>{post.dogName}</Text>
+              <Text style={[styles.commitOther, { color: colors.textSecondary }]}>{otherName}</Text>
+              <Text style={[styles.commitDates, { color: colors.textSecondary }]}>
+                {startStr} – {endStr}
+              </Text>
+            </View>
+            <Text style={[styles.commitArrow, { color: colors.primary }]}>
+              {isExpanded ? '⌄' : '›'}
             </Text>
-            {post.compensationType !== 'points' && (
-              <Text style={[styles.commitComp, { color: '#00B894' }]}>
+          </View>
+        </TouchableOpacity>
+
+        {isExpanded && (
+          <View
+            style={[
+              styles.expandedSection,
+              {
+                backgroundColor: colors.surface,
+                borderLeftColor: accentColor,
+                borderTopColor: colors.border,
+                ...shadow.sm,
+              },
+            ]}
+          >
+            {/* Care type */}
+            <View style={styles.expandedRow}>
+              <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Care</Text>
+              <Text style={[styles.expandedValue, { color: colors.text }]}>{careSummary}</Text>
+            </View>
+
+            {/* Compensation */}
+            <View style={styles.expandedRow}>
+              <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Compensation</Text>
+              <Text style={[styles.expandedValue, { color: '#00B894' }]}>
                 {compensationLabel(post)}
               </Text>
-            )}
+            </View>
+
+            {/* Care details */}
+            {post.careDetails ? (
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Details</Text>
+                <Text
+                  style={[styles.expandedValue, { color: colors.text }]}
+                  numberOfLines={4}
+                >
+                  {post.careDetails}
+                </Text>
+              </View>
+            ) : null}
+
+            {/* Action buttons */}
+            <View style={styles.expandedButtons}>
+              <TouchableOpacity
+                style={[styles.expandedBtn, { backgroundColor: colors.primary }]}
+                onPress={() => handleMessageFromCommitment(post)}
+                accessibilityLabel={`Message ${otherName}`}
+                accessibilityRole="button"
+              >
+                <Text style={styles.expandedBtnText}>💬  Message</Text>
+              </TouchableOpacity>
+
+              {isMyDog && post.status !== 'completed' && (
+                <TouchableOpacity
+                  style={[styles.expandedBtn, styles.expandedCancelBtn]}
+                  onPress={() => handleCancelCommitment(post)}
+                  accessibilityLabel="Cancel commitment"
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.expandedBtnText}>Cancel</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-          <Text style={[styles.commitArrow, { color: colors.primary }]}>›</Text>
-        </View>
-      </TouchableOpacity>
+        )}
+      </View>
     );
   };
 
@@ -976,6 +1098,50 @@ const styles = StyleSheet.create({
   commitDates: { fontSize: 12, marginTop: 2 },
   commitComp: { fontSize: 12, marginTop: 2, fontWeight: '600' },
   commitArrow: { fontSize: 24 },
+  expandedSection: {
+    borderLeftWidth: 4,
+    borderTopWidth: 1,
+    borderBottomLeftRadius: borderRadius.lg,
+    borderBottomRightRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    paddingTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  expandedRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  expandedLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    width: 100,
+    paddingTop: 1,
+  },
+  expandedValue: {
+    fontSize: 14,
+    flex: 1,
+  },
+  expandedButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  expandedBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: borderRadius.md,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  expandedCancelBtn: {
+    backgroundColor: '#636E72',
+  },
+  expandedBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
 });
 
 export default RequestsScreen;
