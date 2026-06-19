@@ -261,14 +261,14 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
       } catch { return { h: 9, m: 0 }; }
     };
 
-    // For overnight: care starts on startDate (assume check-in at noon if no time)
-    // For non-overnight: care starts on startDate at startTime
+    // For overnight / daySitting: care starts on startDate at startTime
+    // For add-on only (feeding/walk/playtime): no time fields, assume noon
     const careStart = new Date(startDate);
-    if (careType !== 'overnight') {
+    if (careType === 'overnight' || careType === 'daySitting') {
       const { h, m } = parseTime12(startTime);
       careStart.setHours(h, m, 0, 0);
     } else {
-      careStart.setHours(12, 0, 0, 0); // assume noon check-in for overnight
+      careStart.setHours(12, 0, 0, 0); // add-on only — no time selected
     }
 
     // Block if date/time has already passed
@@ -309,7 +309,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
       if (!amt || amt <= 0) {
         Alert.alert('Invalid Payment', 'Please enter a valid dollar amount'); return;
       }
-      if (careType !== 'overnight' && (!daySittingHours || daySittingHours <= 0)) {
+      if (careType === 'daySitting' && (!daySittingHours || daySittingHours <= 0)) {
         Alert.alert('Invalid Times', 'End time must be after start time'); return;
       }
     } else {
@@ -362,7 +362,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
           daily: primaryCareType === 'overnight' ? s.daily : false,
         }));
       }
-      if (primaryCareType !== 'overnight') {
+      if (primaryCareType === 'overnight' || primaryCareType === 'daySitting') {
         careTypeFields.startTime = startTime;
         careTypeFields.endTime = endTime;
       }
@@ -374,7 +374,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
 
       // Determine effective start/end date for non-range types
       const effectiveStart = startDate;
-      const effectiveEnd = careType === 'overnight' ? endDate : startDate;
+      const effectiveEnd = primaryCareType === 'overnight' ? endDate : startDate;
 
       // Strip undefined values before Firestore write
       const postData = {
@@ -612,7 +612,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         {(primaryCareType !== null || addOnCareTypes.size > 0) && (
               <View style={[styles.section, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  📅 {careType === 'overnight' ? 'Dates Needed' : 'Date & Time'}
+                  📅 {careType === 'overnight' ? 'Dates & Times' : careType === 'daySitting' ? 'Date & Time' : 'Date'}
                 </Text>
                 <TouchableOpacity
                   style={[styles.dateButton, { borderColor: '#FFFFFF' }]}
@@ -678,8 +678,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                   </>
                 )}
 
-                {/* Time fields for day sitting */}
-                {careType !== 'overnight' && (
+                {/* Time fields for overnight and day sitting */}
+                {(careType === 'overnight' || careType === 'daySitting') && (
                   <View ref={refFor('startTime')} style={styles.timeRow}>
                     <View style={styles.timeField}>
                       <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
@@ -710,7 +710,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                     </View>
                   </View>
                 )}
-                {careType !== 'overnight' && daySittingHours && daySittingHours > 0 && (
+                {careType === 'daySitting' && daySittingHours && daySittingHours > 0 && (
                   <View style={[styles.dateSummary, { backgroundColor: colors.background }]}>
                     <Text style={[styles.dateSummaryText, { color: colors.textSecondary }]}>
                       {daySittingHours} hr{daySittingHours !== 1 ? 's' : ''} of sitting
