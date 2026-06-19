@@ -1085,10 +1085,14 @@ const MAX_PLAY_SESSIONS = 5;
                         )}
                         {feedingSlots.length > 1 && (
                           <TouchableOpacity
-                            onPress={() => removeFeedingSlot(idx)}
+                            onPress={() => Alert.alert('Remove Feeding', 'Are you sure you want to remove this feeding?', [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Remove', style: 'destructive', onPress: () => removeFeedingSlot(idx) },
+                            ])}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(255,59,48,0.15)', alignItems: 'center', justifyContent: 'center' }}
                           >
-                            <Text style={{ fontSize: 13, color: colors.error, fontWeight: '600' }}>Remove</Text>
+                            <Text style={{ fontSize: 13, color: '#FF3B30', fontWeight: '700', lineHeight: 14 }}>✕</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -1191,8 +1195,15 @@ const MAX_PLAY_SESSIONS = 5;
                           </TouchableOpacity>
                         )}
                         {walkSessions.length > 1 && (
-                          <TouchableOpacity onPress={() => removeWalkSession(wIdx)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                            <Text style={{ color: '#FF3B30', fontSize: 14, fontWeight: '600' }}>Remove</Text>
+                          <TouchableOpacity
+                            onPress={() => Alert.alert('Remove Walk', 'Are you sure you want to remove this walk?', [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Remove', style: 'destructive', onPress: () => removeWalkSession(wIdx) },
+                            ])}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(255,59,48,0.15)', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <Text style={{ fontSize: 13, color: '#FF3B30', fontWeight: '700', lineHeight: 14 }}>✕</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -1337,10 +1348,14 @@ const MAX_PLAY_SESSIONS = 5;
                         {/* Remove button — only if more than 1 session */}
                         {playSessions.length > 1 && (
                           <TouchableOpacity
-                            onPress={() => removePlaySession(pIdx)}
+                            onPress={() => Alert.alert('Remove Playtime', 'Are you sure you want to remove this session?', [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Remove', style: 'destructive', onPress: () => removePlaySession(pIdx) },
+                            ])}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(255,59,48,0.15)', alignItems: 'center', justifyContent: 'center' }}
                           >
-                            <Text style={{ fontSize: 13, color: colors.error, fontWeight: '600' }}>Remove</Text>
+                            <Text style={{ fontSize: 13, color: '#FF3B30', fontWeight: '700', lineHeight: 14 }}>✕</Text>
                           </TouchableOpacity>
                         )}
                       </View>
