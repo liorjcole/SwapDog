@@ -177,6 +177,39 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     set('photoURLs', form.photoURLs.filter((_, i) => i !== index));
   };
 
+  const cropPhoto = async (index: number) => {
+    setPreviewIndex(null);
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      allowsEditing: true,
+      aspect: [1, 1] as [number, number],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.length) return;
+
+    const croppedUri = result.assets[0].uri;
+    const oldUri = form.photoURLs[index];
+    // Show local preview immediately
+    const updated = [...form.photoURLs];
+    updated[index] = croppedUri;
+    set('photoURLs', updated);
+
+    // Upload cropped photo in background
+    try {
+      const tempId = `temp_${user?.uid ?? 'anon'}_${Date.now()}`;
+      const response = await fetch(croppedUri);
+      if (!response) throw new Error('Failed to read cropped image');
+      const blob = await response.blob();
+      const fileRef = storageRef(storage, `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
+      await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
+      const downloadURL = await getDownloadURL(fileRef);
+      set('photoURLs', form.photoURLs.map((u: string, i: number) => i === index ? downloadURL : u));
+    } catch {
+      Alert.alert('Error', 'Failed to upload cropped photo. Please try again.');
+      set('photoURLs', form.photoURLs.map((u: string, i: number) => i === index ? oldUri : u));
+    }
+  };
+
   const saveDog = async (): Promise<string | null> => {
     if (!form.name.trim() || !form.breed.trim()) {
       Alert.alert('Required', 'Please fill in name and breed');
@@ -652,6 +685,57 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           }}
         />
       )}
+
+      {/* Full-screen photo preview with zoom + crop */}
+      {previewIndex !== null && form.photoURLs[previewIndex] && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setPreviewIndex(null)}>
+          <View style={previewStyles.overlay}>
+            <ScrollView
+              contentContainerStyle={previewStyles.zoomContainer}
+              maximumZoomScale={4}
+              minimumZoomScale={1}
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
+              centerContent
+            >
+              <Image
+                source={{ uri: form.photoURLs[previewIndex] }}
+                style={previewStyles.fullImage}
+                resizeMode="contain"
+              />
+            </ScrollView>
+            {/* Close button */}
+            <TouchableOpacity
+              style={[previewStyles.closeBtn, { top: 60 }]}
+              onPress={() => setPreviewIndex(null)}
+              accessibilityLabel="Close preview"
+              accessibilityRole="button"
+            >
+              <Text style={previewStyles.closeBtnText}>✕</Text>
+            </TouchableOpacity>
+            {/* Bottom action buttons */}
+            <View style={previewStyles.bottomActions}>
+              <TouchableOpacity
+                style={previewStyles.cropBtn}
+                onPress={() => cropPhoto(previewIndex)}
+                accessibilityLabel="Crop this photo"
+                accessibilityRole="button"
+              >
+                <Text style={previewStyles.cropBtnText}>✂ Crop</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={previewStyles.removeBtn}
+                onPress={() => { setPreviewIndex(null); removePhoto(previewIndex); }}
+                accessibilityLabel="Remove this photo"
+                accessibilityRole="button"
+              >
+                <Text style={previewStyles.removeBtnText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
     </View>
   );
 };
@@ -776,6 +860,34 @@ const previewStyles = StyleSheet.create({
   fullImage: {
     width: SCREEN_W,
     height: SCREEN_H * 0.75,
+  },
+  bottomActions: {
+    position: 'absolute',
+    bottom: 60,
+    flexDirection: 'row',
+    gap: 16,
+  },
+  cropBtn: {
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  cropBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  removeBtn: {
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,59,48,0.85)',
+  },
+  removeBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
 
