@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, InputAccessoryView, Keyboard } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, Keyboard } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -186,7 +186,6 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
           textContentType="none"
           accessibilityLabel="Bio, optional"
           onFocus={() => scrollToInput('bio')}
-          inputAccessoryViewID="bioDoneBar"
         />
       </View>
       <View ref={refFor('ig')}>
