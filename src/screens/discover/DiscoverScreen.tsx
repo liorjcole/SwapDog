@@ -189,6 +189,12 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
       accessibilityLabel={`Post for ${post.dogName}`}
     >
       <View style={styles.postCardInner}>
+        {/* Favorited badge — top right */}
+        {isFavorited && (
+          <Text style={{ position: 'absolute', top: 10, right: 12, fontSize: 12, fontStyle: 'italic', color: '#FFD700', zIndex: 5 }}>
+            Favorited pet parent!
+          </Text>
+        )}
         {/* Dog photos + names row */}
         <View style={styles.cardHeader}>
           {/* Dog avatar(s) */}
