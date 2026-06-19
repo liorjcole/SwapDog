@@ -533,7 +533,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         accessibilityRole="button"
       >
         <Text style={[styles.refChartToggleText, { color: colors.primary }]}>
-          {showRefChart ? 'Hide chart ▲' : 'Not sure? ▼'}
+          {showRefChart ? "Not sure your dog's weight? ▼" : "Not sure your dog's weight? ▶"}
         </Text>
       </TouchableOpacity>
       {showRefChart && (
