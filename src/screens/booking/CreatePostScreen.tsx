@@ -72,8 +72,9 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     endDate: Date;
     showStart: boolean;
     showEnd: boolean;
-    durationMins: number; // for flexible mode
+    durationMins: number;
     repeatDaily: boolean;
+    dogIds: string[];
   }
   const makeDefaultPlaySession = (): PlaySession => ({
     flexible: false,
@@ -83,6 +84,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     showEnd: false,
     durationMins: 60,
     repeatDaily: false,
+    dogIds: [],
   });
   const [playSessions, setPlaySessions] = useState<PlaySession[]>([makeDefaultPlaySession()]);
   const MAX_PLAY_SESSIONS = 5;
@@ -141,8 +143,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [showStartTime, setShowStartTime] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
   // Feeding slots — Date objects for native spinner
-  const [feedingSlots, setFeedingSlots] = useState<{ time: Date; daily: boolean; showPicker: boolean }[]>([
-    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), daily: false, showPicker: false },
+  const [feedingSlots, setFeedingSlots] = useState<{ time: Date; daily: boolean; showPicker: boolean; dogIds: string[] }[]>([
+    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), daily: false, showPicker: false, dogIds: [] },
   ]);
 
   const updateFeedingSlot = (index: number, field: string, value: unknown) => {
@@ -156,7 +158,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
 
   const addFeedingSlot = () => {
     const d = new Date(); d.setHours(12, 0, 0, 0);
-    setFeedingSlots(prev => [...prev, { time: d, daily: false, showPicker: false }]);
+    setFeedingSlots(prev => [...prev, { time: d, daily: false, showPicker: false, dogIds: [...selectedDogIds] }]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -169,6 +171,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   });
   const [showWalkStart, setShowWalkStart] = useState(false);
   const [showWalkEnd, setShowWalkEnd] = useState(false);
+  const [walkDogIds, setWalkDogIds] = useState<string[]>([]);
 
   // Care details
   const [careDetails, setCareDetails] = useState('');
@@ -234,6 +237,50 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     () => myDogs.filter((d) => selectedDogIds.has(d.id)),
     [myDogs, selectedDogIds]
   );
+
+
+  // ── Sync per-section dogIds when top-level dog selection changes ──
+  useEffect(() => {
+    const ids = Array.from(selectedDogIds);
+    // Walk
+    setWalkDogIds(prev => prev.length === 0 ? ids : prev.filter(id => selectedDogIds.has(id)));
+    // Feeding slots — reset empty slots to all selected
+    setFeedingSlots(prev => prev.map(s =>
+      s.dogIds.length === 0 ? { ...s, dogIds: ids } : { ...s, dogIds: s.dogIds.filter(id => selectedDogIds.has(id)) }
+    ));
+    // Play sessions — reset empty slots to all selected
+    setPlaySessions(prev => prev.map(s =>
+      s.dogIds.length === 0 ? { ...s, dogIds: ids } : { ...s, dogIds: s.dogIds.filter(id => selectedDogIds.has(id)) }
+    ));
+  }, [selectedDogIds]);
+
+  // ── Dog-assignment pill row (shown per section when 2+ dogs selected) ──
+  const DogAssignRow = ({ activeDogIds, onToggle }: { activeDogIds: string[]; onToggle: (dogId: string) => void }) => {
+    if (selectedDogs.length < 2) return null;
+    return (
+      <View style={styles.dogAssignRow}>
+        {selectedDogs.map(dog => {
+          const isOn = activeDogIds.includes(dog.id);
+          return (
+            <TouchableOpacity
+              key={dog.id}
+              style={[
+                styles.dogAssignPill,
+                { backgroundColor: isOn ? `${RED}18` : colors.background,
+                  borderColor: isOn ? RED : colors.border },
+              ]}
+              onPress={() => onToggle(dog.id)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.dogAssignPillText, { color: isOn ? RED : colors.textSecondary }]}>
+                {isOn ? '✓ ' : ''}{dog.name}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
 
   const toggleDog = (dogId: string) => {
     setSelectedDogIds((prev) => {
@@ -463,11 +510,13 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         careTypeFields.walkStartTime = walkStartTime;
         careTypeFields.walkEndTime = walkEndTime;
         careTypeFields.walkDurationMins = walkDurationMins;
+        careTypeFields.walkDogIds = walkDogIds;
       }
       if (addOnCareTypes.has('feeding')) {
         careTypeFields.feedingSlots = feedingSlots.map(s => ({
           time: formatTime12(s.time),
           daily: primaryCareType === 'overnight' ? s.daily : false,
+          dogIds: s.dogIds,
         }));
       }
       if (primaryCareType === 'overnight' || primaryCareType === 'daySitting') {
@@ -482,6 +531,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
           endTime: s.flexible ? null : formatTime12(s.endDate),
           durationMins: s.flexible ? s.durationMins : getPlayDurationMins(s),
           repeatDaily: primaryCareType === 'overnight' ? s.repeatDaily : false,
+          dogIds: s.dogIds,
         }));
       }
 
@@ -609,7 +659,11 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                       ? `✓ ${selectedDogs[0].name} selected`
                       : `✓ ${selectedDogs.map((d) => d.name).join(', ')} selected`}
                   </Text>
-
+                  {selectedDogs.length > 1 && (
+                    <Text style={styles.multiDogHint}>
+                      You'll be able to specify which care details apply to each dog below
+                    </Text>
+                  )}
                 </View>
               )}
 
@@ -905,7 +959,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
               <View style={[styles.section, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>🍽️ Feeding Times</Text>
                 <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
-                  Set when your dog needs to be fed
+                  Set when your {selectedDogs.length > 1 ? 'dogs need' : 'dog needs'} to be fed
                 </Text>
 
                 {feedingSlots.map((slot, idx) => (
@@ -923,6 +977,16 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         </TouchableOpacity>
                       </View>
                     )}
+                    <DogAssignRow
+                      activeDogIds={slot.dogIds}
+                      onToggle={(dogId: string) => {
+                        const current = slot.dogIds;
+                        const updated = current.includes(dogId)
+                          ? current.filter(id => id !== dogId)
+                          : [...current, dogId];
+                        updateFeedingSlot(idx, 'dogIds', updated);
+                      }}
+                    />
                     <TouchableOpacity
                       style={[styles.timePickerButton, { borderColor: slot.showPicker ? colors.primary : colors.border, alignSelf: 'stretch' }]}
                       onPress={() => updateFeedingSlot(idx, 'showPicker', !slot.showPicker)}
@@ -986,6 +1050,14 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
             {addOnCareTypes.has('dogWalking') && (
               <View style={[styles.section, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>🐕 Walk Time</Text>
+                <DogAssignRow
+                  activeDogIds={walkDogIds}
+                  onToggle={(dogId: string) => {
+                    setWalkDogIds(prev =>
+                      prev.includes(dogId) ? prev.filter(id => id !== dogId) : [...prev, dogId]
+                    );
+                  }}
+                />
 
                 <View style={styles.timeRow}>
                   <TouchableOpacity
@@ -1094,6 +1166,17 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         )}
                       </View>
                     </View>
+
+                    <DogAssignRow
+                      activeDogIds={pSession.dogIds}
+                      onToggle={(dogId: string) => {
+                        const current = pSession.dogIds;
+                        const updated = current.includes(dogId)
+                          ? current.filter((id: string) => id !== dogId)
+                          : [...current, dogId];
+                        updatePlaySession(pIdx, { dogIds: updated });
+                      }}
+                    />
 
                     {/* Flexible hours toggle */}
                     <TouchableOpacity
@@ -1444,6 +1527,29 @@ const styles = StyleSheet.create({
   dogCardCheckmarkText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   selectedSummary: { marginTop: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1.5, padding: spacing.sm },
   selectedSummaryText: { fontSize: 14, fontWeight: '700' },
+  multiDogHint: {
+    fontSize: 13,
+    color: '#FF2D55',
+    fontWeight: '500',
+    marginTop: 6,
+    fontStyle: 'italic',
+  },
+  dogAssignRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  dogAssignPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1.5,
+  },
+  dogAssignPillText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   selectedSummaryHint: { fontSize: 12, marginTop: 3, fontStyle: 'italic' },
   dogChipsSection: { marginTop: spacing.sm, gap: spacing.sm },
   dogChipGroup: {},
