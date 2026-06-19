@@ -1067,9 +1067,9 @@ const styles = StyleSheet.create({
 
   // Legend
   calLegend: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.lg,
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: spacing.xs,
     marginTop: spacing.sm,
     marginBottom: spacing.md,
   },
