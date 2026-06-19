@@ -119,6 +119,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [showEnd, setShowEnd] = useState(false);
   const [showRangeCalendar, setShowRangeCalendar] = useState(false);
   const [rangeSelectStep, setRangeSelectStep] = useState<'start' | 'end'>('start');
+  const [endDateSelected, setEndDateSelected] = useState(false);
 
   // Time fields — Date objects for native spinner picker
   const [startTimeDate, setStartTimeDate] = useState(() => {
@@ -276,8 +277,15 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const buildMarkedDates = () => {
     const marks: Record<string, { startingDay?: boolean; endingDay?: boolean; color: string; textColor: string }> = {};
     const PRIMARY = '#FF2D55';
-    const RANGE = 'rgba(255, 45, 85, 0.2)';
+    const RANGE = 'rgba(255, 45, 85, 0.15)';
     const sStr = startDate.toISOString().split('T')[0];
+
+    // Only show start date highlighted until user picks end date
+    if (!endDateSelected) {
+      marks[sStr] = { startingDay: true, endingDay: true, color: PRIMARY, textColor: '#fff' };
+      return marks;
+    }
+
     const eStr = endDate.toISOString().split('T')[0];
 
     if (sStr === eStr) {
@@ -747,13 +755,13 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                     >
                       <Text style={[styles.dateButtonLabel, { color: colors.textSecondary }]}>DATES</Text>
                       <Text style={[styles.dateButtonValue, { color: colors.text }]}>
-                        {formatDate(startDate)} → {formatDate(endDate)}
+                        {endDateSelected ? `${formatDate(startDate)} → ${formatDate(endDate)}` : formatDate(startDate)}
                       </Text>
                     </TouchableOpacity>
 
                     {showRangeCalendar && (
                       <>
-                        <Text style={[styles.rangeHint, { color: colors.textSecondary }]}>
+                        <Text style={[styles.rangeHint, { color: '#FF2D55' }]}>
                           {rangeSelectStep === 'start' ? 'Select your start date' : 'Now select your end date'}
                         </Text>
                         <Calendar
@@ -764,21 +772,19 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                             const selected = new Date(day.dateString + 'T12:00:00');
                             if (rangeSelectStep === 'start') {
                               setStartDate(selected);
-                              const newEnd = new Date(selected);
-                              newEnd.setDate(newEnd.getDate() + 1);
-                              setEndDate(newEnd);
+                              setEndDateSelected(false);
                               setRangeSelectStep('end');
                             } else {
                               if (selected > startDate) {
                                 setEndDate(selected);
+                                setEndDateSelected(true);
+                                setRangeSelectStep('start');
                               } else {
-                                // Tapped before start — restart selection
+                                // Tapped before or on start — restart selection from here
                                 setStartDate(selected);
-                                const newEnd = new Date(selected);
-                                newEnd.setDate(newEnd.getDate() + 1);
-                                setEndDate(newEnd);
+                                setEndDateSelected(false);
+                                // Stay on 'end' step
                               }
-                              setRangeSelectStep('start');
                             }
                           }}
                           theme={{
@@ -800,11 +806,13 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                       </>
                     )}
 
-                    <View style={[styles.dateSummary, { backgroundColor: colors.background }]}>
-                      <Text style={[styles.dateSummaryText, { color: colors.textSecondary }]}>
-                        {dayCount} night{dayCount !== 1 ? 's' : ''}
-                      </Text>
-                    </View>
+                    {endDateSelected && (
+                      <View style={[styles.dateSummary, { backgroundColor: colors.background }]}>
+                        <Text style={[styles.dateSummaryText, { color: colors.textSecondary }]}>
+                          {dayCount} night{dayCount !== 1 ? 's' : ''}
+                        </Text>
+                      </View>
+                    )}
                   </>
                 )}
 
@@ -1421,7 +1429,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  rangeHint: { fontSize: 13, fontStyle: 'italic', textAlign: 'center', marginTop: spacing.sm, marginBottom: -4 },
+  rangeHint: { fontSize: 16, fontWeight: '600', textAlign: 'center', marginTop: spacing.sm, marginBottom: 4 },
   dateSummary: { padding: spacing.sm, borderRadius: borderRadius.sm, alignItems: 'center', marginTop: spacing.xs },
   dateSummaryRow: {
     flexDirection: 'row',
