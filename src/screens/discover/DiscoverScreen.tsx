@@ -675,9 +675,14 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
       items.push({ kind: 'empty', id: 'empty_posts', text: 'No active posts in your area right now' });
     } else {
       const sorted = [...displayPosts].sort((a, b) => {
+        // 1. Favorites float to top
         const aFav = favoriteIds.has(a.creatorId) ? 1 : 0;
         const bFav = favoriteIds.has(b.creatorId) ? 1 : 0;
-        return bFav - aFav; // favorites first
+        if (aFav !== bFav) return bFav - aFav;
+        // 2. Within each group, sort by start date ascending (soonest first)
+        const aTime = a.startDate instanceof Date ? a.startDate.getTime() : new Date(a.startDate).getTime();
+        const bTime = b.startDate instanceof Date ? b.startDate.getTime() : new Date(b.startDate).getTime();
+        return aTime - bTime;
       });
       sorted.forEach((p) => items.push({ kind: 'post', id: p.id, post: p }));
     }
