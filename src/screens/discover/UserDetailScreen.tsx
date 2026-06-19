@@ -373,10 +373,10 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       {me && me.id !== user.id && (
         <View style={[styles.section, { paddingTop: 0 }]}>
           <TouchableOpacity
-            style={[styles.blockBtn, { borderColor: blocked ? '#34C759' : '#FF3B30' }]}
             onPress={handleBlockToggle}
             disabled={blocking}
             activeOpacity={0.7}
+            style={styles.blockBtn}
             accessibilityLabel={blocked ? `Unblock ${user.displayName}` : `Block ${user.displayName}`}
             accessibilityRole="button"
           >
@@ -388,6 +388,11 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               </Text>
             )}
           </TouchableOpacity>
+          {!blocked && (
+            <Text style={styles.blockNote}>
+              This action can't be reversed unless you contact support.
+            </Text>
+          )}
         </View>
       )}
     </ScrollView>
@@ -434,15 +439,21 @@ const styles = StyleSheet.create({
   reviewNote: { fontSize: 14, lineHeight: 20, marginBottom: 6 },
   reviewMeta: { fontSize: 12 },
   blockBtn: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
     alignItems: 'center',
     marginTop: 8,
+    paddingVertical: 14,
   },
   blockBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  blockNote: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });
 
