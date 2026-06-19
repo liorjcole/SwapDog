@@ -64,7 +64,24 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   // Care type
   const [primaryCareType, setPrimaryCareType] = useState<'overnight' | 'daySitting' | null>(null);
   const [addOnCareTypes, setAddOnCareTypes] = useState<Set<CareType>>(new Set());
-  const [playtimeDetails, setPlaytimeDetails] = useState('');
+  // Playtime time range
+  const [playStartHour, setPlayStartHour] = useState(10);
+  const [playStartMinute, setPlayStartMinute] = useState(0);
+  const [playStartPeriod, setPlayStartPeriod] = useState<'AM' | 'PM'>('AM');
+  const [playEndHour, setPlayEndHour] = useState(11);
+  const [playEndMinute, setPlayEndMinute] = useState(0);
+  const [playEndPeriod, setPlayEndPeriod] = useState<'AM' | 'PM'>('AM');
+  const playStartTime = `${playStartHour}:${playStartMinute.toString().padStart(2, '0')} ${playStartPeriod}`;
+  const playEndTime = `${playEndHour}:${playEndMinute.toString().padStart(2, '0')} ${playEndPeriod}`;
+  const playDurationMins = (() => {
+    let startMins = (playStartHour % 12) * 60 + playStartMinute + (playStartPeriod === 'PM' ? 720 : 0);
+    let endMins = (playEndHour % 12) * 60 + playEndMinute + (playEndPeriod === 'PM' ? 720 : 0);
+    if (endMins <= startMins) endMins += 1440;
+    return endMins - startMins;
+  })();
+  const playDurationText = playDurationMins >= 60
+    ? `${Math.floor(playDurationMins / 60)}h ${playDurationMins % 60 > 0 ? `${playDurationMins % 60}m` : ''} play session`.trim()
+    : `${playDurationMins}m play session`;
   const toggleAddOn = (type: CareType) => {
     setAddOnCareTypes(prev => {
       const next = new Set(prev);
@@ -329,8 +346,10 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         careTypeFields.startTime = startTime;
         careTypeFields.endTime = endTime;
       }
-      if (addOnCareTypes.has('playtime') && playtimeDetails.trim()) {
-        careTypeFields.playtimeDetails = playtimeDetails.trim();
+      if (addOnCareTypes.has('playtime')) {
+        careTypeFields.playStartTime = playStartTime;
+        careTypeFields.playEndTime = playEndTime;
+        careTypeFields.playDurationMins = playDurationMins;
       }
 
       // Determine effective start/end date for non-range types
@@ -887,33 +906,109 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
               </View>
             )}
 
-        {/* ── Playtime Details (add-on) ── */}
+        {/* ── Playtime (add-on) ── */}
             {addOnCareTypes.has('playtime') && (
-              <View ref={refFor('playtime')} style={[styles.section, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>🎾 Playtime Details</Text>
-                <Text style={[styles.careTypeHint, { color: colors.textSecondary, marginBottom: 8 }]}>
-                  How often and how should they play with your dog?
+              <View style={[styles.section, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>🎾 Play Session Time</Text>
+
+                {/* Start Time */}
+                <Text style={[styles.feedingPickerLabel, { color: colors.text, fontWeight: '700', fontSize: 14, marginBottom: 2 }]}>Start Time</Text>
+                <View style={styles.feedingPickerRow}>
+                  <View style={styles.feedingPickerCol}>
+                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Hour</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map((h) => (
+                        <TouchableOpacity
+                          key={h}
+                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, playStartHour === h && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                          onPress={() => setPlayStartHour(h)}
+                        >
+                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, playStartHour === h && { color: '#fff', fontWeight: '700' }]}>{h}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  <View style={styles.feedingPickerCol}>
+                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Min</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
+                      {[0,5,10,15,20,25,30,35,40,45,50,55].map((m) => (
+                        <TouchableOpacity
+                          key={m}
+                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, playStartMinute === m && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                          onPress={() => setPlayStartMinute(m)}
+                        >
+                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, playStartMinute === m && { color: '#fff', fontWeight: '700' }]}>{m.toString().padStart(2, '0')}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  <View style={styles.feedingPickerCol}>
+                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>AM/PM</Text>
+                    <View style={styles.feedingAmPmRow}>
+                      {(['AM','PM'] as const).map((p) => (
+                        <TouchableOpacity
+                          key={p}
+                          style={[styles.feedingAmPmBtn, { borderColor: colors.border, backgroundColor: colors.background }, playStartPeriod === p && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                          onPress={() => setPlayStartPeriod(p)}
+                        >
+                          <Text style={[styles.feedingAmPmText, { color: colors.text }, playStartPeriod === p && { color: '#fff', fontWeight: '700' }]}>{p}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                {/* End Time */}
+                <Text style={[styles.feedingPickerLabel, { color: colors.text, fontWeight: '700', fontSize: 14, marginBottom: 2, marginTop: 8 }]}>End Time</Text>
+                <View style={styles.feedingPickerRow}>
+                  <View style={styles.feedingPickerCol}>
+                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Hour</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map((h) => (
+                        <TouchableOpacity
+                          key={h}
+                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, playEndHour === h && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                          onPress={() => setPlayEndHour(h)}
+                        >
+                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, playEndHour === h && { color: '#fff', fontWeight: '700' }]}>{h}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  <View style={styles.feedingPickerCol}>
+                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Min</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
+                      {[0,5,10,15,20,25,30,35,40,45,50,55].map((m) => (
+                        <TouchableOpacity
+                          key={m}
+                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, playEndMinute === m && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                          onPress={() => setPlayEndMinute(m)}
+                        >
+                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, playEndMinute === m && { color: '#fff', fontWeight: '700' }]}>{m.toString().padStart(2, '0')}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  <View style={styles.feedingPickerCol}>
+                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>AM/PM</Text>
+                    <View style={styles.feedingAmPmRow}>
+                      {(['AM','PM'] as const).map((p) => (
+                        <TouchableOpacity
+                          key={p}
+                          style={[styles.feedingAmPmBtn, { borderColor: colors.border, backgroundColor: colors.background }, playEndPeriod === p && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                          onPress={() => setPlayEndPeriod(p)}
+                        >
+                          <Text style={[styles.feedingAmPmText, { color: colors.text }, playEndPeriod === p && { color: '#fff', fontWeight: '700' }]}>{p}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                {/* Dynamic duration display */}
+                <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
+                  {playStartTime} → {playEndTime}  •  {playDurationText}
                 </Text>
-                <TextInput
-                  style={[
-                    styles.careInput,
-                    { backgroundColor: colors.background, borderColor: colors.border, color: colors.text, minHeight: 80 },
-                  ]}
-                  placeholder="e.g. Play fetch in the backyard for 20 min twice a day. She loves tug-of-war too..."
-                  placeholderTextColor={colors.textSecondary}
-                  value={playtimeDetails}
-                  onChangeText={setPlaytimeDetails}
-                  multiline
-                  numberOfLines={3}
-                  textAlignVertical="top"
-                  maxLength={500}
-                  autoCorrect={true}
-                  spellCheck={true}
-                  autoCapitalize="sentences"
-                  returnKeyType="done"
-                  blurOnSubmit={true}
-                  onFocus={() => scrollToInput('playtime')}
-                />
               </View>
             )}
 
