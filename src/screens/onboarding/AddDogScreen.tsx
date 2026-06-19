@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch,
   Image, Platform, ActivityIndicator, Linking, Animated as RNAnimated, LayoutAnimation,
-  Dimensions, Keyboard, InputAccessoryView } from 'react-native';
+  Dimensions, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -605,7 +605,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           autoCorrect={true}
           spellCheck={true}
           autoCapitalize="sentences"
-          inputAccessoryViewID="dogBioDoneBar"
         />
         <Text style={[styles.fieldHint, { color: form.dogBio.trim().length >= 20 ? colors.success : colors.textSecondary }]}>
           {form.dogBio.trim().length < 20
@@ -692,16 +691,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
 
     </View>
-    {Platform.OS === 'ios' && (
-      <InputAccessoryView nativeID="dogBioDoneBar">
-        <View style={styles.kbToolbar}>
-          <View style={{ flex: 1 }} />
-          <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.kbDoneBtn}>
-            <Text style={styles.kbDoneText}>Done</Text>
-          </TouchableOpacity>
-        </View>
-      </InputAccessoryView>
-    )}
+
     </>
   );
 };
@@ -790,25 +780,6 @@ const styles = StyleSheet.create({
   savedDogName: { fontSize: 15, fontWeight: '500' },
   savedDogDelete: { marginLeft: 'auto', padding: 6 },
   savedDogDeleteText: { fontSize: 16, color: '#FF3B30', fontWeight: '700' },
-  kbToolbar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    backgroundColor: '#2C2C2E',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderTopWidth: 0.5,
-    borderTopColor: '#3A3A3C',
-  },
-  kbDoneBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  kbDoneText: {
-    color: '#007AFF',
-    fontSize: 17,
-    fontWeight: '600',
-  },
   savedDogsHint: { fontSize: 13, marginTop: 6, fontStyle: 'italic' },
   // Photo preview modal
 });
