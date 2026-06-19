@@ -121,6 +121,7 @@ const MessagesNavigator: React.FC = () => {
     >
       <MessagesStack.Screen name="ConversationsList" component={ConversationsListScreen} options={{ title: 'Messages' }} />
       <MessagesStack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
+      <MessagesStack.Screen name="UserDetail" component={UserDetailScreen} options={{ title: 'Profile' }} />
     </MessagesStack.Navigator>
   );
 };

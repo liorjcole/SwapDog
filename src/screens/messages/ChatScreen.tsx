@@ -45,6 +45,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   const [sendingPhoto, setSendingPhoto] = useState(false);
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const [otherUserName, setOtherUserName] = useState('Chat');
+  const [otherUserPhoto, setOtherUserPhoto] = useState<string | null>(null);
 
   // Resolve other user's display name for header
   useEffect(() => {
@@ -55,6 +56,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
     getDoc(firestoreDoc(db, 'users', otherUserId)).then((snap) => {
       const data = snap.data();
       if (data?.displayName) setOtherUserName(data.displayName);
+      if (data?.photoURL) setOtherUserPhoto(data.photoURL);
     }).catch(() => {});
   }, [otherUserId]);
   const listRef = useRef<FlatList<Message>>(null);
@@ -334,9 +336,28 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
         >
           <Text style={[styles.backIcon, { color: colors.primary }]}>‹</Text>
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
-          {otherUserName}
-        </Text>
+        <TouchableOpacity
+          style={styles.headerCenter}
+          onPress={() => {
+            if (!isSystem && otherUserId) {
+              navigation.navigate('UserDetail', { userId: otherUserId });
+            }
+          }}
+          activeOpacity={isSystem ? 1 : 0.6}
+          accessibilityLabel={`View ${otherUserName}'s profile`}
+          accessibilityRole="button"
+        >
+          {otherUserPhoto ? (
+            <Image source={{ uri: otherUserPhoto }} style={styles.headerAvatar} />
+          ) : (
+            <View style={[styles.headerAvatarPlaceholder, { backgroundColor: colors.primary + '22' }]}>
+              <Text style={{ fontSize: 18 }}>{isSystem ? '🐾' : '👤'}</Text>
+            </View>
+          )}
+          <Text style={[styles.headerTitle, { color: colors.text, textDecorationLine: isSystem ? 'none' : 'underline' }]} numberOfLines={1}>
+            {otherUserName}
+          </Text>
+        </TouchableOpacity>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -480,11 +501,30 @@ const styles = StyleSheet.create({
     fontSize: 36,
     lineHeight: 40,
     fontWeight: '300' },
-  headerTitle: {
+  headerCenter: {
     flex: 1,
-    fontSize: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginBottom: 4,
+  },
+  headerAvatarPlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginBottom: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 16,
     fontWeight: '700',
-    textAlign: 'center' },
+    textAlign: 'center',
+  },
   headerSpacer: { minWidth: 50 },
   // ── Chat body ──────────────────────────────────────────────────────────────
   list: { padding: spacing.xs },
