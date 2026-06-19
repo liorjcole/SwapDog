@@ -390,6 +390,23 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
+      {/* View my profile as others see it */}
+      {user && (
+        <TouchableOpacity
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            navigation.navigate('UserDetail', { userId: user.uid });
+          }}
+          style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xs }}
+          accessibilityLabel="View my profile"
+          accessibilityRole="link"
+        >
+          <Text style={{ fontSize: 15, color: colors.primary, textDecorationLine: 'underline', fontWeight: '600' }}>
+            View my profile
+          </Text>
+        </TouchableOpacity>
+      )}
+
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>My Dogs</Text>
         {dogs.map((dog) => (

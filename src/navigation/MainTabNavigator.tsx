@@ -139,6 +139,7 @@ const ProfileNavigator: React.FC = () => {
       }}
     >
       <ProfileStack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile', headerShown: true }} />
+      <ProfileStack.Screen name="UserDetail" component={UserDetailScreen} options={{ title: 'My Public Profile', headerBackTitle: 'Back' }} />
       <ProfileStack.Screen name="Review" component={ReviewScreen} options={{ title: 'Leave a Review', presentation: 'modal' }} />
       <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
       <ProfileStack.Screen

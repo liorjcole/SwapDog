@@ -53,6 +53,7 @@ export type MessagesStackParamList = {
 export type ProfileStackParamList = {
   Referral: undefined;
   Profile: undefined;
+  UserDetail: { userId: string };
   Review: {
     postId: string;
     role: 'owner' | 'caregiver';
