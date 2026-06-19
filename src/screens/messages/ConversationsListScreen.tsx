@@ -7,6 +7,7 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useMessaging } from '../../hooks/useMessaging';
 import { useFavorites } from '../../hooks/useFavorites';
+import { useBlocking } from '../../hooks/useBlocking';
 import { Conversation } from '../../models/types';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -30,6 +31,7 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
   const { user } = useAuthContext();
   const { subscribeToConversations } = useMessaging();
   const { isFavorite, addFavorite, removeFavorite, setNotifyOnPost } = useFavorites();
+  const { hiddenUserIds } = useBlocking();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [nameCache, setNameCache] = useState<Record<string, string>>({});
 
@@ -161,7 +163,10 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
-        data={conversations}
+        data={conversations.filter(c => {
+          const otherId = c.participantIds.find(id => id !== user?.uid) ?? '';
+          return !hiddenUserIds.has(otherId);
+        })}
         keyExtractor={(c) => c.id}
         ListEmptyComponent={<EmptyStateView emoji="💬" title="No conversations yet" subtitle="Start by requesting a swap" />}
         renderItem={renderItem}

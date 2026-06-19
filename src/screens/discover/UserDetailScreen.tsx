@@ -13,6 +13,7 @@ import { useDogs } from '../../hooks/useDogs';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useReviews } from '../../hooks/useReviews';
 import { useMessaging } from '../../hooks/useMessaging';
+import { useBlocking } from '../../hooks/useBlocking';
 import { User, Dog, SwapPost, Review } from '../../models/types';
 import { spacing, borderRadius, shadow, typography } from '../../config/theme';
 import { formatDogAge } from '../../utils/formatDogAge';
@@ -52,6 +53,8 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { getDogsByOwner } = useDogs();
   const { getMyPosts } = useSwaps();
   const { getOrCreateConversation, sendMessage } = useMessaging();
+  const { blockUser, unblockUser, isBlockedByMe } = useBlocking();
+  const [blocking, setBlocking] = useState(false);
 
   const userId = route.params?.userId ?? '';
 
@@ -130,6 +133,54 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   if (!user) return null;
 
   const showSendButton = me && me.id !== user.id;
+  const blocked = isBlockedByMe(userId);
+
+  const handleBlockToggle = () => {
+    if (blocked) {
+      Alert.alert(
+        'Unblock User',
+        `Are you sure you want to unblock ${user.displayName}? They will be able to see your posts and message you again.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Unblock',
+            onPress: async () => {
+              setBlocking(true);
+              try {
+                await unblockUser(userId);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Alert.alert('Unblocked', `${user.displayName} has been unblocked.`);
+              } catch { Alert.alert('Error', 'Failed to unblock user.'); }
+              finally { setBlocking(false); }
+            },
+          },
+        ],
+      );
+    } else {
+      Alert.alert(
+        'Block User',
+        `Are you sure you want to block ${user.displayName}? They won't be able to see your posts or message you, and your conversation will be removed.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Block',
+            style: 'destructive',
+            onPress: async () => {
+              setBlocking(true);
+              try {
+                await blockUser(userId);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                Alert.alert('Blocked', `${user.displayName} has been blocked.`, [
+                  { text: 'OK', onPress: () => navigation.goBack() },
+                ]);
+              } catch { Alert.alert('Error', 'Failed to block user.'); }
+              finally { setBlocking(false); }
+            },
+          },
+        ],
+      );
+    }
+  };
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -317,6 +368,28 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Block / Unblock — shown for all other users */}
+      {me && me.id !== user.id && (
+        <View style={[styles.section, { paddingTop: 0 }]}>
+          <TouchableOpacity
+            style={[styles.blockBtn, { borderColor: blocked ? '#34C759' : '#FF3B30' }]}
+            onPress={handleBlockToggle}
+            disabled={blocking}
+            activeOpacity={0.7}
+            accessibilityLabel={blocked ? `Unblock ${user.displayName}` : `Block ${user.displayName}`}
+            accessibilityRole="button"
+          >
+            {blocking ? (
+              <ActivityIndicator size="small" color={blocked ? '#34C759' : '#FF3B30'} />
+            ) : (
+              <Text style={[styles.blockBtnText, { color: blocked ? '#34C759' : '#FF3B30' }]}>
+                {blocked ? 'Unblock User' : 'Block User'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
     </ScrollView>
   );
 };
@@ -360,6 +433,17 @@ const styles = StyleSheet.create({
   reviewBadge: { fontSize: 12, fontWeight: '700' },
   reviewNote: { fontSize: 14, lineHeight: 20, marginBottom: 6 },
   reviewMeta: { fontSize: 12 },
+  blockBtn: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  blockBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });
 
 export default UserDetailScreen;

@@ -36,6 +36,7 @@ import { useUsers } from '../../hooks/useUsers';
 import { useDiscoverLocation } from '../../hooks/useDiscoverLocation';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useFavorites } from '../../hooks/useFavorites';
+import { useBlocking } from '../../hooks/useBlocking';
 import { useMessaging } from '../../hooks/useMessaging';
 import { User, GeoPoint, SwapPost } from '../../models/types';
 import { calculateDistance, formatDistance } from '../../utils/calculateDistance';
@@ -474,6 +475,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
   const { getUsersByLocation } = useUsers();
   const { getAreaPosts } = useSwaps();
   const { favoriteIds } = useFavorites();
+  const { hiddenUserIds } = useBlocking();
   const { getOrCreateConversation, sendMessage } = useMessaging();
 
   const { location, loading: locationLoading, setLocationOverride, clearLocationOverride } = useDiscoverLocation();
@@ -665,7 +667,8 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     const milesLabel = radiusMiles < 10 ? radiusMiles.toFixed(1) : Math.round(radiusMiles).toString();
     // Use last-known-good refs as fallback so the feed never goes blank
     // during subsequent location/radius changes after the initial load
-    const displayPosts = areaPosts.length > 0 ? areaPosts : lastPostsRef.current;
+    const rawPosts = areaPosts.length > 0 ? areaPosts : lastPostsRef.current;
+    const displayPosts = rawPosts.filter(p => !hiddenUserIds.has(p.posterId));
     const displayUsers = nearbyUsers.length > 0 ? nearbyUsers : lastUsersRef.current;
     const items: FeedItem[] = [];
 
@@ -676,8 +679,8 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     } else {
       const sorted = [...displayPosts].sort((a, b) => {
         // 1. Favorites float to top
-        const aFav = favoriteIds.has(a.creatorId) ? 1 : 0;
-        const bFav = favoriteIds.has(b.creatorId) ? 1 : 0;
+        const aFav = favoriteIds.has(a.posterId) ? 1 : 0;
+        const bFav = favoriteIds.has(b.posterId) ? 1 : 0;
         if (aFav !== bFav) return bFav - aFav;
         // 2. Within each group, sort by start date ascending (soonest first)
         const aTime = a.startDate instanceof Date ? a.startDate.getTime() : new Date(a.startDate).getTime();
@@ -688,7 +691,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     }
 
     return items;
-  }, [areaPosts, nearbyUsers, radiusMiles, favoriteIds]);
+  }, [areaPosts, nearbyUsers, radiusMiles, favoriteIds, hiddenUserIds]);
 
   // ── Auto-collapse map when scrolling posts ──────────────────────────────────
   const lastScrollY = useRef(0);

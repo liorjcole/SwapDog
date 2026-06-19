@@ -59,6 +59,18 @@ service cloud.firestore {
     }
 
     // Conversations: read/write if participant
+    // ── Blocks ──
+    match /blocks/{blockId} {
+      // Anyone signed-in can read blocks (needed for both directions)
+      allow read: if request.auth != null;
+      // Only the blocker can create (must set blockerId to own UID)
+      allow create: if request.auth != null
+                    && request.resource.data.blockerId == request.auth.uid;
+      // Only the blocker can delete their own block
+      allow delete: if request.auth != null
+                    && resource.data.blockerId == request.auth.uid;
+    }
+
     match /conversations/{convId} {
       allow read: if request.auth != null
         && request.auth.uid in resource.data.participantIds;
