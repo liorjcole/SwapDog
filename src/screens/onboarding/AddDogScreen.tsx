@@ -756,6 +756,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   );
 };
 
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const THUMB_SIZE = 80;
 
 const styles = StyleSheet.create({
@@ -839,9 +840,64 @@ const styles = StyleSheet.create({
   savedDogName: { fontSize: 15, fontWeight: '500' },
   savedDogDelete: { marginLeft: 'auto', padding: 6 },
   savedDogDeleteText: { fontSize: 16, color: '#FF3B30', fontWeight: '700' },
-  savedDogsHint: { fontSize: 13, marginTop: 6, fontStyle: 'italic' } });
+  savedDogsHint: { fontSize: 13, marginTop: 6, fontStyle: 'italic' },
+  // Photo preview modal
+  previewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewCloseBtn: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  previewCloseBtnText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  previewImage: {
+    width: SCREEN_W * 0.85,
+    height: SCREEN_W * 0.85,
+    borderRadius: 12,
+  },
+  previewActions: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 32,
+  },
+  previewBtn: {
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  previewRemoveBtn: {
+    backgroundColor: '#FF3B30',
+  },
+  previewRemoveBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  previewReplaceBtn: {
+    backgroundColor: '#fff',
+  },
+  previewReplaceBtnText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});
 
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 
 
