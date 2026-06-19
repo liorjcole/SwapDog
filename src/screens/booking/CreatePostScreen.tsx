@@ -1728,6 +1728,7 @@ const MAX_PLAY_SESSIONS = 5;
                       accessibilityLabel="Points offered"
                       returnKeyType="done"
                       onFocus={() => scrollToInput('points')}
+                      inputAccessoryViewID="careDetailsDone"
                     />
                     <Text style={[styles.pointsUnit, { color: colors.textSecondary }]}>pts</Text>
                   </View>
@@ -1765,6 +1766,7 @@ const MAX_PLAY_SESSIONS = 5;
                       accessibilityLabel="Payment amount in dollars"
                       returnKeyType="done"
                       onFocus={() => scrollToInput('payment')}
+                      inputAccessoryViewID="careDetailsDone"
                     />
                     <Text style={[styles.rateUnitLabel, { color: colors.textSecondary }]}>
                       for the job
