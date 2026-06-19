@@ -612,7 +612,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={[styles.refChartWeight, { color: colors.text }]}>~140 lb</Text>
           </View>
           <Text style={[styles.refChartNote, { color: colors.textSecondary }]}>
-            *lighter for female dogs, heavier for males
+            *Typically lighter for female dogs, heavier for males.
           </Text>
         </View>
       )}
