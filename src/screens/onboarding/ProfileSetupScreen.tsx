@@ -246,16 +246,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
 
 
     </View>
-    {Platform.OS === 'ios' && (
-      <InputAccessoryView nativeID="bioDoneBar">
-        <View style={styles.kbToolbar}>
-          <View style={{ flex: 1 }} />
-          <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.kbDoneBtn}>
-            <Text style={styles.kbDoneText}>Done</Text>
-          </TouchableOpacity>
-        </View>
-      </InputAccessoryView>
-    )}
+
     </>
   );
 };
@@ -299,24 +290,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  kbToolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#8E8E93',
-    backgroundColor: '#D1D5DB',
-  },
-  kbDoneBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  kbDoneText: {
-    color: '#007AFF',
-    fontSize: 17,
-    fontWeight: '600',
-  },
+
 });
 
 export default ProfileSetupScreen;
