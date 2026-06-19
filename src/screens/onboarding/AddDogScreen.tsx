@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch,
   Image, Platform, ActivityIndicator, Linking, Animated as RNAnimated, LayoutAnimation,
-  Dimensions, Keyboard } from 'react-native';
+  Dimensions, Keyboard, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -120,6 +120,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
   /** Track y-offsets of inputs so we can scroll to them on focus */
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [showTransition, setShowTransition] = useState(false);
   const [transitionMode, setTransitionMode] = useState<'addAnother' | 'continue'>('addAnother');
   const [transitionDogName, setTransitionDogName] = useState('');
@@ -171,12 +172,14 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const removePhoto = (index: number) => {
+    setPreviewIndex(null);
     set('photoURLs', form.photoURLs.filter((_, i) => i !== index));
   };
 
   const cropPhoto = async (index: number) => {
+    setPreviewIndex(null); // close preview before opening picker
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1] as [number, number],
       quality: 0.8,
@@ -390,7 +393,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           <TouchableOpacity
             key={uri + index}
             style={styles.photoThumb}
-            onPress={() => cropPhoto(index)}
+            onPress={() => setPreviewIndex(index)}
             activeOpacity={0.8}
             accessibilityLabel={index === 0 ? 'Primary photo — tap to view full screen' : `Photo ${index + 1} — tap to view full screen`}
             accessibilityRole="button"
@@ -428,6 +431,55 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         )}
       </View>
 
+
+      {/* Full-screen photo preview modal */}
+      <Modal
+        visible={previewIndex !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewIndex(null)}
+      >
+        <View style={styles.previewOverlay}>
+          {/* Close button */}
+          <TouchableOpacity
+            style={styles.previewCloseBtn}
+            onPress={() => setPreviewIndex(null)}
+            accessibilityLabel="Close preview"
+            accessibilityRole="button"
+          >
+            <Text style={styles.previewCloseBtnText}>✕</Text>
+          </TouchableOpacity>
+
+          {/* Photo */}
+          {previewIndex !== null && form.photoURLs[previewIndex] && (
+            <Image
+              source={{ uri: form.photoURLs[previewIndex] }}
+              style={styles.previewImage}
+              resizeMode="contain"
+            />
+          )}
+
+          {/* Action buttons */}
+          <View style={styles.previewActions}>
+            <TouchableOpacity
+              style={[styles.previewBtn, styles.previewRemoveBtn]}
+              onPress={() => previewIndex !== null && removePhoto(previewIndex)}
+              accessibilityLabel="Remove photo"
+              accessibilityRole="button"
+            >
+              <Text style={styles.previewRemoveBtnText}>Remove</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.previewBtn, styles.previewReplaceBtn]}
+              onPress={() => previewIndex !== null && cropPhoto(previewIndex)}
+              accessibilityLabel="Replace photo"
+              accessibilityRole="button"
+            >
+              <Text style={styles.previewReplaceBtnText}>Replace</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <View>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
@@ -441,7 +493,8 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           autoCapitalize="words"
         />
       </View>
-      <View>
+
+            <View>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="Breed"
