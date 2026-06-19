@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { MessagesStackParamList } from '../../navigation/types';
@@ -34,6 +34,7 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
   const { hiddenUserIds } = useBlocking();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [nameCache, setNameCache] = useState<Record<string, string>>({});
+  const [photoCache, setPhotoCache] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -56,6 +57,9 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
         const data = snap.data();
         if (data?.displayName) {
           setNameCache((prev) => ({ ...prev, [uid]: data.displayName }));
+        }
+        if (data?.photoURL) {
+          setPhotoCache((prev) => ({ ...prev, [uid]: data.photoURL }));
         }
       } catch { /* skip */ }
     });
@@ -114,6 +118,7 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
     const unread = item.unreadCounts[user?.uid ?? ''] ?? 0;
     const starred = isFavorite(otherId);
     const isSystem = otherId === SYSTEM_SENDER_ID;
+    const otherPhoto = photoCache[otherId];
 
     return (
       <TouchableOpacity
@@ -126,6 +131,17 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
         accessibilityRole="button"
         accessibilityHint="Opens this conversation"
       >
+        {isSystem ? (
+          <View style={[styles.convAvatar, { backgroundColor: colors.primary + '22' }]}>
+            <Text style={styles.convAvatarEmoji}>🐾</Text>
+          </View>
+        ) : otherPhoto ? (
+          <Image source={{ uri: otherPhoto }} style={styles.convAvatar} />
+        ) : (
+          <View style={[styles.convAvatar, { backgroundColor: colors.primary + '22' }]}>
+            <Text style={styles.convAvatarInitial}>{otherLabel.charAt(0).toUpperCase()}</Text>
+          </View>
+        )}
         <View style={styles.info}>
           <Text style={[styles.otherName, { color: colors.primary }]} numberOfLines={1}>
             {otherLabel}
@@ -185,6 +201,22 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: borderRadius.lg,
     marginBottom: spacing.sm,
+  },
+  convAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  convAvatarEmoji: {
+    fontSize: 20,
+  },
+  convAvatarInitial: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FF2D55',
   },
   info: { flex: 1 },
   otherName: { fontSize: 14, fontWeight: '700', marginBottom: 2 },

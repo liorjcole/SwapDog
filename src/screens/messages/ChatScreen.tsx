@@ -351,7 +351,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
             <Image source={{ uri: otherUserPhoto }} style={styles.headerAvatar} />
           ) : (
             <View style={[styles.headerAvatarPlaceholder, { backgroundColor: colors.primary + '22' }]}>
-              <Text style={{ fontSize: 18 }}>{isSystem ? '🐾' : '👤'}</Text>
+              <Text style={{ fontSize: 32 }}>{isSystem ? '🐾' : '👤'}</Text>
             </View>
           )}
           <Text style={[styles.headerTitle, { color: colors.text, textDecorationLine: isSystem ? 'none' : 'underline' }]} numberOfLines={1}>
@@ -507,15 +507,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     marginBottom: 4,
   },
   headerAvatarPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     marginBottom: 4,
     alignItems: 'center',
     justifyContent: 'center',
