@@ -64,24 +64,31 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   // Care type
   const [primaryCareType, setPrimaryCareType] = useState<'overnight' | 'daySitting' | null>(null);
   const [addOnCareTypes, setAddOnCareTypes] = useState<Set<CareType>>(new Set());
-  // Playtime time range
-  const [playStartHour, setPlayStartHour] = useState(10);
-  const [playStartMinute, setPlayStartMinute] = useState(0);
-  const [playStartPeriod, setPlayStartPeriod] = useState<'AM' | 'PM'>('AM');
-  const [playEndHour, setPlayEndHour] = useState(11);
-  const [playEndMinute, setPlayEndMinute] = useState(0);
-  const [playEndPeriod, setPlayEndPeriod] = useState<'AM' | 'PM'>('AM');
-  const playStartTime = `${playStartHour}:${playStartMinute.toString().padStart(2, '0')} ${playStartPeriod}`;
-  const playEndTime = `${playEndHour}:${playEndMinute.toString().padStart(2, '0')} ${playEndPeriod}`;
-  const playDurationMins = (() => {
-    let startMins = (playStartHour % 12) * 60 + playStartMinute + (playStartPeriod === 'PM' ? 720 : 0);
-    let endMins = (playEndHour % 12) * 60 + playEndMinute + (playEndPeriod === 'PM' ? 720 : 0);
-    if (endMins <= startMins) endMins += 1440;
-    return endMins - startMins;
-  })();
-  const playDurationText = playDurationMins >= 60
-    ? `${Math.floor(playDurationMins / 60)}h ${playDurationMins % 60 > 0 ? `${playDurationMins % 60}m` : ''} play session`.trim()
-    : `${playDurationMins}m play session`;
+  // Playtime — Date objects for native spinner OR flexible duration mode
+  const [playStartDate, setPlayStartDate] = useState(() => {
+    const d = new Date(); d.setHours(10, 0, 0, 0); return d;
+  });
+  const [playEndDate, setPlayEndDate] = useState(() => {
+    const d = new Date(); d.setHours(11, 0, 0, 0); return d;
+  });
+  const [showPlayStart, setShowPlayStart] = useState(false);
+  const [showPlayEnd, setShowPlayEnd] = useState(false);
+  // Flexible playtime — no specific start/end, just duration sessions
+  const [playtimeFlexible, setPlaytimeFlexible] = useState(false);
+  const [flexPlaySessions, setFlexPlaySessions] = useState<{ durationMins: number }[]>([
+    { durationMins: 60 },
+  ]);
+  const addFlexSession = () => {
+    setFlexPlaySessions(prev => [...prev, { durationMins: 30 }]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  const removeFlexSession = (index: number) => {
+    if (flexPlaySessions.length <= 1) return;
+    setFlexPlaySessions(prev => prev.filter((_, i) => i !== index));
+  };
+  const updateFlexSession = (index: number, mins: number) => {
+    setFlexPlaySessions(prev => prev.map((s, i) => i === index ? { durationMins: mins } : s));
+  };
   const toggleAddOn = (type: CareType) => {
     setAddOnCareTypes(prev => {
       const next = new Set(prev);
@@ -93,6 +100,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
 
   // Derived: primary care type for conditional fields
   const careType = primaryCareType;
+
 
 
   // Dates — used for overnight (range) and daySitting/feeding (single)
@@ -109,12 +117,18 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [showStart, setShowStart] = useState(false);
   const [showEnd, setShowEnd] = useState(false);
 
-  // Time fields
-  const [startTime, setStartTime] = useState('9:00 AM');
-  const [endTime, setEndTime] = useState('5:00 PM');
-  // Feeding slots — each has hour, minute, period, and (if overnight) daily flag
-  const [feedingSlots, setFeedingSlots] = useState<{ hour: number; minute: number; period: 'AM' | 'PM'; daily: boolean }[]>([
-    { hour: 8, minute: 0, period: 'AM', daily: false },
+  // Time fields — Date objects for native spinner picker
+  const [startTimeDate, setStartTimeDate] = useState(() => {
+    const d = new Date(); d.setHours(9, 0, 0, 0); return d;
+  });
+  const [endTimeDate, setEndTimeDate] = useState(() => {
+    const d = new Date(); d.setHours(17, 0, 0, 0); return d;
+  });
+  const [showStartTime, setShowStartTime] = useState(false);
+  const [showEndTime, setShowEndTime] = useState(false);
+  // Feeding slots — Date objects for native spinner
+  const [feedingSlots, setFeedingSlots] = useState<{ time: Date; daily: boolean; showPicker: boolean }[]>([
+    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), daily: false, showPicker: false },
   ]);
 
   const updateFeedingSlot = (index: number, field: string, value: unknown) => {
@@ -127,34 +141,61 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const addFeedingSlot = () => {
-    setFeedingSlots(prev => [...prev, { hour: 12, minute: 0, period: 'PM', daily: false }]);
+    const d = new Date(); d.setHours(12, 0, 0, 0);
+    setFeedingSlots(prev => [...prev, { time: d, daily: false, showPicker: false }]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const formatFeedingSlot = (slot: { hour: number; minute: number; period: 'AM' | 'PM' }) =>
-    `${slot.hour}:${slot.minute.toString().padStart(2, '0')} ${slot.period}`;
+  // Walk time range — Date objects for native spinner
+  const [walkStartDate, setWalkStartDate] = useState(() => {
+    const d = new Date(); d.setHours(9, 0, 0, 0); return d;
+  });
+  const [walkEndDate, setWalkEndDate] = useState(() => {
+    const d = new Date(); d.setHours(10, 0, 0, 0); return d;
+  });
+  const [showWalkStart, setShowWalkStart] = useState(false);
+  const [showWalkEnd, setShowWalkEnd] = useState(false);
 
-  // Walk time range
-  const [walkStartHour, setWalkStartHour] = useState(9);
-  const [walkStartMinute, setWalkStartMinute] = useState(0);
-  const [walkStartPeriod, setWalkStartPeriod] = useState<'AM' | 'PM'>('AM');
-  const [walkEndHour, setWalkEndHour] = useState(10);
-  const [walkEndMinute, setWalkEndMinute] = useState(0);
-  const [walkEndPeriod, setWalkEndPeriod] = useState<'AM' | 'PM'>('AM');
-  const walkStartTime = `${walkStartHour}:${walkStartMinute.toString().padStart(2, '0')} ${walkStartPeriod}`;
-  const walkEndTime = `${walkEndHour}:${walkEndMinute.toString().padStart(2, '0')} ${walkEndPeriod}`;
+  // Care details
+  const [careDetails, setCareDetails] = useState('');
+  // Format a Date to "h:mm AM/PM"
+  const formatTime12 = (d: Date): string => {
+    let h = d.getHours();
+    const m = d.getMinutes();
+    const period = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${m.toString().padStart(2, '0')} ${period}`;
+  };
+
+  // Derived formatted times
+  const startTime = formatTime12(startTimeDate);
+  const endTime = formatTime12(endTimeDate);
+  const walkStartTime = formatTime12(walkStartDate);
+  const walkEndTime = formatTime12(walkEndDate);
+  const playStartTime = formatTime12(playStartDate);
+  const playEndTime = formatTime12(playEndDate);
+
+  // Walk duration
   const walkDurationMins = (() => {
-    let startMins = (walkStartHour % 12) * 60 + walkStartMinute + (walkStartPeriod === 'PM' ? 720 : 0);
-    let endMins = (walkEndHour % 12) * 60 + walkEndMinute + (walkEndPeriod === 'PM' ? 720 : 0);
-    if (endMins <= startMins) endMins += 1440; // next day
+    let startMins = walkStartDate.getHours() * 60 + walkStartDate.getMinutes();
+    let endMins = walkEndDate.getHours() * 60 + walkEndDate.getMinutes();
+    if (endMins <= startMins) endMins += 1440;
     return endMins - startMins;
   })();
   const walkDurationText = walkDurationMins >= 60
     ? `${Math.floor(walkDurationMins / 60)}h ${walkDurationMins % 60 > 0 ? `${walkDurationMins % 60}m` : ''} walk`.trim()
     : `${walkDurationMins}m walk`;
 
-  // Care details
-  const [careDetails, setCareDetails] = useState('');
+  // Play duration (non-flexible mode)
+  const playDurationMins = (() => {
+    let startMins = playStartDate.getHours() * 60 + playStartDate.getMinutes();
+    let endMins = playEndDate.getHours() * 60 + playEndDate.getMinutes();
+    if (endMins <= startMins) endMins += 1440;
+    return endMins - startMins;
+  })();
+  const playDurationText = playDurationMins >= 60
+    ? `${Math.floor(playDurationMins / 60)}h ${playDurationMins % 60 > 0 ? `${playDurationMins % 60}m` : ''} play session`.trim()
+    : `${playDurationMins}m play session`;
 
   // Compensation
   const [offerPoints, setOfferPoints] = useState(true);
@@ -261,12 +302,11 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
       } catch { return { h: 9, m: 0 }; }
     };
 
-    // For overnight / daySitting: care starts on startDate at startTime
+    // For overnight / daySitting: care starts on startDate at startTimeDate
     // For add-on only (feeding/walk/playtime): no time fields, assume noon
     const careStart = new Date(startDate);
     if (careType === 'overnight' || careType === 'daySitting') {
-      const { h, m } = parseTime12(startTime);
-      careStart.setHours(h, m, 0, 0);
+      careStart.setHours(startTimeDate.getHours(), startTimeDate.getMinutes(), 0, 0);
     } else {
       careStart.setHours(12, 0, 0, 0); // add-on only — no time selected
     }
@@ -358,7 +398,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
       }
       if (addOnCareTypes.has('feeding')) {
         careTypeFields.feedingSlots = feedingSlots.map(s => ({
-          time: formatFeedingSlot(s),
+          time: formatTime12(s.time),
           daily: primaryCareType === 'overnight' ? s.daily : false,
         }));
       }
@@ -367,9 +407,14 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         careTypeFields.endTime = endTime;
       }
       if (addOnCareTypes.has('playtime')) {
-        careTypeFields.playStartTime = playStartTime;
-        careTypeFields.playEndTime = playEndTime;
-        careTypeFields.playDurationMins = playDurationMins;
+        careTypeFields.playtimeFlexible = playtimeFlexible;
+        if (playtimeFlexible) {
+          careTypeFields.flexPlaySessions = flexPlaySessions;
+        } else {
+          careTypeFields.playStartTime = playStartTime;
+          careTypeFields.playEndTime = playEndTime;
+          careTypeFields.playDurationMins = playDurationMins;
+        }
       }
 
       // Determine effective start/end date for non-range types
@@ -678,36 +723,50 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                   </>
                 )}
 
-                {/* Time fields for overnight and day sitting */}
+                {/* Time fields for overnight and day sitting — native spinner */}
                 {(careType === 'overnight' || careType === 'daySitting') && (
-                  <View ref={refFor('startTime')} style={styles.timeRow}>
-                    <View style={styles.timeField}>
-                      <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
-                      <TextInput
-                        style={[styles.timeInput, { borderColor: colors.border, backgroundColor: colors.background, color: colors.text }]}
-                        value={startTime}
-                        onChangeText={setStartTime}
-                        placeholder="9:00 AM"
-                        placeholderTextColor={colors.textSecondary}
-                        accessibilityLabel="Start time"
-                        returnKeyType="done"
-                        onFocus={() => scrollToInput('startTime')}
-                      />
+                  <View ref={refFor('startTime')}>
+                    <View style={styles.timeRow}>
+                      <TouchableOpacity
+                        style={[styles.timePickerButton, { borderColor: showStartTime ? colors.primary : colors.border, backgroundColor: colors.background }]}
+                        onPress={() => { setShowStartTime(prev => !prev); setShowEndTime(false); }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
+                        <Text style={[styles.timePickerValue, { color: colors.text }]}>{startTime}</Text>
+                      </TouchableOpacity>
+                      <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
+                      <TouchableOpacity
+                        style={[styles.timePickerButton, { borderColor: showEndTime ? colors.primary : colors.border, backgroundColor: colors.background }]}
+                        onPress={() => { setShowEndTime(prev => !prev); setShowStartTime(false); }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>End Time</Text>
+                        <Text style={[styles.timePickerValue, { color: colors.text }]}>{endTime}</Text>
+                      </TouchableOpacity>
                     </View>
-                    <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
-                    <View style={styles.timeField}>
-                      <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>End Time</Text>
-                      <TextInput
-                        style={[styles.timeInput, { borderColor: colors.border, backgroundColor: colors.background, color: colors.text }]}
-                        value={endTime}
-                        onChangeText={setEndTime}
-                        placeholder="5:00 PM"
-                        placeholderTextColor={colors.textSecondary}
-                        accessibilityLabel="End time"
-                        returnKeyType="done"
-                        onFocus={() => scrollToInput('startTime')}
+                    {showStartTime && (
+                      <DateTimePicker
+                        value={startTimeDate}
+                        mode="time"
+                        display="spinner"
+                        onChange={(_: DateTimePickerEvent, d?: Date) => {
+                          if (d) setStartTimeDate(d);
+                        }}
+                        style={{ height: 150 }}
                       />
-                    </View>
+                    )}
+                    {showEndTime && (
+                      <DateTimePicker
+                        value={endTimeDate}
+                        mode="time"
+                        display="spinner"
+                        onChange={(_: DateTimePickerEvent, d?: Date) => {
+                          if (d) setEndTimeDate(d);
+                        }}
+                        style={{ height: 150 }}
+                      />
+                    )}
                   </View>
                 )}
                 {careType === 'daySitting' && daySittingHours && daySittingHours > 0 && (
@@ -721,7 +780,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
               </View>
             )}
 
-        {/* ── Feeding Time (add-on) ── */}
+                {/* ── Feeding Time (add-on) ── */}
             {addOnCareTypes.has('feeding') && (
               <View style={[styles.section, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>🍽️ Feeding Times</Text>
@@ -744,83 +803,27 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         </TouchableOpacity>
                       </View>
                     )}
-                    <View style={styles.feedingPickerRow}>
-                      {/* Hour wheel */}
-                      <View style={styles.feedingPickerCol}>
-                        <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Hour</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((h) => (
-                            <TouchableOpacity
-                              key={h}
-                              style={[
-                                styles.feedingPickerItem,
-                                { borderColor: colors.border, backgroundColor: colors.background },
-                                slot.hour === h && { backgroundColor: colors.primary, borderColor: colors.primary },
-                              ]}
-                              onPress={() => updateFeedingSlot(idx, 'hour', h)}
-                              accessibilityLabel={`${h} o'clock`}
-                            >
-                              <Text style={[
-                                styles.feedingPickerItemText,
-                                { color: colors.text },
-                                slot.hour === h && { color: '#fff', fontWeight: '700' },
-                              ]}>{h}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
-                      </View>
-                      {/* Minute wheel */}
-                      <View style={styles.feedingPickerCol}>
-                        <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Min</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
-                          {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
-                            <TouchableOpacity
-                              key={m}
-                              style={[
-                                styles.feedingPickerItem,
-                                { borderColor: colors.border, backgroundColor: colors.background },
-                                slot.minute === m && { backgroundColor: colors.primary, borderColor: colors.primary },
-                              ]}
-                              onPress={() => updateFeedingSlot(idx, 'minute', m)}
-                              accessibilityLabel={`${m} minutes`}
-                            >
-                              <Text style={[
-                                styles.feedingPickerItemText,
-                                { color: colors.text },
-                                slot.minute === m && { color: '#fff', fontWeight: '700' },
-                              ]}>{m.toString().padStart(2, '0')}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
-                      </View>
-                      {/* AM / PM toggle */}
-                      <View style={styles.feedingPickerCol}>
-                        <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>AM/PM</Text>
-                        <View style={styles.feedingAmPmRow}>
-                          {(['AM', 'PM'] as const).map((p) => (
-                            <TouchableOpacity
-                              key={p}
-                              style={[
-                                styles.feedingAmPmBtn,
-                                { borderColor: colors.border, backgroundColor: colors.background },
-                                slot.period === p && { backgroundColor: colors.primary, borderColor: colors.primary },
-                              ]}
-                              onPress={() => updateFeedingSlot(idx, 'period', p)}
-                              accessibilityLabel={p}
-                            >
-                              <Text style={[
-                                styles.feedingAmPmText,
-                                { color: colors.text },
-                                slot.period === p && { color: '#fff', fontWeight: '700' },
-                              ]}>{p}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      </View>
-                    </View>
-                    <Text style={[styles.feedingTimePreview, { color: colors.primary }]}>
-                      {formatFeedingSlot(slot)}
-                    </Text>
+                    <TouchableOpacity
+                      style={[styles.timePickerButton, { borderColor: slot.showPicker ? colors.primary : colors.border, backgroundColor: colors.background, alignSelf: 'stretch' }]}
+                      onPress={() => updateFeedingSlot(idx, 'showPicker', !slot.showPicker)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
+                        {feedingSlots.length > 1 ? `Feeding ${idx + 1} Time` : 'Feeding Time'}
+                      </Text>
+                      <Text style={[styles.timePickerValue, { color: colors.text }]}>{formatTime12(slot.time)}</Text>
+                    </TouchableOpacity>
+                    {slot.showPicker && (
+                      <DateTimePicker
+                        value={slot.time}
+                        mode="time"
+                        display="spinner"
+                        onChange={(_: DateTimePickerEvent, d?: Date) => {
+                          if (d) updateFeedingSlot(idx, 'time', d);
+                        }}
+                        style={{ height: 150 }}
+                      />
+                    )}
 
                     {/* Daily toggle — only shown when overnight + feeding */}
                     {primaryCareType === 'overnight' && (
@@ -862,99 +865,47 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
               <View style={[styles.section, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>🐕 Walk Time</Text>
 
-                {/* Start Time */}
-                <Text style={[styles.feedingPickerLabel, { color: colors.text, fontWeight: '700', fontSize: 14, marginBottom: 2 }]}>Start Time</Text>
-                <View style={styles.feedingPickerRow}>
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Hour</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
-                      {[1,2,3,4,5,6,7,8,9,10,11,12].map((h) => (
-                        <TouchableOpacity
-                          key={h}
-                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, walkStartHour === h && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                          onPress={() => setWalkStartHour(h)}
-                        >
-                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, walkStartHour === h && { color: '#fff', fontWeight: '700' }]}>{h}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Min</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
-                      {[0,5,10,15,20,25,30,35,40,45,50,55].map((m) => (
-                        <TouchableOpacity
-                          key={m}
-                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, walkStartMinute === m && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                          onPress={() => setWalkStartMinute(m)}
-                        >
-                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, walkStartMinute === m && { color: '#fff', fontWeight: '700' }]}>{m.toString().padStart(2, '0')}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>AM/PM</Text>
-                    <View style={styles.feedingAmPmRow}>
-                      {(['AM','PM'] as const).map((p) => (
-                        <TouchableOpacity
-                          key={p}
-                          style={[styles.feedingAmPmBtn, { borderColor: colors.border, backgroundColor: colors.background }, walkStartPeriod === p && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                          onPress={() => setWalkStartPeriod(p)}
-                        >
-                          <Text style={[styles.feedingAmPmText, { color: colors.text }, walkStartPeriod === p && { color: '#fff', fontWeight: '700' }]}>{p}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
+                <View style={styles.timeRow}>
+                  <TouchableOpacity
+                    style={[styles.timePickerButton, { borderColor: showWalkStart ? colors.primary : colors.border, backgroundColor: colors.background }]}
+                    onPress={() => { setShowWalkStart(prev => !prev); setShowWalkEnd(false); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
+                    <Text style={[styles.timePickerValue, { color: colors.text }]}>{walkStartTime}</Text>
+                  </TouchableOpacity>
+                  <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
+                  <TouchableOpacity
+                    style={[styles.timePickerButton, { borderColor: showWalkEnd ? colors.primary : colors.border, backgroundColor: colors.background }]}
+                    onPress={() => { setShowWalkEnd(prev => !prev); setShowWalkStart(false); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>End Time</Text>
+                    <Text style={[styles.timePickerValue, { color: colors.text }]}>{walkEndTime}</Text>
+                  </TouchableOpacity>
                 </View>
-
-                {/* End Time */}
-                <Text style={[styles.feedingPickerLabel, { color: colors.text, fontWeight: '700', fontSize: 14, marginBottom: 2, marginTop: 8 }]}>End Time</Text>
-                <View style={styles.feedingPickerRow}>
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Hour</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
-                      {[1,2,3,4,5,6,7,8,9,10,11,12].map((h) => (
-                        <TouchableOpacity
-                          key={h}
-                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, walkEndHour === h && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                          onPress={() => setWalkEndHour(h)}
-                        >
-                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, walkEndHour === h && { color: '#fff', fontWeight: '700' }]}>{h}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Min</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
-                      {[0,5,10,15,20,25,30,35,40,45,50,55].map((m) => (
-                        <TouchableOpacity
-                          key={m}
-                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, walkEndMinute === m && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                          onPress={() => setWalkEndMinute(m)}
-                        >
-                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, walkEndMinute === m && { color: '#fff', fontWeight: '700' }]}>{m.toString().padStart(2, '0')}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>AM/PM</Text>
-                    <View style={styles.feedingAmPmRow}>
-                      {(['AM','PM'] as const).map((p) => (
-                        <TouchableOpacity
-                          key={p}
-                          style={[styles.feedingAmPmBtn, { borderColor: colors.border, backgroundColor: colors.background }, walkEndPeriod === p && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                          onPress={() => setWalkEndPeriod(p)}
-                        >
-                          <Text style={[styles.feedingAmPmText, { color: colors.text }, walkEndPeriod === p && { color: '#fff', fontWeight: '700' }]}>{p}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                </View>
+                {showWalkStart && (
+                  <DateTimePicker
+                    value={walkStartDate}
+                    mode="time"
+                    display="spinner"
+                    onChange={(_: DateTimePickerEvent, d?: Date) => {
+                      if (d) setWalkStartDate(d);
+                    }}
+                    style={{ height: 150 }}
+                  />
+                )}
+                {showWalkEnd && (
+                  <DateTimePicker
+                    value={walkEndDate}
+                    mode="time"
+                    display="spinner"
+                    onChange={(_: DateTimePickerEvent, d?: Date) => {
+                      if (d) setWalkEndDate(d);
+                    }}
+                    style={{ height: 150 }}
+                  />
+                )}
 
                 {/* Dynamic duration display */}
                 <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
@@ -966,106 +917,128 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         {/* ── Playtime (add-on) ── */}
             {addOnCareTypes.has('playtime') && (
               <View style={[styles.section, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>🎾 Play Session Time</Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>🎾 Play Session</Text>
 
-                {/* Start Time */}
-                <Text style={[styles.feedingPickerLabel, { color: colors.text, fontWeight: '700', fontSize: 14, marginBottom: 2 }]}>Start Time</Text>
-                <View style={styles.feedingPickerRow}>
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Hour</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
-                      {[1,2,3,4,5,6,7,8,9,10,11,12].map((h) => (
-                        <TouchableOpacity
-                          key={h}
-                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, playStartHour === h && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                          onPress={() => setPlayStartHour(h)}
-                        >
-                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, playStartHour === h && { color: '#fff', fontWeight: '700' }]}>{h}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Min</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
-                      {[0,5,10,15,20,25,30,35,40,45,50,55].map((m) => (
-                        <TouchableOpacity
-                          key={m}
-                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, playStartMinute === m && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                          onPress={() => setPlayStartMinute(m)}
-                        >
-                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, playStartMinute === m && { color: '#fff', fontWeight: '700' }]}>{m.toString().padStart(2, '0')}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>AM/PM</Text>
-                    <View style={styles.feedingAmPmRow}>
-                      {(['AM','PM'] as const).map((p) => (
-                        <TouchableOpacity
-                          key={p}
-                          style={[styles.feedingAmPmBtn, { borderColor: colors.border, backgroundColor: colors.background }, playStartPeriod === p && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                          onPress={() => setPlayStartPeriod(p)}
-                        >
-                          <Text style={[styles.feedingAmPmText, { color: colors.text }, playStartPeriod === p && { color: '#fff', fontWeight: '700' }]}>{p}</Text>
-                        </TouchableOpacity>
-                      ))}
+                {/* Flexible hours toggle */}
+                <TouchableOpacity
+                  style={[
+                    styles.dailyToggle,
+                    { borderColor: playtimeFlexible ? colors.primary : colors.border,
+                      backgroundColor: playtimeFlexible ? `${RED}15` : colors.background,
+                      marginBottom: 12 },
+                  ]}
+                  onPress={() => setPlaytimeFlexible(prev => !prev)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 15 }}>{playtimeFlexible ? '⏱️' : '🕐'}</Text>
+                  <Text style={[
+                    styles.dailyToggleText,
+                    { color: playtimeFlexible ? colors.primary : colors.textSecondary },
+                  ]}>
+                    {playtimeFlexible ? 'Flexible hours — any time of day' : 'Are playtime hours flexible?'}
+                  </Text>
+                </TouchableOpacity>
+
+                {!playtimeFlexible ? (
+                  <>
+                    {/* Fixed time: start → end with spinners */}
+                    <View style={styles.timeRow}>
+                      <TouchableOpacity
+                        style={[styles.timePickerButton, { borderColor: showPlayStart ? colors.primary : colors.border, backgroundColor: colors.background }]}
+                        onPress={() => { setShowPlayStart(prev => !prev); setShowPlayEnd(false); }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
+                        <Text style={[styles.timePickerValue, { color: colors.text }]}>{playStartTime}</Text>
+                      </TouchableOpacity>
+                      <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
+                      <TouchableOpacity
+                        style={[styles.timePickerButton, { borderColor: showPlayEnd ? colors.primary : colors.border, backgroundColor: colors.background }]}
+                        onPress={() => { setShowPlayEnd(prev => !prev); setShowPlayStart(false); }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>End Time</Text>
+                        <Text style={[styles.timePickerValue, { color: colors.text }]}>{playEndTime}</Text>
+                      </TouchableOpacity>
                     </View>
-                  </View>
-                </View>
-
-                {/* End Time */}
-                <Text style={[styles.feedingPickerLabel, { color: colors.text, fontWeight: '700', fontSize: 14, marginBottom: 2, marginTop: 8 }]}>End Time</Text>
-                <View style={styles.feedingPickerRow}>
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Hour</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
-                      {[1,2,3,4,5,6,7,8,9,10,11,12].map((h) => (
-                        <TouchableOpacity
-                          key={h}
-                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, playEndHour === h && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                          onPress={() => setPlayEndHour(h)}
-                        >
-                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, playEndHour === h && { color: '#fff', fontWeight: '700' }]}>{h}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Min</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
-                      {[0,5,10,15,20,25,30,35,40,45,50,55].map((m) => (
-                        <TouchableOpacity
-                          key={m}
-                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, playEndMinute === m && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                          onPress={() => setPlayEndMinute(m)}
-                        >
-                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, playEndMinute === m && { color: '#fff', fontWeight: '700' }]}>{m.toString().padStart(2, '0')}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>AM/PM</Text>
-                    <View style={styles.feedingAmPmRow}>
-                      {(['AM','PM'] as const).map((p) => (
-                        <TouchableOpacity
-                          key={p}
-                          style={[styles.feedingAmPmBtn, { borderColor: colors.border, backgroundColor: colors.background }, playEndPeriod === p && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                          onPress={() => setPlayEndPeriod(p)}
-                        >
-                          <Text style={[styles.feedingAmPmText, { color: colors.text }, playEndPeriod === p && { color: '#fff', fontWeight: '700' }]}>{p}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                </View>
-
-                {/* Dynamic duration display */}
-                <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
-                  {playStartTime} → {playEndTime}  •  {playDurationText}
-                </Text>
+                    {showPlayStart && (
+                      <DateTimePicker
+                        value={playStartDate}
+                        mode="time"
+                        display="spinner"
+                        onChange={(_: DateTimePickerEvent, d?: Date) => {
+                          if (d) setPlayStartDate(d);
+                        }}
+                        style={{ height: 150 }}
+                      />
+                    )}
+                    {showPlayEnd && (
+                      <DateTimePicker
+                        value={playEndDate}
+                        mode="time"
+                        display="spinner"
+                        onChange={(_: DateTimePickerEvent, d?: Date) => {
+                          if (d) setPlayEndDate(d);
+                        }}
+                        style={{ height: 150 }}
+                      />
+                    )}
+                    <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
+                      {playStartTime} → {playEndTime}  •  {playDurationText}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    {/* Flexible mode: just specify duration per session */}
+                    <Text style={[styles.fieldHint, { color: colors.textSecondary, marginBottom: 8 }]}>
+                      Specify how long each play session should be
+                    </Text>
+                    {flexPlaySessions.map((session, idx) => (
+                      <View key={idx} style={{ marginBottom: 12 }}>
+                        {flexPlaySessions.length > 1 && (
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                            <Text style={[styles.careTypeHint, { color: colors.textSecondary, fontWeight: '600' }]}>
+                              Session {idx + 1}
+                            </Text>
+                            <TouchableOpacity
+                              onPress={() => removeFlexSession(idx)}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <Text style={{ fontSize: 13, color: colors.error, fontWeight: '600' }}>Remove</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                        <View style={styles.durationRow}>
+                          {[15, 30, 45, 60, 90, 120].map((mins) => (
+                            <TouchableOpacity
+                              key={mins}
+                              style={[
+                                styles.durationPill,
+                                { borderColor: colors.border, backgroundColor: colors.background },
+                                session.durationMins === mins && { backgroundColor: colors.primary, borderColor: colors.primary },
+                              ]}
+                              onPress={() => updateFlexSession(idx, mins)}
+                            >
+                              <Text style={[
+                                styles.durationPillText,
+                                { color: colors.text },
+                                session.durationMins === mins && { color: '#fff', fontWeight: '700' },
+                              ]}>
+                                {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    ))}
+                    <TouchableOpacity
+                      style={[styles.addFeedingBtn, { borderColor: colors.primary }]}
+                      onPress={addFlexSession}
+                    >
+                      <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>➕ Add Another Session</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
             )}
 
