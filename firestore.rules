@@ -71,6 +71,13 @@ service cloud.firestore {
                     && resource.data.blockerId == request.auth.uid;
     }
 
+    match /blockReports/{reportId} {
+      // Only authenticated users can create block reports
+      allow create: if request.auth != null
+                    && request.resource.data.reporterId == request.auth.uid;
+      // No read/update/delete — admin-only via console
+    }
+
     match /conversations/{convId} {
       allow read: if request.auth != null
         && request.auth.uid in resource.data.participantIds;

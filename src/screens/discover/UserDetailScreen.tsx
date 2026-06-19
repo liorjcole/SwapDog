@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator, Linking, Modal, TextInput, Keyboard } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
@@ -14,6 +14,8 @@ import { useSwaps } from '../../hooks/useSwaps';
 import { useReviews } from '../../hooks/useReviews';
 import { useMessaging } from '../../hooks/useMessaging';
 import { useBlocking } from '../../hooks/useBlocking';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import { User, Dog, SwapPost, Review } from '../../models/types';
 import { spacing, borderRadius, shadow, typography } from '../../config/theme';
 import { formatDogAge } from '../../utils/formatDogAge';
@@ -55,6 +57,9 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { getOrCreateConversation, sendMessage } = useMessaging();
   const { blockUser, unblockUser, isBlockedByMe } = useBlocking();
   const [blocking, setBlocking] = useState(false);
+  const [showBlockFeedback, setShowBlockFeedback] = useState(false);
+  const [blockFeedbackText, setBlockFeedbackText] = useState('');
+  const [blockedUserName, setBlockedUserName] = useState('');
 
   const userId = route.params?.userId ?? '';
 
@@ -133,6 +138,27 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   if (!user) return null;
 
   const showSendButton = me && me.id !== user.id;
+  const submitBlockFeedback = async (feedback: string) => {
+    try {
+      if (feedback.trim()) {
+        const feedbackRef = doc(db, 'blockReports', `${me?.id || 'unknown'}_${userId}_${Date.now()}`);
+        await setDoc(feedbackRef, {
+          reporterId: me?.id || 'unknown',
+          reporterName: me?.displayName || 'Unknown',
+          blockedUserId: userId,
+          blockedUserName: blockedUserName,
+          reason: feedback.trim(),
+          createdAt: serverTimestamp(),
+        });
+      }
+    } catch (err) {
+      console.error('[BlockFeedback] Failed to save:', err);
+    }
+    setShowBlockFeedback(false);
+    setBlockFeedbackText('');
+    navigation.goBack();
+  };
+
   const blocked = isBlockedByMe(userId);
 
   const handleBlockToggle = () => {
@@ -170,9 +196,8 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               try {
                 await blockUser(userId);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                Alert.alert('Blocked', `${user.displayName} has been blocked.`, [
-                  { text: 'OK', onPress: () => navigation.goBack() },
-                ]);
+                setBlockedUserName(user.displayName);
+                setShowBlockFeedback(true);
               } catch { Alert.alert('Error', 'Failed to block user.'); }
               finally { setBlocking(false); }
             },
@@ -183,6 +208,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   return (
+    <>
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.surface, ...shadow.sm }]}>
         <AvatarImage
@@ -396,6 +422,51 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
       )}
     </ScrollView>
+
+      {/* Block Feedback Modal */}
+      <Modal visible={showBlockFeedback} transparent animationType="fade">
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 }}
+          activeOpacity={1}
+          onPress={() => Keyboard.dismiss()}
+        >
+          <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 24, width: '100%', maxWidth: 340 }}>
+            <Text style={{ fontSize: 22, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: 4 }}>
+              ✅ Block Successful
+            </Text>
+            <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: 16, lineHeight: 20 }}>
+              {blockedUserName} has been blocked.
+            </Text>
+            <Text style={{ fontSize: 14, color: colors.text, textAlign: 'center', marginBottom: 12, lineHeight: 20 }}>
+              WatchDog is built on trust and a positive community. If this person was acting inappropriately, please let us know — we take reports seriously and may take action including account termination.
+            </Text>
+            <TextInput
+              style={{
+                borderWidth: 1, borderColor: colors.border, borderRadius: 10,
+                padding: 12, fontSize: 15, color: colors.text,
+                backgroundColor: colors.background, minHeight: 90,
+                textAlignVertical: 'top',
+              }}
+              placeholder="Why did you block this person? (optional)"
+              placeholderTextColor={colors.textSecondary}
+              value={blockFeedbackText}
+              onChangeText={setBlockFeedbackText}
+              multiline
+              maxLength={500}
+            />
+            <TouchableOpacity
+              onPress={() => void submitBlockFeedback(blockFeedbackText)}
+              style={{ backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 14, marginTop: 14, alignItems: 'center' }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
+                {blockFeedbackText.trim() ? 'Submit & Continue' : 'Skip'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
   );
 };
 
