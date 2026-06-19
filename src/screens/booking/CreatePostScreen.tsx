@@ -1549,8 +1549,8 @@ const MAX_PLAY_SESSIONS = 5;
             <View style={[styles.section, { backgroundColor: colors.surface }]}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Compensation</Text>
 
-              {/* Recommended points */}
-              {recommendedPoints.total > 0 && (
+              {/* Recommended points — only when points toggle is ON */}
+              {offerPoints && recommendedPoints.total > 0 && (
                 <View style={styles.recBox}>
                   <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 20 }}>
                     Suggested <Text style={{ fontWeight: '700', color: colors.primary }}>{recommendedPoints.total} pts</Text> based on the care you've selected… but it's ultimately up to you!
@@ -1595,6 +1595,15 @@ const MAX_PLAY_SESSIONS = 5;
                       )}
                     </View>
                   )}
+                </View>
+              )}
+
+              {/* Payments note — only when money toggle is ON */}
+              {offerMoney && (
+                <View style={[styles.offAppNote, { backgroundColor: '#FFF9E6', borderColor: '#F0C040' }]}>
+                  <Text style={[styles.offAppNoteText, { color: '#7A6000' }]}>
+                    💰 All payments are arranged and made outside of WatchDog. We do not process payments.
+                  </Text>
                 </View>
               )}
 
@@ -1717,11 +1726,6 @@ const MAX_PLAY_SESSIONS = 5;
                     </Text>
                   )}
 
-                  <View style={[styles.offAppNote, { backgroundColor: '#FFF9E6', borderColor: '#F0C040' }]}>
-                    <Text style={[styles.offAppNoteText, { color: '#7A6000' }]}>
-                      💰 All payments are arranged and made outside of WatchDog. We do not process payments.
-                    </Text>
-                  </View>
                 </>
               )}
             </View>
