@@ -516,7 +516,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const renderCommitmentCard = (post: SwapPost, onCardPress?: () => void) => {
     const isMyDog = post.posterId === user?.uid;
     const accentColor = isMyDog ? RED : TEAL;
-    const roleLabel = isMyDog ? 'Your dog' : "You're watching";
+    const roleLabel = isMyDog ? 'Your dog' : "You're booked";
     const otherName = isMyDog
       ? (post.respondedBy?.find((r) => r.userId === post.claimedBy)?.userName ?? 'Your sitter')
       : post.posterName;
@@ -524,6 +524,15 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
     const endStr = smartDate(post.endDate, { includeYear: true });
     const isExpanded = expandedCommitId === post.id;
     const careSummary = getCareTypeSummary(post);
+
+    // Use multi-dog arrays when available, fallback to singular fields
+    const allDogNames = (post.dogNames && post.dogNames.length > 0)
+      ? post.dogNames
+      : [post.dogName];
+    const allDogPhotos = (post.dogPhotoURLs && post.dogPhotoURLs.length > 0)
+      ? post.dogPhotoURLs
+      : (post.dogPhotoURL ? [post.dogPhotoURL] : []);
+    const dogNamesDisplay = allDogNames.join(' & ');
 
     const onPress = onCardPress
       ? onCardPress
@@ -539,13 +548,29 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           ]}
           onPress={onPress}
           accessibilityRole="button"
-          accessibilityLabel={`${roleLabel}: ${post.dogName} with ${otherName}`}
+          accessibilityLabel={`${roleLabel}: ${dogNamesDisplay} with ${otherName}`}
           accessibilityState={{ expanded: isExpanded }}
         >
           <View style={styles.commitCardInner}>
-            <View style={styles.commitInfo}>
+            {/* Dog photo(s) */}
+            {allDogPhotos.length > 0 && (
+              <View style={styles.commitDogPhotos}>
+                {allDogPhotos.map((url, idx) => (
+                  <Image
+                    key={idx}
+                    source={{ uri: url }}
+                    style={[
+                      styles.commitDogPhoto,
+                      { borderColor: accentColor },
+                      idx > 0 && { marginLeft: -10 },
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+            <View style={[styles.commitInfo, { flex: 1 }]}>
               <Text style={[styles.commitRoleLabel, { color: accentColor }]}>{roleLabel}</Text>
-              <Text style={[styles.commitDogName, { color: colors.text }]}>{post.dogName}</Text>
+              <Text style={[styles.commitDogName, { color: colors.text }]}>{dogNamesDisplay}</Text>
               <Text style={[styles.commitOther, { color: colors.textSecondary }]}>{otherName}</Text>
               <Text style={[styles.commitDates, { color: colors.textSecondary }]}>
                 {startStr} – {endStr}
@@ -1091,6 +1116,8 @@ const styles = StyleSheet.create({
   commitList: { gap: spacing.sm },
   commitCard: { borderRadius: borderRadius.lg, borderLeftWidth: 4, padding: spacing.md },
   commitCardInner: { flexDirection: 'row', alignItems: 'center' },
+  commitDogPhotos: { flexDirection: 'row', alignItems: 'center', marginRight: 12 },
+  commitDogPhoto: { width: 48, height: 48, borderRadius: 24, borderWidth: 2 },
   commitInfo: { flex: 1 },
   commitRoleLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', marginBottom: 1 },
   commitDogName: { fontSize: 16, fontWeight: '700' },
