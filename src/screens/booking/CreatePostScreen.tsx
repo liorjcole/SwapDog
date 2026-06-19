@@ -121,6 +121,18 @@ const MAX_PLAY_SESSIONS = 5;
     setPlaySessions(prev => prev.map((s, i) => i === index ? { ...s, ...updates } : s));
   };
   const [repeatDailyAlertShown, setRepeatDailyAlertShown] = useState(false);
+  const [collapsedFeedings, setCollapsedFeedings] = useState<Set<number>>(new Set());
+  const [collapsedWalks, setCollapsedWalks] = useState<Set<number>>(new Set());
+  const [collapsedPlay, setCollapsedPlay] = useState<Set<number>>(new Set());
+
+  const toggleCollapse = (setter: React.Dispatch<React.SetStateAction<Set<number>>>, idx: number) => {
+    setter(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
   const toggleAddOn = (type: CareType) => {
     setAddOnCareTypes(prev => {
       const next = new Set(prev);
@@ -1043,17 +1055,21 @@ const MAX_PLAY_SESSIONS = 5;
                 {/* ── Feeding Time (add-on) ── */}
             {addOnCareTypes.has('feeding') && (
               <View style={[styles.section, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>🍽️ Feeding Times</Text>
-                <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
-                  Set when your {selectedDogs.length > 1 ? 'dogs need' : 'dog needs'} to be fed
-                </Text>
-
                 {feedingSlots.map((slot, idx) => (
                   <View key={idx} style={{ marginBottom: idx < feedingSlots.length - 1 ? 20 : 0 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <Text style={[styles.careTypeHint, { color: colors.textSecondary, fontWeight: '600' }]}>
-                        {feedingSlots.length > 1 ? `Feeding ${idx + 1}` : 'Feeding'}
-                      </Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: collapsedFeedings.has(idx) ? 0 : 6 }}>
+                      <TouchableOpacity
+                        onPress={() => toggleCollapse(setCollapsedFeedings, idx)}
+                        style={{ flexDirection: 'row', alignItems: 'center' }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600', marginRight: 6, width: 14 }}>
+                          {collapsedFeedings.has(idx) ? '›' : '▾'}
+                        </Text>
+                        <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0, fontSize: 16 }]}>
+                          🍽️ {feedingSlots.length > 1 ? `Feeding #${idx + 1}` : 'Feeding'}
+                        </Text>
+                      </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         {primaryCareType === 'overnight' && (
                           <TouchableOpacity
@@ -1077,6 +1093,8 @@ const MAX_PLAY_SESSIONS = 5;
                         )}
                       </View>
                     </View>
+                    {!collapsedFeedings.has(idx) && (
+                    <>
                     <DogAssignRow
                       activeDogIds={slot.dogIds}
                       onToggle={(dogId: string) => {
@@ -1123,6 +1141,8 @@ const MAX_PLAY_SESSIONS = 5;
                         </Text>
                       </TouchableOpacity>
                     )}
+                    </>
+                    )}
                   </View>
                 ))}
 
@@ -1144,10 +1164,19 @@ const MAX_PLAY_SESSIONS = 5;
                     : `${wsDurMins}m walk`;
                   return (
                   <View key={wIdx} style={[styles.section, { backgroundColor: colors.surface }]}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
-                        🐕 Walk #{wIdx + 1}
-                      </Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: collapsedWalks.has(wIdx) ? 0 : 12 }}>
+                      <TouchableOpacity
+                        onPress={() => toggleCollapse(setCollapsedWalks, wIdx)}
+                        style={{ flexDirection: 'row', alignItems: 'center' }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600', marginRight: 6, width: 14 }}>
+                          {collapsedWalks.has(wIdx) ? '›' : '▾'}
+                        </Text>
+                        <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
+                          🐕 Walk #{wIdx + 1}
+                        </Text>
+                      </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         {primaryCareType === 'overnight' && (
                           <TouchableOpacity
@@ -1168,6 +1197,8 @@ const MAX_PLAY_SESSIONS = 5;
                         )}
                       </View>
                     </View>
+                    {!collapsedWalks.has(wIdx) && (
+                    <>
                     <DogAssignRow
                       activeDogIds={ws.dogIds}
                       onToggle={(dogId: string) => {
@@ -1241,6 +1272,8 @@ const MAX_PLAY_SESSIONS = 5;
                         </Text>
                       </TouchableOpacity>
                     )}
+                    </>
+                    )}
                   </View>
                   );
                 })}
@@ -1255,10 +1288,19 @@ const MAX_PLAY_SESSIONS = 5;
                 {playSessions.map((pSession, pIdx) => (
                   <View key={pIdx} style={[styles.section, { backgroundColor: colors.surface }]}>
                     {/* Header row: title + repeat daily + remove */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
-                        🎾 Playtime Session #{pIdx + 1}
-                      </Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: collapsedPlay.has(pIdx) ? 0 : 12 }}>
+                      <TouchableOpacity
+                        onPress={() => toggleCollapse(setCollapsedPlay, pIdx)}
+                        style={{ flexDirection: 'row', alignItems: 'center' }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600', marginRight: 6, width: 14 }}>
+                          {collapsedPlay.has(pIdx) ? '›' : '▾'}
+                        </Text>
+                        <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
+                          🎾 Playtime Session #{pIdx + 1}
+                        </Text>
+                      </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         {/* Repeat Daily — only for overnight */}
                         {primaryCareType === 'overnight' && (
@@ -1303,7 +1345,8 @@ const MAX_PLAY_SESSIONS = 5;
                         )}
                       </View>
                     </View>
-
+                    {!collapsedPlay.has(pIdx) && (
+                    <>
                     <DogAssignRow
                       activeDogIds={pSession.dogIds}
                       onToggle={(dogId: string) => {
@@ -1435,6 +1478,8 @@ const MAX_PLAY_SESSIONS = 5;
                           ➕ Add Playtime Session #{playSessions.length + 1}
                         </Text>
                       </TouchableOpacity>
+                    )}
+                    </>
                     )}
                   </View>
                 ))}
