@@ -189,9 +189,22 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
       accessibilityLabel={`Post for ${post.dogName}`}
     >
       <View style={styles.postCardInner}>
-        {/* Dog photo + name row */}
+        {/* Dog photos + names row */}
         <View style={styles.cardHeader}>
-          {post.dogPhotoURL ? (
+          {/* Dog avatar(s) */}
+          {post.dogPhotoURLs && post.dogPhotoURLs.length > 1 ? (
+            <View style={{ flexDirection: 'row', marginRight: 10 }}>
+              {post.dogPhotoURLs.map((url, i) => (
+                url ? (
+                  <Image key={i} source={{ uri: url }} style={[styles.dogThumbLead, { borderColor: colors.border, marginRight: i < post.dogPhotoURLs!.length - 1 ? -8 : 0, zIndex: post.dogPhotoURLs!.length - i }]} />
+                ) : (
+                  <View key={i} style={[styles.dogThumbLeadPlaceholder, { backgroundColor: RED + '12', marginRight: i < post.dogPhotoURLs!.length - 1 ? -8 : 0, zIndex: post.dogPhotoURLs!.length - i }]}>
+                    <Text style={{ fontSize: 22 }}>🐶</Text>
+                  </View>
+                )
+              ))}
+            </View>
+          ) : post.dogPhotoURL ? (
             <Image source={{ uri: post.dogPhotoURL }} style={[styles.dogThumbLead, { borderColor: colors.border }]} />
           ) : (
             <View style={[styles.dogThumbLeadPlaceholder, { backgroundColor: RED + '12' }]}>
@@ -199,8 +212,11 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
             </View>
           )}
           <View style={styles.headerInfo}>
-            <Text style={[styles.dogLine, { color: colors.text, marginBottom: 0 }]}>
-              {isFavorited && <Text style={{ color: '#FFD700' }}>★ </Text>}{post.dogName}{post.dogBreed ? ` · ${post.dogBreed}` : ''}
+            <Text style={[styles.dogLine, { color: colors.text, marginBottom: 0 }]} numberOfLines={1}>
+              {isFavorited && <Text style={{ color: '#FFD700' }}>★ </Text>}
+              {post.dogNames && post.dogNames.length > 1
+                ? post.dogNames.join(' & ')
+                : post.dogName}
             </Text>
             <Text style={[styles.dateRange, { color: colors.textSecondary }]}>{startStr} – {endStr}</Text>
           </View>
