@@ -35,6 +35,7 @@ import { smartDate } from '../../utils/dateHelpers';
 import { useUsers } from '../../hooks/useUsers';
 import { useDiscoverLocation } from '../../hooks/useDiscoverLocation';
 import { useSwaps } from '../../hooks/useSwaps';
+import { useFavorites } from '../../hooks/useFavorites';
 import { useMessaging } from '../../hooks/useMessaging';
 import { User, GeoPoint, SwapPost } from '../../models/types';
 import { calculateDistance, formatDistance } from '../../utils/calculateDistance';
@@ -472,6 +473,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
   const { userProfile } = useAuthContext();
   const { getUsersByLocation } = useUsers();
   const { getAreaPosts } = useSwaps();
+  const { favoriteIds } = useFavorites();
   const { getOrCreateConversation, sendMessage } = useMessaging();
 
   const { location, loading: locationLoading, setLocationOverride, clearLocationOverride } = useDiscoverLocation();
@@ -667,16 +669,21 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     const displayUsers = nearbyUsers.length > 0 ? nearbyUsers : lastUsersRef.current;
     const items: FeedItem[] = [];
 
-    // Section 1: Posts
+    // Section 1: Posts — favorites float to top
     items.push({ kind: 'section_header', id: 'header_posts', title: 'Active Posts Nearby', count: displayPosts.length, isPosts: true });
     if (displayPosts.length === 0) {
       items.push({ kind: 'empty', id: 'empty_posts', text: 'No active posts in your area right now' });
     } else {
-      displayPosts.forEach((p) => items.push({ kind: 'post', id: p.id, post: p }));
+      const sorted = [...displayPosts].sort((a, b) => {
+        const aFav = favoriteIds.has(a.creatorId) ? 1 : 0;
+        const bFav = favoriteIds.has(b.creatorId) ? 1 : 0;
+        return bFav - aFav; // favorites first
+      });
+      sorted.forEach((p) => items.push({ kind: 'post', id: p.id, post: p }));
     }
 
     return items;
-  }, [areaPosts, nearbyUsers, radiusMiles]);
+  }, [areaPosts, nearbyUsers, radiusMiles, favoriteIds]);
 
   // ── Auto-collapse map when scrolling posts ──────────────────────────────────
   const lastScrollY = useRef(0);

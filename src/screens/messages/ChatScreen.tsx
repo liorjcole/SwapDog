@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Platform, KeyboardAvoidingView, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -9,6 +9,7 @@ import { MessagesStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useMessaging } from '../../hooks/useMessaging';
+import { useFavorites } from '../../hooks/useFavorites';
 import { Message, SwapPost } from '../../models/types';
 import { collection, query, where, getDocs, getDoc, doc as firestoreDoc, updateDoc as firestoreUpdateDoc, serverTimestamp as fsServerTimestamp, addDoc as fsAddDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -29,6 +30,9 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuthContext();
   const { subscribeToMessages, sendMessage, markConversationRead } = useMessaging();
+  const { isFavorite, addFavorite, removeFavorite, setNotifyOnPost } = useFavorites();
+  const starred = isFavorite(otherUserId);
+  const isSystem = otherUserId === 'swapdog-team';
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [reschedulePost, setReschedulePost] = useState<SwapPost | null>(null);
@@ -84,6 +88,54 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
       // Navigate to the ConversationsList in MessagesTab.
       (navigation as any).getParent()?.navigate('MessagesTab', {
         screen: 'ConversationsList' });
+    }
+  };
+
+  const handleFavoriteToggle = () => {
+    if (isSystem || !otherUserId) return;
+    if (starred) {
+      Alert.alert(
+        'Remove from favorites?',
+        `${otherUserName} will no longer appear at the top of your feed.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: () => removeFavorite(otherUserId),
+          },
+        ],
+      );
+    } else {
+      Alert.alert(
+        'Favorite this dog parent? ⭐',
+        `It'll add ${otherUserName} to the top of your feed when they post requests.`,
+        [
+          { text: 'Not now', style: 'cancel' },
+          {
+            text: 'Yes, favorite!',
+            onPress: () => {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              addFavorite(otherUserId, false).then(() => {
+                Alert.alert(
+                  'Turn on post notifications? 🔔',
+                  `Get notified every time ${otherUserName} posts a new request so you never miss one.`,
+                  [
+                    { text: 'No thanks', style: 'cancel' },
+                    {
+                      text: 'Yes, notify me!',
+                      onPress: () => {
+                        setNotifyOnPost(otherUserId, true);
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      },
+                    },
+                  ],
+                );
+              });
+            },
+          },
+        ],
+      );
     }
   };
 
@@ -215,9 +267,35 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
         <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
           {otherUserName}
         </Text>
-        {/* right spacer to keep title centred */}
-        <View style={styles.headerSpacer} />
+        {/* Favorite star button */}
+        {!isSystem ? (
+          <TouchableOpacity
+            onPress={handleFavoriteToggle}
+            style={styles.headerSpacer}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel={starred ? 'Remove from favorites' : 'Add to favorites'}
+            accessibilityRole="button"
+          >
+            <Text style={{ fontSize: 22 }}>{starred ? '⭐' : '☆'}</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
       </View>
+
+      {/* Favorite banner */}
+      {!isSystem && !starred && otherUserId !== '' && (
+        <TouchableOpacity
+          style={[styles.favBanner, { backgroundColor: colors.primary + '12' }]}
+          onPress={handleFavoriteToggle}
+          accessibilityLabel="Favorite this dog parent"
+          accessibilityRole="button"
+        >
+          <Text style={[styles.favBannerText, { color: colors.primary }]}>
+            ⭐ Favorite this dog parent?
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <FlatList
         ref={listRef}
@@ -323,6 +401,16 @@ const styles = StyleSheet.create({
   sendBtn: {
     width: 40, height: 40, borderRadius: 20,
     justifyContent: 'center', alignItems: 'center' },
-  sendBtnText: { color: '#fff', fontSize: 16 } });
+  sendBtnText: { color: '#fff', fontSize: 16 },
+  favBanner: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  favBannerText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+});
 
 export default ChatScreen;

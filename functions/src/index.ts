@@ -472,3 +472,80 @@ export const onPostCompleted = onDocumentUpdated(
     }
   }
 );
+
+/**
+ * onFavoriteUserPost — notify users who have favorited the post creator
+ * with notifyOnPost=true when that creator publishes a new post.
+ *
+ * Trigger: swap_posts document created
+ * Reads: users/{uid}/favorites where notifyOnPost === true
+ */
+export const onFavoriteUserPost = onDocumentCreated(
+  "swap_posts/{postId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const data = snap.data();
+    const creatorId = data.creatorId as string;
+    const postId = event.params.postId;
+    if (!creatorId) return;
+
+    try {
+      // Get creator's display name
+      const creatorDoc = await admin.firestore().doc(`users/${creatorId}`).get();
+      const creatorName = creatorDoc.data()?.displayName || "Someone you follow";
+
+      // Find all users who have favorited this creator with notifyOnPost=true
+      // We need to check each user's favorites subcollection.
+      // Firestore doesn't support collectionGroup queries on subcollections with parent filters,
+      // so we use a collectionGroup query on "favorites" where doc ID matches creatorId.
+      const favSnap = await admin
+        .firestore()
+        .collectionGroup("favorites")
+        .where("notifyOnPost", "==", true)
+        .get();
+
+      // Filter to only docs whose ID matches the creatorId
+      const subscriberUids: string[] = [];
+      for (const favDoc of favSnap.docs) {
+        if (favDoc.id !== creatorId) continue;
+        // Path: users/{subscriberUid}/favorites/{creatorId}
+        const parentPath = favDoc.ref.parent.parent?.id;
+        if (parentPath && parentPath !== creatorId) {
+          subscriberUids.push(parentPath);
+        }
+      }
+
+      if (subscriberUids.length === 0) return;
+
+      // Get care type for the notification message
+      const careType = data.careType as string | undefined;
+      const careLabel = careType === "overnight"
+        ? "overnight care"
+        : careType === "daySitting"
+          ? "day sitting"
+          : "a swap";
+
+      // Send push to each subscriber
+      for (const uid of subscriberUids) {
+        const tokens = await getUserTokens(uid);
+        if (tokens.length > 0) {
+          await sendPushNotifications(
+            uid,
+            tokens,
+            `${creatorName} just posted! 🐾`,
+            `${creatorName} is looking for ${careLabel}. Check it out!`,
+            { type: "favorite_post", postId },
+          );
+        }
+      }
+
+      console.log(
+        `[onFavoriteUserPost] Notified ${subscriberUids.length} subscribers for post ${postId} by ${creatorId}`
+      );
+    } catch (error) {
+      console.error("[onFavoriteUserPost] Failed:", error);
+    }
+  }
+);

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { MessagesStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useMessaging } from '../../hooks/useMessaging';
+import { useFavorites } from '../../hooks/useFavorites';
 import { Conversation } from '../../models/types';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -28,6 +29,7 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user } = useAuthContext();
   const { subscribeToConversations } = useMessaging();
+  const { isFavorite, addFavorite, setNotifyOnPost } = useFavorites();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [nameCache, setNameCache] = useState<Record<string, string>>({});
 
@@ -57,10 +59,53 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
     });
   }, [conversations, user]);
 
+  const handleStarPress = (otherId: string, otherName: string) => {
+    if (otherId === SYSTEM_SENDER_ID) return;
+
+    if (isFavorite(otherId)) {
+      // Already favorited — show info
+      Alert.alert('Already Favorited ⭐', `${otherName} is in your favorites. Their posts appear at the top of your feed.`);
+      return;
+    }
+
+    Alert.alert(
+      'Favorite this dog parent? ⭐',
+      `It'll add ${otherName} to the top of your feed when they post requests.`,
+      [
+        { text: 'Not now', style: 'cancel' },
+        {
+          text: 'Yes, favorite!',
+          onPress: () => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            addFavorite(otherId, false).then(() => {
+              // Ask about post notifications
+              Alert.alert(
+                'Turn on post notifications? 🔔',
+                `Get notified every time ${otherName} posts a new request so you never miss one.`,
+                [
+                  { text: 'No thanks', style: 'cancel' },
+                  {
+                    text: 'Yes, notify me!',
+                    onPress: () => {
+                      setNotifyOnPost(otherId, true);
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    },
+                  },
+                ],
+              );
+            });
+          },
+        },
+      ],
+    );
+  };
+
   const renderItem = ({ item }: { item: Conversation }) => {
     const otherId = item.participantIds.find((id) => id !== user?.uid) ?? '';
     const otherLabel = getOtherParticipantLabel(item.participantIds, user?.uid ?? '', nameCache);
     const unread = item.unreadCounts[user?.uid ?? ''] ?? 0;
+    const starred = isFavorite(otherId);
+    const isSystem = otherId === SYSTEM_SENDER_ID;
 
     return (
       <TouchableOpacity
@@ -91,6 +136,17 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
             style={[styles.dot, { backgroundColor: '#FF2D55' }]}
             accessibilityLabel="Unread message"
           />
+        )}
+        {!isSystem && (
+          <TouchableOpacity
+            onPress={() => handleStarPress(otherId, otherLabel)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel={starred ? `${otherLabel} is favorited` : `Favorite ${otherLabel}`}
+            accessibilityRole="button"
+            style={styles.starBtn}
+          >
+            <Text style={styles.starIcon}>{starred ? '⭐' : '☆'}</Text>
+          </TouchableOpacity>
         )}
       </TouchableOpacity>
     );
@@ -128,6 +184,13 @@ const styles = StyleSheet.create({
     height: 9,
     borderRadius: 4.5,
     marginLeft: spacing.sm,
+  },
+  starBtn: {
+    marginLeft: spacing.sm,
+    padding: 4,
+  },
+  starIcon: {
+    fontSize: 22,
   },
 });
 
