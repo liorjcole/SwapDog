@@ -785,10 +785,20 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                   </View>
                 )}
                 {careType === 'daySitting' && daySittingMinutes && daySittingMinutes > 0 && (
-                  <View style={[styles.dateSummary, { backgroundColor: colors.background }]}>
+                  <View style={[styles.dateSummaryRow, { backgroundColor: colors.background }]}>
                     <Text style={[styles.dateSummaryText, { color: colors.textSecondary }]}>
                       {formatDuration(daySittingMinutes)}
                     </Text>
+                    {(showStartTime || showEndTime) && (
+                      <TouchableOpacity
+                        style={[styles.timeConfirmBtn, { backgroundColor: colors.primary }]}
+                        onPress={() => { setShowStartTime(false); setShowEndTime(false); }}
+                        accessibilityLabel="Confirm time selection"
+                        accessibilityRole="button"
+                      >
+                        <Text style={styles.timeConfirmBtnText}>✓</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
 
@@ -1313,6 +1323,28 @@ const styles = StyleSheet.create({
   dateButtonLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   dateButtonValue: { fontSize: 16, fontWeight: '600' },
   dateSummary: { padding: spacing.sm, borderRadius: borderRadius.sm, alignItems: 'center', marginTop: spacing.xs },
+  dateSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+    marginTop: spacing.xs,
+  },
+  timeConfirmBtn: {
+    position: 'absolute',
+    right: spacing.sm,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeConfirmBtnText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
   dateSummaryText: { fontSize: 13 },
 
   // Time fields
