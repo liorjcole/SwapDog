@@ -616,7 +616,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                 </Text>
                 <TouchableOpacity
                   style={[styles.dateButton, { borderColor: '#FFFFFF' }]}
-                  onPress={() => setShowStart(true)}
+                  onPress={() => setShowStart((prev) => !prev)}
                   accessibilityLabel={`Date: ${formatDate(startDate)}`}
                   accessibilityRole="button"
                 >
@@ -651,7 +651,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                   <>
                     <TouchableOpacity
                       style={[styles.dateButton, { borderColor: '#FFFFFF' }]}
-                      onPress={() => setShowEnd(true)}
+                      onPress={() => setShowEnd((prev) => !prev)}
                       accessibilityLabel={`End date: ${formatDate(endDate)}`}
                       accessibilityRole="button"
                     >
