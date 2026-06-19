@@ -885,8 +885,13 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                     {showRangeCalendar && (
                       <>
                         <Text style={[styles.rangeHint, { color: '#FF2D55' }]}>
-                          {rangeSelectStep === 'start' ? 'Select your start date' : 'Now select your end date'}
+                          {rangeSelectStep === 'start' ? 'Select your start date' : 'Start date selected!'}
                         </Text>
+                        {rangeSelectStep === 'end' && (
+                          <Text style={[styles.rangeHintSub, { color: '#FF2D55' }]}>
+                            Now select your end date
+                          </Text>
+                        )}
                         <Calendar
                           markingType="period"
                           markedDates={buildMarkedDates()}
@@ -1804,7 +1809,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  rangeHint: { fontSize: 16, fontWeight: '600', textAlign: 'center', marginTop: spacing.sm, marginBottom: 4 },
+  rangeHint: { fontSize: 16, fontWeight: '700', textAlign: 'center', marginTop: spacing.sm, marginBottom: 2 },
+  rangeHintSub: { fontSize: 14, fontWeight: '500', textAlign: 'center', marginBottom: 4, opacity: 0.85 },
   dateSummary: { padding: spacing.sm, borderRadius: borderRadius.sm, alignItems: 'center', marginTop: spacing.xs },
   dateSummaryRow: {
     flexDirection: 'row',
