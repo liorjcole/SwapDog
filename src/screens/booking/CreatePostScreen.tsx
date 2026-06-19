@@ -557,6 +557,11 @@ const MAX_PLAY_SESSIONS = 5;
       if (isNaN(pts) || pts < 1) {
         Alert.alert('Points Required', 'Please enter how many points this job is worth'); return;
       }
+      const balance = userProfile?.points ?? 0;
+      if (pts > balance) {
+        Alert.alert("Can't Post", "You're offering more points than you currently have. Please lower your offer or earn more points first.");
+        return;
+      }
     }
     if (!user) return;
 
@@ -1734,7 +1739,7 @@ const MAX_PLAY_SESSIONS = 5;
             <TouchableOpacity
               style={[styles.submitBtn, { backgroundColor: colors.primary, opacity: submitting ? 0.7 : 1 }]}
               onPress={validateAndSubmit}
-              disabled={submitting || (offerPoints && parseInt(pointsOffered, 10) > 0 && parseInt(pointsOffered, 10) > (userProfile?.points ?? 0))}
+              disabled={submitting}
               accessibilityLabel={submitting ? 'Posting...' : 'Post Request'}
               accessibilityRole="button"
             >

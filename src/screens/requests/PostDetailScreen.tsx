@@ -55,6 +55,16 @@ type Props = {
 
 // ─── Care Type Helpers ────────────────────────────────────────────────────────
 
+/** Map dogIds to display names using post.dogIds/dogNames arrays */
+function resolveDogNames(dogIds: string[], post: SwapPost): string {
+  if (!dogIds.length || !post.dogIds || !post.dogNames) return '';
+  const names = dogIds.map(id => {
+    const idx = post.dogIds!.indexOf(id);
+    return idx >= 0 ? post.dogNames![idx] : '';
+  }).filter(Boolean);
+  return names.join(', ');
+}
+
 function getCareTypeIcon(careType?: string): string {
   switch (careType) {
     case 'overnight': return 'Overnight sitting';
@@ -890,17 +900,106 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           })}
         </View>
 
-        {/* ── Care Details (type → date → description) ── */}
+        {/* ── Care Details (full breakdown) ── */}
         <View style={[styles.section, { backgroundColor: colors.surface, ...shadow.sm }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Care Details</Text>
+
+          {/* Primary care type + dates */}
           {post.careType && (
             <Text style={[styles.careDetailLine, { color: colors.text }]}>
-              Type: {getCareTypeLabel(post.careType)}
+              {getCareTypeIcon(post.careType)}  {getCareTypeLabel(post.careType)}
             </Text>
           )}
-          <Text style={[styles.careDetailLine, { color: colors.text }]}>
-            Date: {smartDate(post.startDate)} – {smartDate(post.endDate, { includeYear: true })}
+          <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 14 }]}>
+            📅  {smartDate(post.startDate)} – {smartDate(post.endDate, { includeYear: true })}
           </Text>
+
+          {/* Dogs */}
+          {post.dogNames && post.dogNames.length > 0 && (
+            <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 14, marginTop: 4 }]}>
+              🐕  {post.dogNames.join(', ')}
+            </Text>
+          )}
+
+          {/* Day sitting / overnight times */}
+          {(post.careType === 'daySitting' || post.careType === 'overnight') && post.startTime && post.endTime && (
+            <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 14, marginTop: 4 }]}>
+              🕐  {post.startTime} – {post.endTime}
+            </Text>
+          )}
+
+          {/* ── Add-on care breakdown ── */}
+          {post.addOnCareTypes && post.addOnCareTypes.length > 0 && (
+            <View style={{ marginTop: 12, borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 12 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 8 }}>Requested Care</Text>
+
+              {/* Feeding slots */}
+              {post.feedingSlots && post.feedingSlots.length > 0 && (
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }}>🍽️ Feeding</Text>
+                  {post.feedingSlots.map((slot, i) => (
+                    <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
+                      <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                        {slot.time}{slot.daily ? '  (repeats daily)' : ''}
+                        {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
+                          ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
+                          : ''}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Walk sessions */}
+              {post.walkSessions && post.walkSessions.length > 0 && (
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }}>🐕 Walks</Text>
+                  {post.walkSessions.map((ws, i) => {
+                    const durLabel = ws.durationMins >= 60
+                      ? `${Math.floor(ws.durationMins / 60)}h${ws.durationMins % 60 > 0 ? ` ${ws.durationMins % 60}m` : ''}`
+                      : `${ws.durationMins}m`;
+                    return (
+                      <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
+                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                          {ws.startTime} – {ws.endTime}  ({durLabel}){ws.repeatDaily ? '  (repeats daily)' : ''}
+                          {ws.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
+                            ? `  ·  ${resolveDogNames(ws.dogIds, post)}`
+                            : ''}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Play sessions */}
+              {post.playSessions && post.playSessions.length > 0 && (
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }}>🎾 Playtime</Text>
+                  {post.playSessions.map((ps, i) => {
+                    const durLabel = ps.durationMins >= 60
+                      ? `${Math.floor(ps.durationMins / 60)}h${ps.durationMins % 60 > 0 ? ` ${ps.durationMins % 60}m` : ''}`
+                      : `${ps.durationMins}m`;
+                    return (
+                      <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
+                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                          {ps.flexible
+                            ? `Flexible · ${durLabel}`
+                            : `${ps.startTime} – ${ps.endTime}  (${durLabel})`}
+                          {ps.repeatDaily ? '  (repeats daily)' : ''}
+                          {ps.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
+                            ? `  ·  ${resolveDogNames(ps.dogIds, post)}`
+                            : ''}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Free-text care details */}
           {post.careDetails ? (
             <Text style={[styles.careDetails, { color: colors.text, marginTop: 8 }]}>{post.careDetails}</Text>
           ) : null}

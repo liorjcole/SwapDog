@@ -442,6 +442,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     paddingVertical: 14,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
   },
   blockBtnText: {
     fontSize: 15,

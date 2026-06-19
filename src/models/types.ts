@@ -175,6 +175,17 @@ export interface SwapPost {
   /** End time string e.g. "5:00 PM" (daySitting care type) */
   endTime?: string;
 
+  /** Add-on care types selected (e.g. ['feeding', 'dogWalking', 'playtime']) */
+  addOnCareTypes?: string[];
+  /** Walk sessions with times and dog assignments */
+  walkSessions?: { startTime: string; endTime: string; durationMins: number; dogIds: string[]; repeatDaily: boolean }[];
+  /** Walk total duration in minutes (sum of all sessions) */
+  walkDurationMins?: number;
+  /** Feeding slots with times and dog assignments */
+  feedingSlots?: { time: string; daily: boolean; dogIds: string[] }[];
+  /** Play sessions with times, duration, and dog assignments */
+  playSessions?: { sessionNumber: number; flexible: boolean; startTime: string | null; endTime: string | null; durationMins: number; repeatDaily: boolean; dogIds: string[] }[];
+
   // Status
   status: PostStatus;
   /** userId of the sitter who claimed the post */
