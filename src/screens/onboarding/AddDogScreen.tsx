@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch,
   Image, Platform, ActivityIndicator, Linking, Animated as RNAnimated, LayoutAnimation,
-  Modal, Dimensions, Keyboard } from 'react-native';
+  Dimensions, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -48,7 +48,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const { dogForm: form, setDogForm: setForm, updateDogForm: set, savedDogs, savedCount, addSavedDog, removeSavedDog, popLastSavedDog, resetDogForm } = useOnboarding();
   const scrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [showRefChart, setShowRefChart] = useState(false);
 
@@ -176,7 +175,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const cropPhoto = async (index: number) => {
-    setPreviewIndex(null);
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: 'images',
       allowsEditing: true,
@@ -392,7 +390,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           <TouchableOpacity
             key={uri + index}
             style={styles.photoThumb}
-            onPress={() => setPreviewIndex(index)}
+            onPress={() => cropPhoto(index)}
             activeOpacity={0.8}
             accessibilityLabel={index === 0 ? 'Primary photo — tap to view full screen' : `Photo ${index + 1} — tap to view full screen`}
             accessibilityRole="button"
@@ -683,56 +681,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         />
       )}
 
-      {/* Full-screen photo preview with zoom + crop */}
-      {previewIndex !== null && form.photoURLs[previewIndex] && (
-        <Modal visible transparent animationType="fade" onRequestClose={() => setPreviewIndex(null)}>
-          <View style={previewStyles.overlay}>
-            <ScrollView
-              contentContainerStyle={previewStyles.zoomContainer}
-              maximumZoomScale={4}
-              minimumZoomScale={1}
-              showsVerticalScrollIndicator={false}
-              showsHorizontalScrollIndicator={false}
-              centerContent
-            >
-              <Image
-                source={{ uri: form.photoURLs[previewIndex] }}
-                style={previewStyles.fullImage}
-                resizeMode="contain"
-              />
-            </ScrollView>
-            {/* Close button */}
-            <TouchableOpacity
-              style={[previewStyles.closeBtn, { top: 60 }]}
-              onPress={() => setPreviewIndex(null)}
-              accessibilityLabel="Close preview"
-              accessibilityRole="button"
-            >
-              <Text style={previewStyles.closeBtnText}>✕</Text>
-            </TouchableOpacity>
-            {/* Bottom action buttons */}
-            <View style={previewStyles.bottomActions}>
-              <TouchableOpacity
-                style={previewStyles.cropBtn}
-                onPress={() => cropPhoto(previewIndex)}
-                accessibilityLabel="Crop this photo"
-                accessibilityRole="button"
-              >
-                <Text style={previewStyles.cropBtnText}>✂ Crop</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={previewStyles.removeBtn}
-                onPress={() => { setPreviewIndex(null); removePhoto(previewIndex); }}
-                accessibilityLabel="Remove this photo"
-                accessibilityRole="button"
-              >
-                <Text style={previewStyles.removeBtnText}>Remove</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
-
     </View>
   );
 };
@@ -824,68 +772,6 @@ const styles = StyleSheet.create({
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-const previewStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.95)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeBtn: {
-    position: 'absolute',
-    right: 20,
-    zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeBtnText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  zoomContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: SCREEN_W,
-    height: SCREEN_H,
-  },
-  fullImage: {
-    width: SCREEN_W,
-    height: SCREEN_H * 0.75,
-  },
-  bottomActions: {
-    position: 'absolute',
-    bottom: 60,
-    flexDirection: 'row',
-    gap: 16,
-  },
-  cropBtn: {
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  cropBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  removeBtn: {
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,59,48,0.85)',
-  },
-  removeBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
+
 
 export default AddDogScreen;
