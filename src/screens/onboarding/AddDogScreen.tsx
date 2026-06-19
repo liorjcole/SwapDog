@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch,
   Image, Platform, ActivityIndicator, Linking, Animated as RNAnimated, LayoutAnimation,
-  Modal, Dimensions } from 'react-native';
+  Modal, Dimensions, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -257,6 +257,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleContinue = async () => {
+    Keyboard.dismiss();
     const dogId = await saveDog();
     if (dogId) {
       const justSavedName = form.name.trim();
@@ -268,6 +269,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleAddAnother = async () => {
+    Keyboard.dismiss();
     if (savedCount + 1 >= MAX_DOGS) {
       Alert.alert(
         '10 Dog Limit Reached',
@@ -293,6 +295,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleDeleteCurrentDog = () => {
+    Keyboard.dismiss();
     const currentOrdinal = ordinalWord(savedCount + 1);
     Alert.alert(
       `Remove your ${currentOrdinal} dog?`,
