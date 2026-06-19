@@ -1079,12 +1079,21 @@ const MAX_PLAY_SESSIONS = 5;
                         {primaryCareType === 'overnight' && (
                           <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                            onPress={() => updateFeedingSlot(idx, 'daily', !slot.daily)}
+                            onPress={() => {
+                              const newVal = !slot.daily;
+                              updateFeedingSlot(idx, 'daily', newVal);
+                              if (newVal) {
+                                Alert.alert(
+                                  'Repeat Daily',
+                                  'By selecting this, the caretaker will be expected to do this every day during the stay.',
+                                  [{ text: 'Got it' }],
+                                );
+                              }
+                            }}
                             activeOpacity={0.7}
                           >
-                            <Text style={{ fontSize: 15 }}>{slot.daily ? '🔁' : '📅'}</Text>
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
-                              {slot.daily ? '✓ ' : ''}Repeat daily?
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: slot.daily ? '#34C759' : colors.primary }}>
+                              {slot.daily ? '✅ Repeat daily' : '📅 Repeat daily?'}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -1190,12 +1199,21 @@ const MAX_PLAY_SESSIONS = 5;
                         {primaryCareType === 'overnight' && (
                           <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                            onPress={() => updateWalkSession(wIdx, { repeatDaily: !ws.repeatDaily })}
+                            onPress={() => {
+                              const newVal = !ws.repeatDaily;
+                              updateWalkSession(wIdx, { repeatDaily: newVal });
+                              if (newVal) {
+                                Alert.alert(
+                                  'Repeat Daily',
+                                  'By selecting this, the caretaker will be expected to do this every day during the stay.',
+                                  [{ text: 'Got it' }],
+                                );
+                              }
+                            }}
                             activeOpacity={0.7}
                           >
-                            <Text style={{ fontSize: 15 }}>{ws.repeatDaily ? '🔁' : '📅'}</Text>
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
-                              {ws.repeatDaily ? '✓ ' : ''}Repeat daily?
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: ws.repeatDaily ? '#34C759' : colors.primary }}>
+                              {ws.repeatDaily ? '✅ Repeat daily' : '📅 Repeat daily?'}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -1328,7 +1346,7 @@ const MAX_PLAY_SESSIONS = 5;
                               if (newVal) {
                                 Alert.alert(
                                   'Repeat Daily',
-                                  'By selecting this, the caretaker will be instructed to repeat this playtime session every day they are watching your dog.',
+                                  'By selecting this, the caretaker will be expected to do this every day during the stay.',
                                   [{ text: 'Got it' }],
                                 );
                               }
@@ -1338,16 +1356,10 @@ const MAX_PLAY_SESSIONS = 5;
                             <Text style={{
                               fontSize: 13,
                               fontWeight: '600',
-                              color: pSession.repeatDaily ? colors.primary : colors.primary,
+                              color: pSession.repeatDaily ? '#34C759' : colors.primary,
                             }}>
-                              {pSession.repeatDaily ? '✓ ' : ''}Repeat daily?
+                              {pSession.repeatDaily ? '✅ Repeat daily' : '📅 Repeat daily?'}
                             </Text>
-                            {pSession.repeatDaily && (
-                              <View style={{
-                                width: 6, height: 6, borderRadius: 3,
-                                backgroundColor: colors.primary, marginLeft: 2,
-                              }} />
-                            )}
                           </TouchableOpacity>
                         )}
                         {/* Remove button — only if more than 1 session */}
