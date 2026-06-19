@@ -14,6 +14,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
   Alert, Platform, Switch, Image, InputAccessoryView, Keyboard } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { Calendar, DateData } from 'react-native-calendars';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -116,6 +117,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   });
   const [showStart, setShowStart] = useState(false);
   const [showEnd, setShowEnd] = useState(false);
+  const [showRangeCalendar, setShowRangeCalendar] = useState(false);
+  const [rangeSelectStep, setRangeSelectStep] = useState<'start' | 'end'>('start');
 
   // Time fields — Date objects for native spinner picker
   const [startTimeDate, setStartTimeDate] = useState(() => {
@@ -268,6 +271,38 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     return `${hours} ${hours === 1 ? 'hour' : 'hours'} and ${mins} ${mins === 1 ? 'minute' : 'minutes'}`;
   };
 
+
+  /** Build markedDates object for the range calendar */
+  const buildMarkedDates = () => {
+    const marks: Record<string, { startingDay?: boolean; endingDay?: boolean; color: string; textColor: string }> = {};
+    const PRIMARY = '#FF2D55';
+    const RANGE = 'rgba(255, 45, 85, 0.2)';
+    const sStr = startDate.toISOString().split('T')[0];
+    const eStr = endDate.toISOString().split('T')[0];
+
+    if (sStr === eStr) {
+      marks[sStr] = { startingDay: true, endingDay: true, color: PRIMARY, textColor: '#fff' };
+      return marks;
+    }
+
+    const cur = new Date(startDate);
+    cur.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+
+    while (cur <= end) {
+      const key = cur.toISOString().split('T')[0];
+      if (key === sStr) {
+        marks[key] = { startingDay: true, color: PRIMARY, textColor: '#fff' };
+      } else if (key === eStr) {
+        marks[key] = { endingDay: true, color: PRIMARY, textColor: '#fff' };
+      } else {
+        marks[key] = { color: RANGE, textColor: '#fff' };
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    return marks;
+  };
 
   /** Total payment — flat amount for the whole job */
   const totalPayment = useMemo(() => {
@@ -672,65 +707,102 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
                   📅 {careType === 'overnight' ? 'Dates & Times' : careType === 'daySitting' ? 'Date & Time' : 'Date'}
                 </Text>
-                <TouchableOpacity
-                  style={[styles.dateButton, { borderColor: '#FFFFFF' }]}
-                  onPress={() => setShowStart((prev) => !prev)}
-                  accessibilityLabel={`Date: ${formatDate(startDate)}`}
-                  accessibilityRole="button"
-                >
-                  <Text style={[styles.dateButtonLabel, { color: colors.textSecondary }]}>
-                    {careType === 'overnight' ? 'From' : 'Date'}
-                  </Text>
-                  <Text style={[styles.dateButtonValue, { color: colors.text }]}>{formatDate(startDate)}</Text>
-                </TouchableOpacity>
-                {showStart && (
-                  <DateTimePicker
-                    value={startDate}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                    minimumDate={new Date()}
-                    onChange={(_: DateTimePickerEvent, d?: Date) => {
-                      setShowStart(Platform.OS === 'ios');
-                      if (d) {
-                        setStartDate(d);
-                        if (d >= endDate) {
-                          const newEnd = new Date(d);
-                          newEnd.setDate(newEnd.getDate() + 1);
-                          setEndDate(newEnd);
-                        }
-                      }
-                      if (Platform.OS !== 'ios') setShowStart(false);
-                    }}
-                  />
+                {/* Single date for daySitting / add-on only */}
+                {careType !== 'overnight' && (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.dateButton, { borderColor: '#FFFFFF' }]}
+                      onPress={() => setShowStart((prev) => !prev)}
+                      accessibilityLabel={`Date: ${formatDate(startDate)}`}
+                      accessibilityRole="button"
+                    >
+                      <Text style={[styles.dateButtonLabel, { color: colors.textSecondary }]}>DATE</Text>
+                      <Text style={[styles.dateButtonValue, { color: colors.text }]}>{formatDate(startDate)}</Text>
+                    </TouchableOpacity>
+                    {showStart && (
+                      <DateTimePicker
+                        value={startDate}
+                        mode="date"
+                        display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                        minimumDate={new Date()}
+                        themeVariant="dark"
+                        onChange={(_: DateTimePickerEvent, d?: Date) => {
+                          setShowStart(Platform.OS === 'ios');
+                          if (d) setStartDate(d);
+                          if (Platform.OS !== 'ios') setShowStart(false);
+                        }}
+                      />
+                    )}
+                  </>
                 )}
 
-                {/* End date only for overnight */}
+                {/* Unified range calendar for overnight */}
                 {careType === 'overnight' && (
                   <>
                     <TouchableOpacity
                       style={[styles.dateButton, { borderColor: '#FFFFFF' }]}
-                      onPress={() => setShowEnd((prev) => !prev)}
-                      accessibilityLabel={`End date: ${formatDate(endDate)}`}
+                      onPress={() => setShowRangeCalendar((prev) => !prev)}
+                      accessibilityLabel={`Dates: ${formatDate(startDate)} to ${formatDate(endDate)}`}
                       accessibilityRole="button"
                     >
-                      <Text style={[styles.dateButtonLabel, { color: colors.textSecondary }]}>To</Text>
-                      <Text style={[styles.dateButtonValue, { color: colors.text }]}>{formatDate(endDate)}</Text>
+                      <Text style={[styles.dateButtonLabel, { color: colors.textSecondary }]}>DATES</Text>
+                      <Text style={[styles.dateButtonValue, { color: colors.text }]}>
+                        {formatDate(startDate)} → {formatDate(endDate)}
+                      </Text>
                     </TouchableOpacity>
-                    {showEnd && (
-                      <DateTimePicker
-                        value={endDate}
-                        mode="date"
-                        display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                        minimumDate={startDate}
-                        onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) setEndDate(d);
-                          if (Platform.OS !== 'ios') setShowEnd(false);
-                        }}
-                      />
+
+                    {showRangeCalendar && (
+                      <>
+                        <Text style={[styles.rangeHint, { color: colors.textSecondary }]}>
+                          {rangeSelectStep === 'start' ? 'Select your start date' : 'Now select your end date'}
+                        </Text>
+                        <Calendar
+                          markingType="period"
+                          markedDates={buildMarkedDates()}
+                          minDate={new Date().toISOString().split('T')[0]}
+                          onDayPress={(day: DateData) => {
+                            const selected = new Date(day.dateString + 'T12:00:00');
+                            if (rangeSelectStep === 'start') {
+                              setStartDate(selected);
+                              const newEnd = new Date(selected);
+                              newEnd.setDate(newEnd.getDate() + 1);
+                              setEndDate(newEnd);
+                              setRangeSelectStep('end');
+                            } else {
+                              if (selected > startDate) {
+                                setEndDate(selected);
+                              } else {
+                                // Tapped before start — restart selection
+                                setStartDate(selected);
+                                const newEnd = new Date(selected);
+                                newEnd.setDate(newEnd.getDate() + 1);
+                                setEndDate(newEnd);
+                              }
+                              setRangeSelectStep('start');
+                            }
+                          }}
+                          theme={{
+                            calendarBackground: 'transparent',
+                            dayTextColor: '#FFFFFF',
+                            monthTextColor: '#FFFFFF',
+                            textMonthFontWeight: '700',
+                            textMonthFontSize: 17,
+                            textDayFontSize: 15,
+                            textDayHeaderFontSize: 12,
+                            textSectionTitleColor: 'rgba(255,255,255,0.5)',
+                            arrowColor: '#FF2D55',
+                            todayTextColor: '#FF2D55',
+                            textDisabledColor: 'rgba(255,255,255,0.25)',
+
+                          }}
+                          style={{ borderRadius: 12, marginVertical: 8 }}
+                        />
+                      </>
                     )}
+
                     <View style={[styles.dateSummary, { backgroundColor: colors.background }]}>
                       <Text style={[styles.dateSummaryText, { color: colors.textSecondary }]}>
-                        {dayCount} night{dayCount !== 1 ? 's' : ''} of care
+                        {dayCount} night{dayCount !== 1 ? 's' : ''}
                       </Text>
                     </View>
                   </>
@@ -1322,6 +1394,34 @@ const styles = StyleSheet.create({
   dateButton: { borderWidth: 1.5, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm },
   dateButtonLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   dateButtonValue: { fontSize: 16, fontWeight: '600' },
+  timePickerButton: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    flex: 1,
+  },
+  timePickerValue: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  durationRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  durationPill: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+  },
+  durationPillText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  rangeHint: { fontSize: 13, fontStyle: 'italic', textAlign: 'center', marginTop: spacing.sm, marginBottom: -4 },
   dateSummary: { padding: spacing.sm, borderRadius: borderRadius.sm, alignItems: 'center', marginTop: spacing.xs },
   dateSummaryRow: {
     flexDirection: 'row',
