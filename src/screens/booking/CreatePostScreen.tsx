@@ -93,6 +93,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   showStart: boolean;
   showEnd: boolean;
   dogIds: string[];
+  repeatDaily: boolean;
 }
 
 const makeDefaultWalkSession = (): WalkSession => ({
@@ -101,6 +102,7 @@ const makeDefaultWalkSession = (): WalkSession => ({
   showStart: false,
   showEnd: false,
   dogIds: [],
+  repeatDaily: false,
 });
 
 const MAX_WALK_SESSIONS = 5;
@@ -587,6 +589,7 @@ const MAX_PLAY_SESSIONS = 5;
             return e > s ? e - s : 0;
           })(),
           dogIds: ws.dogIds,
+          repeatDaily: primaryCareType === 'overnight' ? ws.repeatDaily : false,
         }));
         careTypeFields.walkDurationMins = walkDurationMins;
       }
@@ -1047,19 +1050,33 @@ const MAX_PLAY_SESSIONS = 5;
 
                 {feedingSlots.map((slot, idx) => (
                   <View key={idx} style={{ marginBottom: idx < feedingSlots.length - 1 ? 20 : 0 }}>
-                    {feedingSlots.length > 1 && (
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <Text style={[styles.careTypeHint, { color: colors.textSecondary, fontWeight: '600' }]}>
-                          Feeding {idx + 1}
-                        </Text>
-                        <TouchableOpacity
-                          onPress={() => removeFeedingSlot(idx)}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Text style={{ fontSize: 13, color: colors.error, fontWeight: '600' }}>Remove</Text>
-                        </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <Text style={[styles.careTypeHint, { color: colors.textSecondary, fontWeight: '600' }]}>
+                        {feedingSlots.length > 1 ? `Feeding ${idx + 1}` : 'Feeding'}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        {primaryCareType === 'overnight' && (
+                          <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                            onPress={() => updateFeedingSlot(idx, 'daily', !slot.daily)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={{ fontSize: 15 }}>{slot.daily ? '🔁' : '📅'}</Text>
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
+                              {slot.daily ? '✓ ' : ''}Repeat daily?
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                        {feedingSlots.length > 1 && (
+                          <TouchableOpacity
+                            onPress={() => removeFeedingSlot(idx)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Text style={{ fontSize: 13, color: colors.error, fontWeight: '600' }}>Remove</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
-                    )}
+                    </View>
                     <DogAssignRow
                       activeDogIds={slot.dogIds}
                       onToggle={(dogId: string) => {
@@ -1094,29 +1111,7 @@ const MAX_PLAY_SESSIONS = 5;
                       />
                     )}
 
-                    {/* Daily toggle — only shown when overnight + feeding */}
-                    {primaryCareType === 'overnight' && (
-                      <TouchableOpacity
-                        style={[
-                          styles.dailyToggle,
-                          { borderColor: slot.daily ? colors.primary : colors.border,
-                            backgroundColor: slot.daily ? `${RED}15` : colors.background },
-                        ]}
-                        onPress={() => updateFeedingSlot(idx, 'daily', !slot.daily)}
-                        activeOpacity={0.7}
-                        accessibilityLabel={slot.daily ? 'Daily feeding enabled' : 'Mark as daily feeding'}
-                        accessibilityRole="switch"
-                        accessibilityState={{ checked: slot.daily }}
-                      >
-                        <Text style={{ fontSize: 15 }}>{slot.daily ? '🔁' : '📅'}</Text>
-                        <Text style={[
-                          styles.dailyToggleText,
-                          { color: slot.daily ? colors.primary : colors.textSecondary },
-                        ]}>
-                          {slot.daily ? 'Repeats daily during stay' : 'Tap to repeat daily'}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+
                   </View>
                 ))}
 
@@ -1147,11 +1142,25 @@ const MAX_PLAY_SESSIONS = 5;
                       <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
                         🐕 Walk #{wIdx + 1}
                       </Text>
-                      {walkSessions.length > 1 && (
-                        <TouchableOpacity onPress={() => removeWalkSession(wIdx)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                          <Text style={{ color: '#FF3B30', fontSize: 14, fontWeight: '600' }}>Remove</Text>
-                        </TouchableOpacity>
-                      )}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        {primaryCareType === 'overnight' && (
+                          <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                            onPress={() => updateWalkSession(wIdx, { repeatDaily: !ws.repeatDaily })}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={{ fontSize: 15 }}>{ws.repeatDaily ? '🔁' : '📅'}</Text>
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
+                              {ws.repeatDaily ? '✓ ' : ''}Repeat daily?
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                        {walkSessions.length > 1 && (
+                          <TouchableOpacity onPress={() => removeWalkSession(wIdx)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                            <Text style={{ color: '#FF3B30', fontSize: 14, fontWeight: '600' }}>Remove</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                     <DogAssignRow
                       activeDogIds={ws.dogIds}
