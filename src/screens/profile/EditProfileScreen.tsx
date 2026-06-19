@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, Linking } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, Linking, InputAccessoryView, Keyboard } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -100,6 +100,7 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
           returnKeyType="done"
           blurOnSubmit={true}
           onFocus={() => scrollToInput('bio')}
+          inputAccessoryViewID="bioDoneBar"
         />
       </View>
       <View ref={refFor('ig')}>
@@ -127,6 +128,23 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
         <Text style={styles.btnText}>{loading ? 'Saving...' : 'Save Changes'}</Text>
       </TouchableOpacity>
     </ScrollView>
+
+      {/* Blue checkmark Done bar above keyboard for bio field */}
+      {Platform.OS === 'ios' && (
+        <InputAccessoryView nativeID="bioDoneBar">
+          <View style={styles.keyboardBar}>
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity
+              onPress={() => Keyboard.dismiss()}
+              style={styles.keyboardDoneBtn}
+              accessibilityLabel="Done editing"
+              accessibilityRole="button"
+            >
+              <Text style={styles.keyboardDoneText}>✓</Text>
+            </TouchableOpacity>
+          </View>
+        </InputAccessoryView>
+      )}
     </View>
   );
 };
@@ -141,6 +159,29 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, fontSize: 15 },
   textArea: { minHeight: 100, textAlignVertical: 'top' },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center' },
-  btnText: { color: '#fff', ...typography.button } });
+  btnText: { color: '#fff', ...typography.button },
+  keyboardBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F0F0',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#C8C8C8',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  keyboardDoneBtn: {
+    backgroundColor: '#007AFF',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  keyboardDoneText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+});
 
 export default EditProfileScreen;

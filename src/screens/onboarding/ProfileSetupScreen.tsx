@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, InputAccessoryView, Keyboard } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -185,6 +185,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
           textContentType="none"
           accessibilityLabel="Bio, optional"
           onFocus={() => scrollToInput('bio')}
+          inputAccessoryViewID="bioDoneBar"
         />
       </View>
       <View ref={refFor('ig')}>
@@ -262,6 +263,29 @@ const styles = StyleSheet.create({
   referralLink: { alignSelf: 'center', paddingVertical: spacing.sm, marginBottom: spacing.md },
   referralLinkText: { fontSize: 14, textDecorationLine: 'underline' },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm },
-  btnText: { color: '#fff', ...typography.button } });
+  btnText: { color: '#fff', ...typography.button },
+  keyboardBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F0F0',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#C8C8C8',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  keyboardDoneBtn: {
+    backgroundColor: '#007AFF',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  keyboardDoneText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+});
 
 export default ProfileSetupScreen;
