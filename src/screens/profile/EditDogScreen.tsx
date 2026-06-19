@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, ActivityIndicator, Dimensions } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, ActivityIndicator, Dimensions, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -46,6 +46,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   const [loading, setLoading] = useState(!isCreateMode);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (isCreateMode) return; // skip fetching in create mode
@@ -251,7 +252,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           <View key={uri + index} style={styles.photoThumbWrap}>
             <TouchableOpacity
               style={styles.photoThumb}
-              onPress={() => handleCropPhoto(index)}
+              onPress={() => setPreviewIndex(index)}
               activeOpacity={0.8}
               accessibilityLabel={index === 0 ? 'Primary photo — tap to view' : `Photo ${index + 1} — tap to view`}
               accessibilityRole="button"
@@ -412,11 +413,97 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
       )}
     </ScrollView>
 
+      {/* Full-screen photo preview */}
+      {previewIndex !== null && photoURLs[previewIndex] && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setPreviewIndex(null)}>
+          <View style={previewStyles.backdrop}>
+            <ScrollView
+              contentContainerStyle={previewStyles.zoomContainer}
+              maximumZoomScale={4}
+              minimumZoomScale={1}
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
+              centerContent
+            >
+              <Image
+                source={{ uri: photoURLs[previewIndex] }}
+                style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH }}
+                resizeMode="contain"
+              />
+            </ScrollView>
+            {/* Cancel */}
+            <TouchableOpacity
+              style={previewStyles.cancelBtn}
+              onPress={() => setPreviewIndex(null)}
+              accessibilityLabel="Cancel"
+              accessibilityRole="button"
+            >
+              <Text style={previewStyles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+            {/* Delete */}
+            <TouchableOpacity
+              style={previewStyles.deleteBtn}
+              onPress={() => {
+                const idx = previewIndex;
+                setPreviewIndex(null);
+                handleRemovePhoto(idx);
+              }}
+              accessibilityLabel="Delete this photo"
+              accessibilityRole="button"
+            >
+              <Text style={previewStyles.deleteBtnText}>Delete Photo</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 };
 
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
+const previewStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  zoomContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: SCREEN_W,
+    height: SCREEN_H,
+  },
+  cancelBtn: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  cancelBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deleteBtn: {
+    position: 'absolute',
+    bottom: 80,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,59,48,0.85)',
+  },
+  deleteBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const THUMB_SIZE = 80;
