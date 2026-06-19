@@ -243,6 +243,17 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
       </TouchableOpacity>
     </ScrollView>
 
+      {Platform.OS === 'ios' && (
+        <InputAccessoryView nativeID="bioDoneBar">
+          <View style={styles.keyboardBar}>
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity style={styles.keyboardDoneBtn} onPress={() => Keyboard.dismiss()}>
+              <Text style={styles.keyboardDoneText}>✓</Text>
+            </TouchableOpacity>
+          </View>
+        </InputAccessoryView>
+      )}
+
     </View>
   );
 };
