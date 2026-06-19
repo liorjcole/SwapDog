@@ -18,7 +18,6 @@ import { spacing, borderRadius, typography } from '../../config/theme';
 import Chip from '../../components/common/Chip';
 import DogAddedTransition from '../../components/onboarding/DogAddedTransition';
 import { useOnboarding } from '../../contexts/OnboardingContext';
-import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 
 const MAX_DOGS = 10;
 
@@ -47,7 +46,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const { createDog, deleteDog } = useDogs();
 
   const { dogForm: form, setDogForm: setForm, updateDogForm: set, savedDogs, savedCount, addSavedDog, removeSavedDog, popLastSavedDog, resetDogForm } = useOnboarding();
-  const { scrollRef, onScroll, refFor, scrollToInput } = useKeyboardScroll();
+  const scrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -121,7 +120,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   }, [navigation, savedCount, handleBack]);
 
   /** Track y-offsets of inputs so we can scroll to them on focus */
-  // Input scroll handled by useKeyboardScroll hook
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
   const [transitionMode, setTransitionMode] = useState<'addAnother' | 'continue'>('addAnother');
@@ -429,7 +427,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         )}
       </View>
 
-      <View ref={refFor('dogName')}>
+      <View>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="Dog's name"
@@ -440,10 +438,9 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           returnKeyType="done"
           blurOnSubmit={true}
           autoCapitalize="words"
-          onFocus={() => scrollToInput('dogName')}
         />
       </View>
-      <View ref={refFor('breed')}>
+      <View>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="Breed"
@@ -455,7 +452,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           autoCapitalize="words"
           accessibilityLabel="Dog's breed"
           returnKeyType="done"
-          onFocus={() => scrollToInput('breed')}
         />
       </View>
 
@@ -510,7 +506,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={[styles.ageHint, { color: colors.textSecondary }]}>Months required for puppies under 1 year</Text>
       )}
 
-      <View ref={refFor('weight')}>
+      <View>
         <Text style={[styles.label, { color: colors.text }]}>Weight (lbs)</Text>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
@@ -524,7 +520,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           keyboardType="number-pad"
           returnKeyType="done"
           accessibilityLabel="Dog weight in pounds"
-          onFocus={() => scrollToInput('weight')}
         />
       </View>
       <TouchableOpacity
@@ -584,7 +579,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       <SwitchRow label="Vaccinated" value={form.vaccinated} onChange={(v) => set('vaccinated', v)} />
 
       {/* Dog bio / about field */}
-      <View ref={refFor('dogBio')}>
+      <View>
         <Text style={[styles.label, { color: colors.text, marginTop: spacing.md }]}>
           About {form.name.trim() || 'Your Dog'}
         </Text>
@@ -602,7 +597,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           autoCorrect={true}
           spellCheck={true}
           autoCapitalize="sentences"
-          onFocus={() => scrollToInput('dogBio')}
         />
         <Text style={[styles.fieldHint, { color: form.dogBio.trim().length >= 20 ? colors.success : colors.textSecondary }]}>
           {form.dogBio.trim().length < 20
