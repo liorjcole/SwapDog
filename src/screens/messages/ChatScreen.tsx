@@ -267,32 +267,19 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
         <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
           {otherUserName}
         </Text>
-        {/* Favorite star button */}
-        {!isSystem ? (
-          <TouchableOpacity
-            onPress={handleFavoriteToggle}
-            style={styles.headerSpacer}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel={starred ? 'Remove from favorites' : 'Add to favorites'}
-            accessibilityRole="button"
-          >
-            <Text style={{ fontSize: 22 }}>{starred ? '⭐' : '☆'}</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.headerSpacer} />
-        )}
+        <View style={styles.headerSpacer} />
       </View>
 
-      {/* Favorite banner */}
-      {!isSystem && !starred && otherUserId !== '' && (
+      {/* Favorite banner — toggles between unfavorited/favorited state */}
+      {!isSystem && otherUserId !== '' && (
         <TouchableOpacity
-          style={[styles.favBanner, { backgroundColor: colors.primary + '12' }]}
+          style={[styles.favBanner, { backgroundColor: starred ? '#FFF8E1' : colors.primary + '12' }]}
           onPress={handleFavoriteToggle}
-          accessibilityLabel="Favorite this dog parent"
+          accessibilityLabel={starred ? 'Favorited dog parent' : 'Favorite this dog parent'}
           accessibilityRole="button"
         >
-          <Text style={[styles.favBannerText, { color: colors.primary }]}>
-            ⭐ Favorite this dog parent?
+          <Text style={[styles.favBannerText, { color: starred ? '#E6A800' : colors.primary }]}>
+            {starred ? '★ Favorited!' : '☆ Favorite this dog parent?'}
           </Text>
         </TouchableOpacity>
       )}
