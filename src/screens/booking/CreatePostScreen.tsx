@@ -1642,7 +1642,7 @@ const MAX_PLAY_SESSIONS = 5;
 
                       {recommendedPoints.numDogs > 1 && (
                         <Text style={[styles.guideNote, { color: colors.textSecondary }]}>
-                          Rates increase 10% for each additional dog that needs care.
+                          We increase our suggested rate 10% for each additional pup!
                         </Text>
                       )}
                     </View>
