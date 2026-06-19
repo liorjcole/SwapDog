@@ -28,6 +28,7 @@ import { useSwaps } from '../../hooks/useSwaps';
 import { Dog, CompensationType, CareType } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import ConfettiCelebration, { CelebrationItem } from '../../components/common/ConfettiCelebration';
 import Chip from '../../components/common/Chip';
 import { formatDogAge } from '../../utils/formatDogAge';
 
@@ -61,6 +62,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [selectedDogIds, setSelectedDogIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [celebrationQueue, setCelebrationQueue] = useState<CelebrationItem[]>([]);
 
   // Care type
   const [primaryCareType, setPrimaryCareType] = useState<'overnight' | 'daySitting' | null>(null);
@@ -666,10 +668,11 @@ const MAX_PLAY_SESSIONS = 5;
 
       await createPost(cleanData as unknown as Parameters<typeof createPost>[0]);
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Posted! 🐾', 'Your request is now visible to people in your area.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      setCelebrationQueue([{
+        title: 'Successfully posted!',
+        subtitle: 'Your request is now visible to people in your area.',
+        emoji: '🐾',
+      }]);
     } catch (error: unknown) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Failed to post request');
     } finally {
@@ -1808,6 +1811,13 @@ const MAX_PLAY_SESSIONS = 5;
           </View>
         </InputAccessoryView>
       )}
+      <ConfettiCelebration
+        queue={celebrationQueue}
+        onDismissAll={() => {
+          setCelebrationQueue([]);
+          navigation.goBack();
+        }}
+      />
     </View>
   );
 };
