@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch,
   Image, Platform, ActivityIndicator, Linking, Animated as RNAnimated, LayoutAnimation,
-  Dimensions, Keyboard, Modal, InputAccessoryView } from 'react-native';
+  Dimensions, Keyboard, InputAccessoryView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -123,7 +123,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
   /** Track y-offsets of inputs so we can scroll to them on focus */
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [transitionMode, setTransitionMode] = useState<'addAnother' | 'continue'>('addAnother');
   const [transitionDogName, setTransitionDogName] = useState('');
 
@@ -174,12 +173,10 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const removePhoto = (index: number) => {
-    setPreviewIndex(null);
     set('photoURLs', form.photoURLs.filter((_, i) => i !== index));
   };
 
   const cropPhoto = async (index: number) => {
-    setPreviewIndex(null); // close preview before opening picker
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -396,9 +393,9 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           <TouchableOpacity
             key={uri + index}
             style={styles.photoThumb}
-            onPress={() => setPreviewIndex(index)}
+            onPress={() => cropPhoto(index)}
             activeOpacity={0.8}
-            accessibilityLabel={index === 0 ? 'Primary photo — tap to view full screen' : `Photo ${index + 1} — tap to view full screen`}
+            accessibilityLabel={index === 0 ? 'Primary photo — tap to crop' : `Photo ${index + 1} — tap to crop`}
             accessibilityRole="button"
           >
             <Image
@@ -435,54 +432,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       </View>
 
 
-      {/* Full-screen photo preview modal */}
-      <Modal
-        visible={previewIndex !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPreviewIndex(null)}
-      >
-        <View style={styles.previewOverlay}>
-          {/* Close button */}
-          <TouchableOpacity
-            style={styles.previewCloseBtn}
-            onPress={() => setPreviewIndex(null)}
-            accessibilityLabel="Close preview"
-            accessibilityRole="button"
-          >
-            <Text style={styles.previewCloseBtnText}>✕</Text>
-          </TouchableOpacity>
 
-          {/* Photo */}
-          {previewIndex !== null && form.photoURLs[previewIndex] && (
-            <Image
-              source={{ uri: form.photoURLs[previewIndex] }}
-              style={styles.previewImage}
-              resizeMode="contain"
-            />
-          )}
-
-          {/* Action buttons */}
-          <View style={styles.previewActions}>
-            <TouchableOpacity
-              style={[styles.previewBtn, styles.previewRemoveBtn]}
-              onPress={() => previewIndex !== null && removePhoto(previewIndex)}
-              accessibilityLabel="Remove photo"
-              accessibilityRole="button"
-            >
-              <Text style={styles.previewRemoveBtnText}>Remove</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.previewBtn, styles.previewReplaceBtn]}
-              onPress={() => previewIndex !== null && cropPhoto(previewIndex)}
-              accessibilityLabel="Replace photo"
-              accessibilityRole="button"
-            >
-              <Text style={styles.previewReplaceBtnText}>Replace</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
       <View>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
@@ -840,62 +790,27 @@ const styles = StyleSheet.create({
   savedDogName: { fontSize: 15, fontWeight: '500' },
   savedDogDelete: { marginLeft: 'auto', padding: 6 },
   savedDogDeleteText: { fontSize: 16, color: '#FF3B30', fontWeight: '700' },
-  savedDogsHint: { fontSize: 13, marginTop: 6, fontStyle: 'italic' },
-  // Photo preview modal
-  previewOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.92)',
-    justifyContent: 'center',
+  kbToolbar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
     alignItems: 'center',
+    backgroundColor: '#2C2C2E',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: 0.5,
+    borderTopColor: '#3A3A3C',
   },
-  previewCloseBtn: {
-    position: 'absolute',
-    top: 60,
-    right: 20,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
+  kbDoneBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  previewCloseBtnText: {
-    color: '#fff',
-    fontSize: 18,
+  kbDoneText: {
+    color: '#007AFF',
+    fontSize: 17,
     fontWeight: '600',
   },
-  previewImage: {
-    width: SCREEN_W * 0.85,
-    height: SCREEN_W * 0.85,
-    borderRadius: 12,
-  },
-  previewActions: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 32,
-  },
-  previewBtn: {
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  previewRemoveBtn: {
-    backgroundColor: '#FF3B30',
-  },
-  previewRemoveBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  previewReplaceBtn: {
-    backgroundColor: '#fff',
-  },
-  previewReplaceBtnText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  savedDogsHint: { fontSize: 13, marginTop: 6, fontStyle: 'italic' },
+  // Photo preview modal
 });
 
 
