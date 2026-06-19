@@ -94,8 +94,11 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     }
   }, [savedCount, doGoBack, navigation]);
 
+  const [showTransition, setShowTransition] = useState(false);
+
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerShown: !showTransition,
       headerLeft: savedCount > 0 ? () => (
         <TouchableOpacity
           onPress={handleBack}
@@ -106,7 +109,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       ) : undefined,
     });
-  }, [navigation, savedCount, handleBack, colors.primary]);
+  }, [navigation, savedCount, handleBack, colors.primary, showTransition]);
 
   // Intercept swipe-back gesture too
   useEffect(() => {
@@ -121,7 +124,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   /** Track y-offsets of inputs so we can scroll to them on focus */
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  const [showTransition, setShowTransition] = useState(false);
   const [transitionMode, setTransitionMode] = useState<'addAnother' | 'continue'>('addAnother');
   const [transitionDogName, setTransitionDogName] = useState('');
 
