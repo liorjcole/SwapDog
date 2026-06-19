@@ -22,6 +22,7 @@ const parseMessage = (id: string, data: Record<string, unknown>): Message => ({
   createdAt: toDate(data.createdAt as Parameters<typeof toDate>[0]),
   read: (data.read as boolean) ?? false,
   type: (data.type as Message['type']) ?? 'text',
+  imageURL: data.imageURL as string | undefined,
   metadata: data.metadata as Message['metadata'],
 });
 

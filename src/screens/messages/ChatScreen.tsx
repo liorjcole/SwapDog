@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../config/firebase';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Platform, KeyboardAvoidingView, Alert, ActionSheetIOS, Image, ActivityIndicator } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Platform, KeyboardAvoidingView, Alert, Modal, Image, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -42,6 +43,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendingPhoto, setSendingPhoto] = useState(false);
+  const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const [otherUserName, setOtherUserName] = useState('Chat');
 
   // Resolve other user's display name for header
@@ -85,28 +87,10 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   // ── Photo sending ──
-  const handlePhotoPress = () => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Take Photo', 'Choose from Library'],
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) takePhoto();
-          else if (buttonIndex === 2) pickPhoto();
-        }
-      );
-    } else {
-      Alert.alert('Send Photo', '', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Take Photo', onPress: takePhoto },
-        { text: 'Choose from Library', onPress: pickPhoto },
-      ]);
-    }
-  };
+  const handlePhotoPress = () => setShowPhotoPicker(true);
 
   const pickPhoto = async () => {
+    setShowPhotoPicker(false);
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.7,
@@ -117,6 +101,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const takePhoto = async () => {
+    setShowPhotoPicker(false);
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Camera Access', 'Please allow camera access in Settings to take photos.');
@@ -400,6 +385,39 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           onRespond={handleRescheduleRespond}
         />
       )}
+      {/* Photo picker modal with blur */}
+      <Modal
+        visible={showPhotoPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPhotoPicker(false)}
+      >
+        <TouchableOpacity
+          style={styles.pickerOverlay}
+          activeOpacity={1}
+          onPress={() => setShowPhotoPicker(false)}
+        >
+          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.pickerCard}>
+            <TouchableOpacity style={styles.pickerOption} onPress={takePhoto} activeOpacity={0.7}>
+              <Text style={styles.pickerOptionText}>📸  Take Photo</Text>
+            </TouchableOpacity>
+            <View style={styles.pickerDivider} />
+            <TouchableOpacity style={styles.pickerOption} onPress={pickPhoto} activeOpacity={0.7}>
+              <Text style={styles.pickerOptionText}>🖼️  Choose from Library</Text>
+            </TouchableOpacity>
+            <View style={{ height: 10 }} />
+            <TouchableOpacity
+              style={[styles.pickerOption, styles.pickerCancel]}
+              onPress={() => setShowPhotoPicker(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.pickerOptionText, { color: '#FF3B30' }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <View style={[styles.inputRow, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
         <TouchableOpacity
           style={styles.photoBtn}
@@ -497,6 +515,35 @@ const styles = StyleSheet.create({
   },
   photoBtnText: {
     fontSize: 22,
+  },
+  pickerOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerCard: {
+    width: 280,
+    borderRadius: 16,
+    backgroundColor: 'rgba(44, 44, 46, 0.92)',
+    overflow: 'hidden',
+  },
+  pickerOption: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  pickerOptionText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '500',
+  },
+  pickerDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    marginHorizontal: 16,
+  },
+  pickerCancel: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255, 255, 255, 0.15)',
   },
   favBanner: {
     paddingVertical: 10,
