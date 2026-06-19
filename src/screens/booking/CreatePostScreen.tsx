@@ -719,7 +719,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                 {careType !== 'overnight' && (
                   <>
                     <TouchableOpacity
-                      style={[styles.dateButton, { borderColor: '#FFFFFF' }]}
+                      style={[styles.dateButton, { borderColor: showStart ? colors.primary : colors.border }]}
                       onPress={() => setShowStart((prev) => !prev)}
                       accessibilityLabel={`Date: ${formatDate(startDate)}`}
                       accessibilityRole="button"
@@ -748,7 +748,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                 {careType === 'overnight' && (
                   <>
                     <TouchableOpacity
-                      style={[styles.dateButton, { borderColor: '#FFFFFF' }]}
+                      style={[styles.dateButton, { borderColor: showRangeCalendar ? colors.primary : colors.border }]}
                       onPress={() => setShowRangeCalendar((prev) => !prev)}
                       accessibilityLabel={`Dates: ${formatDate(startDate)} to ${formatDate(endDate)}`}
                       accessibilityRole="button"
