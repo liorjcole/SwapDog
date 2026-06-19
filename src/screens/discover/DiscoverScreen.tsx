@@ -188,9 +188,6 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
       accessibilityRole="button"
       accessibilityLabel={`Post for ${post.dogName}`}
     >
-      {/* Red left accent */}
-      <View style={styles.postCardAccent} />
-
       <View style={styles.postCardInner}>
         {/* Dog photo + name row */}
         <View style={styles.cardHeader}>
@@ -943,7 +940,6 @@ const styles = StyleSheet.create({
 
   // Post card — red left accent border
   postCard: { flexDirection: 'row', borderRadius: borderRadius.lg, marginBottom: spacing.sm, overflow: 'hidden' },
-  postCardAccent: { width: 4, backgroundColor: RED, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg },
   postCardInner: { flex: 1, padding: spacing.md },
 
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
