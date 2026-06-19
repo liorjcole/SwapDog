@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, Linking, InputAccessoryView, Keyboard } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -100,7 +100,6 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
           returnKeyType="done"
           blurOnSubmit={true}
           onFocus={() => scrollToInput('bio')}
-          inputAccessoryViewID="bioDoneBar"
         />
       </View>
       <View ref={refFor('ig')}>
@@ -129,22 +128,7 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
       </TouchableOpacity>
     </ScrollView>
 
-      {/* Blue checkmark Done bar above keyboard for bio field */}
-      {Platform.OS === 'ios' && (
-        <InputAccessoryView nativeID="bioDoneBar">
-          <View style={styles.keyboardBar}>
-            <View style={{ flex: 1 }} />
-            <TouchableOpacity
-              onPress={() => Keyboard.dismiss()}
-              style={styles.keyboardDoneBtn}
-              accessibilityLabel="Done editing"
-              accessibilityRole="button"
-            >
-              <Text style={styles.keyboardDoneText}>✓</Text>
-            </TouchableOpacity>
-          </View>
-        </InputAccessoryView>
-      )}
+
     </View>
   );
 };

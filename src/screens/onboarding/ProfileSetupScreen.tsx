@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, InputAccessoryView, Keyboard } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -185,7 +185,6 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
           textContentType="none"
           accessibilityLabel="Bio, optional"
           onFocus={() => scrollToInput('bio')}
-          inputAccessoryViewID="bioDoneBar"
         />
       </View>
       <View ref={refFor('ig')}>
@@ -243,16 +242,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
       </TouchableOpacity>
     </ScrollView>
 
-      {Platform.OS === 'ios' && (
-        <InputAccessoryView nativeID="bioDoneBar">
-          <View style={styles.keyboardBar}>
-            <View style={{ flex: 1 }} />
-            <TouchableOpacity style={styles.keyboardDoneBtn} onPress={() => Keyboard.dismiss()}>
-              <Text style={styles.keyboardDoneText}>✓</Text>
-            </TouchableOpacity>
-          </View>
-        </InputAccessoryView>
-      )}
+
 
     </View>
   );
