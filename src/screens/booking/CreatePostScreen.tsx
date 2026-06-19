@@ -87,7 +87,24 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     dogIds: [],
   });
   const [playSessions, setPlaySessions] = useState<PlaySession[]>([makeDefaultPlaySession()]);
-  const MAX_PLAY_SESSIONS = 5;
+  interface WalkSession {
+  startDate: Date;
+  endDate: Date;
+  showStart: boolean;
+  showEnd: boolean;
+  dogIds: string[];
+}
+
+const makeDefaultWalkSession = (): WalkSession => ({
+  startDate: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(),
+  endDate: (() => { const d = new Date(); d.setHours(9, 0, 0, 0); return d; })(),
+  showStart: false,
+  showEnd: false,
+  dogIds: [],
+});
+
+const MAX_WALK_SESSIONS = 5;
+const MAX_PLAY_SESSIONS = 5;
   const addPlaySession = () => {
     if (playSessions.length >= MAX_PLAY_SESSIONS) return;
     setPlaySessions(prev => [...prev, makeDefaultPlaySession()]);
@@ -162,16 +179,18 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  // Walk time range — Date objects for native spinner
-  const [walkStartDate, setWalkStartDate] = useState(() => {
-    const d = new Date(); d.setHours(9, 0, 0, 0); return d;
-  });
-  const [walkEndDate, setWalkEndDate] = useState(() => {
-    const d = new Date(); d.setHours(10, 0, 0, 0); return d;
-  });
-  const [showWalkStart, setShowWalkStart] = useState(false);
-  const [showWalkEnd, setShowWalkEnd] = useState(false);
-  const [walkDogIds, setWalkDogIds] = useState<string[]>([]);
+  // Walk sessions array (multi-walk support)
+  const [walkSessions, setWalkSessions] = useState<WalkSession[]>([makeDefaultWalkSession()]);
+  const addWalkSession = () => {
+    if (walkSessions.length >= MAX_WALK_SESSIONS) return;
+    setWalkSessions(prev => [...prev, makeDefaultWalkSession()]);
+  };
+  const removeWalkSession = (idx: number) => {
+    setWalkSessions(prev => prev.filter((_: WalkSession, i: number) => i !== idx));
+  };
+  const updateWalkSession = (idx: number, updates: Partial<WalkSession>) => {
+    setWalkSessions(prev => prev.map((s: WalkSession, i: number) => i === idx ? { ...s, ...updates } : s));
+  };
 
   // Care details
   const [careDetails, setCareDetails] = useState('');
@@ -187,20 +206,13 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   // Derived formatted times
   const startTime = formatTime12(startTimeDate);
   const endTime = formatTime12(endTimeDate);
-  const walkStartTime = formatTime12(walkStartDate);
-  const walkEndTime = formatTime12(walkEndDate);
   // Play time formatting is now per-session (computed inline)
-
-  // Walk duration
-  const walkDurationMins = (() => {
-    let startMins = walkStartDate.getHours() * 60 + walkStartDate.getMinutes();
-    let endMins = walkEndDate.getHours() * 60 + walkEndDate.getMinutes();
-    if (endMins <= startMins) endMins += 1440;
-    return endMins - startMins;
-  })();
-  const walkDurationText = walkDurationMins >= 60
-    ? `${Math.floor(walkDurationMins / 60)}h ${walkDurationMins % 60 > 0 ? `${walkDurationMins % 60}m` : ''} walk`.trim()
-    : `${walkDurationMins}m walk`;
+  // Total walk duration across all sessions
+  const walkDurationMins = walkSessions.reduce((total: number, ws: WalkSession) => {
+    let startMins = ws.startDate.getHours() * 60 + ws.startDate.getMinutes();
+    let endMins = ws.endDate.getHours() * 60 + ws.endDate.getMinutes();
+    return total + (endMins > startMins ? endMins - startMins : 0);
+  }, 0);
 
   // Play duration helper — computed per session
   const getPlayDurationMins = (session: PlaySession) => {
@@ -243,8 +255,11 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   // ── Sync per-section dogIds when top-level dog selection changes ──
   useEffect(() => {
     const ids = Array.from(selectedDogIds);
-    // Walk
-    setWalkDogIds(prev => prev.length === 0 ? ids : prev.filter(id => selectedDogIds.has(id)));
+    // Walk sessions
+    setWalkSessions((prev: WalkSession[]) => prev.map((s: WalkSession) => ({
+      ...s,
+      dogIds: s.dogIds.length === 0 ? ids : s.dogIds.filter((id: string) => selectedDogIds.has(id))
+    })));
     // Feeding slots — reset empty slots to all selected
     setFeedingSlots(prev => prev.map(s =>
       s.dogIds.length === 0 ? { ...s, dogIds: ids } : { ...s, dogIds: s.dogIds.filter(id => selectedDogIds.has(id)) }
@@ -563,10 +578,17 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         careTypeFields.pointsOffered = parseInt(pointsOffered, 10);
       }
       if (addOnCareTypes.has('dogWalking')) {
-        careTypeFields.walkStartTime = walkStartTime;
-        careTypeFields.walkEndTime = walkEndTime;
+        careTypeFields.walkSessions = walkSessions.map(ws => ({
+          startTime: formatTime12(ws.startDate),
+          endTime: formatTime12(ws.endDate),
+          durationMins: (() => {
+            let s = ws.startDate.getHours() * 60 + ws.startDate.getMinutes();
+            let e = ws.endDate.getHours() * 60 + ws.endDate.getMinutes();
+            return e > s ? e - s : 0;
+          })(),
+          dogIds: ws.dogIds,
+        }));
         careTypeFields.walkDurationMins = walkDurationMins;
-        careTypeFields.walkDogIds = walkDogIds;
       }
       if (addOnCareTypes.has('feeding')) {
         careTypeFields.feedingSlots = feedingSlots.map(s => ({
@@ -1107,70 +1129,106 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
               </View>
             )}
 
-        {/* ── Walk Time (add-on) ── */}
+        {/* ── Walk Time (add-on) — multi-session ── */}
             {addOnCareTypes.has('dogWalking') && (
-              <View style={[styles.section, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>🐕 Walk Time</Text>
-                <DogAssignRow
-                  activeDogIds={walkDogIds}
-                  onToggle={(dogId: string) => {
-                    setWalkDogIds(prev =>
-                      prev.includes(dogId) ? prev.filter(id => id !== dogId) : [...prev, dogId]
-                    );
-                  }}
-                />
+              <>
+                {walkSessions.map((ws, wIdx) => {
+                  const wsStartTime = formatTime12(ws.startDate);
+                  const wsEndTime = formatTime12(ws.endDate);
+                  const wsStartMins = ws.startDate.getHours() * 60 + ws.startDate.getMinutes();
+                  const wsEndMins = ws.endDate.getHours() * 60 + ws.endDate.getMinutes();
+                  const wsDurMins = wsEndMins > wsStartMins ? wsEndMins - wsStartMins : 0;
+                  const wsDurText = wsDurMins >= 60
+                    ? `${Math.floor(wsDurMins / 60)}h ${wsDurMins % 60 > 0 ? `${wsDurMins % 60}m` : ''} walk`.trim()
+                    : `${wsDurMins}m walk`;
+                  return (
+                  <View key={wIdx} style={[styles.section, { backgroundColor: colors.surface }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
+                        🐕 Walk #{wIdx + 1}
+                      </Text>
+                      {walkSessions.length > 1 && (
+                        <TouchableOpacity onPress={() => removeWalkSession(wIdx)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                          <Text style={{ color: '#FF3B30', fontSize: 14, fontWeight: '600' }}>Remove</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <DogAssignRow
+                      activeDogIds={ws.dogIds}
+                      onToggle={(dogId: string) => {
+                        updateWalkSession(wIdx, {
+                          dogIds: ws.dogIds.includes(dogId)
+                            ? ws.dogIds.filter(id => id !== dogId)
+                            : [...ws.dogIds, dogId],
+                        });
+                      }}
+                    />
 
-                <View style={styles.timeRow}>
+                    <View style={styles.timeRow}>
+                      <TouchableOpacity
+                        style={[styles.timePickerButton, { borderColor: ws.showStart ? colors.primary : colors.border }]}
+                        onPress={() => updateWalkSession(wIdx, { showStart: !ws.showStart, showEnd: false })}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
+                        <Text style={[styles.timePickerValue, { color: colors.text }]}>{wsStartTime}</Text>
+                      </TouchableOpacity>
+                      <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
+                      <TouchableOpacity
+                        style={[styles.timePickerButton, { borderColor: ws.showEnd ? colors.primary : colors.border }]}
+                        onPress={() => updateWalkSession(wIdx, { showEnd: !ws.showEnd, showStart: false })}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>End Time</Text>
+                        <Text style={[styles.timePickerValue, { color: colors.text }]}>{wsEndTime}</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {ws.showStart && (
+                      <DateTimePicker
+                        value={ws.startDate}
+                        mode="time"
+                        display="spinner"
+                        themeVariant="dark"
+                        accentColor="#FF2D55"
+                        onChange={(_: DateTimePickerEvent, d?: Date) => {
+                          if (d) updateWalkSession(wIdx, { startDate: d });
+                        }}
+                        style={{ height: 150 }}
+                      />
+                    )}
+                    {ws.showEnd && (
+                      <DateTimePicker
+                        value={ws.endDate}
+                        mode="time"
+                        display="spinner"
+                        themeVariant="dark"
+                        accentColor="#FF2D55"
+                        onChange={(_: DateTimePickerEvent, d?: Date) => {
+                          if (d) updateWalkSession(wIdx, { endDate: d });
+                        }}
+                        style={{ height: 150 }}
+                      />
+                    )}
+
+                    <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
+                      {wsStartTime} → {wsEndTime}  •  {wsDurText}
+                    </Text>
+                  </View>
+                  );
+                })}
+
+                {walkSessions.length < MAX_WALK_SESSIONS && (
                   <TouchableOpacity
-                    style={[styles.timePickerButton, { borderColor: showWalkStart ? colors.primary : colors.border }]}
-                    onPress={() => { setShowWalkStart(prev => !prev); setShowWalkEnd(false); }}
+                    style={[styles.addSessionBtn, { borderColor: colors.primary }]}
+                    onPress={addWalkSession}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
-                    <Text style={[styles.timePickerValue, { color: colors.text }]}>{walkStartTime}</Text>
+                    <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
+                      ➕ Add Walk #{walkSessions.length + 1}
+                    </Text>
                   </TouchableOpacity>
-                  <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
-                  <TouchableOpacity
-                    style={[styles.timePickerButton, { borderColor: showWalkEnd ? colors.primary : colors.border }]}
-                    onPress={() => { setShowWalkEnd(prev => !prev); setShowWalkStart(false); }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>End Time</Text>
-                    <Text style={[styles.timePickerValue, { color: colors.text }]}>{walkEndTime}</Text>
-                  </TouchableOpacity>
-                </View>
-                {showWalkStart && (
-                  <DateTimePicker
-                    value={walkStartDate}
-                    mode="time"
-                    display="spinner"
-                    themeVariant="dark"
-                        accentColor="#FF2D55"
-                    onChange={(_: DateTimePickerEvent, d?: Date) => {
-                      if (d) setWalkStartDate(d);
-                    }}
-                    style={{ height: 150 }}
-                  />
                 )}
-                {showWalkEnd && (
-                  <DateTimePicker
-                    value={walkEndDate}
-                    mode="time"
-                    display="spinner"
-                    themeVariant="dark"
-                        accentColor="#FF2D55"
-                    onChange={(_: DateTimePickerEvent, d?: Date) => {
-                      if (d) setWalkEndDate(d);
-                    }}
-                    style={{ height: 150 }}
-                  />
-                )}
-
-                {/* Dynamic duration display */}
-                <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
-                  {walkStartTime} → {walkEndTime}  •  {walkDurationText}
-                </Text>
-              </View>
+              </>
             )}
 
         {/* ── Playtime (add-on) — multi-session ── */}
