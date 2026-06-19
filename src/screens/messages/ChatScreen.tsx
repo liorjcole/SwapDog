@@ -425,11 +425,11 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)' }]} />
           <View style={styles.pickerCard}>
             <TouchableOpacity style={styles.pickerOption} onPress={takePhoto} activeOpacity={0.7}>
-              <Text style={styles.pickerOptionText}>📸  Take Photo</Text>
+              <Text style={styles.pickerOptionText}>📸  Send Photo</Text>
             </TouchableOpacity>
             <View style={styles.pickerDivider} />
             <TouchableOpacity style={styles.pickerOption} onPress={pickPhoto} activeOpacity={0.7}>
-              <Text style={styles.pickerOptionText}>🖼️  Choose from Library</Text>
+              <Text style={styles.pickerOptionText}>🖼️  Send from Library</Text>
             </TouchableOpacity>
             <View style={{ height: 10 }} />
             <TouchableOpacity
