@@ -734,6 +734,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         display={Platform.OS === 'ios' ? 'inline' : 'default'}
                         minimumDate={new Date()}
                         themeVariant="dark"
+                        accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           setShowStart(Platform.OS === 'ios');
                           if (d) setStartDate(d);
@@ -844,6 +845,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         mode="time"
                         display="spinner"
                         themeVariant="dark"
+                        accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) setStartTimeDate(d);
                         }}
@@ -856,6 +858,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         mode="time"
                         display="spinner"
                         themeVariant="dark"
+                        accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) setEndTimeDate(d);
                         }}
@@ -924,6 +927,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         mode="time"
                         display="spinner"
                         themeVariant="dark"
+                        accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) updateFeedingSlot(idx, 'time', d);
                         }}
@@ -996,6 +1000,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                     mode="time"
                     display="spinner"
                     themeVariant="dark"
+                        accentColor="#FF2D55"
                     onChange={(_: DateTimePickerEvent, d?: Date) => {
                       if (d) setWalkStartDate(d);
                     }}
@@ -1008,6 +1013,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                     mode="time"
                     display="spinner"
                     themeVariant="dark"
+                        accentColor="#FF2D55"
                     onChange={(_: DateTimePickerEvent, d?: Date) => {
                       if (d) setWalkEndDate(d);
                     }}
@@ -1075,6 +1081,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         mode="time"
                         display="spinner"
                         themeVariant="dark"
+                        accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) setPlayStartDate(d);
                         }}
@@ -1087,6 +1094,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         mode="time"
                         display="spinner"
                         themeVariant="dark"
+                        accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) setPlayEndDate(d);
                         }}
