@@ -75,6 +75,17 @@ const getCareTypeLabel = (t: string): string => {
   }
 };
 
+
+
+/** Map dogIds to display names using post.dogIds/dogNames arrays */
+function resolveDogNames(dogIds: string[], post: SwapPost): string {
+  if (!dogIds.length || !post.dogIds || !post.dogNames) return '';
+  const names = dogIds.map(id => {
+    const idx = post.dogIds!.indexOf(id);
+    return idx >= 0 ? post.dogNames![idx] : '';
+  }).filter(Boolean);
+  return names.join(', ');
+}
 type Props = {
   navigation: NativeStackNavigationProp<DiscoverStackParamList, 'Discover'>;
 };
@@ -228,10 +239,100 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
           </View>
         </View>
 
-        {/* Care type */}
-        <Text style={[styles.carePreview, { color: colors.textSecondary }]}>
-          {careLabel}
-        </Text>
+        {/* ── Full Care Details ── */}
+        <View style={{ marginTop: 8, borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 8 }}>
+          {/* Primary care type */}
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
+            {careLabel}
+          </Text>
+
+          {/* Day sitting / overnight times */}
+          {(post.careType === 'daySitting' || post.careType === 'overnight') && post.startTime && post.endTime && (
+            <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 2 }}>
+              🕐  {post.startTime} – {post.endTime}
+            </Text>
+          )}
+
+          {/* Feeding slots */}
+          {post.feedingSlots && post.feedingSlots.length > 0 && (
+            <View style={{ marginTop: 6 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>🍽️ Feeding</Text>
+              {post.feedingSlots.map((slot, i) => (
+                <Text key={i} style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
+                  {slot.time}{slot.daily ? '  ✅ daily' : ''}
+                  {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
+                    ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
+                    : ''}
+                </Text>
+              ))}
+            </View>
+          )}
+
+          {/* Walk sessions */}
+          {post.walkSessions && post.walkSessions.length > 0 && (
+            <View style={{ marginTop: 6 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>🐕 Walks</Text>
+              {post.walkSessions.map((ws, i) => {
+                const durLabel = ws.durationMins >= 60
+                  ? `${Math.floor(ws.durationMins / 60)}h${ws.durationMins % 60 > 0 ? ` ${ws.durationMins % 60}m` : ''}`
+                  : `${ws.durationMins}m`;
+                return (
+                  <Text key={i} style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
+                    {ws.startTime} – {ws.endTime}  ({durLabel}){ws.repeatDaily ? '  ✅ daily' : ''}
+                    {ws.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
+                      ? `  ·  ${resolveDogNames(ws.dogIds, post)}`
+                      : ''}
+                  </Text>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Play sessions */}
+          {post.playSessions && post.playSessions.length > 0 && (
+            <View style={{ marginTop: 6 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>🎾 Playtime</Text>
+              {post.playSessions.map((ps, i) => {
+                const durLabel = ps.durationMins >= 60
+                  ? `${Math.floor(ps.durationMins / 60)}h${ps.durationMins % 60 > 0 ? ` ${ps.durationMins % 60}m` : ''}`
+                  : `${ps.durationMins}m`;
+                return (
+                  <Text key={i} style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
+                    {ps.flexible
+                      ? `Flexible · ${durLabel}`
+                      : `${ps.startTime} – ${ps.endTime}  (${durLabel})`}
+                    {ps.repeatDaily ? '  ✅ daily' : ''}
+                    {ps.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
+                      ? `  ·  ${resolveDogNames(ps.dogIds, post)}`
+                      : ''}
+                  </Text>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Free-text care details */}
+          {post.careDetails ? (
+            <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 6, fontStyle: 'italic' }} numberOfLines={3}>
+              "{post.careDetails}"
+            </Text>
+          ) : null}
+
+          {/* Compensation summary */}
+          {post.compensationType && (
+            <View style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text }}>
+                💰  {post.compensationType === 'points'
+                  ? `${post.pointsOffered ?? post.pointsCost ?? 0} points`
+                  : post.compensationType === 'payment'
+                    ? `$${post.paymentAmount ?? 0}${post.paymentRate === 'per_hour' ? '/hr' : '/day'}`
+                    : post.compensationType === 'either'
+                      ? `${post.pointsOffered ?? post.pointsCost ?? 0} pts or $${post.paymentAmount ?? 0}${post.paymentRate === 'per_hour' ? '/hr' : '/day'}`
+                      : 'TBD'}
+              </Text>
+            </View>
+          )}
+        </View>
 
         {post.status !== 'open' && (
           <View style={styles.takenBadge}>
