@@ -33,8 +33,6 @@ import { formatDogAge } from '../../utils/formatDogAge';
 const MIN_CARE_DETAILS = 50;
 const RED = '#FF2D55';
 
-// Walk duration options: 15-min increments up to 3 hours
-const WALK_MINUTES = Array.from({ length: 60 }, (_, i) => i + 1);
 
 const PRIMARY_CARE_OPTIONS: { type: 'overnight' | 'daySitting'; icon: string; label: string }[] = [
   { type: 'overnight', icon: '🏠', label: 'Overnight sitting' },
@@ -102,8 +100,24 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [feedingPeriod, setFeedingPeriod] = useState<'AM' | 'PM'>('AM');
   const feedingTime = `${feedingHour}:${feedingMinute.toString().padStart(2, '0')} ${feedingPeriod}`;
 
-  // Walk duration
-  const [walks, setWalks] = useState<number[]>([30]); // array of durations in minutes
+  // Walk time range
+  const [walkStartHour, setWalkStartHour] = useState(9);
+  const [walkStartMinute, setWalkStartMinute] = useState(0);
+  const [walkStartPeriod, setWalkStartPeriod] = useState<'AM' | 'PM'>('AM');
+  const [walkEndHour, setWalkEndHour] = useState(10);
+  const [walkEndMinute, setWalkEndMinute] = useState(0);
+  const [walkEndPeriod, setWalkEndPeriod] = useState<'AM' | 'PM'>('AM');
+  const walkStartTime = `${walkStartHour}:${walkStartMinute.toString().padStart(2, '0')} ${walkStartPeriod}`;
+  const walkEndTime = `${walkEndHour}:${walkEndMinute.toString().padStart(2, '0')} ${walkEndPeriod}`;
+  const walkDurationMins = (() => {
+    let startMins = (walkStartHour % 12) * 60 + walkStartMinute + (walkStartPeriod === 'PM' ? 720 : 0);
+    let endMins = (walkEndHour % 12) * 60 + walkEndMinute + (walkEndPeriod === 'PM' ? 720 : 0);
+    if (endMins <= startMins) endMins += 1440; // next day
+    return endMins - startMins;
+  })();
+  const walkDurationText = walkDurationMins >= 60
+    ? `${Math.floor(walkDurationMins / 60)}h ${walkDurationMins % 60 > 0 ? `${walkDurationMins % 60}m` : ''} walk`.trim()
+    : `${walkDurationMins}m walk`;
 
   // Care details
   const [careDetails, setCareDetails] = useState('');
@@ -304,8 +318,9 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         careTypeFields.pointsOffered = parseInt(pointsOffered, 10);
       }
       if (addOnCareTypes.has('dogWalking')) {
-        careTypeFields.walks = walks; // array of durations
-        careTypeFields.walkCount = walks.length;
+        careTypeFields.walkStartTime = walkStartTime;
+        careTypeFields.walkEndTime = walkEndTime;
+        careTypeFields.walkDurationMins = walkDurationMins;
       }
       if (addOnCareTypes.has('feeding')) {
         careTypeFields.feedingTime = feedingTime;
@@ -766,77 +781,108 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
               </View>
             )}
 
-        {/* ── Walk Details (add-on) ── */}
+        {/* ── Walk Time (add-on) ── */}
             {addOnCareTypes.has('dogWalking') && (
               <View style={[styles.section, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>🐕 Walk Details</Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>🐕 Walk Time</Text>
 
-                {walks.map((dur, idx) => (
-                  <View key={idx} style={{ marginBottom: 16 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <Text style={[styles.careTypeHint, { color: colors.textSecondary }]}>
-                        Walk {idx + 1} — duration
-                      </Text>
-                      {walks.length > 1 && (
+                {/* Start Time */}
+                <Text style={[styles.feedingPickerLabel, { color: colors.text, fontWeight: '700', fontSize: 14, marginBottom: 2 }]}>Start Time</Text>
+                <View style={styles.feedingPickerRow}>
+                  <View style={styles.feedingPickerCol}>
+                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Hour</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map((h) => (
                         <TouchableOpacity
-                          onPress={() => setWalks(walks.filter((_, i) => i !== idx))}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          key={h}
+                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, walkStartHour === h && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                          onPress={() => setWalkStartHour(h)}
                         >
-                          <Text style={{ fontSize: 13, color: colors.error, fontWeight: '600' }}>Remove</Text>
+                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, walkStartHour === h && { color: '#fff', fontWeight: '700' }]}>{h}</Text>
                         </TouchableOpacity>
-                      )}
-                    </View>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.durationPillsRow}
-                    >
-                      {WALK_MINUTES.map((min) => {
-                        const isSelected = dur === min;
-                        return (
-                          <TouchableOpacity
-                            key={min}
-                            style={[
-                              styles.durationPill,
-                              {
-                                backgroundColor: isSelected ? RED : colors.background,
-                                borderColor: isSelected ? RED : colors.border },
-                            ]}
-                            onPress={() => {
-                              const updated = [...walks];
-                              updated[idx] = min;
-                              setWalks(updated);
-                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            }}
-                            accessibilityLabel={`Walk ${idx + 1}: ${min} minute${min !== 1 ? 's' : ''}`}
-                            accessibilityRole="radio"
-                            accessibilityState={{ checked: isSelected }}
-                          >
-                            <Text style={[
-                              styles.durationPillText,
-                              { color: isSelected ? '#fff' : colors.text },
-                            ]}>
-                              {min} min
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
+                      ))}
                     </ScrollView>
                   </View>
-                ))}
+                  <View style={styles.feedingPickerCol}>
+                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Min</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
+                      {[0,5,10,15,20,25,30,35,40,45,50,55].map((m) => (
+                        <TouchableOpacity
+                          key={m}
+                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, walkStartMinute === m && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                          onPress={() => setWalkStartMinute(m)}
+                        >
+                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, walkStartMinute === m && { color: '#fff', fontWeight: '700' }]}>{m.toString().padStart(2, '0')}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  <View style={styles.feedingPickerCol}>
+                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>AM/PM</Text>
+                    <View style={styles.feedingAmPmRow}>
+                      {(['AM','PM'] as const).map((p) => (
+                        <TouchableOpacity
+                          key={p}
+                          style={[styles.feedingAmPmBtn, { borderColor: colors.border, backgroundColor: colors.background }, walkStartPeriod === p && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                          onPress={() => setWalkStartPeriod(p)}
+                        >
+                          <Text style={[styles.feedingAmPmText, { color: colors.text }, walkStartPeriod === p && { color: '#fff', fontWeight: '700' }]}>{p}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </View>
 
-                <TouchableOpacity
-                  style={[styles.addAnotherWalkBtn, { borderColor: colors.primary }]}
-                  onPress={() => {
-                    setWalks([...walks, 30]);
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                >
-                  <Text style={[styles.addAnotherWalkBtnText, { color: colors.primary }]}>➕ Add Another Walk</Text>
-                </TouchableOpacity>
+                {/* End Time */}
+                <Text style={[styles.feedingPickerLabel, { color: colors.text, fontWeight: '700', fontSize: 14, marginBottom: 2, marginTop: 8 }]}>End Time</Text>
+                <View style={styles.feedingPickerRow}>
+                  <View style={styles.feedingPickerCol}>
+                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Hour</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map((h) => (
+                        <TouchableOpacity
+                          key={h}
+                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, walkEndHour === h && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                          onPress={() => setWalkEndHour(h)}
+                        >
+                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, walkEndHour === h && { color: '#fff', fontWeight: '700' }]}>{h}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  <View style={styles.feedingPickerCol}>
+                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Min</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
+                      {[0,5,10,15,20,25,30,35,40,45,50,55].map((m) => (
+                        <TouchableOpacity
+                          key={m}
+                          style={[styles.feedingPickerItem, { borderColor: colors.border, backgroundColor: colors.background }, walkEndMinute === m && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                          onPress={() => setWalkEndMinute(m)}
+                        >
+                          <Text style={[styles.feedingPickerItemText, { color: colors.text }, walkEndMinute === m && { color: '#fff', fontWeight: '700' }]}>{m.toString().padStart(2, '0')}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  <View style={styles.feedingPickerCol}>
+                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>AM/PM</Text>
+                    <View style={styles.feedingAmPmRow}>
+                      {(['AM','PM'] as const).map((p) => (
+                        <TouchableOpacity
+                          key={p}
+                          style={[styles.feedingAmPmBtn, { borderColor: colors.border, backgroundColor: colors.background }, walkEndPeriod === p && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                          onPress={() => setWalkEndPeriod(p)}
+                        >
+                          <Text style={[styles.feedingAmPmText, { color: colors.text }, walkEndPeriod === p && { color: '#fff', fontWeight: '700' }]}>{p}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </View>
 
-                <Text style={[styles.fieldHint, { color: colors.textSecondary, marginTop: 12, fontStyle: 'italic' }]}>
-                  If there are more details about the walk — like where to find the leash, specific times, or preferred routes — add them to the Care Details section below.
+                {/* Dynamic duration display */}
+                <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
+                  {walkStartTime} → {walkEndTime}  •  {walkDurationText}
                 </Text>
               </View>
             )}
@@ -1132,9 +1178,6 @@ const styles = StyleSheet.create({
   timeSeparator: { fontSize: 20, paddingBottom: spacing.sm },
 
   // Walk duration pills
-  durationPillsRow: { paddingVertical: spacing.sm, gap: spacing.sm },
-  durationPill: { borderWidth: 1.5, borderRadius: borderRadius.full, paddingHorizontal: spacing.md, paddingVertical: 8 },
-  durationPillText: { fontSize: 13, fontWeight: '600' },
 
   // Care details
   careHint: { fontSize: 13, fontStyle: 'italic', lineHeight: 18, marginBottom: spacing.sm },
