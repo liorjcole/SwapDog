@@ -93,8 +93,13 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const pickPhoto = async () => {
     setShowPhotoPicker(false);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Photo Access', 'Please allow photo library access in Settings to send photos.');
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       quality: 0.7,
     });
     if (!result.canceled && result.assets?.[0]) {
