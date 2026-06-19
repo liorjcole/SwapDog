@@ -496,11 +496,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                       ? `✓ ${selectedDogs[0].name} selected`
                       : `✓ ${selectedDogs.map((d) => d.name).join(', ')} selected`}
                   </Text>
-                  {selectedDogs.length > 1 && dogTitleHint ? (
-                    <Text style={[styles.selectedSummaryHint, { color: colors.textSecondary }]}>
-                      "{dogTitleHint}"
-                    </Text>
-                  ) : null}
+
                 </View>
               )}
 
