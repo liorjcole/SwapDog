@@ -28,6 +28,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { getDoc, doc, updateDoc, serverTimestamp, addDoc, collection } from 'firebase/firestore';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { db } from '../../config/firebase';
 import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -254,6 +255,8 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [rescheduleStart, setRescheduleStart] = useState<Date>(new Date());
   const [rescheduleEnd, setRescheduleEnd] = useState<Date>(new Date());
   const [rescheduleNote, setRescheduleNote] = useState('');
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalInitialIndex, setModalInitialIndex] = useState(0);
 
@@ -619,60 +622,87 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       {/* ── Reschedule Modal ── */}
         <Modal visible={showRescheduleModal} transparent animationType="slide">
           <View style={{ flex: 1, backgroundColor: colors.background }}>
-            <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-              <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 }}>
-                <Text style={{ color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: 16 }}>Propose New Dates</Text>
+            <SafeAreaView style={{ flex: 1 }}>
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+                <Text style={{ color: colors.text, fontSize: 22, fontWeight: '800', marginBottom: 20 }}>Propose New Dates</Text>
 
-                <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 4 }}>Start Date</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 6 }}>Start Date</Text>
                 <TouchableOpacity
-                  onPress={() => {
-                    const d = new Date(rescheduleStart);
-                    d.setDate(d.getDate() + 1);
-                    setRescheduleStart(d);
-                  }}
-                  style={{ backgroundColor: colors.background, borderRadius: 8, padding: 12, marginBottom: 12 }}
+                  onPress={() => { setShowStartPicker(!showStartPicker); setShowEndPicker(false); }}
+                  style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 14, marginBottom: 4 }}
                 >
-                  <Text style={{ color: colors.text, fontSize: 16 }}>{rescheduleStart.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+                  <Text style={{ color: showStartPicker ? colors.primary : colors.text, fontSize: 16, fontWeight: '600' }}>
+                    {rescheduleStart.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
                 </TouchableOpacity>
+                {showStartPicker && (
+                  <DateTimePicker
+                    value={rescheduleStart}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                    minimumDate={new Date()}
+                    onChange={(_: DateTimePickerEvent, d?: Date) => {
+                      if (Platform.OS !== 'ios') setShowStartPicker(false);
+                      if (d) {
+                        setRescheduleStart(d);
+                        if (d >= rescheduleEnd) {
+                          const newEnd = new Date(d);
+                          newEnd.setDate(newEnd.getDate() + 1);
+                          setRescheduleEnd(newEnd);
+                        }
+                      }
+                    }}
+                  />
+                )}
 
-                <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 4 }}>End Date</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: 16, marginBottom: 6 }}>End Date</Text>
                 <TouchableOpacity
-                  onPress={() => {
-                    const d = new Date(rescheduleEnd);
-                    d.setDate(d.getDate() + 1);
-                    setRescheduleEnd(d);
-                  }}
-                  style={{ backgroundColor: colors.background, borderRadius: 8, padding: 12, marginBottom: 12 }}
+                  onPress={() => { setShowEndPicker(!showEndPicker); setShowStartPicker(false); }}
+                  style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 14, marginBottom: 4 }}
                 >
-                  <Text style={{ color: colors.text, fontSize: 16 }}>{rescheduleEnd.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+                  <Text style={{ color: showEndPicker ? colors.primary : colors.text, fontSize: 16, fontWeight: '600' }}>
+                    {rescheduleEnd.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
                 </TouchableOpacity>
+                {showEndPicker && (
+                  <DateTimePicker
+                    value={rescheduleEnd}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                    minimumDate={rescheduleStart}
+                    onChange={(_: DateTimePickerEvent, d?: Date) => {
+                      if (Platform.OS !== 'ios') setShowEndPicker(false);
+                      if (d) setRescheduleEnd(d);
+                    }}
+                  />
+                )}
 
-                <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 4 }}>Note to sitter (optional)</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: 16, marginBottom: 6 }}>Note (optional)</Text>
                 <TextInput
-                  style={{ backgroundColor: colors.background, borderRadius: 8, padding: 12, color: colors.text, fontSize: 15, minHeight: 60, textAlignVertical: 'top', marginBottom: 16 }}
+                  style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 14, color: colors.text, fontSize: 15, minHeight: 60, textAlignVertical: 'top', marginBottom: 20 }}
                   placeholder="e.g. Something came up, would these dates work?"
                   placeholderTextColor={colors.textSecondary}
                   value={rescheduleNote}
                   onChangeText={setRescheduleNote}
                   multiline
-                returnKeyType="done"
-                                  blurOnSubmit={true}
-                                  />
+                  returnKeyType="done"
+                  blurOnSubmit={true}
+                />
 
                 <TouchableOpacity
                   style={{ backgroundColor: '#FFD700', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 8 }}
-                  onPress={handleReschedule}
+                  onPress={() => { setShowStartPicker(false); setShowEndPicker(false); handleReschedule(); }}
                 >
                   <Text style={{ color: '#3D2E00', fontWeight: '700', fontSize: 16 }}>Send Proposal</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={{ paddingVertical: 12, alignItems: 'center' }}
-                  onPress={() => setShowRescheduleModal(false)}
+                  onPress={() => { setShowStartPicker(false); setShowEndPicker(false); setShowRescheduleModal(false); }}
                 >
                   <Text style={{ color: colors.textSecondary, fontSize: 15 }}>Cancel</Text>
                 </TouchableOpacity>
-              </View>
-            </View>
+              </ScrollView>
+            </SafeAreaView>
           </View>
         </Modal>
 

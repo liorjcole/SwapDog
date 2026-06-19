@@ -4,6 +4,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
 import { spacing, borderRadius } from '../../config/theme';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { smartDate } from '../../utils/dateHelpers';
 
 const RED = '#FF2D55';
@@ -34,6 +35,8 @@ const RescheduleReviewModal: React.FC<Props> = ({
   const [showPropose, setShowPropose] = useState(false);
   const [myStart, setMyStart] = useState(proposedStart);
   const [myEnd, setMyEnd] = useState(proposedEnd);
+  const [showMyStartPicker, setShowMyStartPicker] = useState(false);
+  const [showMyEndPicker, setShowMyEndPicker] = useState(false);
 
   const handleAccept = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -147,28 +150,62 @@ const RescheduleReviewModal: React.FC<Props> = ({
             {showPropose && (
               <View style={[styles.proposeSection, { borderColor: colors.textSecondary }]}>
                 <Text style={[styles.proposeLabel, { color: colors.text }]}>Your proposed dates</Text>
-                {/* Start date picker */}
-                <View style={styles.datePickerRow}>
-                  <TouchableOpacity onPress={() => adjustDate(setMyStart, myStart, -1)} style={styles.dateArrow}>
-                    <Text style={[styles.dateArrowText, { color: colors.text }]}>‹</Text>
-                  </TouchableOpacity>
-                  <Text style={[styles.datePickerText, { color: colors.text }]}>{smartDate(myStart)}</Text>
-                  <TouchableOpacity onPress={() => adjustDate(setMyStart, myStart, 1)} style={styles.dateArrow}>
-                    <Text style={[styles.dateArrowText, { color: colors.text }]}>›</Text>
-                  </TouchableOpacity>
-                </View>
-                <Text style={[styles.toText, { color: colors.textSecondary }]}>to</Text>
-                {/* End date picker */}
-                <View style={styles.datePickerRow}>
-                  <TouchableOpacity onPress={() => adjustDate(setMyEnd, myEnd, -1)} style={styles.dateArrow}>
-                    <Text style={[styles.dateArrowText, { color: colors.text }]}>‹</Text>
-                  </TouchableOpacity>
-                  <Text style={[styles.datePickerText, { color: colors.text }]}>{smartDate(myEnd)}</Text>
-                  <TouchableOpacity onPress={() => adjustDate(setMyEnd, myEnd, 1)} style={styles.dateArrow}>
-                    <Text style={[styles.dateArrowText, { color: colors.text }]}>›</Text>
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#0984E3', marginTop: spacing.sm }]} onPress={handlePropose}>
+
+                <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 4, textTransform: 'uppercase' }}>Start</Text>
+                <TouchableOpacity
+                  onPress={() => { setShowMyStartPicker(!showMyStartPicker); setShowMyEndPicker(false); }}
+                  style={{ backgroundColor: colors.background, borderRadius: 8, padding: 12, marginBottom: 4 }}
+                >
+                  <Text style={{ color: showMyStartPicker ? colors.primary : colors.text, fontSize: 16, fontWeight: '600' }}>
+                    {smartDate(myStart)}
+                  </Text>
+                </TouchableOpacity>
+                {showMyStartPicker && (
+                  <DateTimePicker
+                    value={myStart}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                    minimumDate={new Date()}
+                    onChange={(_: DateTimePickerEvent, d?: Date) => {
+                      if (Platform.OS !== 'ios') setShowMyStartPicker(false);
+                      if (d) {
+                        setMyStart(d);
+                        if (d >= myEnd) {
+                          const newEnd = new Date(d);
+                          newEnd.setDate(newEnd.getDate() + 1);
+                          setMyEnd(newEnd);
+                        }
+                      }
+                    }}
+                  />
+                )}
+
+                <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 4, textTransform: 'uppercase' }}>End</Text>
+                <TouchableOpacity
+                  onPress={() => { setShowMyEndPicker(!showMyEndPicker); setShowMyStartPicker(false); }}
+                  style={{ backgroundColor: colors.background, borderRadius: 8, padding: 12, marginBottom: 4 }}
+                >
+                  <Text style={{ color: showMyEndPicker ? colors.primary : colors.text, fontSize: 16, fontWeight: '600' }}>
+                    {smartDate(myEnd)}
+                  </Text>
+                </TouchableOpacity>
+                {showMyEndPicker && (
+                  <DateTimePicker
+                    value={myEnd}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                    minimumDate={myStart}
+                    onChange={(_: DateTimePickerEvent, d?: Date) => {
+                      if (Platform.OS !== 'ios') setShowMyEndPicker(false);
+                      if (d) setMyEnd(d);
+                    }}
+                  />
+                )}
+
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: '#0984E3', marginTop: spacing.md }]}
+                  onPress={() => { setShowMyStartPicker(false); setShowMyEndPicker(false); handlePropose(); }}
+                >
                   <Text style={styles.actionBtnText}>Send Proposal</Text>
                 </TouchableOpacity>
               </View>
