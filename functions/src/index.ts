@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import Expo, { ExpoPushMessage, ExpoPushTicket, ExpoPushReceipt } from "expo-server-sdk";
 
 admin.initializeApp();
@@ -299,6 +300,13 @@ export const onHelpConfirmed = onDocumentUpdated(
         postId: event.params.postId,
       }
     );
+
+    // Schedule reminder notifications for all responsibilities
+    try {
+      await scheduleReminders(event.params.postId, after);
+    } catch (error) {
+      console.error("[onHelpConfirmed] Failed to schedule reminders:", error);
+    }
   }
 );
 
@@ -546,6 +554,307 @@ export const onFavoriteUserPost = onDocumentCreated(
       );
     } catch (error) {
       console.error("[onFavoriteUserPost] Failed:", error);
+    }
+  }
+);
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REMINDER SYSTEM — Push notifications 1hr and 10min before each responsibility
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Parse a "h:mm AM/PM" string into hours (0-23) and minutes.
+ */
+function parseTime12Str(t: string): { hours: number; minutes: number } {
+  const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return { hours: 9, minutes: 0 };
+  let h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  if (match[3].toUpperCase() === "PM" && h !== 12) h += 12;
+  if (match[3].toUpperCase() === "AM" && h === 12) h = 0;
+  return { hours: h, minutes: m };
+}
+
+/**
+ * Build a Date for a given calendar date + time string.
+ */
+function buildDateTime(dateVal: admin.firestore.Timestamp | Date | string, timeStr: string): Date {
+  let base: Date;
+  if (dateVal instanceof admin.firestore.Timestamp) {
+    base = dateVal.toDate();
+  } else if (dateVal instanceof Date) {
+    base = new Date(dateVal);
+  } else {
+    base = new Date(dateVal);
+  }
+  const { hours, minutes } = parseTime12Str(timeStr);
+  base.setHours(hours, minutes, 0, 0);
+  return base;
+}
+
+/**
+ * Get all dates in the range [startDate, endDate) for overnight stays.
+ */
+function getDatesInRange(start: Date, end: Date): Date[] {
+  const dates: Date[] = [];
+  const current = new Date(start);
+  current.setHours(0, 0, 0, 0);
+  const endNorm = new Date(end);
+  endNorm.setHours(0, 0, 0, 0);
+  while (current < endNorm) {
+    dates.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return dates;
+}
+
+interface ReminderDoc {
+  postId: string;
+  recipientId: string;
+  type: string;
+  title: string;
+  body: string;
+  sendAt: admin.firestore.Timestamp;
+  sent: boolean;
+  createdAt: admin.firestore.FieldValue;
+}
+
+/**
+ * Schedule all reminder notifications for a confirmed post.
+ * Called when a post transitions to "claimed".
+ */
+async function scheduleReminders(postId: string, postData: Record<string, unknown>): Promise<void> {
+  const recipientId = postData.claimedBy as string;
+  if (!recipientId) return;
+
+  const dogName = (postData.dogName as string) || "the dog";
+  const dogNames = postData.dogNames as string[] | undefined;
+  const displayDogName = dogNames && dogNames.length > 1 ? dogNames.join(" & ") : dogName;
+
+  const careType = postData.careType as string | null;
+  const addOns = (postData.addOnCareTypes as string[]) || [];
+  const startDate = postData.startDate;
+  const endDate = postData.endDate;
+  const startTime = (postData.startTime as string) || "9:00 AM";
+  const endTime = (postData.endTime as string) || "5:00 PM";
+
+  const reminders: ReminderDoc[] = [];
+  const now = new Date();
+
+  const addReminder = (eventTime: Date, type: string, title: string, body: string) => {
+    // 1 hour before
+    const oneHourBefore = new Date(eventTime.getTime() - 60 * 60 * 1000);
+    if (oneHourBefore > now) {
+      reminders.push({
+        postId,
+        recipientId,
+        type: `${type}_1h`,
+        title,
+        body: `In 1 hour: ${body}`,
+        sendAt: admin.firestore.Timestamp.fromDate(oneHourBefore),
+        sent: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    // 10 minutes before
+    const tenMinBefore = new Date(eventTime.getTime() - 10 * 60 * 1000);
+    if (tenMinBefore > now) {
+      reminders.push({
+        postId,
+        recipientId,
+        type: `${type}_10m`,
+        title,
+        body: `In 10 minutes: ${body}`,
+        sendAt: admin.firestore.Timestamp.fromDate(tenMinBefore),
+        sent: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  };
+
+  // ── Main session reminders ──
+  if (careType === "overnight" || careType === "daySitting") {
+    const sessionStart = buildDateTime(startDate as admin.firestore.Timestamp, startTime);
+    addReminder(sessionStart, "session_start", "⏰ Time to go!", `Your ${careType === "overnight" ? "overnight stay" : "day sitting"} with ${displayDogName} is starting`);
+  }
+
+  // ── Feeding reminders ──
+  if (addOns.includes("feeding")) {
+    const feedingSlots = (postData.feedingSlots as { time: string; daily: boolean }[]) || [];
+    if (careType === "overnight" && startDate && endDate) {
+      // Overnight: for each day in the range, schedule each feeding
+      const days = getDatesInRange(
+        (startDate as admin.firestore.Timestamp).toDate(),
+        (endDate as admin.firestore.Timestamp).toDate()
+      );
+      for (const day of days) {
+        for (const slot of feedingSlots) {
+          if (slot.daily || days.length === 1) {
+            const feedTime = buildDateTime(day, slot.time);
+            addReminder(feedTime, "feeding", `🍽️ Feeding time!`, `Time to feed ${displayDogName}`);
+          }
+        }
+      }
+      // Non-daily feedings only on the first day
+      for (const slot of feedingSlots) {
+        if (!slot.daily && days.length > 1) {
+          const feedTime = buildDateTime(days[0], slot.time);
+          addReminder(feedTime, "feeding", `🍽️ Feeding time!`, `Time to feed ${displayDogName}`);
+        }
+      }
+    } else {
+      // Single day: schedule each feeding for startDate
+      for (const slot of feedingSlots) {
+        const feedTime = buildDateTime(startDate as admin.firestore.Timestamp, slot.time);
+        addReminder(feedTime, "feeding", `🍽️ Feeding time!`, `Time to feed ${displayDogName}`);
+      }
+    }
+  }
+
+  // ── Walk reminders ──
+  if (addOns.includes("dogWalking")) {
+    const walkStart = postData.walkStartTime as string;
+    if (walkStart) {
+      if (careType === "overnight" && startDate && endDate) {
+        const days = getDatesInRange(
+          (startDate as admin.firestore.Timestamp).toDate(),
+          (endDate as admin.firestore.Timestamp).toDate()
+        );
+        for (const day of days) {
+          const walkTime = buildDateTime(day, walkStart);
+          addReminder(walkTime, "walk", `🐕 Walk time!`, `Time to walk ${displayDogName}`);
+        }
+      } else {
+        const walkTime = buildDateTime(startDate as admin.firestore.Timestamp, walkStart);
+        addReminder(walkTime, "walk", `🐕 Walk time!`, `Time to walk ${displayDogName}`);
+      }
+    }
+  }
+
+  // ── Playtime reminders ──
+  if (addOns.includes("playtime")) {
+    const flexible = postData.playtimeFlexible as boolean;
+    if (flexible) {
+      // Flexible playtime: morning reminder at 8 AM each day
+      const sessions = (postData.flexPlaySessions as { durationMins: number }[]) || [];
+      const totalMins = sessions.reduce((sum, s) => sum + s.durationMins, 0);
+      const durationText = totalMins >= 60
+        ? `${Math.floor(totalMins / 60)}h${totalMins % 60 > 0 ? ` ${totalMins % 60}m` : ""}`
+        : `${totalMins} minutes`;
+
+      if (careType === "overnight" && startDate && endDate) {
+        const days = getDatesInRange(
+          (startDate as admin.firestore.Timestamp).toDate(),
+          (endDate as admin.firestore.Timestamp).toDate()
+        );
+        for (const day of days) {
+          const morningReminder = new Date(day);
+          morningReminder.setHours(8, 0, 0, 0);
+          if (morningReminder > now) {
+            reminders.push({
+              postId,
+              recipientId,
+              type: "playtime_morning",
+              title: "🎾 Playtime today!",
+              body: `Remember to play with ${displayDogName} for ${durationText} today`,
+              sendAt: admin.firestore.Timestamp.fromDate(morningReminder),
+              sent: false,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+          }
+        }
+      } else {
+        // Single day morning reminder
+        const day = (startDate as admin.firestore.Timestamp).toDate();
+        const morningReminder = new Date(day);
+        morningReminder.setHours(8, 0, 0, 0);
+        if (morningReminder > now) {
+          reminders.push({
+            postId,
+            recipientId,
+            type: "playtime_morning",
+            title: "🎾 Playtime today!",
+            body: `Remember to play with ${displayDogName} for ${durationText} today`,
+            sendAt: admin.firestore.Timestamp.fromDate(morningReminder),
+            sent: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+      }
+    } else {
+      // Fixed time playtime
+      const playStart = postData.playStartTime as string;
+      if (playStart) {
+        if (careType === "overnight" && startDate && endDate) {
+          const days = getDatesInRange(
+            (startDate as admin.firestore.Timestamp).toDate(),
+            (endDate as admin.firestore.Timestamp).toDate()
+          );
+          for (const day of days) {
+            const playTime = buildDateTime(day, playStart);
+            addReminder(playTime, "playtime", `🎾 Play session!`, `Time for ${displayDogName}'s play session`);
+          }
+        } else {
+          const playTime = buildDateTime(startDate as admin.firestore.Timestamp, playStart);
+          addReminder(playTime, "playtime", `🎾 Play session!`, `Time for ${displayDogName}'s play session`);
+        }
+      }
+    }
+  }
+
+  // Write all reminders to Firestore
+  if (reminders.length > 0) {
+    const batch = db.batch();
+    for (const reminder of reminders) {
+      const ref = db.collection("reminders").doc();
+      batch.set(ref, reminder);
+    }
+    await batch.commit();
+    console.log(`[scheduleReminders] Created ${reminders.length} reminders for post ${postId}`);
+  }
+}
+
+// ─── Scheduled function: process due reminders every 5 minutes ────────────────
+export const processReminders = onSchedule(
+  { schedule: "every 5 minutes", timeoutSeconds: 120 },
+  async () => {
+    const now = admin.firestore.Timestamp.now();
+
+    const dueReminders = await db.collection("reminders")
+      .where("sent", "==", false)
+      .where("sendAt", "<=", now)
+      .limit(100)
+      .get();
+
+    if (dueReminders.empty) return;
+
+    console.log(`[processReminders] Processing ${dueReminders.size} due reminders`);
+
+    for (const doc of dueReminders.docs) {
+      const data = doc.data();
+      const recipientId = data.recipientId as string;
+      const title = data.title as string;
+      const body = data.body as string;
+      const postId = data.postId as string;
+      const type = data.type as string;
+
+      try {
+        const tokens = await getUserTokens(recipientId);
+        if (tokens.length > 0) {
+          await sendPushNotifications(
+            recipientId,
+            tokens,
+            title,
+            body,
+            { type: "reminder", reminderType: type, postId }
+          );
+        }
+        // Mark as sent
+        await doc.ref.update({ sent: true, sentAt: admin.firestore.FieldValue.serverTimestamp() });
+      } catch (error) {
+        console.error(`[processReminders] Failed for reminder ${doc.id}:`, error);
+      }
     }
   }
 );
