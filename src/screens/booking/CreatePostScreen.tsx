@@ -222,6 +222,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [paymentAmount, setPaymentAmount] = useState('');
   // Points offered (set by poster when NOT offering payment)
   const [pointsOffered, setPointsOffered] = useState('');
+  const [showPricingGuide, setShowPricingGuide] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -317,6 +318,61 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
       return undefined;
     }
   }, [startTime, endTime]);
+
+  // ── Recommended points calculator ──
+  const recommendedPoints = useMemo(() => {
+    let total = 0;
+    const breakdown: { label: string; pts: number }[] = [];
+    const numDogs = selectedDogs.length || 1;
+    const dogMultiplier = 1 + (numDogs - 1) * 0.1; // +10% per extra dog
+
+    // Overnight: 4 pts per night
+    if (primaryCareType === 'overnight') {
+      const nights = dayCount;
+      const pts = 4 * nights;
+      total += pts;
+      breakdown.push({ label: `Overnight (${nights} night${nights > 1 ? 's' : ''})`, pts });
+    }
+
+    // Day sitting: 1 pt per hour
+    if (primaryCareType === 'daySitting' && daySittingMinutes && daySittingMinutes > 0) {
+      const hrs = daySittingMinutes / 60;
+      const pts = Math.round(hrs * 10) / 10;
+      total += pts;
+      breakdown.push({ label: `Day sitting (${hrs.toFixed(1)} hr${hrs !== 1 ? 's' : ''})`, pts });
+    }
+
+    // Walk: 1 pt per hour
+    if (addOnCareTypes.has('dogWalking') && walkDurationMins > 0) {
+      const hrs = walkDurationMins / 60;
+      const pts = Math.round(hrs * 10) / 10;
+      total += pts;
+      breakdown.push({ label: `Walk (${hrs.toFixed(1)} hr${hrs !== 1 ? 's' : ''})`, pts });
+    }
+
+    // Feeding: 1 pt per feeding
+    if (addOnCareTypes.has('feeding')) {
+      const count = feedingSlots.length;
+      total += count;
+      breakdown.push({ label: `Feeding (${count} time${count > 1 ? 's' : ''})`, pts: count });
+    }
+
+    // Playtime: 1 pt per hour (per session)
+    if (addOnCareTypes.has('playtime')) {
+      let playMins = 0;
+      for (const s of playSessions) {
+        playMins += s.flexible ? s.durationMins : getPlayDurationMins(s);
+      }
+      const hrs = playMins / 60;
+      const pts = Math.round(hrs * 10) / 10;
+      total += pts;
+      if (pts > 0) breakdown.push({ label: `Playtime (${hrs.toFixed(1)} hr${hrs !== 1 ? 's' : ''})`, pts });
+    }
+
+    // Apply dog multiplier
+    const adjusted = Math.ceil(total * dogMultiplier);
+    return { total: adjusted, baseTotal: Math.ceil(total), breakdown, dogMultiplier, numDogs };
+  }, [primaryCareType, dayCount, daySittingMinutes, addOnCareTypes, walkDurationMins, feedingSlots, playSessions, selectedDogs.length]);
 
   /** Format total duration as human-readable string */
   const formatDuration = (totalMinutes: number): string => {
@@ -1350,6 +1406,64 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
             <View style={[styles.section, { backgroundColor: colors.surface }]}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Compensation</Text>
 
+              {/* Recommended points */}
+              {recommendedPoints.total > 0 && (
+                <View style={styles.recBox}>
+                  <View style={styles.recHeader}>
+                    <Text style={[styles.recLabel, { color: colors.textSecondary }]}>Suggested</Text>
+                    <Text style={[styles.recValue, { color: colors.primary }]}>
+                      {recommendedPoints.total} pts
+                    </Text>
+                  </View>
+                  <Text style={[styles.recSubtext, { color: colors.textSecondary }]}>
+                    Based on the care you've selected — but it's ultimately up to you
+                  </Text>
+
+                  {/* Expandable pricing guide */}
+                  <TouchableOpacity
+                    style={styles.pricingGuideToggle}
+                    onPress={() => setShowPricingGuide(prev => !prev)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.pricingGuideToggleText, { color: colors.primary }]}>
+                      {showPricingGuide ? '▾' : '▸'} How we calculate this
+                    </Text>
+                  </TouchableOpacity>
+
+                  {showPricingGuide && (
+                    <View style={[styles.pricingGuideBody, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                      <Text style={[styles.guideTitle, { color: colors.text }]}>Point Guidelines</Text>
+                      {recommendedPoints.breakdown.map((item, i) => (
+                        <View key={i} style={styles.guideRow}>
+                          <Text style={[styles.guideRowLabel, { color: colors.text }]}>{item.label}</Text>
+                          <Text style={[styles.guideRowValue, { color: colors.primary }]}>{item.pts} pt{item.pts !== 1 ? 's' : ''}</Text>
+                        </View>
+                      ))}
+                      {recommendedPoints.numDogs > 1 && (
+                        <View style={[styles.guideRow, { borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 8, marginTop: 4 }]}>
+                          <Text style={[styles.guideRowLabel, { color: colors.text }]}>
+                            Multi-dog adjustment ({recommendedPoints.numDogs} dogs, +{((recommendedPoints.numDogs - 1) * 10)}%)
+                          </Text>
+                          <Text style={[styles.guideRowValue, { color: colors.primary }]}>{recommendedPoints.total} pts</Text>
+                        </View>
+                      )}
+                      <Text style={[styles.guideRateList, { color: colors.textSecondary }]}>
+                        Standard rates:{' '}
+                        1 pt / hr of walking  •  1 pt / hr of play  •  1 pt / feeding  •  4 pts / night (overnight)  •  1 pt / hr (day sitting)
+                      </Text>
+                      {recommendedPoints.numDogs > 1 && (
+                        <Text style={[styles.guideNote, { color: colors.textSecondary }]}>
+                          Rates increase 10% for each additional dog that needs care.
+                        </Text>
+                      )}
+                      <Text style={[styles.guideAsterisk, { color: colors.textSecondary }]}>
+                        *These are standard guidelines — actual value may vary based on holidays, last-minute requests, dogs needing extra attention, or whether a service is part of an overnight/day stay vs. a standalone visit.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
               {/* Points toggle */}
               <View style={styles.toggleRow}>
                 <View style={styles.toggleLabelGroup}>
@@ -1389,9 +1503,21 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
               {/* Points input */}
               {offerPoints && (
                 <>
-                  <Text style={[styles.pointsInputLabel, { color: colors.text }]}>
-                    How many points is this job worth?
-                  </Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={[styles.pointsInputLabel, { color: colors.text }]}>
+                      How many points is this job worth?
+                    </Text>
+                    {recommendedPoints.total > 0 && !pointsOffered && (
+                      <TouchableOpacity
+                        onPress={() => setPointsOffered(String(recommendedPoints.total))}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
+                          Use {recommendedPoints.total} pts
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                   <View style={{ height: 12 }} />
                   <View ref={refFor('points')} style={styles.pointsInputRow}>
                     <TextInput
@@ -1549,6 +1675,80 @@ const styles = StyleSheet.create({
   dogAssignPillText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  recBox: {
+    marginBottom: 16,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 45, 85, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 45, 85, 0.2)',
+  },
+  recHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  recLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  recValue: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  recSubtext: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  pricingGuideToggle: {
+    marginTop: 10,
+  },
+  pricingGuideToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pricingGuideBody: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  guideTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  guideRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  guideRowLabel: {
+    fontSize: 14,
+    flex: 1,
+  },
+  guideRowValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  guideRateList: {
+    fontSize: 12,
+    marginTop: 10,
+    lineHeight: 18,
+  },
+  guideNote: {
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  guideAsterisk: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 8,
+    lineHeight: 18,
   },
   selectedSummaryHint: { fontSize: 12, marginTop: 3, fontStyle: 'italic' },
   dogChipsSection: { marginTop: spacing.sm, gap: spacing.sm },
