@@ -728,7 +728,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                   <View ref={refFor('startTime')}>
                     <View style={styles.timeRow}>
                       <TouchableOpacity
-                        style={[styles.timePickerButton, { borderColor: showStartTime ? colors.primary : colors.border, backgroundColor: colors.background }]}
+                        style={[styles.timePickerButton, { borderColor: showStartTime ? colors.primary : colors.border }]}
                         onPress={() => { setShowStartTime(prev => !prev); setShowEndTime(false); }}
                         activeOpacity={0.7}
                       >
@@ -737,7 +737,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                       </TouchableOpacity>
                       <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
                       <TouchableOpacity
-                        style={[styles.timePickerButton, { borderColor: showEndTime ? colors.primary : colors.border, backgroundColor: colors.background }]}
+                        style={[styles.timePickerButton, { borderColor: showEndTime ? colors.primary : colors.border }]}
                         onPress={() => { setShowEndTime(prev => !prev); setShowStartTime(false); }}
                         activeOpacity={0.7}
                       >
@@ -750,6 +750,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         value={startTimeDate}
                         mode="time"
                         display="spinner"
+                        themeVariant="dark"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) setStartTimeDate(d);
                         }}
@@ -761,6 +762,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         value={endTimeDate}
                         mode="time"
                         display="spinner"
+                        themeVariant="dark"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) setEndTimeDate(d);
                         }}
@@ -804,7 +806,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                       </View>
                     )}
                     <TouchableOpacity
-                      style={[styles.timePickerButton, { borderColor: slot.showPicker ? colors.primary : colors.border, backgroundColor: colors.background, alignSelf: 'stretch' }]}
+                      style={[styles.timePickerButton, { borderColor: slot.showPicker ? colors.primary : colors.border, alignSelf: 'stretch' }]}
                       onPress={() => updateFeedingSlot(idx, 'showPicker', !slot.showPicker)}
                       activeOpacity={0.7}
                     >
@@ -818,6 +820,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         value={slot.time}
                         mode="time"
                         display="spinner"
+                        themeVariant="dark"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) updateFeedingSlot(idx, 'time', d);
                         }}
@@ -867,7 +870,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
 
                 <View style={styles.timeRow}>
                   <TouchableOpacity
-                    style={[styles.timePickerButton, { borderColor: showWalkStart ? colors.primary : colors.border, backgroundColor: colors.background }]}
+                    style={[styles.timePickerButton, { borderColor: showWalkStart ? colors.primary : colors.border }]}
                     onPress={() => { setShowWalkStart(prev => !prev); setShowWalkEnd(false); }}
                     activeOpacity={0.7}
                   >
@@ -876,7 +879,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                   </TouchableOpacity>
                   <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
                   <TouchableOpacity
-                    style={[styles.timePickerButton, { borderColor: showWalkEnd ? colors.primary : colors.border, backgroundColor: colors.background }]}
+                    style={[styles.timePickerButton, { borderColor: showWalkEnd ? colors.primary : colors.border }]}
                     onPress={() => { setShowWalkEnd(prev => !prev); setShowWalkStart(false); }}
                     activeOpacity={0.7}
                   >
@@ -889,6 +892,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                     value={walkStartDate}
                     mode="time"
                     display="spinner"
+                    themeVariant="dark"
                     onChange={(_: DateTimePickerEvent, d?: Date) => {
                       if (d) setWalkStartDate(d);
                     }}
@@ -900,6 +904,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                     value={walkEndDate}
                     mode="time"
                     display="spinner"
+                    themeVariant="dark"
                     onChange={(_: DateTimePickerEvent, d?: Date) => {
                       if (d) setWalkEndDate(d);
                     }}
@@ -944,7 +949,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                     {/* Fixed time: start → end with spinners */}
                     <View style={styles.timeRow}>
                       <TouchableOpacity
-                        style={[styles.timePickerButton, { borderColor: showPlayStart ? colors.primary : colors.border, backgroundColor: colors.background }]}
+                        style={[styles.timePickerButton, { borderColor: showPlayStart ? colors.primary : colors.border }]}
                         onPress={() => { setShowPlayStart(prev => !prev); setShowPlayEnd(false); }}
                         activeOpacity={0.7}
                       >
@@ -953,7 +958,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                       </TouchableOpacity>
                       <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
                       <TouchableOpacity
-                        style={[styles.timePickerButton, { borderColor: showPlayEnd ? colors.primary : colors.border, backgroundColor: colors.background }]}
+                        style={[styles.timePickerButton, { borderColor: showPlayEnd ? colors.primary : colors.border }]}
                         onPress={() => { setShowPlayEnd(prev => !prev); setShowPlayStart(false); }}
                         activeOpacity={0.7}
                       >
@@ -966,6 +971,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         value={playStartDate}
                         mode="time"
                         display="spinner"
+                        themeVariant="dark"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) setPlayStartDate(d);
                         }}
@@ -977,6 +983,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                         value={playEndDate}
                         mode="time"
                         display="spinner"
+                        themeVariant="dark"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) setPlayEndDate(d);
                         }}
