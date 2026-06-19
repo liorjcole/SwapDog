@@ -29,7 +29,7 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user } = useAuthContext();
   const { subscribeToConversations } = useMessaging();
-  const { isFavorite, addFavorite, setNotifyOnPost } = useFavorites();
+  const { isFavorite, addFavorite, removeFavorite, setNotifyOnPost } = useFavorites();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [nameCache, setNameCache] = useState<Record<string, string>>({});
 
@@ -63,8 +63,14 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
     if (otherId === SYSTEM_SENDER_ID) return;
 
     if (isFavorite(otherId)) {
-      // Already favorited — show info
-      Alert.alert('Already Favorited ⭐', `${otherName} is in your favorites. Their posts appear at the top of your feed.`);
+      Alert.alert(
+        'Unfavorite?',
+        `Remove ${otherName} from your favorites? You won't get notified about their posts.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Unfavorite', style: 'destructive', onPress: () => removeFavorite(otherId) },
+        ]
+      );
       return;
     }
 
