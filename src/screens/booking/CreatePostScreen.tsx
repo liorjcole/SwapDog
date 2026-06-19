@@ -1555,6 +1555,9 @@ const MAX_PLAY_SESSIONS = 5;
                   {showPricingGuide && (
                     <View style={[styles.pricingGuideBody, { backgroundColor: colors.background, borderColor: colors.border }]}>
                       <Text style={[styles.guideTitle, { color: colors.text }]}>Point Guidelines</Text>
+                      <Text style={[styles.guideAsterisk, { color: colors.textSecondary, marginBottom: 8 }]}>
+                        *These are standard guidelines — actual value may vary based on holidays, last-minute requests, dogs needing extra attention, or whether a service is part of an overnight/day stay vs. a standalone visit.
+                      </Text>
                       {recommendedPoints.breakdown.map((item, i) => (
                         <View key={i} style={styles.guideRow}>
                           <Text style={[styles.guideRowLabel, { color: colors.text }]}>{item.label}</Text>
@@ -1578,9 +1581,6 @@ const MAX_PLAY_SESSIONS = 5;
                           Rates increase 10% for each additional dog that needs care.
                         </Text>
                       )}
-                      <Text style={[styles.guideAsterisk, { color: colors.textSecondary }]}>
-                        *These are standard guidelines — actual value may vary based on holidays, last-minute requests, dogs needing extra attention, or whether a service is part of an overnight/day stay vs. a standalone visit.
-                      </Text>
                     </View>
                   )}
                 </View>
