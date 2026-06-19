@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, ActivityIndicator , Modal, Dimensions } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, ActivityIndicator, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -27,7 +27,6 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
   const { scrollRef, onScroll, refFor, scrollToInput } = useKeyboardScroll();
   const insets = useSafeAreaInsets();
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const { user } = useAuthContext();
   const { getDog, updateDog, createDog, deleteDog } = useDogs();
 
@@ -135,14 +134,53 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           style: 'destructive',
           onPress: () => {
             setPhotoURLs((prev) => prev.filter((_, i) => i !== index));
-            if (previewIndex !== null) setPreviewIndex(null);
           },
         },
       ],
     );
   };
 
-  const handleSave = async () => {
+  const handleCropPhoto = async (index: number) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.length) return;
+
+    const uri = result.assets[0].uri;
+    // Show local preview immediately
+    setPhotoURLs((prev) => {
+      const updated = [...prev];
+      updated[index] = uri;
+      return updated;
+    });
+
+    // Upload in background
+    setUploadingPhoto(true);
+    try {
+      const tempId = dogId ?? `temp_${user?.uid ?? 'anon'}_${Date.now()}`;
+      const response = await fetch(uri);
+      if (!response) throw new Error('Failed to read image file');
+      const blob = await response.blob();
+      const fileRef = storageRef(storage, `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
+      await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
+      const downloadURL = await getDownloadURL(fileRef);
+      setPhotoURLs((prev) => {
+        const updated = [...prev];
+        // Replace the local URI with the real download URL
+        const localIdx = updated.indexOf(uri);
+        if (localIdx !== -1) updated[localIdx] = downloadURL;
+        return updated;
+      });
+    } catch {
+      Alert.alert('Error', 'Photo failed to upload. Try again.');
+    }
+    setUploadingPhoto(false);
+  };
+
+    const handleSave = async () => {
     if (!name.trim()) { Alert.alert('Required', 'Dog name is required'); return; }
     if (!breed.trim()) { Alert.alert('Required', 'Breed is required'); return; }
     if (!user) return;
@@ -213,7 +251,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           <View key={uri + index} style={styles.photoThumbWrap}>
             <TouchableOpacity
               style={styles.photoThumb}
-              onPress={() => setPreviewIndex(index)}
+              onPress={() => handleCropPhoto(index)}
               activeOpacity={0.8}
               accessibilityLabel={index === 0 ? 'Primary photo — tap to view' : `Photo ${index + 1} — tap to view`}
               accessibilityRole="button"
@@ -374,49 +412,11 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
       )}
     </ScrollView>
 
-      {/* Full-screen photo preview */}
-      {previewIndex !== null && photoURLs[previewIndex] && (
-        <Modal visible transparent animationType="fade" onRequestClose={() => setPreviewIndex(null)}>
-          <View style={previewStyles.backdrop}>
-            <ScrollView
-              contentContainerStyle={previewStyles.zoomContainer}
-              maximumZoomScale={4}
-              minimumZoomScale={1}
-              showsVerticalScrollIndicator={false}
-              showsHorizontalScrollIndicator={false}
-              centerContent
-            >
-              <Image
-                source={{ uri: photoURLs[previewIndex] }}
-                style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH }}
-                resizeMode="contain"
-              />
-            </ScrollView>
-            {/* Close */}
-            <TouchableOpacity
-              style={previewStyles.closeBtn}
-              onPress={() => setPreviewIndex(null)}
-              accessibilityLabel="Close preview"
-              accessibilityRole="button"
-            >
-              <Text style={previewStyles.closeBtnText}>✕</Text>
-            </TouchableOpacity>
-            {/* Remove photo from preview */}
-            <TouchableOpacity
-              style={previewStyles.removeBtn}
-              onPress={() => handleRemovePhoto(previewIndex)}
-              accessibilityLabel="Remove this photo"
-              accessibilityRole="button"
-            >
-              <Text style={previewStyles.removeBtnText}>Remove Photo</Text>
-            </TouchableOpacity>
-          </View>
-        </Modal>
-      )}
-
     </View>
   );
 };
+
+
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const THUMB_SIZE = 80;
@@ -452,52 +452,6 @@ const styles = StyleSheet.create({
   ageBtnText: { fontSize: 18, lineHeight: 22 },
   ageValue: { fontSize: 18, fontWeight: '700', minWidth: 28, textAlign: 'center' } });
 
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-const previewStyles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.95)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeBtn: {
-    position: 'absolute',
-    top: 60,
-    right: 20,
-    zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeBtnText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  removeBtn: {
-    position: 'absolute',
-    bottom: 80,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,59,48,0.85)',
-  },
-  removeBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  zoomContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: SCREEN_W,
-    height: SCREEN_H,
-  },
-});
 
 export default EditDogScreen;
