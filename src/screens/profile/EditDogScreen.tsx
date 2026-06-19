@@ -116,7 +116,30 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleRemovePhoto = (index: number) => {
-    setPhotoURLs((prev) => prev.filter((_, i) => i !== index));
+    if (photoURLs.length <= 1) {
+      Alert.alert(
+        'Minimum 1 Photo Required 📸',
+        'Each dog needs at least one photo. Add another photo before removing this one.',
+      );
+      return;
+    }
+    Alert.alert(
+      'Remove Photo?',
+      index === 0
+        ? 'This is the primary photo. The next photo will become the new primary.'
+        : 'Are you sure you want to remove this photo?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            setPhotoURLs((prev) => prev.filter((_, i) => i !== index));
+            if (previewIndex !== null) setPreviewIndex(null);
+          },
+        },
+      ],
+    );
   };
 
   const handleSave = async () => {
@@ -187,24 +210,34 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
       <Text style={[styles.label, { color: colors.text }]}>Photos ({photoURLs.length}/10)</Text>
       <View style={styles.photoGrid}>
         {photoURLs.map((uri, index) => (
-          <TouchableOpacity
-            key={uri + index}
-            style={styles.photoThumb}
-            onPress={() => setPreviewIndex(index)}
-            activeOpacity={0.8}
-            accessibilityLabel={index === 0 ? 'Primary photo — tap to view' : `Photo ${index + 1} — tap to view`}
-            accessibilityRole="button"
-          >
-            <Image
-              source={{ uri }}
-              style={styles.thumbImg}
-            />
-            {index === 0 && (
-              <View style={[styles.primaryBadge, { backgroundColor: colors.primary }]}>
-                <Text style={styles.primaryBadgeText}>Primary</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <View key={uri + index} style={styles.photoThumbWrap}>
+            <TouchableOpacity
+              style={styles.photoThumb}
+              onPress={() => setPreviewIndex(index)}
+              activeOpacity={0.8}
+              accessibilityLabel={index === 0 ? 'Primary photo — tap to view' : `Photo ${index + 1} — tap to view`}
+              accessibilityRole="button"
+            >
+              <Image
+                source={{ uri }}
+                style={styles.thumbImg}
+              />
+              {index === 0 && (
+                <View style={[styles.primaryBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.primaryBadgeText}>Primary</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.removePhotoBtn, { backgroundColor: colors.error }]}
+              onPress={() => handleRemovePhoto(index)}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityLabel="Remove photo"
+              accessibilityRole="button"
+            >
+              <Text style={styles.removePhotoBtnText}>✕</Text>
+            </TouchableOpacity>
+          </View>
         ))}
         {photoURLs.length < 10 && (
           <TouchableOpacity
@@ -340,10 +373,52 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         </TouchableOpacity>
       )}
     </ScrollView>
+
+      {/* Full-screen photo preview */}
+      {previewIndex !== null && photoURLs[previewIndex] && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setPreviewIndex(null)}>
+          <View style={previewStyles.backdrop}>
+            <ScrollView
+              contentContainerStyle={previewStyles.zoomContainer}
+              maximumZoomScale={4}
+              minimumZoomScale={1}
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
+              centerContent
+            >
+              <Image
+                source={{ uri: photoURLs[previewIndex] }}
+                style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH }}
+                resizeMode="contain"
+              />
+            </ScrollView>
+            {/* Close */}
+            <TouchableOpacity
+              style={previewStyles.closeBtn}
+              onPress={() => setPreviewIndex(null)}
+              accessibilityLabel="Close preview"
+              accessibilityRole="button"
+            >
+              <Text style={previewStyles.closeBtnText}>✕</Text>
+            </TouchableOpacity>
+            {/* Remove photo from preview */}
+            <TouchableOpacity
+              style={previewStyles.removeBtn}
+              onPress={() => handleRemovePhoto(previewIndex)}
+              accessibilityLabel="Remove this photo"
+              accessibilityRole="button"
+            >
+              <Text style={previewStyles.removeBtnText}>Remove Photo</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
+      )}
+
     </View>
   );
 };
 
+const SCREEN_WIDTH = Dimensions.get('window').width;
 const THUMB_SIZE = 80;
 
 const styles = StyleSheet.create({
@@ -359,6 +434,7 @@ const styles = StyleSheet.create({
   deleteBtnText: { fontWeight: '600' },
   // Photo grid
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md, gap: spacing.xs },
+  photoThumbWrap: { position: 'relative' },
   photoThumb: { width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: borderRadius.sm, overflow: 'visible', marginBottom: spacing.xs },
   thumbImg: { width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: borderRadius.sm },
   primaryBadge: { position: 'absolute', bottom: 2, left: 2, paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 },
@@ -379,7 +455,7 @@ const styles = StyleSheet.create({
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 const previewStyles = StyleSheet.create({
-  overlay: {
+  backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.95)',
     justifyContent: 'center',
@@ -387,6 +463,7 @@ const previewStyles = StyleSheet.create({
   },
   closeBtn: {
     position: 'absolute',
+    top: 60,
     right: 20,
     zIndex: 10,
     width: 40,
@@ -401,16 +478,25 @@ const previewStyles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
   },
+  removeBtn: {
+    position: 'absolute',
+    bottom: 80,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,59,48,0.85)',
+  },
+  removeBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
   zoomContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     width: SCREEN_W,
     height: SCREEN_H,
-  },
-  fullImage: {
-    width: SCREEN_W,
-    height: SCREEN_H * 0.75,
   },
 });
 
