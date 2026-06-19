@@ -259,7 +259,9 @@ export interface Message {
   createdAt: Date;
   read: boolean;
   /** Optional message type for special messages (e.g. reschedule proposals) */
-  type?: 'text' | 'reschedule';
+  type?: 'text' | 'reschedule' | 'image';
+  /** Optional image URL for photo messages */
+  imageURL?: string;
   /** Optional metadata for typed messages */
   metadata?: {
     postId?: string;

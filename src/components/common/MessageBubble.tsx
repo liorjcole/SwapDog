@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { spacing, borderRadius } from '../../config/theme';
 
@@ -8,12 +8,14 @@ interface Props {
   isMe: boolean;
   createdAt: Date;
   /** Optional message type for special rendering */
-  type?: 'text' | 'reschedule';
+  type?: 'text' | 'reschedule' | 'image';
+  /** Optional image URL for photo messages */
+  imageURL?: string;
   /** Callback when "Review Reschedule" is tapped */
   onReviewReschedule?: () => void;
 }
 
-const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, onReviewReschedule }) => {
+const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL, onReviewReschedule }) => {
   const { colors } = useTheme();
   const timeStr = createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -26,12 +28,22 @@ const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, onReviewR
         ]}
         accessibilityRole="none"
       >
-        <Text
-          style={[styles.text, { color: isMe ? '#fff' : colors.text }]}
-          accessibilityLabel={`${isMe ? 'You' : 'Them'}: ${text}`}
-        >
-          {text}
-        </Text>
+        {type === 'image' && imageURL && (
+          <Image
+            source={{ uri: imageURL }}
+            style={styles.chatImage}
+            resizeMode="cover"
+            accessibilityLabel={text || 'Photo'}
+          />
+        )}
+        {text ? (
+          <Text
+            style={[styles.text, { color: isMe ? '#fff' : colors.text }]}
+            accessibilityLabel={`${isMe ? 'You' : 'Them'}: ${text}`}
+          >
+            {text}
+          </Text>
+        ) : null}
         {/* Show "Review Reschedule" link for reschedule messages (only for receiver) */}
         {type === 'reschedule' && !isMe && onReviewReschedule && (
           <TouchableOpacity onPress={onReviewReschedule} style={styles.reviewLink}>
@@ -57,6 +69,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
   },
   text: { fontSize: 15 },
+  chatImage: {
+    width: Dimensions.get('window').width * 0.55,
+    height: Dimensions.get('window').width * 0.55,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
   time: { fontSize: 10, marginTop: 2, alignSelf: 'flex-end' },
   reviewLink: { marginTop: 6, paddingVertical: 4 },
   reviewLinkText: { color: '#0984E3', fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },

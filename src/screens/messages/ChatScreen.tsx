@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../../config/firebase';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Platform, KeyboardAvoidingView, Alert } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Platform, KeyboardAvoidingView, Alert, ActionSheetIOS, Image, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -38,6 +41,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   const [reschedulePost, setReschedulePost] = useState<SwapPost | null>(null);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendingPhoto, setSendingPhoto] = useState(false);
   const [otherUserName, setOtherUserName] = useState('Chat');
 
   // Resolve other user's display name for header
@@ -77,6 +81,87 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } finally {
       setSending(false);
+    }
+  };
+
+  // ── Photo sending ──
+  const handlePhotoPress = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Take Photo', 'Choose from Library'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) takePhoto();
+          else if (buttonIndex === 2) pickPhoto();
+        }
+      );
+    } else {
+      Alert.alert('Send Photo', '', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Take Photo', onPress: takePhoto },
+        { text: 'Choose from Library', onPress: pickPhoto },
+      ]);
+    }
+  };
+
+  const pickPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      await uploadAndSendPhoto(result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Camera Access', 'Please allow camera access in Settings to take photos.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      await uploadAndSendPhoto(result.assets[0].uri);
+    }
+  };
+
+  const uploadAndSendPhoto = async (uri: string) => {
+    if (!user) return;
+    setSendingPhoto(true);
+    try {
+      const response = await fetch(uri);
+      if (!response) throw new Error('Failed to read image');
+      const blob = await response.blob();
+      const fileRef = storageRef(storage, `chat-images/${conversationId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
+      await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
+      const downloadURL = await getDownloadURL(fileRef);
+
+      const msgData = {
+        conversationId,
+        senderId: user.uid,
+        text: '',
+        type: 'image',
+        imageURL: downloadURL,
+        createdAt: fsServerTimestamp(),
+        read: false,
+      };
+      await fsAddDoc(collection(db, 'conversations', conversationId, 'messages'), msgData);
+      await firestoreUpdateDoc(firestoreDoc(db, 'conversations', conversationId), {
+        lastMessage: '📷 Photo',
+        lastMessageAt: fsServerTimestamp(),
+        updatedAt: fsServerTimestamp(),
+      });
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      console.error('[ChatScreen] Photo send failed:', err);
+      Alert.alert('Error', 'Failed to send photo. Please try again.');
+    } finally {
+      setSendingPhoto(false);
     }
   };
 
@@ -293,6 +378,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           <MessageBubble
             text={item.text}
             isMe={item.senderId === user?.uid}
+            imageURL={item.imageURL}
             createdAt={item.createdAt}
             type={item.type}
             onReviewReschedule={item.type === 'reschedule' ? () => handleReviewReschedule(item) : undefined}
@@ -315,6 +401,19 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
         />
       )}
       <View style={[styles.inputRow, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
+        <TouchableOpacity
+          style={styles.photoBtn}
+          onPress={handlePhotoPress}
+          disabled={sendingPhoto}
+          accessibilityLabel="Send a photo"
+          accessibilityRole="button"
+        >
+          {sendingPhoto ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Text style={[styles.photoBtnText, { color: colors.primary }]}>📷</Text>
+          )}
+        </TouchableOpacity>
         <TextInput
           style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
           placeholder="Message..."
@@ -389,6 +488,16 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20,
     justifyContent: 'center', alignItems: 'center' },
   sendBtnText: { color: '#fff', fontSize: 16 },
+  photoBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+  },
+  photoBtnText: {
+    fontSize: 22,
+  },
   favBanner: {
     paddingVertical: 10,
     paddingHorizontal: 16,
