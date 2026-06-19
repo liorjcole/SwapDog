@@ -2,7 +2,7 @@
  * RequestsScreen (now "Schedule") — two tabs:
  *   "My Posts"     : the user's own posts so they can see responses / cancel
  *   "Commitments"  : calendar-style view of all accepted swap commitments
- *                    Red (#FF2D55) = your dog being watched; Teal (#2DD4BF) = you're watching
+ *                    Red (#FF2D55) = your dog is being cared for; Teal (#2DD4BF) = you're caring for someone's dog
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -751,7 +751,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                         </View>
                       );
                     }
-                    // Single color: red = your dog, teal = you're watching
+                    // Single color: red = your dog, teal = you're caring for someone's dog
                     return (
                       <View style={[styles.calDayCircle, { backgroundColor: commitColor ?? RED }]}>
                         <Text style={[styles.calDayNum, { color: '#fff', fontWeight: isSelected ? '800' : '700', fontSize: isSelected ? 18 : 14 }]}>
@@ -794,13 +794,13 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.calLegendItem}>
             <View style={[styles.calDot, { backgroundColor: RED }]} />
             <Text style={[styles.calLegendText, { color: colors.textSecondary }]}>
-              Your dog being watched
+              Your dog is being cared for
             </Text>
           </View>
           <View style={styles.calLegendItem}>
             <View style={[styles.calDot, { backgroundColor: TEAL }]} />
             <Text style={[styles.calLegendText, { color: colors.textSecondary }]}>
-              You're watching
+              You're caring for someone's dog
             </Text>
           </View>
         </View>
