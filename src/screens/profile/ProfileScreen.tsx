@@ -547,7 +547,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
 
 
       <TouchableOpacity
-        style={[styles.signOutBtn, { backgroundColor: colors.error }]}
+        style={[styles.signOutBtn, { backgroundColor: 'transparent', borderWidth: 2, borderColor: '#FF0000' }]}
         onPress={handleSignOut}
         accessibilityLabel="Sign out"
         accessibilityRole="button"
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
   },
   addAnotherDogBtnText: { fontSize: 15, fontWeight: '700' },
   signOutBtn: { margin: spacing.lg, padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center' },
-  signOutText: { color: '#fff', ...typography.button },
+  signOutText: { color: '#FF0000', ...typography.button },
 });
 
 export default ProfileScreen;
