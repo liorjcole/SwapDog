@@ -145,7 +145,7 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
             accessibilityRole="button"
             style={styles.starBtn}
           >
-            <Text style={styles.starIcon}>{starred ? '⭐' : '☆'}</Text>
+            <Text style={[styles.starIcon, { color: starred ? '#FFD700' : '#C0C0C0' }]}>{starred ? '★' : '☆'}</Text>
           </TouchableOpacity>
         )}
       </TouchableOpacity>
