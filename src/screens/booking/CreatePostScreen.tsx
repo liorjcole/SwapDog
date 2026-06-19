@@ -1572,10 +1572,7 @@ const MAX_PLAY_SESSIONS = 5;
                           <Text style={[styles.guideRowValue, { color: colors.primary }]}>{recommendedPoints.total} pts</Text>
                         </View>
                       )}
-                      <Text style={[styles.guideRateList, { color: colors.textSecondary }]}>
-                        Standard rates:{' '}
-                        1 pt / hr of walking  •  1 pt / hr of play  •  1 pt / feeding  •  4 pts / night (overnight)  •  1 pt / hr (day sitting)
-                      </Text>
+
                       {recommendedPoints.numDogs > 1 && (
                         <Text style={[styles.guideNote, { color: colors.textSecondary }]}>
                           Rates increase 10% for each additional dog that needs care.
