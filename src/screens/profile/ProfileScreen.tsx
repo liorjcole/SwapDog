@@ -425,9 +425,9 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
                       style={styles.dogPhotoThumbWrap}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        handlePhotoActionSheet(dog, idx);
+                        void handleCropPhoto(dog, idx);
                       }}
-                      accessibilityLabel={`Tap to manage ${dog.name} photo ${idx + 1}`}
+                      accessibilityLabel={`Tap to crop ${dog.name} photo ${idx + 1}`}
                       accessibilityRole="button"
                     >
                       {uploadingDogId === dog.id ? (
