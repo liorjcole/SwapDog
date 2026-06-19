@@ -167,9 +167,10 @@ interface PostCardProps {
   post: SwapPost;
   onPress: (postId: string) => void;
   currentUserId?: string;
+  isFavorited?: boolean;
 }
 
-const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId }) => {
+const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, isFavorited }) => {
   const handlePostPress = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress(post.id);
@@ -182,7 +183,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId }
 
   return (
     <TouchableOpacity
-      style={[styles.postCard, { backgroundColor: colors.surface, ...shadow.sm, opacity: post.status !== 'open' ? 0.5 : 1 }]}
+      style={[styles.postCard, { backgroundColor: colors.surface, ...shadow.sm, opacity: post.status !== 'open' ? 0.5 : 1, ...(isFavorited ? { borderWidth: 2, borderColor: '#FFD700' } : {}) }]}
       onPress={handlePostPress}
       accessibilityRole="button"
       accessibilityLabel={`Post for ${post.dogName}`}
@@ -202,7 +203,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId }
           )}
           <View style={styles.headerInfo}>
             <Text style={[styles.dogLine, { color: colors.text, marginBottom: 0 }]}>
-              {post.dogName}{post.dogBreed ? ` · ${post.dogBreed}` : ''}
+              {isFavorited && <Text style={{ color: '#FFD700' }}>★ </Text>}{post.dogName}{post.dogBreed ? ` · ${post.dogBreed}` : ''}
             </Text>
             <Text style={[styles.dateRange, { color: colors.textSecondary }]}>{startStr} – {endStr}</Text>
           </View>
@@ -735,7 +736,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         case 'section_header':
           return <SectionHeaderRow item={item} onCreatePost={item.isPosts ? handleNavigateToCreatePost : undefined} />;
         case 'post':
-          return <PostCard post={item.post} onPress={handleNavigateToPost} currentUserId={userProfile?.id} />;
+          return <PostCard post={item.post} onPress={handleNavigateToPost} currentUserId={userProfile?.id} isFavorited={favoriteIds.has(item.post.posterId)} />;
         case 'user':
           return (
             <UserRow

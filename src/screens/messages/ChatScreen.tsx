@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../config/firebase';
@@ -423,7 +422,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           activeOpacity={1}
           onPress={() => setShowPhotoPicker(false)}
         >
-          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)' }]} />
           <View style={styles.pickerCard}>
             <TouchableOpacity style={styles.pickerOption} onPress={takePhoto} activeOpacity={0.7}>
               <Text style={styles.pickerOptionText}>📸  Take Photo</Text>

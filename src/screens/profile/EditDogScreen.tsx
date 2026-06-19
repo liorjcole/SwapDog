@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, ActivityIndicator, Dimensions, Modal } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, ActivityIndicator, Dimensions, Modal, Switch, LayoutAnimation } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -47,6 +47,20 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [weightLbs, setWeightLbs] = useState(0);
+  const [goodWithDogs, setGoodWithDogs] = useState(true);
+  const [goodWithKids, setGoodWithKids] = useState(true);
+  const [vaccinated, setVaccinated] = useState(false);
+  const [dogBio, setDogBio] = useState('');
+  const [showRefChart, setShowRefChart] = useState(false);
+
+  const weightToSize = (lbs: number): DogSize => {
+    if (lbs <= 0) return DogSize.medium;
+    if (lbs <= 15) return DogSize.small;
+    if (lbs <= 50) return DogSize.medium;
+    if (lbs <= 100) return DogSize.large;
+    return DogSize.extra_large;
+  };
 
   useEffect(() => {
     if (isCreateMode) return; // skip fetching in create mode
@@ -61,6 +75,15 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         setSex(d.sex);
         setEnergy(d.energyLevel);
         setPhotoURLs(d.photoURLs);
+        if (d.isGoodWithDogs !== undefined) setGoodWithDogs(d.isGoodWithDogs);
+        if (d.isGoodWithKids !== undefined) setGoodWithKids(d.isGoodWithKids);
+        if (d.vaccinated !== undefined) setVaccinated(d.vaccinated);
+        if ((d as any).bio) setDogBio((d as any).bio);
+        // Reverse-map size to weight estimate for existing dogs
+        if (d.size === DogSize.small) setWeightLbs(10);
+        else if (d.size === DogSize.medium) setWeightLbs(35);
+        else if (d.size === DogSize.large) setWeightLbs(75);
+        else if (d.size === DogSize.extra_large) setWeightLbs(120);
       }
       setLoading(false);
     });
@@ -188,16 +211,30 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
     setSaving(true);
     try {
       if (isCreateMode) {
+        if (!weightLbs || weightLbs <= 0) {
+          Alert.alert('Required', "Please enter your dog's weight");
+          setSaving(false);
+          return;
+        }
+        if (dogBio.trim().length < 20) {
+          Alert.alert('Required', 'Please write at least 20 characters about your dog');
+          setSaving(false);
+          return;
+        }
         await createDog({
           ownerId: user.uid,
           name: name.trim(),
           breed: breed.trim(),
           ageYears,
           ageMonths,
-          size,
+          size: weightToSize(weightLbs),
           sex,
           energyLevel: energy,
-          photoURLs });
+          photoURLs,
+          isGoodWithDogs: goodWithDogs,
+          isGoodWithKids: goodWithKids,
+          vaccinated,
+          ...(dogBio.trim() ? { bio: dogBio.trim() } : {}) });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         navigation.goBack();
       } else {
@@ -206,10 +243,14 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           breed: breed.trim(),
           ageYears,
           ageMonths,
-          size,
+          size: weightToSize(weightLbs),
           sex,
           energyLevel: energy,
-          photoURLs });
+          photoURLs,
+          isGoodWithDogs: goodWithDogs,
+          isGoodWithKids: goodWithKids,
+          vaccinated,
+          ...(dogBio.trim() ? { bio: dogBio.trim() } : {}) });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         navigation.goBack();
       }
@@ -369,12 +410,56 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
       </View>
 
-      <Text style={[styles.label, { color: colors.text }]}>Size</Text>
-      <View style={styles.chips}>
-        {([DogSize.small, DogSize.medium, DogSize.large, DogSize.extra_large] as DogSize[]).map((s) => (
-          <Chip key={s} label={s.replace('_', ' ')} selected={size === s} onPress={() => setSize(s)} />
-        ))}
+      <View>
+        <Text style={[styles.label, { color: colors.text }]}>Weight (lbs)</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+          placeholder="Estimated weight in pounds"
+          placeholderTextColor={colors.textSecondary}
+          value={weightLbs > 0 ? String(weightLbs) : ''}
+          onChangeText={(v) => {
+            const num = parseInt(v.replace(/[^0-9]/g, ''), 10);
+            setWeightLbs(isNaN(num) ? 0 : num);
+          }}
+          keyboardType="number-pad"
+          returnKeyType="done"
+        />
       </View>
+      <TouchableOpacity
+        onPress={() => {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          setShowRefChart((v) => !v);
+        }}
+        style={styles.refChartToggle}
+      >
+        <Text style={[styles.refChartToggleText, { color: colors.primary }]}>
+          {showRefChart ? "Not sure of your dog's weight? ▼" : "Not sure of your dog's weight? ▶"}
+        </Text>
+      </TouchableOpacity>
+      {showRefChart && (
+        <View style={[styles.refChart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.refChartTitle, { color: colors.text }]}>Reference Chart</Text>
+          <View style={styles.refChartRow}>
+            <Text style={[styles.refChartBreed, { color: colors.textSecondary }]}>Yorkie</Text>
+            <Text style={[styles.refChartWeight, { color: colors.text }]}>~5 lb</Text>
+          </View>
+          <View style={styles.refChartRow}>
+            <Text style={[styles.refChartBreed, { color: colors.textSecondary }]}>Corgi</Text>
+            <Text style={[styles.refChartWeight, { color: colors.text }]}>~25 lb</Text>
+          </View>
+          <View style={styles.refChartRow}>
+            <Text style={[styles.refChartBreed, { color: colors.textSecondary }]}>Labrador</Text>
+            <Text style={[styles.refChartWeight, { color: colors.text }]}>~65 lb</Text>
+          </View>
+          <View style={styles.refChartRow}>
+            <Text style={[styles.refChartBreed, { color: colors.textSecondary }]}>Great Dane</Text>
+            <Text style={[styles.refChartWeight, { color: colors.text }]}>~140 lb</Text>
+          </View>
+          <Text style={[styles.refChartNote, { color: colors.textSecondary }]}>
+            *Typically lighter for female dogs, heavier for males.
+          </Text>
+        </View>
+      )}
 
       <Text style={[styles.label, { color: colors.text }]}>Sex</Text>
       <View style={styles.chips}>
@@ -388,6 +473,46 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         {([EnergyLevel.low, EnergyLevel.moderate, EnergyLevel.high, EnergyLevel.very_high] as EnergyLevel[]).map((e) => (
           <Chip key={e} label={e.replace('_', ' ')} selected={energy === e} onPress={() => setEnergy(e)} />
         ))}
+      </View>
+
+      <View style={styles.switchRow}>
+        <Text style={[styles.switchLabel, { color: colors.text }]}>Good with other dogs</Text>
+        <Switch value={goodWithDogs} onValueChange={setGoodWithDogs} trackColor={{ true: colors.primary }} />
+      </View>
+      <View style={styles.switchRow}>
+        <Text style={[styles.switchLabel, { color: colors.text }]}>Good with kids</Text>
+        <Switch value={goodWithKids} onValueChange={setGoodWithKids} trackColor={{ true: colors.primary }} />
+      </View>
+      <View style={styles.switchRow}>
+        <Text style={[styles.switchLabel, { color: colors.text }]}>Vaccinated</Text>
+        <Switch value={vaccinated} onValueChange={setVaccinated} trackColor={{ true: colors.primary }} />
+      </View>
+
+      <View>
+        <Text style={[styles.label, { color: colors.text, marginTop: spacing.md }]}>
+          About {name.trim() || 'Your Dog'}
+        </Text>
+        <TextInput
+          style={[styles.input, styles.dogBioInput, { borderColor: colors.border, color: colors.text }]}
+          placeholder="Share their personality, quirks, favorite things, anything a new friend should know..."
+          placeholderTextColor={colors.textSecondary}
+          value={dogBio}
+          onChangeText={setDogBio}
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+          maxLength={500}
+          returnKeyType="done"
+          blurOnSubmit={true}
+          autoCorrect={true}
+          spellCheck={true}
+          autoCapitalize="sentences"
+        />
+        <Text style={[styles.fieldHint, { color: dogBio.trim().length >= 20 ? '#34C759' : colors.textSecondary }]}>
+          {dogBio.trim().length < 20
+            ? `${20 - dogBio.trim().length} more characters needed`
+            : `✓ ${dogBio.trim().length}/500`}
+        </Text>
       </View>
 
       <TouchableOpacity
@@ -537,7 +662,19 @@ const styles = StyleSheet.create({
   ageControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   ageBtn: { width: 32, height: 32, borderRadius: borderRadius.sm, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   ageBtnText: { fontSize: 18, lineHeight: 22 },
-  ageValue: { fontSize: 18, fontWeight: '700', minWidth: 28, textAlign: 'center' } });
+  ageValue: { fontSize: 18, fontWeight: '700', minWidth: 28, textAlign: 'center' },
+  refChartToggle: { marginTop: 4, marginBottom: spacing.md },
+  refChartToggleText: { fontSize: 13, fontWeight: '600' },
+  refChart: { padding: spacing.md, borderRadius: borderRadius.md, borderWidth: 1, marginBottom: spacing.md },
+  refChartTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
+  refChartRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
+  refChartBreed: { fontSize: 13 },
+  refChartWeight: { fontSize: 13, fontWeight: '600' },
+  refChartNote: { fontSize: 11, fontStyle: 'italic', marginTop: 8 },
+  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10 },
+  switchLabel: { fontSize: 15, fontWeight: '500' },
+  dogBioInput: { height: 100, textAlignVertical: 'top', paddingTop: 12 },
+  fieldHint: { fontSize: 12, marginTop: 4, marginBottom: spacing.sm } });
 
 
 
