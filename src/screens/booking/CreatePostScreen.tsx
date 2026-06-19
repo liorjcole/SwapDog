@@ -65,31 +65,41 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   // Care type
   const [primaryCareType, setPrimaryCareType] = useState<'overnight' | 'daySitting' | null>(null);
   const [addOnCareTypes, setAddOnCareTypes] = useState<Set<CareType>>(new Set());
-  // Playtime — Date objects for native spinner OR flexible duration mode
-  const [playStartDate, setPlayStartDate] = useState(() => {
-    const d = new Date(); d.setHours(10, 0, 0, 0); return d;
+  // Playtime — multi-session support (max 5 sessions)
+  interface PlaySession {
+    flexible: boolean;
+    startDate: Date;
+    endDate: Date;
+    showStart: boolean;
+    showEnd: boolean;
+    durationMins: number; // for flexible mode
+    repeatDaily: boolean;
+  }
+  const makeDefaultPlaySession = (): PlaySession => ({
+    flexible: false,
+    startDate: (() => { const d = new Date(); d.setHours(10, 0, 0, 0); return d; })(),
+    endDate: (() => { const d = new Date(); d.setHours(11, 0, 0, 0); return d; })(),
+    showStart: false,
+    showEnd: false,
+    durationMins: 60,
+    repeatDaily: false,
   });
-  const [playEndDate, setPlayEndDate] = useState(() => {
-    const d = new Date(); d.setHours(11, 0, 0, 0); return d;
-  });
-  const [showPlayStart, setShowPlayStart] = useState(false);
-  const [showPlayEnd, setShowPlayEnd] = useState(false);
-  // Flexible playtime — no specific start/end, just duration sessions
-  const [playtimeFlexible, setPlaytimeFlexible] = useState(false);
-  const [flexPlaySessions, setFlexPlaySessions] = useState<{ durationMins: number }[]>([
-    { durationMins: 60 },
-  ]);
-  const addFlexSession = () => {
-    setFlexPlaySessions(prev => [...prev, { durationMins: 30 }]);
+  const [playSessions, setPlaySessions] = useState<PlaySession[]>([makeDefaultPlaySession()]);
+  const MAX_PLAY_SESSIONS = 5;
+  const addPlaySession = () => {
+    if (playSessions.length >= MAX_PLAY_SESSIONS) return;
+    setPlaySessions(prev => [...prev, makeDefaultPlaySession()]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
-  const removeFlexSession = (index: number) => {
-    if (flexPlaySessions.length <= 1) return;
-    setFlexPlaySessions(prev => prev.filter((_, i) => i !== index));
+  const removePlaySession = (index: number) => {
+    if (playSessions.length <= 1) return;
+    setPlaySessions(prev => prev.filter((_, i) => i !== index));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
-  const updateFlexSession = (index: number, mins: number) => {
-    setFlexPlaySessions(prev => prev.map((s, i) => i === index ? { durationMins: mins } : s));
+  const updatePlaySession = (index: number, updates: Partial<PlaySession>) => {
+    setPlaySessions(prev => prev.map((s, i) => i === index ? { ...s, ...updates } : s));
   };
+  const [repeatDailyAlertShown, setRepeatDailyAlertShown] = useState(false);
   const toggleAddOn = (type: CareType) => {
     setAddOnCareTypes(prev => {
       const next = new Set(prev);
@@ -176,8 +186,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const endTime = formatTime12(endTimeDate);
   const walkStartTime = formatTime12(walkStartDate);
   const walkEndTime = formatTime12(walkEndDate);
-  const playStartTime = formatTime12(playStartDate);
-  const playEndTime = formatTime12(playEndDate);
+  // Play time formatting is now per-session (computed inline)
 
   // Walk duration
   const walkDurationMins = (() => {
@@ -190,16 +199,19 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     ? `${Math.floor(walkDurationMins / 60)}h ${walkDurationMins % 60 > 0 ? `${walkDurationMins % 60}m` : ''} walk`.trim()
     : `${walkDurationMins}m walk`;
 
-  // Play duration (non-flexible mode)
-  const playDurationMins = (() => {
-    let startMins = playStartDate.getHours() * 60 + playStartDate.getMinutes();
-    let endMins = playEndDate.getHours() * 60 + playEndDate.getMinutes();
-    if (endMins <= startMins) endMins += 1440;
-    return endMins - startMins;
-  })();
-  const playDurationText = playDurationMins >= 60
-    ? `${Math.floor(playDurationMins / 60)}h ${playDurationMins % 60 > 0 ? `${playDurationMins % 60}m` : ''} play session`.trim()
-    : `${playDurationMins}m play session`;
+  // Play duration helper — computed per session
+  const getPlayDurationMins = (session: PlaySession) => {
+    let sMins = session.startDate.getHours() * 60 + session.startDate.getMinutes();
+    let eMins = session.endDate.getHours() * 60 + session.endDate.getMinutes();
+    if (eMins <= sMins) eMins += 1440;
+    return eMins - sMins;
+  };
+  const getPlayDurationText = (session: PlaySession) => {
+    const mins = getPlayDurationMins(session);
+    return mins >= 60
+      ? `${Math.floor(mins / 60)}h ${mins % 60 > 0 ? `${mins % 60}m` : ''} play`.trim()
+      : `${mins}m play`;
+  };
 
   // Compensation
   const [offerPoints, setOfferPoints] = useState(true);
@@ -463,14 +475,14 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         careTypeFields.endTime = endTime;
       }
       if (addOnCareTypes.has('playtime')) {
-        careTypeFields.playtimeFlexible = playtimeFlexible;
-        if (playtimeFlexible) {
-          careTypeFields.flexPlaySessions = flexPlaySessions;
-        } else {
-          careTypeFields.playStartTime = playStartTime;
-          careTypeFields.playEndTime = playEndTime;
-          careTypeFields.playDurationMins = playDurationMins;
-        }
+        careTypeFields.playSessions = playSessions.map((s, i) => ({
+          sessionNumber: i + 1,
+          flexible: s.flexible,
+          startTime: s.flexible ? null : formatTime12(s.startDate),
+          endTime: s.flexible ? null : formatTime12(s.endDate),
+          durationMins: s.flexible ? s.durationMins : getPlayDurationMins(s),
+          repeatDaily: primaryCareType === 'overnight' ? s.repeatDaily : false,
+        }));
       }
 
       // Determine effective start/end date for non-range types
@@ -1028,104 +1040,146 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
               </View>
             )}
 
-        {/* ── Playtime (add-on) ── */}
+        {/* ── Playtime (add-on) — multi-session ── */}
             {addOnCareTypes.has('playtime') && (
-              <View style={[styles.section, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>🎾 Play Session</Text>
-
-                {/* Flexible hours toggle */}
-                <TouchableOpacity
-                  style={[
-                    styles.dailyToggle,
-                    { borderColor: playtimeFlexible ? colors.primary : colors.border,
-                      backgroundColor: playtimeFlexible ? `${RED}15` : colors.background,
-                      marginBottom: 12 },
-                  ]}
-                  onPress={() => setPlaytimeFlexible(prev => !prev)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={{ fontSize: 15 }}>{playtimeFlexible ? '⏱️' : '🕐'}</Text>
-                  <Text style={[
-                    styles.dailyToggleText,
-                    { color: playtimeFlexible ? colors.primary : colors.textSecondary },
-                  ]}>
-                    {playtimeFlexible ? 'Flexible hours — any time of day' : 'Are playtime hours flexible?'}
-                  </Text>
-                </TouchableOpacity>
-
-                {!playtimeFlexible ? (
-                  <>
-                    {/* Fixed time: start → end with spinners */}
-                    <View style={styles.timeRow}>
-                      <TouchableOpacity
-                        style={[styles.timePickerButton, { borderColor: showPlayStart ? colors.primary : colors.border }]}
-                        onPress={() => { setShowPlayStart(prev => !prev); setShowPlayEnd(false); }}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
-                        <Text style={[styles.timePickerValue, { color: colors.text }]}>{playStartTime}</Text>
-                      </TouchableOpacity>
-                      <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
-                      <TouchableOpacity
-                        style={[styles.timePickerButton, { borderColor: showPlayEnd ? colors.primary : colors.border }]}
-                        onPress={() => { setShowPlayEnd(prev => !prev); setShowPlayStart(false); }}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>End Time</Text>
-                        <Text style={[styles.timePickerValue, { color: colors.text }]}>{playEndTime}</Text>
-                      </TouchableOpacity>
-                    </View>
-                    {showPlayStart && (
-                      <DateTimePicker
-                        value={playStartDate}
-                        mode="time"
-                        display="spinner"
-                        themeVariant="dark"
-                        accentColor="#FF2D55"
-                        onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) setPlayStartDate(d);
-                        }}
-                        style={{ height: 150 }}
-                      />
-                    )}
-                    {showPlayEnd && (
-                      <DateTimePicker
-                        value={playEndDate}
-                        mode="time"
-                        display="spinner"
-                        themeVariant="dark"
-                        accentColor="#FF2D55"
-                        onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) setPlayEndDate(d);
-                        }}
-                        style={{ height: 150 }}
-                      />
-                    )}
-                    <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
-                      {playStartTime} → {playEndTime}  •  {playDurationText}
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    {/* Flexible mode: just specify duration per session */}
-                    <Text style={[styles.fieldHint, { color: colors.textSecondary, marginBottom: 8 }]}>
-                      Specify how long each play session should be
-                    </Text>
-                    {flexPlaySessions.map((session, idx) => (
-                      <View key={idx} style={{ marginBottom: 12 }}>
-                        {flexPlaySessions.length > 1 && (
-                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                            <Text style={[styles.careTypeHint, { color: colors.textSecondary, fontWeight: '600' }]}>
-                              Session {idx + 1}
+              <>
+                {playSessions.map((pSession, pIdx) => (
+                  <View key={pIdx} style={[styles.section, { backgroundColor: colors.surface }]}>
+                    {/* Header row: title + repeat daily + remove */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
+                        🎾 Playtime Session #{pIdx + 1}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        {/* Repeat Daily — only for overnight */}
+                        {primaryCareType === 'overnight' && (
+                          <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                            onPress={() => {
+                              const newVal = !pSession.repeatDaily;
+                              updatePlaySession(pIdx, { repeatDaily: newVal });
+                              if (newVal) {
+                                Alert.alert(
+                                  'Repeat Daily',
+                                  'By selecting this, the caretaker will be instructed to repeat this playtime session every day they are watching your dog.',
+                                  [{ text: 'Got it' }],
+                                );
+                              }
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={{
+                              fontSize: 13,
+                              fontWeight: '600',
+                              color: pSession.repeatDaily ? colors.primary : colors.primary,
+                            }}>
+                              {pSession.repeatDaily ? '✓ ' : ''}Repeat daily?
                             </Text>
-                            <TouchableOpacity
-                              onPress={() => removeFlexSession(idx)}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Text style={{ fontSize: 13, color: colors.error, fontWeight: '600' }}>Remove</Text>
-                            </TouchableOpacity>
-                          </View>
+                            {pSession.repeatDaily && (
+                              <View style={{
+                                width: 6, height: 6, borderRadius: 3,
+                                backgroundColor: colors.primary, marginLeft: 2,
+                              }} />
+                            )}
+                          </TouchableOpacity>
                         )}
+                        {/* Remove button — only if more than 1 session */}
+                        {playSessions.length > 1 && (
+                          <TouchableOpacity
+                            onPress={() => removePlaySession(pIdx)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Text style={{ fontSize: 13, color: colors.error, fontWeight: '600' }}>Remove</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+
+                    {/* Flexible hours toggle */}
+                    <TouchableOpacity
+                      style={[
+                        styles.dailyToggle,
+                        { borderColor: pSession.flexible ? colors.primary : colors.border,
+                          backgroundColor: pSession.flexible ? colors.primary + '15' : colors.background,
+                          marginBottom: 12 },
+                      ]}
+                      onPress={() => updatePlaySession(pIdx, { flexible: !pSession.flexible })}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={{ fontSize: 15 }}>{pSession.flexible ? '⏱️' : '🕐'}</Text>
+                      <Text style={[
+                        styles.dailyToggleText,
+                        { color: pSession.flexible ? colors.primary : colors.textSecondary },
+                      ]}>
+                        {pSession.flexible ? 'Flexible hours — any time of day' : 'Are playtime hours flexible?'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    {!pSession.flexible ? (
+                      <>
+                        {/* Fixed time: start → end with spinners */}
+                        <View style={styles.timeRow}>
+                          <TouchableOpacity
+                            style={[styles.timePickerButton, { borderColor: pSession.showStart ? colors.primary : colors.border }]}
+                            onPress={() => {
+                              updatePlaySession(pIdx, { showStart: !pSession.showStart, showEnd: false });
+                              // Close other sessions' pickers
+                              playSessions.forEach((_, oIdx) => { if (oIdx !== pIdx) updatePlaySession(oIdx, { showStart: false, showEnd: false }); });
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
+                            <Text style={[styles.timePickerValue, { color: colors.text }]}>{formatTime12(pSession.startDate)}</Text>
+                          </TouchableOpacity>
+                          <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
+                          <TouchableOpacity
+                            style={[styles.timePickerButton, { borderColor: pSession.showEnd ? colors.primary : colors.border }]}
+                            onPress={() => {
+                              updatePlaySession(pIdx, { showEnd: !pSession.showEnd, showStart: false });
+                              playSessions.forEach((_, oIdx) => { if (oIdx !== pIdx) updatePlaySession(oIdx, { showStart: false, showEnd: false }); });
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>End Time</Text>
+                            <Text style={[styles.timePickerValue, { color: colors.text }]}>{formatTime12(pSession.endDate)}</Text>
+                          </TouchableOpacity>
+                        </View>
+                        {pSession.showStart && (
+                          <DateTimePicker
+                            value={pSession.startDate}
+                            mode="time"
+                            display="spinner"
+                            themeVariant="dark"
+                            accentColor="#FF2D55"
+                            onChange={(_: DateTimePickerEvent, d?: Date) => {
+                              if (d) updatePlaySession(pIdx, { startDate: d });
+                            }}
+                            style={{ height: 150 }}
+                          />
+                        )}
+                        {pSession.showEnd && (
+                          <DateTimePicker
+                            value={pSession.endDate}
+                            mode="time"
+                            display="spinner"
+                            themeVariant="dark"
+                            accentColor="#FF2D55"
+                            onChange={(_: DateTimePickerEvent, d?: Date) => {
+                              if (d) updatePlaySession(pIdx, { endDate: d });
+                            }}
+                            style={{ height: 150 }}
+                          />
+                        )}
+                        <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
+                          {formatTime12(pSession.startDate)} → {formatTime12(pSession.endDate)}  •  {getPlayDurationText(pSession)}
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        {/* Flexible mode: duration pills */}
+                        <Text style={[styles.fieldHint, { color: colors.textSecondary, marginBottom: 8 }]}>
+                          How long should this play session be?
+                        </Text>
                         <View style={styles.durationRow}>
                           {[15, 30, 45, 60, 90, 120].map((mins) => (
                             <TouchableOpacity
@@ -1133,31 +1187,38 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                               style={[
                                 styles.durationPill,
                                 { borderColor: colors.border, backgroundColor: colors.background },
-                                session.durationMins === mins && { backgroundColor: colors.primary, borderColor: colors.primary },
+                                pSession.durationMins === mins && { backgroundColor: colors.primary, borderColor: colors.primary },
                               ]}
-                              onPress={() => updateFlexSession(idx, mins)}
+                              onPress={() => updatePlaySession(pIdx, { durationMins: mins })}
                             >
                               <Text style={[
                                 styles.durationPillText,
                                 { color: colors.text },
-                                session.durationMins === mins && { color: '#fff', fontWeight: '700' },
+                                pSession.durationMins === mins && { color: '#fff', fontWeight: '700' },
                               ]}>
                                 {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
                               </Text>
                             </TouchableOpacity>
                           ))}
                         </View>
-                      </View>
-                    ))}
-                    <TouchableOpacity
-                      style={[styles.addFeedingBtn, { borderColor: colors.primary }]}
-                      onPress={addFlexSession}
-                    >
-                      <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>➕ Add Another Session</Text>
-                    </TouchableOpacity>
-                  </>
+                      </>
+                    )}
+                  </View>
+                ))}
+
+                {/* Add another session button */}
+                {playSessions.length < MAX_PLAY_SESSIONS && (
+                  <TouchableOpacity
+                    style={[styles.addSessionBtn, { borderColor: colors.primary }]}
+                    onPress={addPlaySession}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
+                      ➕ Add Playtime Session #{playSessions.length + 1}
+                    </Text>
+                  </TouchableOpacity>
                 )}
-              </View>
+              </>
             )}
 
         {/* ── Care Details ── */}
@@ -1558,6 +1619,15 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderStyle: 'dashed' as const,
     alignItems: 'center',
+  },
+  addSessionBtn: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    alignItems: 'center',
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
   },
   addFeedingBtnText: { fontSize: 14, fontWeight: '600' },
   fieldHint: { fontSize: 13, marginBottom: 8 },
