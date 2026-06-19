@@ -487,7 +487,7 @@ export const onFavoriteUserPost = onDocumentCreated(
     if (!snap) return;
 
     const data = snap.data();
-    const creatorId = data.creatorId as string;
+    const creatorId = (data.posterId ?? data.creatorId) as string;
     const postId = event.params.postId;
     if (!creatorId) return;
 
