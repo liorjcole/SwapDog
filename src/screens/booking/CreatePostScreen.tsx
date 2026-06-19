@@ -238,22 +238,35 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     return Math.max(1, Math.round((e.getTime() - s.getTime()) / MS_PER_DAY));
   }, [startDate, endDate, careType]);
 
-  /** Hours from startTime → endTime for day sitting */
-  const daySittingHours = useMemo(() => {
+  /** Total minutes from startTime → endTime for day sitting */
+  const daySittingMinutes = useMemo(() => {
     try {
       const parse = (t: string) => {
         const [timePart, meridiem] = t.trim().split(' ');
         let [h, m] = timePart.split(':').map(Number);
         if (meridiem === 'PM' && h !== 12) h += 12;
         if (meridiem === 'AM' && h === 12) h = 0;
-        return h + m / 60;
+        return h * 60 + m;
       };
-      const hrs = parse(endTime) - parse(startTime);
-      return hrs > 0 ? parseFloat(hrs.toFixed(2)) : undefined;
+      const mins = parse(endTime) - parse(startTime);
+      return mins > 0 ? mins : undefined;
     } catch {
       return undefined;
     }
   }, [startTime, endTime]);
+
+  /** Format total duration as human-readable string */
+  const formatDuration = (totalMinutes: number): string => {
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    if (hours === 0) {
+      return `${mins} ${mins === 1 ? 'minute' : 'minutes'}`;
+    }
+    if (mins === 0) {
+      return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+    }
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'} and ${mins} ${mins === 1 ? 'minute' : 'minutes'}`;
+  };
 
 
   /** Total payment — flat amount for the whole job */
@@ -349,7 +362,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
       if (!amt || amt <= 0) {
         Alert.alert('Invalid Payment', 'Please enter a valid dollar amount'); return;
       }
-      if (careType === 'daySitting' && (!daySittingHours || daySittingHours <= 0)) {
+      if (careType === 'daySitting' && (!daySittingMinutes || daySittingMinutes <= 0)) {
         Alert.alert('Invalid Times', 'End time must be after start time'); return;
       }
     } else {
@@ -771,10 +784,10 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
                     )}
                   </View>
                 )}
-                {careType === 'daySitting' && daySittingHours && daySittingHours > 0 && (
+                {careType === 'daySitting' && daySittingMinutes && daySittingMinutes > 0 && (
                   <View style={[styles.dateSummary, { backgroundColor: colors.background }]}>
                     <Text style={[styles.dateSummaryText, { color: colors.textSecondary }]}>
-                      {daySittingHours} hr{daySittingHours !== 1 ? 's' : ''} of sitting
+                      {formatDuration(daySittingMinutes)}
                     </Text>
                   </View>
                 )}
