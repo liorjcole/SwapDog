@@ -421,15 +421,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
                   // can render outside the 80x80 thumb bounds (top:-6, right:-6).
                   <View key={uri + String(idx)} style={styles.dogPhotoThumbContainer}>
                     {/* Photo + ✎ edit badge */}
-                    <TouchableOpacity
-                      style={styles.dogPhotoThumbWrap}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        void handleCropPhoto(dog, idx);
-                      }}
-                      accessibilityLabel={`Tap to crop ${dog.name} photo ${idx + 1}`}
-                      accessibilityRole="button"
-                    >
+                    <View style={styles.dogPhotoThumbWrap}>
                       {uploadingDogId === dog.id ? (
                         <View style={[styles.dogPhotoThumb, { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }]}>
                           <ActivityIndicator color={colors.primary} size="small" />
@@ -441,11 +433,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
                           accessibilityLabel={`${dog.name} photo ${idx + 1}`}
                         />
                       )}
-                      {/* ✎ edit badge — bottom-right hint */}
-                      <View style={styles.dogPhotoCropHint}>
-                        <Text style={styles.dogPhotoCropHintText}>{'\u270e'}</Text>
-                      </View>
-                    </TouchableOpacity>
+                    </View>
 
                     {/* ✕ delete badge — top-right, outside thumb bounds */}
                     <TouchableOpacity

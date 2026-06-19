@@ -390,14 +390,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       <Text style={[styles.label, { color: colors.text }]}>Photos ({form.photoURLs.length}/{MAX_PHOTOS})</Text>
       <View style={styles.photoGrid}>
         {form.photoURLs.map((uri, index) => (
-          <TouchableOpacity
-            key={uri + index}
-            style={styles.photoThumb}
-            onPress={() => cropPhoto(index)}
-            activeOpacity={0.8}
-            accessibilityLabel={index === 0 ? 'Primary photo — tap to crop' : `Photo ${index + 1} — tap to crop`}
-            accessibilityRole="button"
-          >
+          <View key={uri + index} style={[styles.photoThumb, { position: 'relative' as const }]}>
             <Image
               source={{ uri }}
               style={styles.thumbImg}
@@ -407,7 +400,17 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.primaryBadgeText}>Primary</Text>
               </View>
             )}
-          </TouchableOpacity>
+            {/* ✕ delete badge */}
+            <TouchableOpacity
+              style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}
+              onPress={() => removePhoto(index)}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityLabel={`Remove photo ${index + 1}`}
+              accessibilityRole="button"
+            >
+              <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>✕</Text>
+            </TouchableOpacity>
+          </View>
         ))}
         {form.photoURLs.length < MAX_PHOTOS && (
           <TouchableOpacity

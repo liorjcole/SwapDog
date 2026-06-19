@@ -291,13 +291,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
       <View style={styles.photoGrid}>
         {photoURLs.map((uri, index) => (
           <View key={uri + index} style={styles.photoThumbWrap}>
-            <TouchableOpacity
-              style={styles.photoThumb}
-              onPress={() => setPreviewIndex(index)}
-              activeOpacity={0.8}
-              accessibilityLabel={index === 0 ? 'Primary photo — tap to view' : `Photo ${index + 1} — tap to view`}
-              accessibilityRole="button"
-            >
+            <View style={styles.photoThumb}>
               <Image
                 source={{ uri }}
                 style={styles.thumbImg}
@@ -307,7 +301,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
                   <Text style={styles.primaryBadgeText}>Primary</Text>
                 </View>
               )}
-            </TouchableOpacity>
+            </View>
             <TouchableOpacity
               style={[styles.removePhotoBtn, { backgroundColor: colors.error }]}
               onPress={() => handleRemovePhoto(index)}
