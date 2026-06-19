@@ -112,10 +112,27 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   // Time fields
   const [startTime, setStartTime] = useState('9:00 AM');
   const [endTime, setEndTime] = useState('5:00 PM');
-  const [feedingHour, setFeedingHour] = useState(8);
-  const [feedingMinute, setFeedingMinute] = useState(0);
-  const [feedingPeriod, setFeedingPeriod] = useState<'AM' | 'PM'>('AM');
-  const feedingTime = `${feedingHour}:${feedingMinute.toString().padStart(2, '0')} ${feedingPeriod}`;
+  // Feeding slots — each has hour, minute, period, and (if overnight) daily flag
+  const [feedingSlots, setFeedingSlots] = useState<{ hour: number; minute: number; period: 'AM' | 'PM'; daily: boolean }[]>([
+    { hour: 8, minute: 0, period: 'AM', daily: false },
+  ]);
+
+  const updateFeedingSlot = (index: number, field: string, value: unknown) => {
+    setFeedingSlots(prev => prev.map((slot, i) => i === index ? { ...slot, [field]: value } : slot));
+  };
+
+  const removeFeedingSlot = (index: number) => {
+    if (feedingSlots.length <= 1) return;
+    setFeedingSlots(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addFeedingSlot = () => {
+    setFeedingSlots(prev => [...prev, { hour: 12, minute: 0, period: 'PM', daily: false }]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const formatFeedingSlot = (slot: { hour: number; minute: number; period: 'AM' | 'PM' }) =>
+    `${slot.hour}:${slot.minute.toString().padStart(2, '0')} ${slot.period}`;
 
   // Walk time range
   const [walkStartHour, setWalkStartHour] = useState(9);
@@ -340,7 +357,10 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         careTypeFields.walkDurationMins = walkDurationMins;
       }
       if (addOnCareTypes.has('feeding')) {
-        careTypeFields.feedingTime = feedingTime;
+        careTypeFields.feedingSlots = feedingSlots.map(s => ({
+          time: formatFeedingSlot(s),
+          daily: primaryCareType === 'overnight' ? s.daily : false,
+        }));
       }
       if (primaryCareType !== 'overnight') {
         careTypeFields.startTime = startTime;
@@ -708,95 +728,136 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         {/* ── Feeding Time (add-on) ── */}
             {addOnCareTypes.has('feeding') && (
               <View style={[styles.section, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>🍽️ Feeding Time</Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>🍽️ Feeding Times</Text>
                 <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
-                  Set the time your dog needs to be fed
+                  Set when your dog needs to be fed
                 </Text>
-                <View style={styles.feedingPickerRow}>
-                  {/* Hour wheel */}
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Hour</Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.feedingScrollContent}
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((h) => (
+
+                {feedingSlots.map((slot, idx) => (
+                  <View key={idx} style={{ marginBottom: idx < feedingSlots.length - 1 ? 20 : 0 }}>
+                    {feedingSlots.length > 1 && (
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <Text style={[styles.careTypeHint, { color: colors.textSecondary, fontWeight: '600' }]}>
+                          Feeding {idx + 1}
+                        </Text>
                         <TouchableOpacity
-                          key={h}
-                          style={[
-                            styles.feedingPickerItem,
-                            { borderColor: colors.border, backgroundColor: colors.background },
-                            feedingHour === h && { backgroundColor: colors.primary, borderColor: colors.primary },
-                          ]}
-                          onPress={() => setFeedingHour(h)}
-                          accessibilityLabel={`${h} o'clock`}
+                          onPress={() => removeFeedingSlot(idx)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
-                          <Text style={[
-                            styles.feedingPickerItemText,
-                            { color: colors.text },
-                            feedingHour === h && { color: '#fff', fontWeight: '700' },
-                          ]}>{h}</Text>
+                          <Text style={{ fontSize: 13, color: colors.error, fontWeight: '600' }}>Remove</Text>
                         </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                  {/* Minute wheel */}
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Min</Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.feedingScrollContent}
-                    >
-                      {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
-                        <TouchableOpacity
-                          key={m}
-                          style={[
-                            styles.feedingPickerItem,
-                            { borderColor: colors.border, backgroundColor: colors.background },
-                            feedingMinute === m && { backgroundColor: colors.primary, borderColor: colors.primary },
-                          ]}
-                          onPress={() => setFeedingMinute(m)}
-                          accessibilityLabel={`${m} minutes`}
-                        >
-                          <Text style={[
-                            styles.feedingPickerItemText,
-                            { color: colors.text },
-                            feedingMinute === m && { color: '#fff', fontWeight: '700' },
-                          ]}>{m.toString().padStart(2, '0')}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                  {/* AM / PM toggle */}
-                  <View style={styles.feedingPickerCol}>
-                    <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>AM/PM</Text>
-                    <View style={styles.feedingAmPmRow}>
-                      {(['AM', 'PM'] as const).map((p) => (
-                        <TouchableOpacity
-                          key={p}
-                          style={[
-                            styles.feedingAmPmBtn,
-                            { borderColor: colors.border, backgroundColor: colors.background },
-                            feedingPeriod === p && { backgroundColor: colors.primary, borderColor: colors.primary },
-                          ]}
-                          onPress={() => setFeedingPeriod(p)}
-                          accessibilityLabel={p}
-                        >
-                          <Text style={[
-                            styles.feedingAmPmText,
-                            { color: colors.text },
-                            feedingPeriod === p && { color: '#fff', fontWeight: '700' },
-                          ]}>{p}</Text>
-                        </TouchableOpacity>
-                      ))}
+                      </View>
+                    )}
+                    <View style={styles.feedingPickerRow}>
+                      {/* Hour wheel */}
+                      <View style={styles.feedingPickerCol}>
+                        <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Hour</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((h) => (
+                            <TouchableOpacity
+                              key={h}
+                              style={[
+                                styles.feedingPickerItem,
+                                { borderColor: colors.border, backgroundColor: colors.background },
+                                slot.hour === h && { backgroundColor: colors.primary, borderColor: colors.primary },
+                              ]}
+                              onPress={() => updateFeedingSlot(idx, 'hour', h)}
+                              accessibilityLabel={`${h} o'clock`}
+                            >
+                              <Text style={[
+                                styles.feedingPickerItemText,
+                                { color: colors.text },
+                                slot.hour === h && { color: '#fff', fontWeight: '700' },
+                              ]}>{h}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                      {/* Minute wheel */}
+                      <View style={styles.feedingPickerCol}>
+                        <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>Min</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.feedingScrollContent}>
+                          {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
+                            <TouchableOpacity
+                              key={m}
+                              style={[
+                                styles.feedingPickerItem,
+                                { borderColor: colors.border, backgroundColor: colors.background },
+                                slot.minute === m && { backgroundColor: colors.primary, borderColor: colors.primary },
+                              ]}
+                              onPress={() => updateFeedingSlot(idx, 'minute', m)}
+                              accessibilityLabel={`${m} minutes`}
+                            >
+                              <Text style={[
+                                styles.feedingPickerItemText,
+                                { color: colors.text },
+                                slot.minute === m && { color: '#fff', fontWeight: '700' },
+                              ]}>{m.toString().padStart(2, '0')}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                      {/* AM / PM toggle */}
+                      <View style={styles.feedingPickerCol}>
+                        <Text style={[styles.feedingPickerLabel, { color: colors.textSecondary }]}>AM/PM</Text>
+                        <View style={styles.feedingAmPmRow}>
+                          {(['AM', 'PM'] as const).map((p) => (
+                            <TouchableOpacity
+                              key={p}
+                              style={[
+                                styles.feedingAmPmBtn,
+                                { borderColor: colors.border, backgroundColor: colors.background },
+                                slot.period === p && { backgroundColor: colors.primary, borderColor: colors.primary },
+                              ]}
+                              onPress={() => updateFeedingSlot(idx, 'period', p)}
+                              accessibilityLabel={p}
+                            >
+                              <Text style={[
+                                styles.feedingAmPmText,
+                                { color: colors.text },
+                                slot.period === p && { color: '#fff', fontWeight: '700' },
+                              ]}>{p}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
                     </View>
+                    <Text style={[styles.feedingTimePreview, { color: colors.primary }]}>
+                      {formatFeedingSlot(slot)}
+                    </Text>
+
+                    {/* Daily toggle — only shown when overnight + feeding */}
+                    {primaryCareType === 'overnight' && (
+                      <TouchableOpacity
+                        style={[
+                          styles.dailyToggle,
+                          { borderColor: slot.daily ? colors.primary : colors.border,
+                            backgroundColor: slot.daily ? `${RED}15` : colors.background },
+                        ]}
+                        onPress={() => updateFeedingSlot(idx, 'daily', !slot.daily)}
+                        activeOpacity={0.7}
+                        accessibilityLabel={slot.daily ? 'Daily feeding enabled' : 'Mark as daily feeding'}
+                        accessibilityRole="switch"
+                        accessibilityState={{ checked: slot.daily }}
+                      >
+                        <Text style={{ fontSize: 15 }}>{slot.daily ? '🔁' : '📅'}</Text>
+                        <Text style={[
+                          styles.dailyToggleText,
+                          { color: slot.daily ? colors.primary : colors.textSecondary },
+                        ]}>
+                          {slot.daily ? 'Repeats daily during stay' : 'Tap to repeat daily'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                </View>
-                <Text style={[styles.feedingTimePreview, { color: colors.primary }]}>
-                  {feedingTime}
-                </Text>
+                ))}
+
+                <TouchableOpacity
+                  style={[styles.addFeedingBtn, { borderColor: colors.primary }]}
+                  onPress={addFeedingSlot}
+                >
+                  <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>➕ Add Another Feeding</Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -1342,6 +1403,26 @@ const styles = StyleSheet.create({
   },
   feedingAmPmText: { fontSize: 15, fontWeight: '600' },
   feedingTimePreview: { fontSize: 18, fontWeight: '700', textAlign: 'center', marginTop: 4 },
+  dailyToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  dailyToggleText: { fontSize: 14, fontWeight: '600' },
+  addFeedingBtn: {
+    marginTop: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderStyle: 'dashed' as const,
+    alignItems: 'center',
+  },
+  addFeedingBtnText: { fontSize: 14, fontWeight: '600' },
   fieldHint: { fontSize: 13, marginBottom: 8 },
 });
 
