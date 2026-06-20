@@ -1723,7 +1723,7 @@ const MAX_PLAY_SESSIONS = 5;
         <View ref={refFor('careDetails')} style={[styles.section, { backgroundColor: colors.surface }]}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>📋 Care Details</Text>
               <Text style={[styles.careHint, { color: colors.textSecondary }]}>
-                Tell potential sitters what they need to know — schedule, feeding, medications, special needs, behavioral notes.
+                Any info caretakers should know — behavioral notes, how to access your home, where the pup's food / leash is, etc.
               </Text>
               <TextInput
                 style={[
@@ -1736,7 +1736,7 @@ const MAX_PLAY_SESSIONS = 5;
                         : colors.border,
                     color: colors.text },
                 ]}
-                placeholder="e.g. Bella eats twice a day (7am and 6pm). She needs a 30-min walk every morning..."
+                placeholder="e.g. feed Bella 2 cups of kibble which I left on the counter, mixed with half a cup of water. She pulls hard on walks, so make sure you are strong enough to manage a 50 lb excited walker in nyc!"
                 placeholderTextColor={colors.textSecondary}
                 value={careDetails}
                 onChangeText={setCareDetails}
