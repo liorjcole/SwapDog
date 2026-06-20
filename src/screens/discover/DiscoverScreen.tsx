@@ -195,7 +195,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
 
   return (
     <TouchableOpacity
-      style={[styles.postCard, { backgroundColor: colors.surface, ...shadow.sm, opacity: post.status !== 'open' ? 0.5 : 1, ...(isFavorited ? { borderWidth: 2, borderColor: '#FFD700' } : {}) }]}
+      style={[styles.postCard, { backgroundColor: post.status !== 'open' ? '#E8F5E9' : colors.surface, ...shadow.sm, ...(isFavorited ? { borderWidth: 2, borderColor: '#FFD700' } : {}), ...(post.status !== 'open' ? { borderLeftWidth: 4, borderLeftColor: '#4CAF50' } : {}) }]}
       onPress={handlePostPress}
       accessibilityRole="button"
       accessibilityLabel={`Post for ${post.dogName}`}
@@ -809,22 +809,31 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     const displayUsers = nearbyUsers.length > 0 ? nearbyUsers : lastUsersRef.current;
     const items: FeedItem[] = [];
 
-    // Section 1: Posts — favorites float to top
-    items.push({ kind: 'section_header', id: 'header_posts', title: 'Active Posts Nearby', count: displayPosts.length, isPosts: true });
-    if (displayPosts.length === 0) {
+    // Split posts into available vs taken
+    const availablePosts = displayPosts.filter(p => p.status === 'open');
+    const takenPosts = displayPosts.filter(p => p.status !== 'open');
+
+    const sortPosts = (posts: typeof displayPosts) => [...posts].sort((a, b) => {
+      const aFav = favoriteIds.has(a.posterId) ? 1 : 0;
+      const bFav = favoriteIds.has(b.posterId) ? 1 : 0;
+      if (aFav !== bFav) return bFav - aFav;
+      const aTime = a.startDate instanceof Date ? a.startDate.getTime() : new Date(a.startDate).getTime();
+      const bTime = b.startDate instanceof Date ? b.startDate.getTime() : new Date(b.startDate).getTime();
+      return aTime - bTime;
+    });
+
+    // Section 1: Available posts
+    items.push({ kind: 'section_header', id: 'header_posts', title: 'Active Posts Nearby', count: availablePosts.length, isPosts: true });
+    if (availablePosts.length === 0) {
       items.push({ kind: 'empty', id: 'empty_posts', text: 'No active posts in your area right now' });
     } else {
-      const sorted = [...displayPosts].sort((a, b) => {
-        // 1. Favorites float to top
-        const aFav = favoriteIds.has(a.posterId) ? 1 : 0;
-        const bFav = favoriteIds.has(b.posterId) ? 1 : 0;
-        if (aFav !== bFav) return bFav - aFav;
-        // 2. Within each group, sort by start date ascending (soonest first)
-        const aTime = a.startDate instanceof Date ? a.startDate.getTime() : new Date(a.startDate).getTime();
-        const bTime = b.startDate instanceof Date ? b.startDate.getTime() : new Date(b.startDate).getTime();
-        return aTime - bTime;
-      });
-      sorted.forEach((p) => items.push({ kind: 'post', id: p.id, post: p }));
+      sortPosts(availablePosts).forEach((p) => items.push({ kind: 'post', id: p.id, post: p }));
+    }
+
+    // Section 2: Taken posts (sitter found)
+    if (takenPosts.length > 0) {
+      items.push({ kind: 'section_header', id: 'header_taken', title: 'Sitter Found', count: takenPosts.length, isPosts: false });
+      sortPosts(takenPosts).forEach((p) => items.push({ kind: 'post', id: p.id, post: p }));
     }
 
     return items;
@@ -1101,8 +1110,8 @@ const styles = StyleSheet.create({
   interestBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   respondedBadge: { backgroundColor: '#0984E320', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start', marginTop: 6 },
   respondedBadgeText: { color: '#0984E3', fontSize: 11, fontWeight: '700' },
-  takenBadge: { backgroundColor: '#63727220', borderRadius: 99, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start' as const, marginBottom: 6 },
-  takenBadgeText: { color: '#636E72', fontSize: 12, fontWeight: '600' },
+  takenBadge: { backgroundColor: '#4CAF5025', borderRadius: 99, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start' as const, marginBottom: 6 },
+  takenBadgeText: { color: '#2E7D32', fontSize: 12, fontWeight: '600' },
   detailsBtn: { marginTop: spacing.sm, borderWidth: 1.5, borderColor: '#FF2D55', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16, alignSelf: 'flex-start' },
   detailsBtnText: { fontSize: 13, fontWeight: '700', color: '#FF2D55' },
 
