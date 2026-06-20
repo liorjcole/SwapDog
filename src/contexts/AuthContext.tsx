@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,6 +15,8 @@ interface AuthContextType {
   isOnboarded: boolean;
   loading: boolean;
   refreshUserProfile: () => Promise<void>;
+  /** Signal that signup writes are in progress — auth listener should defer profile fetch */
+  setSignupInProgress: (v: boolean) => void;
   /** The referral code that was used to enter the app (from AsyncStorage) */
   validatedReferralCode: string | null;
 }
@@ -25,6 +27,7 @@ export const AuthContext = createContext<AuthContextType>({
   isOnboarded: false,
   loading: true,
   refreshUserProfile: async () => {},
+  setSignupInProgress: () => {},
   validatedReferralCode: null,
 });
 
@@ -45,6 +48,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [validatedReferralCode, setValidatedReferralCode] = useState<string | null>(null);
+  const signupInProgressRef = useRef(false);
+
+  const setSignupInProgress = (v: boolean) => {
+    signupInProgressRef.current = v;
+  };
 
   const fetchUserProfile = async (uid: string): Promise<User | null> => {
     try {
@@ -103,8 +111,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        const profile = await fetchUserProfile(firebaseUser.uid);
-        setUserProfile(profile);
+        // During signup, the user doc hasn't been written yet — skip fetch here.
+        // signUp will call refreshUserProfile after the doc is created.
+        if (!signupInProgressRef.current) {
+          const profile = await fetchUserProfile(firebaseUser.uid);
+          setUserProfile(profile);
+        }
       } else {
         setUserProfile(null);
       }
@@ -118,7 +130,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, userProfile, isOnboarded, loading, refreshUserProfile, validatedReferralCode }}
+      value={{ user, userProfile, isOnboarded, loading, refreshUserProfile, setSignupInProgress, validatedReferralCode }}
     >
       {children}
     </AuthContext.Provider>

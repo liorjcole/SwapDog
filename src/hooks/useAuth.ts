@@ -6,10 +6,12 @@ import {
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../config/firebase';
+import { useAuthContext } from '../contexts/AuthContext';
 import { generateReferralCode, redeemReferralCode } from './useReferrals';
 const REFERRAL_STORAGE_KEY = '@swapdog_referral_code';
 
 export const useAuth = () => {
+  const { setSignupInProgress, refreshUserProfile } = useAuthContext();
   /**
    * Creates a Firebase Auth account, then writes the Firestore user doc.
    * - Reads the validated referral code from AsyncStorage
@@ -24,6 +26,8 @@ export const useAuth = () => {
     // should surface an error to the user. Once auth succeeds the auth-state
     // listener navigates away, so any subsequent Firestore errors would show
     // a misleading "Oops!" alert on the next screen.
+    // Tell auth listener to skip profile fetch — we haven't written the doc yet
+    setSignupInProgress(true);
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     const uid = credential.user.uid;
 
@@ -89,10 +93,12 @@ export const useAuth = () => {
         console.warn('[useAuth] Points history write failed (non-fatal — points still seeded on user doc)');
       }
     } catch (postAuthErr) {
-      // Log but don't throw — the user is already authenticated and
-      // navigated to the onboarding flow. The auth-context listener will
-      // retry fetching the user doc when the profile screen loads.
       console.warn('[useAuth] Post-signup setup failed (non-fatal):', postAuthErr);
+    } finally {
+      // Signup writes done (or failed) — let the auth listener fetch normally again
+      setSignupInProgress(false);
+      // Force-refresh the profile now that the user doc exists
+      await refreshUserProfile();
     }
   };
 
