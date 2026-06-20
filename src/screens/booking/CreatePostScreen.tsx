@@ -908,9 +908,13 @@ const MAX_PLAY_SESSIONS = 5;
                     {showRangeCalendar && (
                       <>
                         <Text style={[styles.rangeHint, { color: '#FF2D55' }]}>
-                          {rangeSelectStep === 'start' ? 'Select your start date' : 'Start date selected!'}
+                          {endDateSelected
+                            ? 'Start and end date selected!'
+                            : rangeSelectStep === 'start'
+                              ? 'Select your start date'
+                              : 'Start date selected!'}
                         </Text>
-                        {rangeSelectStep === 'end' && (
+                        {rangeSelectStep === 'end' && !endDateSelected && (
                           <Text style={[styles.rangeHintSub, { color: '#FF2D55' }]}>
                             Now select your end date
                           </Text>
