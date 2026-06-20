@@ -1,4 +1,5 @@
 import 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useEffect, useRef } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -116,6 +117,7 @@ export default function App() {
   }, []);
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <ErrorBoundary>
       <SuperwallProvider apiKeys={{ ios: SUPERWALL_IOS_KEY }} onConfigurationError={(error) => console.error("[Superwall] Config failed:", error)}>
         <SafeAreaProvider>
@@ -129,5 +131,6 @@ export default function App() {
         </SafeAreaProvider>
       </SuperwallProvider>
     </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
