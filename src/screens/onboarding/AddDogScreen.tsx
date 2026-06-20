@@ -17,6 +17,7 @@ import { DogSize, DogSex, EnergyLevel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import Chip from '../../components/common/Chip';
 import DogAddedTransition from '../../components/onboarding/DogAddedTransition';
+import { DraggablePhotoGrid } from '../../components/common/DraggablePhotoGrid';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 
 const MAX_DOGS = 10;
@@ -123,6 +124,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
   /** Track y-offsets of inputs so we can scroll to them on focus */
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
   const [transitionMode, setTransitionMode] = useState<'addAnother' | 'continue'>('addAnother');
   const [transitionDogName, setTransitionDogName] = useState('');
 
@@ -366,6 +368,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
         ref={scrollRef}
+        scrollEnabled={scrollEnabled}
         automaticallyAdjustKeyboardInsets={true}
         keyboardShouldPersistTaps="handled"
         style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
@@ -386,53 +389,28 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       )}
 
-      {/* Photo grid */}
+      {/* Photo grid — draggable reorder, first = primary */}
       <Text style={[styles.label, { color: colors.text }]}>Photos ({form.photoURLs.length}/{MAX_PHOTOS})</Text>
-      <View style={styles.photoGrid}>
-        {form.photoURLs.map((uri, index) => (
-          <View key={uri + index} style={[styles.photoThumb, { position: 'relative' as const }]}>
-            <Image
-              source={{ uri }}
-              style={styles.thumbImg}
-            />
-            {index === 0 && (
-              <View style={[styles.primaryBadge, { backgroundColor: colors.primary }]}>
-                <Text style={styles.primaryBadgeText}>Primary</Text>
-              </View>
-            )}
-            {/* ✕ delete badge */}
-            <TouchableOpacity
-              style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}
-              onPress={() => removePhoto(index)}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              accessibilityLabel={`Remove photo ${index + 1}`}
-              accessibilityRole="button"
-            >
-              <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>✕</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-        {form.photoURLs.length < MAX_PHOTOS && (
-          <TouchableOpacity
-            style={[styles.addPhotoTile, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            onPress={pickPhoto}
-            disabled={uploadingPhoto}
-            accessibilityLabel={`Add photo. ${MAX_PHOTOS - form.photoURLs.length} remaining`}
-            accessibilityRole="button"
-          >
-            {uploadingPhoto ? (
-              <ActivityIndicator color={colors.primary} size="small" />
-            ) : (
-              <>
-                <Text style={[styles.addPhotoIcon, { color: colors.primary }]}>+</Text>
-                <Text style={[styles.addPhotoLabel, { color: colors.textSecondary }]}>
-                  {form.photoURLs.length}/{MAX_PHOTOS}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
-      </View>
+      <Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 8, fontStyle: 'italic' }}>
+        Hold & drag to reorder. First photo is your primary.
+      </Text>
+      <DraggablePhotoGrid
+        photos={form.photoURLs}
+        onReorder={(newPhotos) => set('photoURLs', newPhotos)}
+        onDelete={(index) => removePhoto(index)}
+        onAdd={pickPhoto}
+        maxPhotos={MAX_PHOTOS}
+        uploading={uploadingPhoto}
+        onDragStart={() => setScrollEnabled(false)}
+        onDragEnd={() => setScrollEnabled(true)}
+        colors={{
+          primary: colors.primary,
+          surface: colors.surface,
+          border: colors.border,
+          textSecondary: colors.textSecondary,
+          background: colors.background,
+        }}
+      />
 
 
 

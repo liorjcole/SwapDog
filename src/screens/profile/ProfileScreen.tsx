@@ -20,6 +20,7 @@ import { Dog } from '../../models/types';
 import { spacing, borderRadius, typography, shadow } from '../../config/theme';
 import { formatDogAge } from '../../utils/formatDogAge';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { DraggablePhotoGrid } from '../../components/common/DraggablePhotoGrid';
 import StarRating from '../../components/common/StarRating';
 
 type Props = {
@@ -46,6 +47,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [referralCount, setReferralCount] = useState(0);
   const [uploadingDogId, setUploadingDogId] = useState<string | null>(null);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -330,7 +332,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const hasContract = !!userProfile?.contractSignedAt;
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+    <ScrollView scrollEnabled={scrollEnabled} style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.surface }]}>
         <AvatarImage
           photoURL={userProfile?.photoURL}
@@ -431,61 +433,30 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={[styles.dogBreed, { color: colors.textSecondary }]}>{dog.breed} {'\u2022'} {formatDogAge(dog.ageYears, dog.ageMonths)}</Text>
             </TouchableOpacity>
 
-            {/* Photo gallery grid */}
-            <View style={styles.dogPhotoGrid}>
-                {dog.photoURLs.map((uri, idx) => (
-                  // Outer container must NOT have overflow:hidden — needed so X badge
-                  // can render outside the 80x80 thumb bounds (top:-6, right:-6).
-                  <View key={uri + String(idx)} style={styles.dogPhotoThumbContainer}>
-                    {/* Photo + ✎ edit badge */}
-                    <View style={styles.dogPhotoThumbWrap}>
-                      {uploadingDogId === dog.id ? (
-                        <View style={[styles.dogPhotoThumb, { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }]}>
-                          <ActivityIndicator color={colors.primary} size="small" />
-                        </View>
-                      ) : (
-                        <Image
-                          source={{ uri }}
-                          style={styles.dogPhotoThumb}
-                          accessibilityLabel={`${dog.name} photo ${idx + 1}`}
-                        />
-                      )}
-                    </View>
-
-                    {/* ✕ delete badge — top-right, outside thumb bounds */}
-                    <TouchableOpacity
-                      style={styles.dogPhotoDeleteBadge}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        handleDeletePhotoBadge(dog, idx);
-                      }}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      accessibilityLabel={`Remove ${dog.name} photo ${idx + 1}`}
-                      accessibilityRole="button"
-                    >
-                      <Text style={styles.dogPhotoDeleteBadgeText}>{'\u2715'}</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-
-                {/* "+ Add Photo" dashed cell — always at end */}
-                <TouchableOpacity
-                  style={[styles.dogPhotoAddTile, { borderColor: '#666', backgroundColor: colors.background }]}
-                  onPress={() => { void handleAddDogPhoto(dog.id, dog.photoURLs); }}
-                  disabled={uploadingDogId === dog.id}
-                  accessibilityLabel={`Add photos for ${dog.name}`}
-                  accessibilityRole="button"
-                >
-                  {uploadingDogId === dog.id ? (
-                    <ActivityIndicator color={colors.primary} size="small" />
-                  ) : (
-                    <>
-                      <Text style={[styles.dogPhotoAddIcon, { color: '#888' }]}>+</Text>
-                      <Text style={[styles.dogPhotoAddLabel, { color: '#888' }]}>Add</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-            </View>
+            {/* Photo gallery grid — draggable reorder */}
+            <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 4, marginBottom: 6, fontStyle: 'italic' }}>
+              Hold & drag to reorder. First photo is primary.
+            </Text>
+            <DraggablePhotoGrid
+              photos={dog.photoURLs}
+              onReorder={(newPhotos) => { void updateDog(dog.id, { photoURLs: newPhotos }); }}
+              onDelete={(idx) => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                handleDeletePhotoBadge(dog, idx);
+              }}
+              onAdd={() => { void handleAddDogPhoto(dog.id, dog.photoURLs); }}
+              maxPhotos={10}
+              uploading={uploadingDogId === dog.id}
+              onDragStart={() => setScrollEnabled(false)}
+              onDragEnd={() => setScrollEnabled(true)}
+              colors={{
+                primary: colors.primary,
+                surface: colors.surface,
+                border: colors.border,
+                textSecondary: colors.textSecondary,
+                background: colors.background,
+              }}
+            />
 
 
           </View>
