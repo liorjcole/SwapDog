@@ -3,6 +3,7 @@ import {
   View, Image, Text, TouchableOpacity, Animated,
   LayoutAnimation, ActivityIndicator, StyleSheet,
   Platform, UIManager, PanResponder, PanResponderInstance,
+  useWindowDimensions,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -10,7 +11,6 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const THUMB = 80;
 const GAP = 4;
 const COLS = 4;
 const LONG_PRESS_MS = 300;
@@ -24,6 +24,8 @@ interface DraggablePhotoGridProps {
   maxPhotos: number;
   uploading: boolean;
   loadingCount?: number;
+  /** Total horizontal padding eaten by parent containers (outer + card) */
+  containerPadding?: number;
   onDragStart?: () => void;
   onDragEnd?: () => void;
   colors: {
@@ -43,10 +45,13 @@ export function DraggablePhotoGrid({
   maxPhotos,
   uploading,
   loadingCount = 0,
+  containerPadding = 80,
   onDragStart,
   onDragEnd,
   colors,
 }: DraggablePhotoGridProps) {
+  const { width: screenWidth } = useWindowDimensions();
+  const THUMB = Math.floor((screenWidth - containerPadding - (COLS - 1) * GAP) / COLS);
   const [orderedPhotos, setOrderedPhotos] = useState(photos);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
 
@@ -227,6 +232,8 @@ export function DraggablePhotoGrid({
                 {
                   left: dragX,
                   top: dragY,
+                  width: THUMB,
+                  height: THUMB,
                   zIndex: 999,
                   opacity: 0.9,
                   transform: [{ scale: dragScale }],
@@ -238,7 +245,7 @@ export function DraggablePhotoGrid({
                 },
               ]}
             >
-              <Image source={{ uri }} style={styles.thumb} />
+              <Image source={{ uri }} style={[styles.thumb, { width: THUMB, height: THUMB }]} />
               {idx === 0 && (
                 <View style={[styles.primaryBadge, { backgroundColor: colors.primary }]}>
                   <Text style={styles.primaryText}>Primary</Text>
@@ -251,10 +258,10 @@ export function DraggablePhotoGrid({
         return (
           <View
             key={uri}
-            style={[styles.item, { left: pos.x, top: pos.y }]}
+            style={[styles.item, { left: pos.x, top: pos.y, width: THUMB, height: THUMB }]}
             {...(responder?.panHandlers ?? {})}
           >
-            <Image source={{ uri }} style={styles.thumb} />
+            <Image source={{ uri }} style={[styles.thumb, { width: THUMB, height: THUMB }]} />
             {idx === 0 && (
               <View style={[styles.primaryBadge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.primaryText}>Primary</Text>
@@ -285,6 +292,8 @@ export function DraggablePhotoGrid({
               {
                 left: pos.x,
                 top: pos.y,
+                width: THUMB,
+                height: THUMB,
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
               },
@@ -303,13 +312,15 @@ export function DraggablePhotoGrid({
             {
               left: getGridPos(effectiveCount).x,
               top: getGridPos(effectiveCount).y,
+              width: THUMB,
+              height: THUMB,
               borderColor: colors.border,
               backgroundColor: colors.surface,
             },
           ]}
         >
           <TouchableOpacity
-            style={styles.addTileInner}
+            style={[styles.addTileInner, { width: THUMB, height: THUMB }]}
             onPress={onAdd}
             disabled={uploading}
           >
@@ -327,12 +338,8 @@ export function DraggablePhotoGrid({
 const styles = StyleSheet.create({
   item: {
     position: 'absolute',
-    width: THUMB,
-    height: THUMB,
   },
   thumb: {
-    width: THUMB,
-    height: THUMB,
     borderRadius: 8,
   },
   primaryBadge: {
@@ -373,15 +380,11 @@ const styles = StyleSheet.create({
   },
   addTile: {
     position: 'absolute',
-    width: THUMB,
-    height: THUMB,
     borderRadius: 8,
     borderWidth: 1.5,
     borderStyle: 'dashed',
   },
   addTileInner: {
-    width: THUMB,
-    height: THUMB,
     alignItems: 'center',
     justifyContent: 'center',
   },

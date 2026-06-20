@@ -422,6 +422,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         maxPhotos={MAX_PHOTOS}
         uploading={uploadingPhoto}
         loadingCount={uploadingCount}
+        containerPadding={48}
         onDragStart={() => setScrollEnabled(false)}
         onDragEnd={() => setScrollEnabled(true)}
         colors={{
