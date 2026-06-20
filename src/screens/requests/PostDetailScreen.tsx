@@ -356,9 +356,12 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       const endStr = smartDate(post.endDate, { includeYear: true });
       const dogDisplayName = post.dogNames && post.dogNames.length > 1
         ? post.dogNames.join(' & ') : post.dogName;
+      // Only show "from X to Y" for overnight / multi-day stays
+      const isSameDay = post.startDate.toDateString() === post.endDate.toDateString();
+      const datePhrase = isSameDay ? `on ${startStr}` : `from ${startStr} to ${endStr}`;
 
       const convId = await getOrCreateConversation(user.uid, post.posterId, post.id);
-      const introText = `Hey! I'd love to help with ${dogDisplayName} from ${startStr} to ${endStr}. I'll take the job for the offered ${post.pointsOffered ?? post.pointsCost ?? 0} points!`;
+      const introText = `Hey! I'd love to help with ${dogDisplayName} ${datePhrase}. I'll take the job for the offered ${post.pointsOffered ?? post.pointsCost ?? 0} points!`;
       await sendMessage(convId, user.uid, introText, {
         type: 'help_request',
         metadata: { postId: post.id, helperId: user.uid },
@@ -387,9 +390,11 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       const endStr = smartDate(post.endDate, { includeYear: true });
       const dogDisplayName = post.dogNames && post.dogNames.length > 1
         ? post.dogNames.join(' & ') : post.dogName;
+      const isSameDay = post.startDate.toDateString() === post.endDate.toDateString();
+      const datePhrase = isSameDay ? `on ${startStr}` : `from ${startStr} to ${endStr}`;
 
       const convId = await getOrCreateConversation(user.uid, post.posterId, post.id);
-      const introText = `Hey! I'd love to help watch ${dogDisplayName} from ${startStr} to ${endStr}. Let me know if you'd like to set something up!`;
+      const introText = `Hey! I'd love to help watch ${dogDisplayName} ${datePhrase}. Let me know if you'd like to set something up!`;
       await sendMessage(convId, user.uid, introText, {
         type: 'help_request',
         metadata: { postId: post.id, helperId: user.uid },
