@@ -369,6 +369,12 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
       await addResponder(post.id, { userId: user.uid, userName: sitterName, userPhotoURL: sitterPhoto });
 
+      // Update local state so button immediately switches to "Messaged"
+      setPost((prev) => prev ? {
+        ...prev,
+        respondedBy: [...(prev.respondedBy ?? []), { userId: user.uid, userName: sitterName, userPhotoURL: sitterPhoto, respondedAt: new Date() }],
+      } : prev);
+
       setHelpModalVisible(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -405,6 +411,13 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       }
 
       await addResponder(post.id, { userId: user.uid, userName: sitterName, userPhotoURL: sitterPhoto });
+
+      // Update local state so button immediately switches to "Messaged"
+      setPost((prev) => prev ? {
+        ...prev,
+        respondedBy: [...(prev.respondedBy ?? []), { userId: user.uid, userName: sitterName, userPhotoURL: sitterPhoto, respondedAt: new Date() }],
+      } : prev);
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       navigation.navigate('Chat' as any, { conversationId: convId, otherUserId: post.posterId });
