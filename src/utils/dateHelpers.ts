@@ -20,3 +20,14 @@ export function smartDate(
   if (options?.includeYear) fmt.year = 'numeric';
   return date.toLocaleDateString(undefined, fmt);
 }
+
+/**
+ * Returns true when two Dates fall on the same calendar day.
+ */
+export function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}

@@ -31,7 +31,7 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AvatarImage from '../../components/common/AvatarImage';
-import { smartDate } from '../../utils/dateHelpers';
+import { smartDate, isSameDay } from '../../utils/dateHelpers';
 import { useUsers } from '../../hooks/useUsers';
 import { useDiscoverLocation } from '../../hooks/useDiscoverLocation';
 import { useSwaps } from '../../hooks/useSwaps';
@@ -236,7 +236,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
                 ? post.dogNames.join(' & ')
                 : post.dogName}
             </Text>
-            <Text style={[styles.dateRange, { color: colors.textSecondary }]}>{startStr} – {endStr}</Text>
+            <Text style={[styles.dateRange, { color: colors.textSecondary }]}>{isSameDay(post.startDate, post.endDate) ? startStr : `${startStr} – ${endStr}`}</Text>
           </View>
         </View>
 

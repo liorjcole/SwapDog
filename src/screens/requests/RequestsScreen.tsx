@@ -31,7 +31,7 @@ import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useMessaging } from '../../hooks/useMessaging';
 import { useTheme } from '../../contexts/ThemeContext';
-import { smartDate } from '../../utils/dateHelpers';
+import { smartDate, isSameDay } from '../../utils/dateHelpers';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useReviews } from '../../hooks/useReviews';
 import { SwapPost } from '../../models/types';
@@ -90,6 +90,9 @@ function getCareTypeSummary(post: SwapPost): string {
       return 'Walk';
     }
     default: {
+      if (isSameDay(post.startDate, post.endDate)) {
+        return smartDate(post.startDate);
+      }
       const startStr = smartDate(post.startDate);
       const endStr = smartDate(post.endDate);
       return `${startStr} – ${endStr}`;
@@ -321,6 +324,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
     if (post.compensationType === 'points') {
       return `${post.pointsCost.toFixed(1)} pt${post.pointsCost !== 1 ? 's' : ''}`;
     }
+    // Legacy posts with per-hour/per-day rate
     if (post.totalPayment && post.paymentAmount && post.totalUnits && post.paymentRate) {
       const rateLabel = post.paymentRate === 'per_hour' ? '/hr' : '/day';
       const unitLabel =
@@ -328,6 +332,13 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           ? `${post.totalUnits} hr${post.totalUnits !== 1 ? 's' : ''}`
           : `${post.totalUnits} day${post.totalUnits !== 1 ? 's' : ''}`;
       return `$${post.totalPayment} total ($${post.paymentAmount}${rateLabel} × ${unitLabel})`;
+    }
+    // New flat-rate posts (no paymentRate field)
+    if (post.totalPayment) {
+      return `$${post.totalPayment} for the job`;
+    }
+    if (post.paymentAmount) {
+      return `$${post.paymentAmount} for the job`;
     }
     return 'Payment offered';
   };
@@ -480,7 +491,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
               {(item.dogNames && item.dogNames.length > 0) ? item.dogNames.join(' & ') : item.dogName}
             </Text>
             <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-              {startStr} — {endStr}
+              {isSameDay(item.startDate, item.endDate) ? startStr : `${startStr} — ${endStr}`}
             </Text>
           </View>
         </View>
@@ -702,7 +713,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={[styles.commitDogName, { color: colors.text }]}>{dogNamesDisplay}</Text>
               <Text style={[styles.commitOther, { color: colors.textSecondary }]}>{otherName}</Text>
               <Text style={[styles.commitDates, { color: colors.textSecondary }]}>
-                {startStr} – {endStr}
+                {isSameDay(post.startDate, post.endDate) ? startStr : `${startStr} – ${endStr}`}
               </Text>
             </View>
             <Text style={[styles.commitArrow, { color: colors.primary }]}>

@@ -34,7 +34,7 @@ import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import ConfettiCelebration, { CelebrationItem } from '../../components/common/ConfettiCelebration';
-import { smartDate } from '../../utils/dateHelpers';
+import { smartDate, isSameDay as isSameDayUtil } from '../../utils/dateHelpers';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useUsers } from '../../hooks/useUsers';
 import { useMessaging } from '../../hooks/useMessaging';
@@ -118,8 +118,12 @@ function getScheduleInfo(post: SwapPost): string {
       }
       return ' Dog Walking';
     }
-    default:
+    default: {
+      if (post.startDate.toDateString() === post.endDate.toDateString()) {
+        return startStr;
+      }
       return `${startStr} – ${endStr}`;
+    }
   }
 }
 
