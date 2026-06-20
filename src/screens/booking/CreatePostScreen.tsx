@@ -768,29 +768,7 @@ const MAX_PLAY_SESSIONS = 5;
                 </View>
               )}
 
-              {selectedDogs.length > 0 && (
-                <View style={styles.dogChipsSection}>
-                  {selectedDogs.map((dog) => (
-                    <View key={dog.id} style={styles.dogChipGroup}>
-                      {selectedDogs.length > 1 && (
-                        <Text style={[styles.dogChipGroupLabel, { color: colors.textSecondary }]}>{dog.name}:</Text>
-                      )}
-                      <View style={styles.dogChipsRow}>
-                        <Chip label={formatDogAge(dog.ageYears, dog.ageMonths)} />
-                        <Chip label={dog.size.replace('_', ' ')} />
-                        <Chip label={dog.sex} />
-                        <Chip label={`${dog.energyLevel.replace('_', ' ')} energy`} />
-                        {dog.vaccinated !== undefined && (
-                          <Chip label={dog.vaccinated ? 'Vaccinated' : 'Not vaccinated'} />
-                        )}
-                        {dog.isSpayedNeutered !== undefined && (
-                          <Chip label={dog.isSpayedNeutered ? '✅ Neutered' : '❌ Not neutered'} selected={!!dog.isSpayedNeutered} />
-                        )}
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
+
             </>
           )}
         </View>
