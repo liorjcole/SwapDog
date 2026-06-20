@@ -4,20 +4,18 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
-import { spacing, borderRadius, typography, shadow, SPLASH_COLOR } from '../../config/theme';
+import { spacing, borderRadius, typography, shadow, SPLASH_COLOR, colors as themeColors } from '../../config/theme';
 
 const { width: W, height: H } = Dimensions.get('window');
 const NUM_PIECES = 45;
 
 const CONFETTI_COLORS = [
-  SPLASH_COLOR, // primary
-  '#4ECDC4',    // teal (secondary)
-  '#FDCB6E',    // gold
-  '#A29BFE',    // lavender
-  '#55EFC4',    // mint
-  '#FD79A8',    // pink
-  '#74B9FF',    // sky blue
-  '#F9CA24',    // yellow
+  SPLASH_COLOR,          // hot pink-red #FF2D55
+  themeColors.secondary, // teal #4ECDC4
+  '#FF6B81',             // light pink
+  '#FFD93D',             // gold
+  '#6C5CE7',             // purple
+  '#A8E6CF',             // mint
 ];
 
 interface ConfettiPiece {
@@ -27,7 +25,6 @@ interface ConfettiPiece {
   opacity: Animated.Value;
   color: string;
   size: number;
-  isCircle: boolean;
   startX: number;
 }
 
@@ -57,8 +54,7 @@ const ConfettiCelebration: React.FC<Props> = ({ queue, onDismissAll }) => {
       rotate: new Animated.Value(0),
       opacity: new Animated.Value(1),
       color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-      size: 6 + Math.random() * 11,
-      isCircle: Math.random() > 0.5,
+      size: 6 + Math.random() * 8,
       startX: Math.random() * W,
     }))
   );
@@ -142,8 +138,8 @@ const ConfettiCelebration: React.FC<Props> = ({ queue, onDismissAll }) => {
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} transparent={false} animationType="fade">
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <Modal visible={visible} transparent={true} animationType="fade">
+      <View style={[styles.container, { backgroundColor: 'rgba(0,0,0,0.92)' }]}>
         {/* Confetti layer — non-interactive */}
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           {pieces.map((piece, idx) => {
@@ -159,8 +155,8 @@ const ConfettiCelebration: React.FC<Props> = ({ queue, onDismissAll }) => {
                   left: piece.startX,
                   top: 0,
                   width: piece.size,
-                  height: piece.isCircle ? piece.size : piece.size * 1.7,
-                  borderRadius: piece.isCircle ? piece.size / 2 : 3,
+                  height: piece.size * 1.4,
+                  borderRadius: piece.size * 0.2,
                   backgroundColor: piece.color,
                   opacity: piece.opacity,
                   transform: [
