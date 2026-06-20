@@ -4,6 +4,8 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { fetchSignInMethodsForEmail } from 'firebase/auth';
+import { auth } from '../../config/firebase';
 import { AuthStackParamList } from '../../navigation/types';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -14,7 +16,7 @@ type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'SignIn'>;
 };
 
-const UNREGISTERED_CODES = new Set(['auth/user-not-found', 'auth/invalid-credential']);
+const UNREGISTERED_CODES = new Set(['auth/user-not-found']);
 
 const SignInScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
@@ -47,6 +49,29 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
               onPress: () => navigation.navigate('SignUp', { email: email.trim() }) },
           ],
         );
+      } else if (code === 'auth/invalid-credential') {
+        // Could be wrong password OR non-existent account — check which one
+        try {
+          const methods = await fetchSignInMethodsForEmail(auth, email.trim());
+          if (methods.length > 0) {
+            // Account exists — wrong password
+            Alert.alert('Incorrect password', 'The password you entered is incorrect. Please try again.');
+          } else {
+            // No account — redirect to sign-up
+            Alert.alert(
+              "No account found",
+              "Let's create one!",
+              [
+                {
+                  text: 'OK',
+                  onPress: () => navigation.navigate('SignUp', { email: email.trim() }) },
+              ],
+            );
+          }
+        } catch {
+          // Fallback if the check fails
+          Alert.alert('Incorrect password', 'The password you entered is incorrect. Please try again.');
+        }
       } else {
         const { title, message } = getFriendlyAuthError(error);
         Alert.alert(title, message);
