@@ -260,6 +260,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [post, setPost] = useState<SwapPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
+  const claimingRef = useRef(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [isJustApproved, setIsJustApproved] = useState(false);
   const [celebrationQueue, setCelebrationQueue] = useState<CelebrationItem[]>([]);
@@ -337,7 +338,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   // ── "I Can Help" flow ─────────────────────────────────────────────────────
 
   const handleHelpButtonPress = () => {
-    if (!user || !post) return;
+    if (!user || !post || claimingRef.current) return;
     if (user.uid === post.posterId) {
       Alert.alert("That's your post!", "You can't respond to your own request.");
       return;
@@ -351,7 +352,8 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
   /** Accept at offered points */
   const handleAcceptPost = async () => {
-    if (!user || !post) return;
+    if (!user || !post || claimingRef.current) return;
+    claimingRef.current = true;
     setClaiming(true);
     try {
       const sitterName = userProfile?.displayName ?? user.displayName ?? 'Someone';
@@ -386,12 +388,14 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     } catch (err: unknown) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Failed to respond');
     } finally {
+      claimingRef.current = false;
       setClaiming(false);
     }
   };
 
   const handleHelp = async () => {
-    if (!user || !post) return;
+    if (!user || !post || claimingRef.current) return;
+    claimingRef.current = true;
     setClaiming(true);
     try {
       const sitterName = userProfile?.displayName ?? user.displayName ?? 'Someone';
@@ -428,6 +432,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     } catch (err: unknown) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Failed to send message');
     } finally {
+      claimingRef.current = false;
       setClaiming(false);
     }
   };
