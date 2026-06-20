@@ -4,7 +4,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { fetchSignInMethodsForEmail } from 'firebase/auth';
+import { fetchSignInMethodsForEmail, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import { AuthStackParamList } from '../../navigation/types';
 import { useAuth } from '../../hooks/useAuth';
@@ -81,6 +81,32 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+
+  const handleForgotPassword = async () => {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      Alert.alert('Enter your email', 'Type your email address above, then tap Forgot Password.');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, trimmed);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        'Check your email',
+        `We sent a password reset link to ${trimmed}. Open it to set a new password, then come back and sign in.`,
+      );
+    } catch (error: unknown) {
+      const code = (error as { code?: string })?.code ?? '';
+      if (code === 'auth/user-not-found') {
+        Alert.alert('No account found', 'There\'s no account with that email address.');
+      } else if (code === 'auth/too-many-requests') {
+        Alert.alert('Too many attempts', 'Please wait a few minutes before trying again.');
+      } else {
+        Alert.alert('Error', 'Something went wrong. Please try again.');
+      }
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
@@ -130,6 +156,15 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         <TouchableOpacity
+          onPress={handleForgotPassword}
+          style={styles.forgotWrap}
+          accessibilityLabel="Forgot password"
+          accessibilityRole="link"
+        >
+          <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot Password?</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
           onPress={handleSignIn}
           disabled={loading}
@@ -174,6 +209,8 @@ const styles = StyleSheet.create({
   passwordWrap: { position: 'relative', marginBottom: spacing.md },
   passwordInput: { marginBottom: 0, paddingRight: 48 },
   eyeBtn: { position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' },
+  forgotWrap: { alignItems: 'flex-end', marginBottom: spacing.md },
+  forgotText: { fontSize: 14, fontWeight: '600' },
   link: { textAlign: 'center', fontSize: 15 },
   linkBold: { fontWeight: '700' } });
 
