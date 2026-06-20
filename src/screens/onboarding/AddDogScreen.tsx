@@ -84,7 +84,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       // Warn that unsaved progress on the current dog will be lost
       Alert.alert(
         'Lose progress?',
-        'Any progress on this dog will be lost if you go back. Don\'t worry — all your previously saved dogs are safe and won\'t be affected!',
+        'Any progress on this dog will be lost if you go back. Don\'t worry — your saved dogs are safe, and you can edit all info on any dog from your profile at any time!',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Go Back', style: 'destructive', onPress: doGoBack },
