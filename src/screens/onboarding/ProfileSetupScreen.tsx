@@ -8,7 +8,6 @@ import * as Haptics from 'expo-haptics';
 import { OnboardingStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import KeyboardDoneBar from '../../components/common/KeyboardDoneBar';
 import { db } from '../../config/firebase';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { useOnboarding } from '../../contexts/OnboardingContext';
@@ -187,7 +186,6 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
           textContentType="none"
           accessibilityLabel="Bio, optional"
           onFocus={() => scrollToInput('bio')}
-          inputAccessoryViewID="profileBioDone"
         />
       </View>
       <View ref={refFor('ig')}>
@@ -248,7 +246,6 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
 
 
     </View>
-    <KeyboardDoneBar nativeID="profileBioDone" />
     </>
   );
 };

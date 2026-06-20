@@ -18,7 +18,6 @@ import { Calendar, DateData } from 'react-native-calendars';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import KeyboardDoneBar from '../../components/common/KeyboardDoneBar';
 import CharCountHint from '../../components/common/CharCountHint';
 import * as Location from 'expo-location';
 import { RequestsStackParamList } from '../../navigation/types';
@@ -1731,7 +1730,6 @@ const MAX_PLAY_SESSIONS = 5;
                       textAlignVertical="top"
                       returnKeyType="done"
                       blurOnSubmit={true}
-                      inputAccessoryViewID="careDetailsDone"
                     />
 
                     {/* Add another medication — inside last card */}
@@ -1784,7 +1782,6 @@ const MAX_PLAY_SESSIONS = 5;
                 autoCorrect={true}
                 spellCheck={true}
                 autoCapitalize="sentences"
-                inputAccessoryViewID="careDetailsDone"
                 onFocus={() => scrollToInput('careDetails')}
               />
               <CharCountHint current={careDetails.trim().length} min={MIN_CARE_DETAILS} />
@@ -1919,7 +1916,6 @@ const MAX_PLAY_SESSIONS = 5;
                       accessibilityLabel="Points offered"
                       returnKeyType="done"
                       onFocus={() => scrollToInput('points')}
-                      inputAccessoryViewID="careDetailsDone"
                     />
                     <Text style={[styles.pointsUnit, { color: colors.textSecondary }]}>pts</Text>
                   </View>
@@ -1957,7 +1953,6 @@ const MAX_PLAY_SESSIONS = 5;
                       accessibilityLabel="Payment amount in dollars"
                       returnKeyType="done"
                       onFocus={() => scrollToInput('payment')}
-                      inputAccessoryViewID="careDetailsDone"
                     />
                     <Text style={[styles.rateUnitLabel, { color: colors.textSecondary }]}>
                       for the job
@@ -1990,7 +1985,6 @@ const MAX_PLAY_SESSIONS = 5;
             </TouchableOpacity>
 
       </ScrollView>
-      <KeyboardDoneBar nativeID="careDetailsDone" />
       <ConfettiCelebration
         queue={celebrationQueue}
         onDismissAll={() => {

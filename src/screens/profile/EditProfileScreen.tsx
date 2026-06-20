@@ -5,7 +5,6 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import KeyboardDoneBar from '../../components/common/KeyboardDoneBar';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { useUsers } from '../../hooks/useUsers';
 import { spacing, borderRadius, typography } from '../../config/theme';
@@ -104,7 +103,6 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
           returnKeyType="done"
           blurOnSubmit={true}
           onFocus={() => scrollToInput('bio')}
-          inputAccessoryViewID="bioDoneBar"
         />
       </View>
       <View ref={refFor('ig')}>
@@ -135,7 +133,6 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
 
 
     </View>
-    <KeyboardDoneBar nativeID="bioDoneBar" />
     </>
   );
 };

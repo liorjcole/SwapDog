@@ -6,7 +6,6 @@ import * as Haptics from 'expo-haptics';
 import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import KeyboardDoneBar from '../../components/common/KeyboardDoneBar';
 import { useReviews } from '../../hooks/useReviews';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import StarRating from '../../components/common/StarRating';
@@ -72,7 +71,6 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
         accessibilityLabel="Review comment, optional"
         returnKeyType="done"
         blurOnSubmit={true}
-        inputAccessoryViewID="reviewDone"
       />
       <TouchableOpacity
         style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
@@ -84,7 +82,6 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
         <Text style={styles.btnText}>{loading ? 'Submitting...' : 'Submit Review'}</Text>
       </TouchableOpacity>
       </ScrollView>
-      <KeyboardDoneBar nativeID="reviewDone" />
     </View>
   );
 };

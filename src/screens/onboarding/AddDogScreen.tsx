@@ -14,7 +14,6 @@ import { OnboardingStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import CharCountHint from '../../components/common/CharCountHint';
-import KeyboardDoneBar from '../../components/common/KeyboardDoneBar';
 import { useDogs } from '../../hooks/useDogs';
 import { DogSize, DogSex, EnergyLevel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
@@ -447,7 +446,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           returnKeyType="done"
           blurOnSubmit={true}
           autoCapitalize="words"
-          inputAccessoryViewID="addDogBioDone"
         />
       </View>
 
@@ -463,7 +461,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           autoCapitalize="words"
           accessibilityLabel="Dog's breed"
           returnKeyType="done"
-          inputAccessoryViewID="addDogBioDone"
         />
       </View>
 
@@ -610,7 +607,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           autoCorrect={true}
           spellCheck={true}
           autoCapitalize="sentences"
-          inputAccessoryViewID="addDogBioDone"
         />
         <CharCountHint current={form.dogBio.trim().length} min={20} max={500} />
       </View>

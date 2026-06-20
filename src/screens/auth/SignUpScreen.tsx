@@ -5,7 +5,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import KeyboardDoneBar from '../../components/common/KeyboardDoneBar';
 import { AuthStackParamList } from '../../navigation/types';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -74,7 +73,6 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
           returnKeyType="next"
           blurOnSubmit={false}
           accessibilityRole="none"
-          inputAccessoryViewID="signupDone"
         />
         <View style={styles.passwordWrap}>
           <TextInput
@@ -89,7 +87,6 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
             returnKeyType="next"
             blurOnSubmit={false}
             accessibilityRole="none"
-            inputAccessoryViewID="signupDone"
           />
           <TouchableOpacity
             style={styles.eyeBtn}
@@ -114,7 +111,6 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
             returnKeyType="done"
             onSubmitEditing={handleSignUp}
             accessibilityRole="none"
-            inputAccessoryViewID="signupDone"
           />
           <TouchableOpacity
             style={styles.eyeBtn}
@@ -147,7 +143,6 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
         </TouchableOpacity>
       </ScrollView>
     </View>
-    <KeyboardDoneBar nativeID="signupDone" />
     </>
   );
 };

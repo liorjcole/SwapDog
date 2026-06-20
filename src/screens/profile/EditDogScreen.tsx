@@ -11,7 +11,6 @@ import { storage } from '../../config/firebase';
 import { ProfileStackParamList } from '../../navigation/types';
 import { useTheme } from '../../contexts/ThemeContext';
 import CharCountHint from '../../components/common/CharCountHint';
-import KeyboardDoneBar from '../../components/common/KeyboardDoneBar';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useDogs } from '../../hooks/useDogs';
@@ -346,7 +345,6 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           returnKeyType="next"
           blurOnSubmit={false}
           onFocus={() => scrollToInput('name')}
-          inputAccessoryViewID="dogBioDone"
         />
       </View>
       <View ref={refFor('breed')}>
@@ -359,7 +357,6 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           accessibilityLabel="Dog breed"
           returnKeyType="done"
           onFocus={() => scrollToInput('breed')}
-          inputAccessoryViewID="dogBioDone"
         />
       </View>
 
@@ -508,7 +505,6 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           autoCorrect={true}
           spellCheck={true}
           autoCapitalize="sentences"
-          inputAccessoryViewID="dogBioDone"
         />
         <CharCountHint current={dogBio.trim().length} min={20} max={500} />
       </View>
@@ -580,7 +576,6 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         </Modal>
       )}
     </View>
-    <KeyboardDoneBar nativeID="dogBioDone" />
     </>
   );
 };
