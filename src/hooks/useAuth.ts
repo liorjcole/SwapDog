@@ -67,7 +67,7 @@ export const useAuth = () => {
 
       // Write user doc — this MUST succeed for points to be seeded
       await setDoc(doc(db, 'users', uid), {
-        email: credential.user.email,
+        email: credential.user.email?.toLowerCase() ?? '',
         displayName: '',
         photoURL: '',
         bio: '',

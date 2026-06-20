@@ -4,8 +4,9 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { fetchSignInMethodsForEmail, sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '../../config/firebase';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth, db } from '../../config/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { AuthStackParamList } from '../../navigation/types';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -50,27 +51,52 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
           ],
         );
       } else if (code === 'auth/invalid-credential') {
-        // Could be wrong password OR non-existent account — check which one
+        // Could be wrong password OR non-existent account.
+        // Query Firestore users collection directly — fetchSignInMethodsForEmail
+        // always returns [] when Firebase Email Enumeration Protection is on.
         try {
-          const methods = await fetchSignInMethodsForEmail(auth, email.trim());
-          if (methods.length > 0) {
-            // Account exists — wrong password
-            Alert.alert('Incorrect password', 'The password you entered is incorrect. Please try again.');
+          // Check lowercase first, then original case (covers pre-normalization accounts)
+          const lowerEmail = email.trim().toLowerCase();
+          const usersQuery = query(
+            collection(db, 'users'),
+            where('email', '==', lowerEmail)
+          );
+          let snap = await getDocs(usersQuery);
+          if (snap.empty && lowerEmail !== email.trim()) {
+            // Retry with original case for old accounts stored before normalization
+            const retryQuery = query(
+              collection(db, 'users'),
+              where('email', '==', email.trim())
+            );
+            snap = await getDocs(retryQuery);
+          }
+          if (!snap.empty) {
+            // Account exists in Firestore — it's a wrong password
+            Alert.alert(
+              'Incorrect password',
+              'The password you entered is incorrect. Please try again or use Forgot Password below.'
+            );
           } else {
-            // No account — redirect to sign-up
+            // No account in Firestore — redirect to sign-up
             Alert.alert(
               "No account found",
-              "Let's create one!",
+              "We don't have an account with that email. Let's create one!",
               [
                 {
-                  text: 'OK',
-                  onPress: () => navigation.navigate('SignUp', { email: email.trim() }) },
+                  text: 'Create Account',
+                  onPress: () => navigation.navigate('SignUp', { email: email.trim() }),
+                },
+                { text: 'Cancel', style: 'cancel' },
               ],
             );
           }
         } catch {
-          // Fallback if the check fails
-          Alert.alert('Incorrect password', 'The password you entered is incorrect. Please try again.');
+          // Firestore query failed — safest fallback is wrong password
+          // (better to ask them to retry than to redirect to sign-up for an existing account)
+          Alert.alert(
+            'Sign in failed',
+            'Please check your email and password and try again.'
+          );
         }
       } else {
         const { title, message } = getFriendlyAuthError(error);
