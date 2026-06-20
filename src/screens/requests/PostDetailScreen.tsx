@@ -592,13 +592,13 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         animationType="slide"
         onRequestClose={() => setHelpModalVisible(false)}
       >
-        <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
           <TouchableOpacity
             style={StyleSheet.absoluteFillObject}
             activeOpacity={1}
             onPress={() => setHelpModalVisible(false)}
           />
-          <View style={[styles.helpModalCard, { backgroundColor: colors.surface }]}>
+          <View style={[styles.helpModalCard, { backgroundColor: colors.surface, width: '90%' }]}>
             <Text style={[styles.helpModalTitle, { color: colors.text }]}>
               Respond to this post
             </Text>
@@ -1248,7 +1248,7 @@ const styles = StyleSheet.create({
 
   // "I Can Help" modal
   helpModalOverlay: { flex: 1, justifyContent: 'flex-end' },
-  helpModalCard: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.xl, paddingBottom: spacing.xl * 2, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 10 },
+  helpModalCard: { borderRadius: 20, padding: spacing.xl, paddingBottom: spacing.xl * 2, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 10 },
   helpModalTitle: { fontSize: 20, fontWeight: '800', marginBottom: spacing.xs, textAlign: 'center' },
   helpModalSubtitle: { fontSize: 15, textAlign: 'center', marginBottom: spacing.lg },
   helpModalAcceptBtn: { borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginBottom: spacing.sm },
