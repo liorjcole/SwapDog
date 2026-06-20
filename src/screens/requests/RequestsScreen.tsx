@@ -649,7 +649,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.expandedBtnText}>💬  Message</Text>
               </TouchableOpacity>
 
-              {isMyDog && post.status !== 'completed' && (
+              {post.status !== 'completed' && (
                 <TouchableOpacity
                   style={[styles.expandedBtn, styles.expandedCancelBtn]}
                   onPress={() => handleCancelCommitment(post)}
