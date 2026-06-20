@@ -100,7 +100,10 @@ service cloud.firestore {
             || request.resource.data.senderId == 'swapdog-team'
           );
         allow update: if false;
-        allow delete: if false;
+        // Allow sender to delete their own messages (e.g. Remove Request)
+        allow delete: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convId)).data.participantIds
+          && resource.data.senderId == request.auth.uid;
       }
     }
 
