@@ -5,14 +5,39 @@ import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { SPLASH_COLOR } from '../config/theme';
 import { db } from '../config/firebase';
 
+// Track which conversation the user is currently viewing
+let activeConversationId: string | null = null;
+
+export const setActiveConversation = (convId: string | null): void => {
+  activeConversationId = convId;
+};
+
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    // Suppress notification if user is viewing the conversation it's about
+    const data = notification.request.content.data;
+    if (
+      data?.type === 'new_message' &&
+      data?.conversationId &&
+      data.conversationId === activeConversationId
+    ) {
+      return {
+        shouldShowAlert: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: false,
+        shouldShowList: false,
+      };
+    }
+
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    };
+  },
 });
 
 export const registerForPushNotifications = async (): Promise<string | null> => {

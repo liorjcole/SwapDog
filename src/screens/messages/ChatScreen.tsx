@@ -13,6 +13,7 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useMessaging } from '../../hooks/useMessaging';
 import { useFavorites } from '../../hooks/useFavorites';
+import { setActiveConversation } from '../../services/NotificationService';
 import { Message, SwapPost } from '../../models/types';
 import { collection, query, where, getDocs, getDoc, doc as firestoreDoc, updateDoc as firestoreUpdateDoc, serverTimestamp as fsServerTimestamp, addDoc as fsAddDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -59,6 +60,12 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
     }).catch(() => {});
   }, [otherUserId]);
   const listRef = useRef<FlatList<Message>>(null);
+
+  // Suppress push notifications for this conversation while viewing
+  useEffect(() => {
+    setActiveConversation(conversationId);
+    return () => setActiveConversation(null);
+  }, [conversationId]);
 
   // Mark conversation as read when the user opens the chat
   useEffect(() => {
