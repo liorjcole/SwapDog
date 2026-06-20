@@ -321,7 +321,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         style={[styles.card, { backgroundColor: isClaimed ? '#FFF8E1' : colors.surface, ...shadow.sm, borderWidth: isClaimed ? 1.5 : 0, borderColor: isClaimed ? '#FDCB6E' : 'transparent' }]}
         onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
         accessibilityRole="button"
-        accessibilityLabel={`Your post for ${item.dogName}`}
+        accessibilityLabel={`Your post for ${(item.dogNames && item.dogNames.length > 0) ? item.dogNames.join(' & ') : item.dogName}`}
       >
 
         {isClaimed && (
@@ -340,15 +340,34 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         )}
         <View style={[styles.cardHeader, isClaimed && { marginTop: spacing.sm }]}>
-          {item.dogPhotoURL ? (
-            <Image source={{ uri: item.dogPhotoURL }} style={[styles.dogThumbSmall, { borderColor: colors.border }]} />
-          ) : (
-            <View style={[styles.dogThumbPlaceholder, { backgroundColor: colors.primary + '15' }]}>
-              <Text style={styles.dogThumbEmoji}>D</Text>
-            </View>
-          )}
+          {(() => {
+            const photos = (item.dogPhotoURLs && item.dogPhotoURLs.length > 0)
+              ? item.dogPhotoURLs
+              : (item.dogPhotoURL ? [item.dogPhotoURL] : []);
+            return photos.length > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {photos.map((url: string, idx: number) => (
+                  <Image
+                    key={idx}
+                    source={{ uri: url }}
+                    style={[
+                      styles.dogThumbSmall,
+                      { borderColor: colors.border },
+                      idx > 0 && { marginLeft: -12 },
+                    ]}
+                  />
+                ))}
+              </View>
+            ) : (
+              <View style={[styles.dogThumbPlaceholder, { backgroundColor: colors.primary + '15' }]}>
+                <Text style={styles.dogThumbEmoji}>D</Text>
+              </View>
+            );
+          })()}
           <View style={styles.headerInfo}>
-            <Text style={[styles.posterName, { color: isClaimed ? '#5D4E00' : colors.text }]}>{item.dogName}</Text>
+            <Text style={[styles.posterName, { color: isClaimed ? '#5D4E00' : colors.text }]}>
+              {(item.dogNames && item.dogNames.length > 0) ? item.dogNames.join(' & ') : item.dogName}
+            </Text>
             <Text style={[styles.dateRange, { color: isClaimed ? '#8B7500' : colors.textSecondary }]}>
               {startStr} – {endStr}
             </Text>
