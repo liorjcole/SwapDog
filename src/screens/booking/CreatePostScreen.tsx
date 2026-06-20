@@ -1749,7 +1749,6 @@ const MAX_PLAY_SESSIONS = 5;
                 autoCorrect={true}
                 spellCheck={true}
                 autoCapitalize="sentences"
-                inputAccessoryViewID="careDetailsDone"
                 onFocus={() => scrollToInput('careDetails')}
               />
               <Text
