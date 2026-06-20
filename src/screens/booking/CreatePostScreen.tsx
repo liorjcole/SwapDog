@@ -766,7 +766,7 @@ const MAX_PLAY_SESSIONS = 5;
                   </Text>
                   {selectedDogs.length > 1 && (
                     <Text style={styles.multiDogHint}>
-                      You'll be able to specify which care details apply to each dog below
+                      You can specify which care details apply to each dog below
                     </Text>
                   )}
                 </View>
