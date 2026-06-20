@@ -102,6 +102,7 @@ const parsePost = (id: string, data: Record<string, unknown>): SwapPost => ({
   walkDurationMins: data.walkDurationMins as number | undefined,
   feedingSlots: data.feedingSlots as SwapPost['feedingSlots'],
   playSessions: data.playSessions as SwapPost['playSessions'],
+  medicationSlots: data.medicationSlots as SwapPost['medicationSlots'],
   createdAt: toDate(data.createdAt as Parameters<typeof toDate>[0]),
   updatedAt: toDate(data.updatedAt as Parameters<typeof toDate>[0]),
 });

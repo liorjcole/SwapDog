@@ -71,6 +71,7 @@ function getCareTypeIcon(careType?: string): string {
     case 'daySitting': return 'Daytime sitting';
     case 'feeding': return 'Feeding';
     case 'dogWalking': return 'Walk';
+    case 'medication': return 'Medication';
     default: return '';
   }
 }
@@ -81,6 +82,7 @@ function getCareTypeLabel(careType?: string): string {
     case 'daySitting': return 'Daytime sitting';
     case 'feeding': return 'Feeding';
     case 'dogWalking': return 'Walk';
+    case 'medication': return 'Medication';
     default: return 'Pet Care';
   }
 }
@@ -945,6 +947,28 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                           ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
                           : ''}
                       </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Medication slots */}
+              {post.medicationSlots && post.medicationSlots.length > 0 && (
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }}>💊 Medication</Text>
+                  {post.medicationSlots.map((slot, i) => (
+                    <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
+                      <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                        {slot.time}{slot.daily ? '  (repeats daily)' : ''}
+                        {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
+                          ? `  \u00b7  ${resolveDogNames(slot.dogIds, post)}`
+                          : ''}
+                      </Text>
+                      {slot.details ? (
+                        <Text style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 4, fontStyle: 'italic', marginTop: 1 }}>
+                          {slot.details}
+                        </Text>
+                      ) : null}
                     </View>
                   ))}
                 </View>

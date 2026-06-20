@@ -45,6 +45,7 @@ const ADDON_CARE_OPTIONS: { type: CareType; icon: string; label: string }[] = [
   { type: 'feeding', icon: '🍽️', label: 'Feeding' },
   { type: 'dogWalking', icon: '🐕', label: 'Walk' },
   { type: 'playtime', icon: '🎾', label: 'Playtime' },
+  { type: 'medication', icon: '💊', label: 'Medication' },
 ];
 
 type Props = {
@@ -196,6 +197,24 @@ const MAX_PLAY_SESSIONS = 5;
   };
 
   // Walk sessions array (multi-walk support)
+  // Medication slots
+  const [medicationSlots, setMedicationSlots] = useState<{ time: Date; details: string; daily: boolean; showPicker: boolean; dogIds: string[] }[]>([
+    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), details: '', daily: false, showPicker: false, dogIds: [...selectedDogIds] },
+  ]);
+  const updateMedicationSlot = (index: number, field: string, value: unknown) => {
+    setMedicationSlots(prev => prev.map((slot, i) => i === index ? { ...slot, [field]: value } : slot));
+  };
+  const removeMedicationSlot = (index: number) => {
+    if (medicationSlots.length <= 1) return;
+    setMedicationSlots(prev => prev.filter((_, i) => i !== index));
+  };
+  const addMedicationSlot = () => {
+    const d = new Date(); d.setHours(8, 0, 0, 0);
+    setMedicationSlots(prev => [...prev, { time: d, details: '', daily: false, showPicker: false, dogIds: [...selectedDogIds] }]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  const [collapsedMeds, setCollapsedMeds] = useState<Set<number>>(new Set());
+
   const [walkSessions, setWalkSessions] = useState<WalkSession[]>([makeDefaultWalkSession()]);
   const addWalkSession = () => {
     if (walkSessions.length >= MAX_WALK_SESSIONS) return;
@@ -276,6 +295,10 @@ const MAX_PLAY_SESSIONS = 5;
       ...s,
       dogIds: s.dogIds.length === 0 ? ids : s.dogIds.filter((id: string) => selectedDogIds.has(id))
     })));
+    // Medication slots — reset empty slots to all selected
+    setMedicationSlots(prev => prev.map(s =>
+      s.dogIds.length === 0 ? { ...s, dogIds: [...ids] } : s
+    ));
     // Feeding slots — reset empty slots to all selected
     setFeedingSlots(prev => prev.map(s =>
       s.dogIds.length === 0 ? { ...s, dogIds: ids } : { ...s, dogIds: s.dogIds.filter(id => selectedDogIds.has(id)) }
@@ -388,6 +411,12 @@ const MAX_PLAY_SESSIONS = 5;
       breakdown.push({ label: `Feeding (${count} time${count > 1 ? 's' : ''})`, pts: count });
     }
 
+    // Medication: 1 pt per medication
+    if (addOnCareTypes.has('medication')) {
+      const count = medicationSlots.length;
+      breakdown.push({ label: `Medication (${count} time${count > 1 ? 's' : ''})`, pts: count });
+    }
+
     // Playtime: 1 pt per hour (per session)
     if (addOnCareTypes.has('playtime')) {
       let playMins = 0;
@@ -403,7 +432,7 @@ const MAX_PLAY_SESSIONS = 5;
     // Apply dog multiplier
     const adjusted = Math.ceil(total * dogMultiplier);
     return { total: adjusted, baseTotal: Math.ceil(total), breakdown, dogMultiplier, numDogs };
-  }, [primaryCareType, dayCount, daySittingMinutes, addOnCareTypes, walkDurationMins, feedingSlots, playSessions, selectedDogs.length]);
+  }, [primaryCareType, dayCount, daySittingMinutes, addOnCareTypes, walkDurationMins, feedingSlots, medicationSlots, playSessions, selectedDogs.length]);
 
   /** Format total duration as human-readable string */
   const formatDuration = (totalMinutes: number): string => {
@@ -625,6 +654,15 @@ const MAX_PLAY_SESSIONS = 5;
         careTypeFields.startTime = startTime;
         careTypeFields.endTime = endTime;
       }
+      if (addOnCareTypes.has('medication')) {
+        careTypeFields.medicationSlots = medicationSlots.map(s => ({
+          time: formatTime12(s.time),
+          details: s.details.trim(),
+          daily: primaryCareType === 'overnight' ? s.daily : false,
+          dogIds: s.dogIds,
+        }));
+      }
+
       if (addOnCareTypes.has('playtime')) {
         careTypeFields.playSessions = playSessions.map((s, i) => ({
           sessionNumber: i + 1,
@@ -1533,6 +1571,150 @@ const MAX_PLAY_SESSIONS = 5;
                 ))}
 
 
+              </>
+            )}
+
+
+        {/* ── Medication (add-on) ── */}
+            {addOnCareTypes.has('medication') && (
+              <>
+                {medicationSlots.map((slot, idx) => (
+                  <View key={idx} style={[styles.section, { backgroundColor: colors.surface }]}>
+                    {/* Header: arrow + title + ✕ + repeat daily — all inline centered */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedMeds.has(idx) ? 0 : 10 }}>
+                      <TouchableOpacity
+                        onPress={() => toggleCollapse(setCollapsedMeds, idx)}
+                        style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginRight: 8, width: 16 }}>
+                          {collapsedMeds.has(idx) ? '\u203A' : '\u25BE'}
+                        </Text>
+                        <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
+                          \ud83d\udc8a {idx === 0 ? 'Medication' : `Medication #${idx + 1}`}
+                        </Text>
+                      </TouchableOpacity>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <TouchableOpacity
+                          onPress={() => Alert.alert(
+                            medicationSlots.length === 1 ? 'Remove Medication' : `Remove Medication #${idx + 1}`,
+                            medicationSlots.length === 1
+                              ? 'Are you sure you want to remove medication from this post?'
+                              : 'Are you sure you want to remove this medication?',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Remove', style: 'destructive', onPress: () => {
+                                if (medicationSlots.length === 1) {
+                                  setAddOnCareTypes(prev => { const n = new Set(prev); n.delete('medication'); return n; });
+                                } else {
+                                  removeMedicationSlot(idx);
+                                }
+                              }},
+                            ]
+                          )}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>\u2715</Text>
+                        </TouchableOpacity>
+                        {primaryCareType === 'overnight' && (
+                          <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                            onPress={() => {
+                              const newVal = !slot.daily;
+                              updateMedicationSlot(idx, 'daily', newVal);
+                              if (newVal) {
+                                Alert.alert(
+                                  'Repeat Daily',
+                                  'By selecting this, the caretaker will be expected to do this every day during the stay.',
+                                  [{ text: 'Got it' }],
+                                );
+                              }
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: slot.daily ? '#34C759' : colors.primary }}>
+                              {slot.daily ? '\u2705 Repeat daily' : '\ud83d\udcc5 Repeat daily?'}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                    {!collapsedMeds.has(idx) && (
+                    <>
+                    {/* Dog assignment row */}
+                    {selectedDogs.length > 1 && (
+                      <DogAssignRow
+                        activeDogIds={slot.dogIds}
+                        onToggle={(dogId: string) => {
+                          const updated = slot.dogIds.includes(dogId)
+                            ? slot.dogIds.filter((id: string) => id !== dogId)
+                            : [...slot.dogIds, dogId];
+                          updateMedicationSlot(idx, 'dogIds', updated);
+                        }}
+                      />
+                    )}
+
+                    {/* Time picker */}
+                    <TouchableOpacity
+                      style={[styles.timePickerButton, { borderColor: slot.showPicker ? colors.primary : colors.border, alignSelf: 'stretch' }]}
+                      onPress={() => updateMedicationSlot(idx, 'showPicker', !slot.showPicker)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
+                        {medicationSlots.length > 1 ? `Medication ${idx + 1} Time` : 'Medication Time'}
+                      </Text>
+                      <Text style={[styles.feedingTimePreview, { color: colors.text }]}>{formatTime12(slot.time)}</Text>
+                    </TouchableOpacity>
+                    {slot.showPicker && (
+                      <DateTimePicker
+                        value={slot.time}
+                        mode="time"
+                        display="spinner"
+                        themeVariant="dark"
+                        accentColor="#FF2D55"
+                        onChange={(_: DateTimePickerEvent, d?: Date) => {
+                          if (d) updateMedicationSlot(idx, 'time', d);
+                        }}
+                        style={{ height: 150 }}
+                      />
+                    )}
+
+                    {/* Medication details text field */}
+                    <TextInput
+                      style={[styles.careInput, {
+                        backgroundColor: colors.background,
+                        borderColor: colors.border,
+                        color: colors.text,
+                        minHeight: 70,
+                        marginTop: 8,
+                      }]}
+                      placeholder="Specify medication details (e.g. 1 pill of Apoquel with food, apply ear drops to both ears...)"
+                      placeholderTextColor={colors.textSecondary}
+                      value={slot.details}
+                      onChangeText={(text) => updateMedicationSlot(idx, 'details', text)}
+                      multiline
+                      numberOfLines={3}
+                      textAlignVertical="top"
+                      returnKeyType="done"
+                      blurOnSubmit={true}
+                    />
+
+                    {/* Add another medication — inside last card */}
+                    {idx === medicationSlots.length - 1 && (
+                      <TouchableOpacity
+                        style={[styles.addSessionBtn, { borderColor: colors.primary, marginTop: 16 }]}
+                        onPress={addMedicationSlot}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
+                          \u2795 Add Medication #{medicationSlots.length + 1}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    </>
+                    )}
+                  </View>
+                ))}
               </>
             )}
 

@@ -71,6 +71,7 @@ const getCareTypeLabel = (t: string): string => {
     case 'daySitting': return 'Daytime sitting';
     case 'feeding': return 'Feeding';
     case 'dogWalking': return 'Walk';
+    case 'medication': return 'Medication';
     default: return t;
   }
 };
@@ -260,6 +261,21 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
               {post.feedingSlots.map((slot, i) => (
                 <Text key={i} style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
                   {slot.time}{slot.daily ? '  ✅ daily' : ''}
+                  {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
+                    ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
+                    : ''}
+                </Text>
+              ))}
+            </View>
+          )}
+
+          {/* Medication slots */}
+          {post.medicationSlots && post.medicationSlots.length > 0 && (
+            <View style={{ marginTop: 6 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>💊 Medication</Text>
+              {post.medicationSlots.map((slot, i) => (
+                <Text key={i} style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }} numberOfLines={1}>
+                  {slot.time}{slot.daily ? '  ✅ daily' : ''}{slot.details ? ` — ${slot.details}` : ''}
                   {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                     ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
                     : ''}

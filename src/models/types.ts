@@ -104,7 +104,7 @@ export interface Dog {
   updatedAt: Date;
 }
 
-export type CareType = 'overnight' | 'daySitting' | 'feeding' | 'dogWalking' | 'playtime';
+export type CareType = 'overnight' | 'daySitting' | 'feeding' | 'dogWalking' | 'playtime' | 'medication';
 
 export type PaymentType = 'points' | 'payment' | 'either';
 export type SitterPreference = 'points' | 'payment';
@@ -185,6 +185,8 @@ export interface SwapPost {
   feedingSlots?: { time: string; daily: boolean; dogIds: string[] }[];
   /** Play sessions with times, duration, and dog assignments */
   playSessions?: { sessionNumber: number; flexible: boolean; startTime: string | null; endTime: string | null; durationMins: number; repeatDaily: boolean; dogIds: string[] }[];
+  /** Medication slots with time, details text, and dog assignments */
+  medicationSlots?: { time: string; details: string; daily: boolean; dogIds: string[] }[];
 
   // Status
   status: PostStatus;
