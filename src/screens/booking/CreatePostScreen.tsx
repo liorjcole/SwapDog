@@ -1781,6 +1781,7 @@ const MAX_PLAY_SESSIONS = 5;
                 autoCorrect={true}
                 spellCheck={true}
                 autoCapitalize="sentences"
+                inputAccessoryViewID="careDetailsDone"
                 onFocus={() => scrollToInput('careDetails')}
               />
               <Text
@@ -2273,7 +2274,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: 'transparent',
   },
   keyboardDoneBtn: {
     padding: 4,
