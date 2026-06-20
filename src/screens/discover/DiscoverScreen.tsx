@@ -341,9 +341,9 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
                 💰  {post.compensationType === 'points'
                   ? `${post.pointsOffered ?? post.pointsCost ?? 0} points`
                   : post.compensationType === 'payment'
-                    ? `$${post.paymentAmount ?? 0}${post.paymentRate === 'per_hour' ? '/hr' : '/day'}`
+                    ? `$${post.totalPayment ?? post.paymentAmount ?? 0}${post.paymentRate ? (post.paymentRate === 'per_hour' ? '/hr' : '/day') : ''}`
                     : post.compensationType === 'either'
-                      ? `${post.pointsOffered ?? post.pointsCost ?? 0} pts or $${post.paymentAmount ?? 0}${post.paymentRate === 'per_hour' ? '/hr' : '/day'}`
+                      ? `${post.pointsOffered ?? post.pointsCost ?? 0} pts or $${post.totalPayment ?? post.paymentAmount ?? 0}`
                       : 'TBD'}
               </Text>
             </View>

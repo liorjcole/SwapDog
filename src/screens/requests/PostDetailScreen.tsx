@@ -592,6 +592,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       const pts = post.pointsOffered ?? post.pointsCost;
       return `${pts} point${pts !== 1 ? 's' : ''} offered`;
     }
+    // Legacy posts with per-hour/per-day rate
     if (post.totalPayment && post.paymentAmount && post.paymentRate) {
       const rateLabel = post.paymentRate === 'per_hour' ? '/hr' : '/day';
       if (post.careType === 'feeding') return `$${post.paymentAmount} per visit`;
@@ -600,9 +601,22 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         : `${post.totalUnits} day${post.totalUnits !== 1 ? 's' : ''}`;
       return `$${post.totalPayment} total ($${post.paymentAmount}${rateLabel} × ${unitLabel})`;
     }
-    return post.compensationType === 'either'
-      ? `${(post.pointsCost ?? 0).toFixed(1)} pts or payment`
-      : 'Payment offered';
+    // New flat-rate posts (no paymentRate field)
+    if (post.totalPayment) {
+      return `$${post.totalPayment} for the job`;
+    }
+    if (post.paymentAmount) {
+      return `$${post.paymentAmount} for the job`;
+    }
+    if (post.compensationType === 'either') {
+      const pts = post.pointsOffered ?? post.pointsCost ?? 0;
+      // Check if there's a dollar amount too
+      if (post.totalPayment || post.paymentAmount) {
+        return `${pts} pts or $${post.totalPayment ?? post.paymentAmount}`;
+      }
+      return `${pts} point${pts !== 1 ? 's' : ''} or payment`;
+    }
+    return 'Payment offered';
   };
 
   const offeredPoints = post.pointsOffered ?? post.pointsCost ?? 0;
