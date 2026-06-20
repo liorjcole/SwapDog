@@ -527,13 +527,13 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
 
 
       <TouchableOpacity
-        style={[styles.signOutBtn, { backgroundColor: 'transparent', borderWidth: 2, borderColor: '#FF0000' }]}
         onPress={handleSignOut}
+        style={{ alignItems: 'center', marginVertical: 24 }}
         accessibilityLabel="Sign out"
         accessibilityRole="button"
         accessibilityHint="Signs you out of your WatchDog account"
       >
-        <Text style={styles.signOutText}>Sign Out</Text>
+        <Text style={{ color: '#FF0000', fontSize: 15, fontWeight: '600', textDecorationLine: 'underline' }}>Sign Out</Text>
       </TouchableOpacity>
     </ScrollView>
   );
