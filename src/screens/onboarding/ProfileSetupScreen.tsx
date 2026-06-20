@@ -8,6 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { OnboardingStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import KeyboardDoneBar from '../../components/common/KeyboardDoneBar';
 import { db } from '../../config/firebase';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { useOnboarding } from '../../contexts/OnboardingContext';
@@ -186,6 +187,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
           textContentType="none"
           accessibilityLabel="Bio, optional"
           onFocus={() => scrollToInput('bio')}
+          inputAccessoryViewID="profileBioDone"
         />
       </View>
       <View ref={refFor('ig')}>
@@ -268,28 +270,7 @@ const styles = StyleSheet.create({
   referralLinkText: { fontSize: 14, textDecorationLine: 'underline' },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm },
   btnText: { color: '#fff', ...typography.button },
-  keyboardBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0F0F0',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#C8C8C8',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  keyboardDoneBtn: {
-    backgroundColor: '#007AFF',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  keyboardDoneText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
+
 
 });
 

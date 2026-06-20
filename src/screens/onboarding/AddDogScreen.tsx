@@ -13,6 +13,8 @@ import * as Haptics from 'expo-haptics';
 import { OnboardingStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import CharCountHint from '../../components/common/CharCountHint';
+import KeyboardDoneBar from '../../components/common/KeyboardDoneBar';
 import { useDogs } from '../../hooks/useDogs';
 import { DogSize, DogSex, EnergyLevel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
@@ -606,12 +608,9 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           autoCorrect={true}
           spellCheck={true}
           autoCapitalize="sentences"
+          inputAccessoryViewID="addDogBioDone"
         />
-        <Text style={[styles.fieldHint, { color: form.dogBio.trim().length >= 20 ? colors.success : colors.textSecondary }]}>
-          {form.dogBio.trim().length < 20
-            ? `${form.dogBio.trim().length}/20 characters minimum`
-            : `${form.dogBio.trim().length} characters ✓`}
-        </Text>
+        <CharCountHint current={form.dogBio.trim().length} min={20} max={500} />
       </View>
 
       {/* Primary CTA — saves current dog and proceeds to location */}

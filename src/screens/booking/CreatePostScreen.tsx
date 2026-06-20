@@ -12,12 +12,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, Platform, Switch, Image, InputAccessoryView, Keyboard } from 'react-native';
+  Alert, Platform, Switch, Image } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Calendar, DateData } from 'react-native-calendars';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import KeyboardDoneBar from '../../components/common/KeyboardDoneBar';
+import CharCountHint from '../../components/common/CharCountHint';
 import * as Location from 'expo-location';
 import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -1784,11 +1786,7 @@ const MAX_PLAY_SESSIONS = 5;
                 inputAccessoryViewID="careDetailsDone"
                 onFocus={() => scrollToInput('careDetails')}
               />
-              <Text
-                style={[styles.charCount, { color: careDetails.length >= MIN_CARE_DETAILS ? colors.success : colors.textSecondary }]}
-              >
-                {careDetails.length} chars{careDetails.length < MIN_CARE_DETAILS ? ` (min ${MIN_CARE_DETAILS})` : ' ✓'}
-              </Text>
+              <CharCountHint current={careDetails.trim().length} min={MIN_CARE_DETAILS} />
             </View>
         )}
 
@@ -1991,20 +1989,7 @@ const MAX_PLAY_SESSIONS = 5;
             </TouchableOpacity>
 
       </ScrollView>
-      {Platform.OS === 'ios' && (
-        <InputAccessoryView nativeID="careDetailsDone">
-          <View style={styles.keyboardBar}>
-            <View style={{ flex: 1 }} />
-            <TouchableOpacity
-              onPress={() => Keyboard.dismiss()}
-              style={styles.keyboardDoneBtn}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="checkmark-circle" size={28} color="#007AFF" />
-            </TouchableOpacity>
-          </View>
-        </InputAccessoryView>
-      )}
+      <KeyboardDoneBar nativeID="careDetailsDone" />
       <ConfettiCelebration
         queue={celebrationQueue}
         onDismissAll={() => {
@@ -2237,7 +2222,7 @@ const styles = StyleSheet.create({
   // Care details
   careHint: { fontSize: 13, fontStyle: 'italic', lineHeight: 18, marginBottom: spacing.sm },
   careInput: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, fontSize: 14, minHeight: 120, lineHeight: 20 },
-  charCount: { fontSize: 12, textAlign: 'right', marginTop: spacing.xs },
+
 
   // Compensation
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
@@ -2269,16 +2254,7 @@ const styles = StyleSheet.create({
   // Submit
   submitBtn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm },
   submitBtnText: { color: '#fff', ...typography.button },
-  keyboardBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: 'transparent',
-  },
-  keyboardDoneBtn: {
-    padding: 4,
-  },
+
   // Feeding time picker
   feedingPickerRow: { marginTop: 8 },
   feedingPickerCol: { marginBottom: 12 },

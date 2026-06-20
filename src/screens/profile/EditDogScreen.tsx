@@ -10,6 +10,8 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage
 import { storage } from '../../config/firebase';
 import { ProfileStackParamList } from '../../navigation/types';
 import { useTheme } from '../../contexts/ThemeContext';
+import CharCountHint from '../../components/common/CharCountHint';
+import KeyboardDoneBar from '../../components/common/KeyboardDoneBar';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useDogs } from '../../hooks/useDogs';
@@ -277,6 +279,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   if (loading) return <LoadingSpinner />;
 
   return (
+    <>
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
         ref={scrollRef}
@@ -503,12 +506,9 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           autoCorrect={true}
           spellCheck={true}
           autoCapitalize="sentences"
+          inputAccessoryViewID="dogBioDone"
         />
-        <Text style={[styles.fieldHint, { color: dogBio.trim().length >= 20 ? '#34C759' : colors.textSecondary }]}>
-          {dogBio.trim().length < 20
-            ? `${20 - dogBio.trim().length} more characters needed`
-            : `✓ ${dogBio.trim().length}/500`}
-        </Text>
+        <CharCountHint current={dogBio.trim().length} min={20} max={500} />
       </View>
 
       <TouchableOpacity
@@ -578,6 +578,8 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         </Modal>
       )}
     </View>
+    <KeyboardDoneBar nativeID="dogBioDone" />
+    </>
   );
 };
 

@@ -8,6 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { DiscoverStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import CharCountHint from '../../components/common/CharCountHint';
 import { useDogs } from '../../hooks/useDogs';
 import { useUsers } from '../../hooks/useUsers';
 import { useSwaps } from '../../hooks/useSwaps';
@@ -398,13 +399,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
           accessibilityLabel="Care details for the dog watcher"
         returnKeyType="done"
                   />
-        <Text style={[
-          styles.charCount,
-          {
-            color: careDetails.length >= MIN_CARE_DETAILS ? colors.success : colors.textSecondary },
-        ]}>
-          {careDetails.length} chars{careDetails.length < MIN_CARE_DETAILS ? ` (min ${MIN_CARE_DETAILS})` : ' ✓'}
-        </Text>
+        <CharCountHint current={careDetails.trim().length} min={MIN_CARE_DETAILS} />
       </View>
 
       {/* ── Section 5: Optional message ── */}

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, Linking, InputAccessoryView, Keyboard } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import KeyboardDoneBar from '../../components/common/KeyboardDoneBar';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { useUsers } from '../../hooks/useUsers';
 import { spacing, borderRadius, typography } from '../../config/theme';
@@ -134,16 +135,7 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
 
 
     </View>
-    {Platform.OS === 'ios' && (
-      <InputAccessoryView nativeID="bioDoneBar">
-        <View style={styles.kbToolbar}>
-          <View style={{ flex: 1 }} />
-          <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.kbDoneBtn}>
-            <Text style={styles.kbDoneText}>Done</Text>
-          </TouchableOpacity>
-        </View>
-      </InputAccessoryView>
-    )}
+    <KeyboardDoneBar nativeID="bioDoneBar" />
     </>
   );
 };
@@ -159,46 +151,8 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 100, textAlignVertical: 'top' },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center' },
   btnText: { color: '#fff', ...typography.button },
-  keyboardBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0F0F0',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#C8C8C8',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  keyboardDoneBtn: {
-    backgroundColor: '#007AFF',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  keyboardDoneText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  kbToolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#8E8E93',
-    backgroundColor: '#D1D5DB',
-  },
-  kbDoneBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  kbDoneText: {
-    color: '#007AFF',
-    fontSize: 17,
-    fontWeight: '600',
-  },
+
+
 });
 
 export default EditProfileScreen;
