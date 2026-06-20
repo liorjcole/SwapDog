@@ -476,6 +476,8 @@ const MAX_PLAY_SESSIONS = 5;
 
   const formatDate = (d: Date) =>
     d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  const shortDate = (d: Date) =>
+    d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
   const dogTitleHint = useMemo(() => {
     if (selectedDogs.length === 0) return '';
@@ -972,7 +974,7 @@ const MAX_PLAY_SESSIONS = 5;
                 )}
 
                 {/* Time fields for overnight and day sitting — native spinner */}
-                {(careType === 'overnight' || careType === 'daySitting') && (
+                {(careType === 'overnight' || careType === 'daySitting') && (careType !== 'overnight' || endDateSelected) && (
                   <View ref={refFor('startTime')}>
                     <View style={styles.timeRow}>
                       <TouchableOpacity
@@ -980,7 +982,9 @@ const MAX_PLAY_SESSIONS = 5;
                         onPress={() => { setShowStartTime(prev => !prev); setShowEndTime(false); }}
                         activeOpacity={0.7}
                       >
-                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
+                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
+                          Start Time{careType === 'overnight' ? ` (on ${shortDate(startDate)})` : ''}
+                        </Text>
                         <Text style={[styles.timePickerValue, { color: colors.text }]}>{startTime}</Text>
                       </TouchableOpacity>
                       <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
@@ -989,7 +993,9 @@ const MAX_PLAY_SESSIONS = 5;
                         onPress={() => { setShowEndTime(prev => !prev); setShowStartTime(false); }}
                         activeOpacity={0.7}
                       >
-                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>End Time</Text>
+                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
+                          End Time{careType === 'overnight' ? ` (on ${shortDate(endDate)})` : ''}
+                        </Text>
                         <Text style={[styles.timePickerValue, { color: colors.text }]}>{endTime}</Text>
                       </TouchableOpacity>
                     </View>
