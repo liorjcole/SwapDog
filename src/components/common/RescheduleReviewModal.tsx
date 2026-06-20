@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
 import { spacing, borderRadius } from '../../config/theme';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { smartDate } from '../../utils/dateHelpers';
+import { smartDate, isSameDay } from '../../utils/dateHelpers';
 
 const RED = '#FF2D55';
 
@@ -22,13 +22,15 @@ interface Props {
   proposerName: string;
   /** Optional note from the proposer */
   proposerNote?: string;
+  /** Whether this is an overnight (multi-day) booking */
+  isOvernight?: boolean;
   /** Callback when user takes an action */
   onRespond: (action: 'accept' | 'reject' | 'propose', note?: string, newStart?: Date, newEnd?: Date) => void;
 }
 
 const RescheduleReviewModal: React.FC<Props> = ({
   visible, onClose, proposedStart, proposedEnd, originalStart, originalEnd,
-  proposerName, proposerNote, onRespond }) => {
+  proposerName, proposerNote, isOvernight, onRespond }) => {
   const { colors } = useTheme();
   const [note, setNote] = useState('');
   const scrollRef = useRef<ScrollView>(null);
@@ -51,18 +53,19 @@ const RescheduleReviewModal: React.FC<Props> = ({
   };
 
   const handlePropose = () => {
+    const effectiveEnd = isOvernight ? myEnd : myStart;
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     if (myStart < todayStart) {
-      Alert.alert('Invalid dates', 'Start date cannot be in the past.');
+      Alert.alert('Invalid date', 'Date cannot be in the past.');
       return;
     }
-    if (myEnd <= myStart) {
+    if (isOvernight && effectiveEnd <= myStart) {
       Alert.alert('Invalid dates', 'End date must be after the start date.');
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onRespond('propose', note.trim() || undefined, myStart, myEnd);
+    onRespond('propose', note.trim() || undefined, myStart, effectiveEnd);
     setNote('');
     setShowPropose(false);
   };
@@ -108,14 +111,14 @@ const RescheduleReviewModal: React.FC<Props> = ({
               <View style={styles.dateBlock}>
                 <Text style={[styles.dateLabel, { color: colors.textSecondary }]}>Original</Text>
                 <Text style={[styles.dateValue, { color: colors.text, textDecorationLine: 'line-through', opacity: 0.5 }]}>
-                  {smartDate(originalStart)} – {smartDate(originalEnd)}
+                  {isSameDay(originalStart, originalEnd) ? smartDate(originalStart) : `${smartDate(originalStart)} – ${smartDate(originalEnd)}`}
                 </Text>
               </View>
               <Text style={[styles.arrow, { color: RED }]}>→</Text>
               <View style={styles.dateBlock}>
                 <Text style={[styles.dateLabel, { color: RED }]}>Proposed</Text>
                 <Text style={[styles.dateValue, { color: RED, fontWeight: '700' }]}>
-                  {smartDate(proposedStart)} – {smartDate(proposedEnd)}
+                  {isSameDay(proposedStart, proposedEnd) ? smartDate(proposedStart) : `${smartDate(proposedStart)} – ${smartDate(proposedEnd)}`}
                 </Text>
               </View>
             </View>
@@ -130,7 +133,7 @@ const RescheduleReviewModal: React.FC<Props> = ({
 
             {/* Action buttons */}
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: RED }]} onPress={handleAccept}>
-              <Text style={styles.actionBtnText}>Accept New Dates</Text>
+              <Text style={styles.actionBtnText}>{isOvernight ? 'Accept New Dates' : 'Accept New Date'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.actionBtn, styles.grayBtn]} onPress={handleReject}>
@@ -142,16 +145,16 @@ const RescheduleReviewModal: React.FC<Props> = ({
               onPress={() => setShowPropose(!showPropose)}
             >
               <Text style={[styles.actionBtnText, styles.grayBtnText]}>
-                {showPropose ? 'Cancel Proposal' : 'Propose Different Dates'}
+                {showPropose ? 'Cancel Proposal' : isOvernight ? 'Propose Different Dates' : 'Propose Different Date'}
               </Text>
             </TouchableOpacity>
 
             {/* Propose different dates section */}
             {showPropose && (
               <View style={[styles.proposeSection, { borderColor: colors.textSecondary }]}>
-                <Text style={[styles.proposeLabel, { color: colors.text }]}>Your proposed dates</Text>
+                <Text style={[styles.proposeLabel, { color: colors.text }]}>{isOvernight ? 'Your proposed dates' : 'Your proposed date'}</Text>
 
-                <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 4, textTransform: 'uppercase' }}>Start</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 4, textTransform: 'uppercase' }}>{isOvernight ? 'Start' : 'Date'}</Text>
                 <TouchableOpacity
                   onPress={() => { setShowMyStartPicker(!showMyStartPicker); setShowMyEndPicker(false); }}
                   style={{ backgroundColor: colors.background, borderRadius: 8, padding: 12, marginBottom: 4 }}
@@ -170,7 +173,7 @@ const RescheduleReviewModal: React.FC<Props> = ({
                       if (Platform.OS !== 'ios') setShowMyStartPicker(false);
                       if (d) {
                         setMyStart(d);
-                        if (d >= myEnd) {
+                        if (isOvernight && d >= myEnd) {
                           const newEnd = new Date(d);
                           newEnd.setDate(newEnd.getDate() + 1);
                           setMyEnd(newEnd);
@@ -180,26 +183,30 @@ const RescheduleReviewModal: React.FC<Props> = ({
                   />
                 )}
 
-                <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 4, textTransform: 'uppercase' }}>End</Text>
-                <TouchableOpacity
-                  onPress={() => { setShowMyEndPicker(!showMyEndPicker); setShowMyStartPicker(false); }}
-                  style={{ backgroundColor: colors.background, borderRadius: 8, padding: 12, marginBottom: 4 }}
-                >
-                  <Text style={{ color: showMyEndPicker ? colors.primary : colors.text, fontSize: 16, fontWeight: '600' }}>
-                    {smartDate(myEnd)}
-                  </Text>
-                </TouchableOpacity>
-                {showMyEndPicker && (
-                  <DateTimePicker
-                    value={myEnd}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                    minimumDate={myStart}
-                    onChange={(_: DateTimePickerEvent, d?: Date) => {
-                      if (Platform.OS !== 'ios') setShowMyEndPicker(false);
-                      if (d) setMyEnd(d);
-                    }}
-                  />
+                {isOvernight && (
+                  <>
+                    <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 4, textTransform: 'uppercase' }}>End</Text>
+                    <TouchableOpacity
+                      onPress={() => { setShowMyEndPicker(!showMyEndPicker); setShowMyStartPicker(false); }}
+                      style={{ backgroundColor: colors.background, borderRadius: 8, padding: 12, marginBottom: 4 }}
+                    >
+                      <Text style={{ color: showMyEndPicker ? colors.primary : colors.text, fontSize: 16, fontWeight: '600' }}>
+                        {smartDate(myEnd)}
+                      </Text>
+                    </TouchableOpacity>
+                    {showMyEndPicker && (
+                      <DateTimePicker
+                        value={myEnd}
+                        mode="date"
+                        display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                        minimumDate={myStart}
+                        onChange={(_: DateTimePickerEvent, d?: Date) => {
+                          if (Platform.OS !== 'ios') setShowMyEndPicker(false);
+                          if (d) setMyEnd(d);
+                        }}
+                      />
+                    )}
+                  </>
                 )}
 
                 <TouchableOpacity

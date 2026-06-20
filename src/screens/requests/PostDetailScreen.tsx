@@ -484,18 +484,23 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
 
 
+  const isOvernight = post?.careType === 'overnight';
+
   // ── Reschedule: propose new dates to sitter ──────────────────────────────
   const handleReschedule = async () => {
     if (!post || !user) return;
+
+    // For non-overnight, end date = start date (same day)
+    const effectiveEnd = isOvernight ? rescheduleEnd : rescheduleStart;
 
     // ── Date validation ──
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     if (rescheduleStart < todayStart) {
-      Alert.alert('Invalid dates', 'Start date cannot be in the past.');
+      Alert.alert('Invalid date', 'Date cannot be in the past.');
       return;
     }
-    if (rescheduleEnd <= rescheduleStart) {
+    if (isOvernight && effectiveEnd <= rescheduleStart) {
       Alert.alert('Invalid dates', 'End date must be after the start date.');
       return;
     }
@@ -509,7 +514,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       // Save proposed dates separately (don't overwrite original startDate/endDate)
       await updateDoc(doc(db, 'swapPosts', post.id), {
         rescheduleProposedStart: rescheduleStart,
-        rescheduleProposedEnd: rescheduleEnd,
+        rescheduleProposedEnd: effectiveEnd,
         rescheduleNote: rescheduleNote.trim() || null,
         rescheduleProposedBy: user.uid,
         status: 'reschedulePending',
@@ -517,9 +522,10 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       // Send a typed reschedule message so the chat can render "Review Reschedule" link
       const convId = await getOrCreateConversation(user.uid, sitterId, post.id);
       const startStr = smartDate(rescheduleStart);
-      const endStr = smartDate(rescheduleEnd);
       const note = rescheduleNote.trim() ? `\n\nNote: ${rescheduleNote.trim()}` : '';
-      const msgText = `I need to reschedule. Would ${startStr} \u2013 ${endStr} work instead?${note}`;
+      const msgText = isOvernight
+        ? `I need to reschedule. Would ${startStr} \u2013 ${smartDate(effectiveEnd)} work instead?${note}`
+        : `I need to reschedule. Would ${startStr} work instead?${note}`;
       await addDoc(collection(db, 'conversations', convId, 'messages'), {
         conversationId: convId,
         senderId: user.uid,
@@ -530,14 +536,14 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         metadata: {
           postId: post.id,
           proposedStart: rescheduleStart.toISOString(),
-          proposedEnd: rescheduleEnd.toISOString() } });
+          proposedEnd: effectiveEnd.toISOString() } });
       await updateDoc(doc(db, 'conversations', convId), {
         lastMessage: msgText,
         lastMessageAt: serverTimestamp(),
         updatedAt: serverTimestamp() });
       setShowRescheduleModal(false);
       setRescheduleNote('');
-      setPost((prev) => prev ? { ...prev, status: 'reschedulePending' as any, rescheduleProposedStart: rescheduleStart, rescheduleProposedEnd: rescheduleEnd, rescheduleProposedBy: user.uid } : prev);
+      setPost((prev) => prev ? { ...prev, status: 'reschedulePending' as any, rescheduleProposedStart: rescheduleStart, rescheduleProposedEnd: effectiveEnd, rescheduleProposedBy: user.uid } : prev);
       Alert.alert('Sent', 'Your reschedule request has been sent to the sitter.');
     } catch (err) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Could not send reschedule request');
@@ -680,9 +686,9 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           <View style={{ flex: 1, backgroundColor: colors.background }}>
             <SafeAreaView style={{ flex: 1 }}>
               <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-                <Text style={{ color: colors.text, fontSize: 22, fontWeight: '800', marginBottom: 20 }}>Propose New Dates</Text>
+                <Text style={{ color: colors.text, fontSize: 22, fontWeight: '800', marginBottom: 20 }}>{isOvernight ? 'Propose New Dates' : 'Propose New Date'}</Text>
 
-                <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 6 }}>Start Date</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 6 }}>{isOvernight ? 'Start Date' : 'Date'}</Text>
                 <TouchableOpacity
                   onPress={() => { setShowStartPicker(!showStartPicker); setShowEndPicker(false); }}
                   style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 14, marginBottom: 4 }}
@@ -701,7 +707,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                       if (Platform.OS !== 'ios') setShowStartPicker(false);
                       if (d) {
                         setRescheduleStart(d);
-                        if (d >= rescheduleEnd) {
+                        if (isOvernight && d >= rescheduleEnd) {
                           const newEnd = new Date(d);
                           newEnd.setDate(newEnd.getDate() + 1);
                           setRescheduleEnd(newEnd);
@@ -711,26 +717,30 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   />
                 )}
 
-                <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: 16, marginBottom: 6 }}>End Date</Text>
-                <TouchableOpacity
-                  onPress={() => { setShowEndPicker(!showEndPicker); setShowStartPicker(false); }}
-                  style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 14, marginBottom: 4 }}
-                >
-                  <Text style={{ color: showEndPicker ? colors.primary : colors.text, fontSize: 16, fontWeight: '600' }}>
-                    {rescheduleEnd.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-                  </Text>
-                </TouchableOpacity>
-                {showEndPicker && (
-                  <DateTimePicker
-                    value={rescheduleEnd}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                    minimumDate={rescheduleStart}
-                    onChange={(_: DateTimePickerEvent, d?: Date) => {
-                      if (Platform.OS !== 'ios') setShowEndPicker(false);
-                      if (d) setRescheduleEnd(d);
-                    }}
-                  />
+                {isOvernight && (
+                  <>
+                    <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: 16, marginBottom: 6 }}>End Date</Text>
+                    <TouchableOpacity
+                      onPress={() => { setShowEndPicker(!showEndPicker); setShowStartPicker(false); }}
+                      style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 14, marginBottom: 4 }}
+                    >
+                      <Text style={{ color: showEndPicker ? colors.primary : colors.text, fontSize: 16, fontWeight: '600' }}>
+                        {rescheduleEnd.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                      </Text>
+                    </TouchableOpacity>
+                    {showEndPicker && (
+                      <DateTimePicker
+                        value={rescheduleEnd}
+                        mode="date"
+                        display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                        minimumDate={rescheduleStart}
+                        onChange={(_: DateTimePickerEvent, d?: Date) => {
+                          if (Platform.OS !== 'ios') setShowEndPicker(false);
+                          if (d) setRescheduleEnd(d);
+                        }}
+                      />
+                    )}
+                  </>
                 )}
 
                 <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: 16, marginBottom: 6 }}>Note (optional)</Text>

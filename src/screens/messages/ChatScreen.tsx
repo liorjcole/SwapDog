@@ -489,6 +489,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           originalEnd={reschedulePost.endDate}
           proposerName={reschedulePost.posterName}
           proposerNote={reschedulePost.rescheduleNote}
+          isOvernight={reschedulePost.careType === 'overnight'}
           onRespond={handleRescheduleRespond}
         />
       )}

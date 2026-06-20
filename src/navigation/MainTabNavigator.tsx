@@ -15,7 +15,7 @@ import { useAuthContext } from '../contexts/AuthContext';
 import { useMessaging } from '../hooks/useMessaging';
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, addDoc, getDocs, getDoc, deleteField } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { smartDate } from '../utils/dateHelpers';
+import { smartDate, isSameDay } from '../utils/dateHelpers';
 import RescheduleReviewModal from '../components/common/RescheduleReviewModal';
 import ConfettiCelebration, { CelebrationItem } from '../components/common/ConfettiCelebration';
 import { SwapPost } from '../models/types';
@@ -405,7 +405,7 @@ const MainTabNavigator: React.FC = () => {
       const postRef = doc(db, 'swapPosts', reschedulePost.id);
       if (action === 'accept') {
         // Accept: move proposed dates to actual dates, clear reschedule fields
-        setCelebrationQueue((prev) => [...prev, { title: 'Dates Updated!', subtitle: smartDate(reschedulePost.rescheduleProposedStart!) + ' \u2013 ' + smartDate(reschedulePost.rescheduleProposedEnd!) + ' confirmed for ' + reschedulePost.dogName + "!", emoji: '\U0001F4C5' }]);
+        setCelebrationQueue((prev) => [...prev, { title: 'Dates Updated!', subtitle: (isSameDay(reschedulePost.rescheduleProposedStart!, reschedulePost.rescheduleProposedEnd!) ? smartDate(reschedulePost.rescheduleProposedStart!) : smartDate(reschedulePost.rescheduleProposedStart!) + ' \u2013 ' + smartDate(reschedulePost.rescheduleProposedEnd!)) + ' confirmed for ' + reschedulePost.dogName + '!', emoji: '\U0001F4C5' }]);
         await updateDoc(postRef, {
           startDate: reschedulePost.rescheduleProposedStart,
           endDate: reschedulePost.rescheduleProposedEnd,
@@ -424,9 +424,13 @@ const MainTabNavigator: React.FC = () => {
           where('participantIds', 'array-contains', user.uid)
         );
         // Simplified: send via direct Firestore write
+        const sameDay = isSameDay(reschedulePost.rescheduleProposedStart!, reschedulePost.rescheduleProposedEnd!);
+        const dateStr = sameDay
+          ? smartDate(reschedulePost.rescheduleProposedStart!)
+          : `${smartDate(reschedulePost.rescheduleProposedStart!)}–${smartDate(reschedulePost.rescheduleProposedEnd!)}`;
         const msgText = note
-          ? `I accept the new dates (${smartDate(reschedulePost.rescheduleProposedStart!)}–${smartDate(reschedulePost.rescheduleProposedEnd!)}). ${note}`
-          : `I accept the new dates (${smartDate(reschedulePost.rescheduleProposedStart!)}–${smartDate(reschedulePost.rescheduleProposedEnd!)}).`;
+          ? `I accept the new ${sameDay ? 'date' : 'dates'} (${dateStr}). ${note}`
+          : `I accept the new ${sameDay ? 'date' : 'dates'} (${dateStr}).`;
         // Find the conversation for this post
         const convSnap = await getDocs(convQ);
         if (!convSnap.empty) {
@@ -521,6 +525,7 @@ const MainTabNavigator: React.FC = () => {
           originalEnd={reschedulePost.endDate}
           proposerName={reschedulePost.posterName}
           proposerNote={reschedulePost.rescheduleNote}
+          isOvernight={reschedulePost.careType === 'overnight'}
           onRespond={handleRescheduleRespond}
         />
       )}
