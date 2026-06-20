@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import * as functions from "firebase-functions";
 import Expo, { ExpoPushMessage, ExpoPushTicket, ExpoPushReceipt } from "expo-server-sdk";
 
 // Force Cloud Functions to interpret local times as US Eastern.
@@ -862,3 +863,129 @@ export const processReminders = onSchedule(
     }
   }
 );
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACCOUNT DELETION CLEANUP
+//    Trigger: Firebase Auth user deleted
+//    Wipes: swapPosts, reminders, dogs, reviews, conversations, user doc + subs
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Delete all documents in a subcollection (handles batching for large collections) */
+async function deleteSubcollection(parentPath: string, subcollection: string): Promise<number> {
+  const snap = await db.collection(`${parentPath}/${subcollection}`).limit(500).get();
+  if (snap.empty) return 0;
+  const batch = db.batch();
+  snap.docs.forEach((doc) => batch.delete(doc.ref));
+  await batch.commit();
+  return snap.size + (snap.size === 500 ? await deleteSubcollection(parentPath, subcollection) : 0);
+}
+
+/** Delete all documents matching a query (batched) */
+async function deleteQueryResults(q: admin.firestore.Query): Promise<number> {
+  const snap = await q.limit(500).get();
+  if (snap.empty) return 0;
+  const batch = db.batch();
+  snap.docs.forEach((doc) => batch.delete(doc.ref));
+  await batch.commit();
+  return snap.size + (snap.size === 500 ? await deleteQueryResults(q) : 0);
+}
+
+export const onUserDeleted = functions.auth.user().onDelete(async (user) => {
+  const userId = user.uid;
+  console.log(`[onUserDeleted] Cleaning up data for user ${userId}`);
+
+  const results: Record<string, number> = {};
+
+  try {
+    // 1. Delete all posts by this user + their reminders
+    const postsSnap = await db.collection("swapPosts")
+      .where("posterId", "==", userId).get();
+    if (!postsSnap.empty) {
+      const postIds = postsSnap.docs.map((d) => d.id);
+      // Delete reminders for these posts
+      for (const postId of postIds) {
+        const count = await deleteQueryResults(
+          db.collection("reminders").where("postId", "==", postId)
+        );
+        results.reminders = (results.reminders ?? 0) + count;
+      }
+      // Delete the posts themselves
+      const batch = db.batch();
+      postsSnap.docs.forEach((doc) => batch.delete(doc.ref));
+      await batch.commit();
+      results.swapPosts = postsSnap.size;
+    }
+
+    // 2. Delete reminders where user is the recipient (sitter-side)
+    const sitterReminders = await deleteQueryResults(
+      db.collection("reminders").where("recipientId", "==", userId)
+    );
+    results.sitterReminders = sitterReminders;
+
+    // 3. Delete user's dogs
+    const dogsCount = await deleteQueryResults(
+      db.collection("dogs").where("ownerId", "==", userId)
+    );
+    results.dogs = dogsCount;
+
+    // 4. Delete reviews written by or about this user
+    const reviewsByCount = await deleteQueryResults(
+      db.collection("reviews").where("reviewerId", "==", userId)
+    );
+    const reviewsOfCount = await deleteQueryResults(
+      db.collection("reviews").where("revieweeId", "==", userId)
+    );
+    results.reviews = reviewsByCount + reviewsOfCount;
+
+    // 5. Delete review backups
+    await deleteQueryResults(
+      db.collection("reviews_backup").where("reviewerId", "==", userId)
+    );
+    await deleteQueryResults(
+      db.collection("reviews_backup").where("revieweeId", "==", userId)
+    );
+
+    // 6. Delete conversations + their messages subcollection
+    const convsSnap = await db.collection("conversations")
+      .where("participantIds", "array-contains", userId).get();
+    if (!convsSnap.empty) {
+      for (const convDoc of convsSnap.docs) {
+        await deleteSubcollection(`conversations/${convDoc.id}`, "messages");
+        await convDoc.ref.delete();
+      }
+      results.conversations = convsSnap.size;
+    }
+
+    // 7. Delete blocks by or against this user
+    await deleteQueryResults(
+      db.collection("blocks").where("blockerId", "==", userId)
+    );
+    await deleteQueryResults(
+      db.collection("blocks").where("blockedId", "==", userId)
+    );
+
+    // 8. Delete swap requests (legacy)
+    await deleteQueryResults(
+      db.collection("swapRequests").where("requesterId", "==", userId)
+    );
+    await deleteQueryResults(
+      db.collection("swapRequests").where("receiverId", "==", userId)
+    );
+
+    // 9. Delete user doc + subcollections (pointsHistory, favorites)
+    await deleteSubcollection(`users/${userId}`, "pointsHistory");
+    await deleteSubcollection(`users/${userId}`, "favorites");
+    await db.doc(`users/${userId}`).delete();
+    results.userDoc = 1;
+
+    // 10. Delete referral codes created by this user
+    await deleteQueryResults(
+      db.collection("referral_codes").where("creatorId", "==", userId)
+    );
+
+    console.log(`[onUserDeleted] Cleanup complete for ${userId}:`, JSON.stringify(results));
+  } catch (error) {
+    console.error(`[onUserDeleted] Failed for ${userId}:`, error);
+  }
+});
