@@ -1052,9 +1052,9 @@ const MAX_PLAY_SESSIONS = 5;
 
                 {/* ── Feeding Time (add-on) ── */}
             {addOnCareTypes.has('feeding') && (
-              <View style={[styles.section, { backgroundColor: colors.surface }]}>
+              <>
                 {feedingSlots.map((slot, idx) => (
-                  <View key={idx} style={{ marginBottom: idx < feedingSlots.length - 1 ? 20 : 0 }}>
+                  <View key={idx} style={[styles.section, { backgroundColor: colors.surface }]}>
                     {/* Header: arrow + title + ✕ + repeat daily — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedFeedings.has(idx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -1168,7 +1168,7 @@ const MAX_PLAY_SESSIONS = 5;
                 ))}
 
 
-              </View>
+              </>
             )}
 
         {/* ── Walk Time (add-on) — multi-session ── */}
