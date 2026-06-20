@@ -1620,10 +1620,10 @@ const MAX_PLAY_SESSIONS = 5;
                         activeOpacity={0.7}
                       >
                         <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginRight: 8, width: 16 }}>
-                          {collapsedMeds.has(idx) ? '\u203A' : '\u25BE'}
+                          {collapsedMeds.has(idx) ? '›' : '▾'}
                         </Text>
                         <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
-                          \ud83d\udc8a {idx === 0 ? 'Medication' : `Medication #${idx + 1}`}
+                          💊 {idx === 0 ? 'Medication' : `Medication #${idx + 1}`}
                         </Text>
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -1646,7 +1646,7 @@ const MAX_PLAY_SESSIONS = 5;
                           )}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
-                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>\u2715</Text>
+                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
                         </TouchableOpacity>
                         {primaryCareType === 'overnight' && (
                           <TouchableOpacity
@@ -1665,7 +1665,7 @@ const MAX_PLAY_SESSIONS = 5;
                             activeOpacity={0.7}
                           >
                             <Text style={{ fontSize: 13, fontWeight: '600', color: slot.daily ? '#34C759' : colors.primary }}>
-                              {slot.daily ? '\u2705 Repeat daily' : '\ud83d\udcc5 Repeat daily?'}
+                              {slot.daily ? '✅ Repeat daily' : '📅 Repeat daily?'}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -1739,7 +1739,7 @@ const MAX_PLAY_SESSIONS = 5;
                         activeOpacity={0.7}
                       >
                         <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
-                          \u2795 Add Medication #{medicationSlots.length + 1}
+                          ➕ Add Medication #{medicationSlots.length + 1}
                         </Text>
                       </TouchableOpacity>
                     )}
