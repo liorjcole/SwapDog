@@ -19,3 +19,4 @@ scripts/
 # Firebase Cloud Functions build output
 functions/lib/
 functions/node_modules/
+ios/
