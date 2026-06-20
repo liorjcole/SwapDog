@@ -115,18 +115,54 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
     try {
-      await sendPasswordResetEmail(auth, trimmed);
+      // Verify account exists in Firestore FIRST.
+      // Firebase Email Enumeration Protection silently succeeds for non-existent
+      // emails — sendPasswordResetEmail resolves OK but sends nothing.
+      const lowerEmail = trimmed.toLowerCase();
+      const usersQuery = query(
+        collection(db, 'users'),
+        where('email', '==', lowerEmail)
+      );
+      let snap = await getDocs(usersQuery);
+      if (snap.empty && lowerEmail !== trimmed) {
+        const retryQuery = query(
+          collection(db, 'users'),
+          where('email', '==', trimmed)
+        );
+        snap = await getDocs(retryQuery);
+      }
+      if (snap.empty) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert(
+          'No account found',
+          "We don't have an account with that email. Check for typos or create a new account.",
+          [
+            {
+              text: 'Create Account',
+              onPress: () => navigation.navigate('SignUp', { email: trimmed }),
+            },
+            { text: 'OK', style: 'cancel' },
+          ],
+        );
+        return;
+      }
+
+      // Account confirmed in Firestore — now send the reset email.
+      // Use the email stored in Firestore (exact case) for best deliverability.
+      const storedEmail = snap.docs[0].data().email as string;
+      await sendPasswordResetEmail(auth, storedEmail);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
-        'Check your email',
-        `We sent a password reset link to ${trimmed}. Open it to set a new password, then come back and sign in.`,
+        'Reset link sent!',
+        `We sent a password reset link to ${storedEmail}.\n\nCheck your inbox (and spam/junk folder). Open the link to set a new password, then come back and sign in.`,
       );
     } catch (error: unknown) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const code = (error as { code?: string })?.code ?? '';
-      if (code === 'auth/user-not-found') {
-        Alert.alert('No account found', 'There\'s no account with that email address.');
-      } else if (code === 'auth/too-many-requests') {
+      if (code === 'auth/too-many-requests') {
         Alert.alert('Too many attempts', 'Please wait a few minutes before trying again.');
+      } else if (code === 'auth/invalid-email') {
+        Alert.alert('Invalid email', 'Please enter a valid email address.');
       } else {
         Alert.alert('Error', 'Something went wrong. Please try again.');
       }
