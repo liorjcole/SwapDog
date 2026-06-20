@@ -767,12 +767,12 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
 
               {post.status !== 'completed' && (
                 <TouchableOpacity
-                  style={[styles.expandedBtn, styles.expandedCancelBtn]}
+                  style={styles.deleteLink}
                   onPress={() => handleCancelCommitment(post)}
-                  accessibilityLabel="Cancel commitment"
+                  accessibilityLabel="Delete commitment"
                   accessibilityRole="button"
                 >
-                  <Text style={styles.expandedBtnText}>Cancel</Text>
+                  <Text style={styles.deleteLinkText}>Delete</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -1299,24 +1299,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   expandedButtons: {
-    flexDirection: 'row',
-    gap: spacing.sm,
+    alignItems: 'center' as const,
     marginTop: spacing.sm,
   },
   expandedBtn: {
-    flex: 1,
-    paddingVertical: 12,
+    width: '100%' as const,
+    paddingVertical: 14,
     borderRadius: borderRadius.md,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-  },
-  expandedCancelBtn: {
-    backgroundColor: '#636E72',
   },
   expandedBtnText: {
     color: '#fff',
     fontSize: 15,
     fontWeight: '700',
+  },
+  deleteLink: {
+    marginTop: 12,
+    alignItems: 'center' as const,
+  },
+  deleteLinkText: {
+    color: '#E74C3C',
+    fontSize: 14,
+    fontWeight: '600',
+    textDecorationLine: 'underline' as const,
   },
 });
 
