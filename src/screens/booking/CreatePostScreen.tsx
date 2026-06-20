@@ -373,6 +373,23 @@ const MAX_PLAY_SESSIONS = 5;
     }
   }, [startTime, endTime]);
 
+  /** True when day-sitting end time is at or before start time */
+  const daySittingTimeInvalid = useMemo(() => {
+    if (careType !== 'daySitting') return false;
+    try {
+      const parse = (t: string) => {
+        const [timePart, meridiem] = t.trim().split(' ');
+        let [h, m] = timePart.split(':').map(Number);
+        if (meridiem === 'PM' && h !== 12) h += 12;
+        if (meridiem === 'AM' && h === 12) h = 0;
+        return h * 60 + m;
+      };
+      return parse(endTime) <= parse(startTime);
+    } catch {
+      return false;
+    }
+  }, [careType, startTime, endTime]);
+
   // ── Recommended points calculator ──
   const recommendedPoints = useMemo(() => {
     let total = 0;
@@ -1073,6 +1090,13 @@ const MAX_PLAY_SESSIONS = 5;
                         style={{ height: 150 }}
                       />
                     )}
+                  </View>
+                )}
+                {careType === 'daySitting' && daySittingTimeInvalid && (
+                  <View style={{ backgroundColor: '#FF3B3020', borderRadius: 8, padding: 10, marginTop: 8 }}>
+                    <Text style={{ color: '#FF3B30', fontSize: 13, fontWeight: '600', textAlign: 'center' }}>
+                      ⚠️ End time must be after start time
+                    </Text>
                   </View>
                 )}
                 {careType === 'daySitting' && daySittingMinutes && daySittingMinutes > 0 && (
