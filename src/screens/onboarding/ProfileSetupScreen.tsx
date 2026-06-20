@@ -248,7 +248,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
 
 
     </View>
-
+    <KeyboardDoneBar nativeID="profileBioDone" />
     </>
   );
 };

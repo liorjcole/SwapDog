@@ -447,6 +447,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           returnKeyType="done"
           blurOnSubmit={true}
           autoCapitalize="words"
+          inputAccessoryViewID="addDogBioDone"
         />
       </View>
 
@@ -462,6 +463,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           autoCapitalize="words"
           accessibilityLabel="Dog's breed"
           returnKeyType="done"
+          inputAccessoryViewID="addDogBioDone"
         />
       </View>
 

@@ -346,6 +346,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           returnKeyType="next"
           blurOnSubmit={false}
           onFocus={() => scrollToInput('name')}
+          inputAccessoryViewID="dogBioDone"
         />
       </View>
       <View ref={refFor('breed')}>
@@ -358,6 +359,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           accessibilityLabel="Dog breed"
           returnKeyType="done"
           onFocus={() => scrollToInput('breed')}
+          inputAccessoryViewID="dogBioDone"
         />
       </View>
 

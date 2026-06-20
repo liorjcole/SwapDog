@@ -1731,6 +1731,7 @@ const MAX_PLAY_SESSIONS = 5;
                       textAlignVertical="top"
                       returnKeyType="done"
                       blurOnSubmit={true}
+                      inputAccessoryViewID="careDetailsDone"
                     />
 
                     {/* Add another medication — inside last card */}
