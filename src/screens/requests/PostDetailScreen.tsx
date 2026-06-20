@@ -600,11 +600,13 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           />
           <View style={[styles.helpModalCard, { backgroundColor: colors.surface, width: '90%' }]}>
             <Text style={[styles.helpModalTitle, { color: colors.text }]}>
-              Respond to this post
+              Offer to Help
             </Text>
             <Text style={[styles.helpModalSubtitle, { color: colors.textSecondary }]}>
-              This post is worth{' '}
-              <Text style={{ color: RED, fontWeight: '700' }}>{offeredPoints} points</Text>
+              {post.totalPayment && post.paymentAmount
+                ? <>You'll earn <Text style={{ color: '#00B894', fontWeight: '700' }}>${`${post.totalPayment}`}</Text> if chosen!</>
+                : <>You'll earn <Text style={{ color: '#00B894', fontWeight: '700' }}>{offeredPoints} {offeredPoints === 1 ? 'point' : 'points'}</Text> if chosen!</>
+              }
             </Text>
 
             <TouchableOpacity
@@ -613,7 +615,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   disabled={claiming}
                 >
                   <Text style={styles.helpModalBtnText}>
-                    {claiming ? 'Sending...' : `Accept for ${offeredPoints} points`}
+                    {claiming ? 'Sending...' : 'Send Request'}
                   </Text>
                 </TouchableOpacity>
 
