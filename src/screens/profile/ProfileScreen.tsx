@@ -47,6 +47,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [referralCount, setReferralCount] = useState(0);
   const [uploadingDogId, setUploadingDogId] = useState<string | null>(null);
+  const [uploadingPhotoCount, setUploadingPhotoCount] = useState(0);
   const [scrollEnabled, setScrollEnabled] = useState(true);
 
   useEffect(() => {
@@ -121,39 +122,41 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleAddDogPhoto = async (dogId: string, currentPhotos: string[]) => {
-    if (currentPhotos.length >= 10) {
+    const remaining = 10 - currentPhotos.length;
+    if (remaining <= 0) {
       Alert.alert('Limit reached', 'You can add up to 10 photos per dog');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: 'images',
-      allowsEditing: true,
-      aspect: [1, 1] as [number, number],
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
       quality: 0.8,
     });
-    if (result.canceled || !result.assets[0]) return;
+    if (result.canceled || !result.assets?.length) return;
+
+    const selectedUris = result.assets.map((a) => a.uri).slice(0, remaining);
     setUploadingDogId(dogId);
-    try {
-      const uri = result.assets[0].uri;
-      const storagePath = `dogs/${dogId}/${Date.now()}.jpg`;
-      const downloadURL = await uploadPhotoToStorage(uri, storagePath);
-      const newPhotos = [...currentPhotos, downloadURL].slice(0, 10);
+    setUploadingPhotoCount(selectedUris.length);
 
+    const updatedPhotos = [...currentPhotos];
+    for (const uri of selectedUris) {
       try {
-        await updateDog(dogId, { photoURLs: newPhotos });
-      } catch (firestoreErr) {
-        console.error('[PhotoUpload] Step 4 Firestore update failed:', firestoreErr);
-        throw new Error('Photo uploaded but profile could not be updated. Try again.');
+        const storagePath = `dogs/${dogId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+        const downloadURL = await uploadPhotoToStorage(uri, storagePath);
+        updatedPhotos.push(downloadURL);
+        await updateDog(dogId, { photoURLs: updatedPhotos.slice(0, 10) });
+        setUploadingPhotoCount((prev) => Math.max(0, prev - 1));
+        refreshDogs();
+      } catch (err: unknown) {
+        setUploadingPhotoCount((prev) => Math.max(0, prev - 1));
+        const msg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+        console.error('[PhotoUpload] handleAddDogPhoto error:', err);
+        Alert.alert('Upload Failed', msg);
       }
-
-      refreshDogs();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      console.error('[PhotoUpload] handleAddDogPhoto error:', err);
-      Alert.alert('Upload Failed', msg);
-    } finally {
-      setUploadingDogId(null);
     }
+    setUploadingDogId(null);
+    setUploadingPhotoCount(0);
   };
 
   // ─── Photo Action Sheet ───────────────────────────────────────────────────
@@ -447,6 +450,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               onAdd={() => { void handleAddDogPhoto(dog.id, dog.photoURLs); }}
               maxPhotos={10}
               uploading={uploadingDogId === dog.id}
+              loadingCount={uploadingDogId === dog.id ? uploadingPhotoCount : 0}
               onDragStart={() => setScrollEnabled(false)}
               onDragEnd={() => setScrollEnabled(true)}
               colors={{

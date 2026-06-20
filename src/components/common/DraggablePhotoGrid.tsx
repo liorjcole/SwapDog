@@ -21,6 +21,8 @@ interface DraggablePhotoGridProps {
   onAdd: () => void;
   maxPhotos: number;
   uploading: boolean;
+  /** Number of gray placeholder boxes to show (photos being uploaded) */
+  loadingCount?: number;
   /** Parent should set scrollEnabled={false} when dragging */
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -40,6 +42,7 @@ export function DraggablePhotoGrid({
   onAdd,
   maxPhotos,
   uploading,
+  loadingCount = 0,
   onDragStart,
   onDragEnd,
   colors,
@@ -132,8 +135,10 @@ export function DraggablePhotoGrid({
     onDragEnd?.();
   }, [onReorder, onDragEnd]);
 
-  // Grid container height
-  const totalSlots = orderedPhotos.length + (orderedPhotos.length < maxPhotos ? 1 : 0);
+  // Grid container height — include loading placeholders
+  const effectiveCount = orderedPhotos.length + loadingCount;
+  const showAdd = effectiveCount < maxPhotos && !uploading;
+  const totalSlots = effectiveCount + (showAdd ? 1 : 0);
   const rowCount = Math.ceil(totalSlots / COLS);
   const gridHeight = rowCount * (THUMB + GAP) - GAP;
 
@@ -208,14 +213,37 @@ export function DraggablePhotoGrid({
         );
       })}
 
+      {/* Loading placeholders — gray boxes with spinners */}
+      {Array.from({ length: loadingCount }).map((_, i) => {
+        const placeholderIdx = orderedPhotos.length + i;
+        const pos = getGridPos(placeholderIdx);
+        return (
+          <View
+            key={`loading-${i}`}
+            style={[
+              styles.item,
+              styles.loadingPlaceholder,
+              {
+                left: pos.x,
+                top: pos.y,
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <ActivityIndicator color={colors.primary} size="small" />
+          </View>
+        );
+      })}
+
       {/* + Add photo tile */}
-      {orderedPhotos.length < maxPhotos && (
+      {showAdd && (
         <View
           style={[
             styles.addTile,
             {
-              left: getGridPos(orderedPhotos.length).x,
-              top: getGridPos(orderedPhotos.length).y,
+              left: getGridPos(effectiveCount).x,
+              top: getGridPos(effectiveCount).y,
               borderColor: colors.border,
               backgroundColor: colors.surface,
             },
@@ -226,16 +254,10 @@ export function DraggablePhotoGrid({
             onPress={onAdd}
             disabled={uploading}
           >
-            {uploading ? (
-              <ActivityIndicator color={colors.primary} size="small" />
-            ) : (
-              <>
-                <Text style={[styles.addIcon, { color: colors.primary }]}>+</Text>
-                <Text style={{ fontSize: 10, color: colors.textSecondary }}>
-                  {orderedPhotos.length}/{maxPhotos}
-                </Text>
-              </>
-            )}
+            <Text style={[styles.addIcon, { color: colors.primary }]}>+</Text>
+            <Text style={{ fontSize: 10, color: colors.textSecondary }}>
+              {effectiveCount}/{maxPhotos}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -287,6 +309,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 10,
     fontWeight: '700',
+  },
+  loadingPlaceholder: {
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   addTile: {
     position: 'absolute',

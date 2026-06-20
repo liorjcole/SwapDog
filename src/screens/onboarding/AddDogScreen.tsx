@@ -124,6 +124,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
   /** Track y-offsets of inputs so we can scroll to them on focus */
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingCount, setUploadingCount] = useState(0);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [transitionMode, setTransitionMode] = useState<'addAnother' | 'continue'>('addAnother');
   const [transitionDogName, setTransitionDogName] = useState('');
@@ -144,12 +145,11 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
     const localUris = result.assets.map((a) => a.uri).slice(0, remaining);
 
-    // Phase 2: Show local thumbnails immediately, then upload in background
-    const localPhotos = [...form.photoURLs, ...localUris].slice(0, MAX_PHOTOS);
-    set('photoURLs', localPhotos);
+    // Show gray placeholder boxes immediately for the count of photos selected
+    setUploadingCount(localUris.length);
     setUploadingPhoto(true);
 
-    const uploaded: string[] = [...form.photoURLs];
+    const currentPhotos = [...form.photoURLs];
     for (const uri of localUris) {
       try {
         const tempId = `temp_${user?.uid ?? 'anon'}_${Date.now()}`;
@@ -159,17 +159,19 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         const fileRef = storageRef(storage, `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
         await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
         const downloadURL = await getDownloadURL(fileRef);
-        uploaded.push(downloadURL);
+        currentPhotos.push(downloadURL);
+        // Each photo lands immediately — update grid + decrement placeholder
+        set('photoURLs', currentPhotos.slice(0, MAX_PHOTOS));
+        setUploadingCount((prev) => Math.max(0, prev - 1));
       } catch {
+        setUploadingCount((prev) => Math.max(0, prev - 1));
         Alert.alert('Error', 'One photo failed to upload. You can try adding it again.');
       }
     }
 
-    // Replace local URIs with real download URLs
-    set('photoURLs', uploaded.slice(0, MAX_PHOTOS));
     setUploadingPhoto(false);
 
-    if (uploaded.length >= MAX_PHOTOS) {
+    if (currentPhotos.length >= MAX_PHOTOS) {
       Alert.alert('All set!', `You've added ${MAX_PHOTOS} photos.`);
     }
   };
@@ -401,6 +403,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         onAdd={pickPhoto}
         maxPhotos={MAX_PHOTOS}
         uploading={uploadingPhoto}
+        loadingCount={uploadingCount}
         onDragStart={() => setScrollEnabled(false)}
         onDragEnd={() => setScrollEnabled(true)}
         colors={{
