@@ -413,8 +413,8 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
       {/* Photo grid — draggable reorder, first = primary */}
       <Text style={[styles.label, { color: colors.text }]}>Photos ({form.photoURLs.length}/{MAX_PHOTOS})</Text>
-      <Text style={{ fontSize: 11, color: colors.textSecondary, marginBottom: 8, fontStyle: 'italic' }}>
-        Hold & drag to reorder. First photo is your primary.
+      <Text style={{ fontSize: 15, color: colors.textSecondary, marginBottom: 8 }}>
+        Hold & drag to reorder
       </Text>
       <DraggablePhotoGrid
         photos={form.photoURLs}

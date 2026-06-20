@@ -437,8 +437,8 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
 
             {/* Photo gallery grid — draggable reorder */}
-            <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 4, marginBottom: 6, fontStyle: 'italic' }}>
-              Hold & drag to reorder. First photo is primary.
+            <Text style={{ fontSize: 15, color: colors.textSecondary, marginTop: 4, marginBottom: 6 }}>
+              Hold & drag to reorder
             </Text>
             <DraggablePhotoGrid
               photos={dog.photoURLs}
