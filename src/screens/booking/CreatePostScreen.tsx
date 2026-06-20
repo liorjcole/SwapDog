@@ -1066,7 +1066,7 @@ const MAX_PLAY_SESSIONS = 5;
                           {collapsedFeedings.has(idx) ? '›' : '▾'}
                         </Text>
                         <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
-                          🍽️ {feedingSlots.length > 1 ? `Feeding #${idx + 1}` : 'Feeding'}
+                          🍽️ {idx === 0 ? 'Feeding' : `Feeding #${idx + 1}`}
                         </Text>
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -1196,7 +1196,7 @@ const MAX_PLAY_SESSIONS = 5;
                           {collapsedWalks.has(wIdx) ? '›' : '▾'}
                         </Text>
                         <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
-                          🐕 Walk #{wIdx + 1}
+                          🐕 {wIdx === 0 ? 'Walk' : `Walk #${wIdx + 1}`}
                         </Text>
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -1345,7 +1345,7 @@ const MAX_PLAY_SESSIONS = 5;
                           {collapsedPlay.has(pIdx) ? '›' : '▾'}
                         </Text>
                         <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
-                          🎾 Playtime #{pIdx + 1}
+                          🎾 {pIdx === 0 ? 'Playtime' : `Playtime #${pIdx + 1}`}
                         </Text>
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
