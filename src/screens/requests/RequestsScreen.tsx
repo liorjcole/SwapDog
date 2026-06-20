@@ -33,6 +33,7 @@ import { useMessaging } from '../../hooks/useMessaging';
 import { useTheme } from '../../contexts/ThemeContext';
 import { smartDate } from '../../utils/dateHelpers';
 import { useSwaps } from '../../hooks/useSwaps';
+import { useReviews } from '../../hooks/useReviews';
 import { SwapPost } from '../../models/types';
 import { spacing, borderRadius, shadow } from '../../config/theme';
 import EmptyStateView from '../../components/common/EmptyStateView';
@@ -133,7 +134,8 @@ function isSameDay(a: Date, b: Date): boolean {
 const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user } = useAuthContext();
-  const { getMyPosts, cancelPost, getAcceptedPosts, saveSitterReminderIds } = useSwaps();
+  const { getMyPosts, cancelPost, getAcceptedPosts, saveSitterReminderIds, isPostExpired } = useSwaps();
+  const { hasReviewed } = useReviews();
   const { getOrCreateConversation } = useMessaging();
 
   const [tab, setTab] = useState<TabType>('commitments');
@@ -165,6 +167,8 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
     }),
   ).current;
   const [myPosts, setMyPosts] = useState<SwapPost[]>([]);
+  const [archivedPosts, setArchivedPosts] = useState<SwapPost[]>([]);
+  const [reviewedPostIds, setReviewedPostIds] = useState<Set<string>>(new Set());
   const [acceptedPosts, setAcceptedPosts] = useState<SwapPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -205,11 +209,38 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         getMyPosts(user.uid),
         getAcceptedPosts(user.uid),
       ]);
-      setMyPosts(mine.filter((p: any) => p.status !== 'cancelled').sort((a: any, b: any) => {
+      const nonCancelled = mine.filter((p: any) => p.status !== 'cancelled');
+      const active = nonCancelled.filter((p: SwapPost) => !isPostExpired(p) && p.status !== 'completed');
+      const archived = nonCancelled.filter((p: SwapPost) => isPostExpired(p) || p.status === 'completed');
+      // Sort active: claimed on top
+      active.sort((a: any, b: any) => {
         const aIsClaimed = a.status === 'claimed' || a.status === 'reschedulePending' ? 0 : 1;
         const bIsClaimed = b.status === 'claimed' || b.status === 'reschedulePending' ? 0 : 1;
         return aIsClaimed - bIsClaimed;
-      }));
+      });
+      // Sort archived: completed first, then by date
+      archived.sort((a, b) => {
+        if (a.status === 'completed' && b.status !== 'completed') return -1;
+        if (a.status !== 'completed' && b.status === 'completed') return 1;
+        return b.endDate.getTime() - a.endDate.getTime();
+      });
+      setMyPosts(active);
+      setArchivedPosts(archived);
+
+      // Check review status for completed posts
+      const completedPosts = archived.filter((p) => p.status === 'completed');
+      if (user && completedPosts.length > 0) {
+        const reviewed = new Set<string>();
+        await Promise.all(
+          completedPosts.map(async (p) => {
+            try {
+              const done = await hasReviewed(p.id, user.uid, 'caregiver');
+              if (done) reviewed.add(p.id);
+            } catch {}
+          })
+        );
+        setReviewedPostIds(reviewed);
+      }
       setAcceptedPosts(accepted);
     } finally {
       setLoading(false);
@@ -392,6 +423,87 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
 
 
 
+      </TouchableOpacity>
+    );
+  };
+
+  // ── Archived post card (grayed out, with completed/review status) ────────
+  const renderArchivedPost = ({ item }: { item: SwapPost }) => {
+    const startStr = smartDate(item.startDate);
+    const endStr = smartDate(item.endDate, { includeYear: true });
+    const isCompleted = item.status === 'completed';
+    const isReviewed = reviewedPostIds.has(item.id);
+
+    return (
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.surface, ...shadow.sm, opacity: 0.5 }]}
+        onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+        accessibilityRole="button"
+        accessibilityLabel={`Archived post for ${(item.dogNames && item.dogNames.length > 0) ? item.dogNames.join(' & ') : item.dogName}`}
+      >
+        {/* Completed label */}
+        {isCompleted && (
+          <View style={{ backgroundColor: '#0984E320', paddingVertical: 5, paddingHorizontal: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12, alignItems: 'center', marginTop: -spacing.md, marginHorizontal: -spacing.md }}>
+            <Text style={{ color: '#0984E3', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>
+              COMPLETED
+            </Text>
+          </View>
+        )}
+
+        <View style={[styles.cardHeader, isCompleted ? { marginTop: spacing.sm } : undefined]}>
+          {(() => {
+            const photos = (item.dogPhotoURLs && item.dogPhotoURLs.length > 0)
+              ? item.dogPhotoURLs
+              : (item.dogPhotoURL ? [item.dogPhotoURL] : []);
+            return photos.length > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {photos.map((url: string, idx: number) => (
+                  <Image
+                    key={idx}
+                    source={{ uri: url }}
+                    style={[
+                      styles.dogThumbSmall,
+                      { borderColor: colors.border },
+                      idx > 0 && { marginLeft: -12 },
+                    ]}
+                  />
+                ))}
+              </View>
+            ) : (
+              <View style={[styles.dogThumbPlaceholder, { backgroundColor: colors.primary + '15' }]}>
+                <Text style={styles.dogThumbEmoji}>D</Text>
+              </View>
+            );
+          })()}
+          <View style={styles.headerInfo}>
+            <Text style={[styles.posterName, { color: colors.textSecondary }]}>
+              {(item.dogNames && item.dogNames.length > 0) ? item.dogNames.join(' & ') : item.dogName}
+            </Text>
+            <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+              {startStr} — {endStr}
+            </Text>
+          </View>
+        </View>
+
+        {/* Review button for completed posts */}
+        {isCompleted && (
+          <View style={{ marginTop: 8 }}>
+            {isReviewed ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8 }}>
+                <Text style={{ color: '#00B894', fontSize: 14, fontWeight: '600' }}>✓ Reviewed</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={{ backgroundColor: '#0984E3', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
+                onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+                accessibilityLabel="Leave a review"
+                accessibilityRole="button"
+              >
+                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>Leave Review</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -947,11 +1059,27 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
               />
             }
             ListEmptyComponent={
-              <EmptyStateView
-                emoji=""
-                title="No posts yet"
-                subtitle="Post a request and local sitters will reach out"
-              />
+              archivedPosts.length === 0 ? (
+                <EmptyStateView
+                  emoji=""
+                  title="No posts yet"
+                  subtitle="Post a request and local sitters will reach out"
+                />
+              ) : null
+            }
+            ListFooterComponent={
+              archivedPosts.length > 0 ? (
+                <View style={{ marginTop: 24 }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '700', letterSpacing: 1, marginBottom: 12, paddingHorizontal: 4, textTransform: 'uppercase' }}>
+                    Archive
+                  </Text>
+                  {archivedPosts.map((post) => (
+                    <View key={post.id}>
+                      {renderArchivedPost({ item: post })}
+                    </View>
+                  ))}
+                </View>
+              ) : null
             }
             renderItem={renderMyPost}
             contentContainerStyle={styles.list}

@@ -180,6 +180,27 @@ export const useSwaps = () => {
   };
 
   /** Fetch all open posts, optionally filtered by distance */
+  /** Check if a post's end date/time has passed */
+  const isPostExpired = (post: SwapPost): boolean => {
+    const now = new Date();
+    const end = new Date(post.endDate);
+    // Combine endDate with endTime if available
+    if (post.endTime) {
+      const match = post.endTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (match) {
+        let h = parseInt(match[1], 10);
+        const m = parseInt(match[2], 10);
+        if (match[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+        if (match[3].toUpperCase() === 'AM' && h === 12) h = 0;
+        end.setHours(h, m, 0, 0);
+      }
+    } else {
+      // No end time — expire at end of day
+      end.setHours(23, 59, 59, 999);
+    }
+    return now > end;
+  };
+
   const getAreaPosts = async (
     location?: { latitude: number; longitude: number },
     radiusMiles = 25
@@ -191,7 +212,7 @@ export const useSwaps = () => {
     const snap = await getDocs(q);
     const all = snap.docs
       .map((d) => parsePost(d.id, d.data() as Record<string, unknown>))
-      .filter((p) => p.status === 'open'); // client-side guard: exclude claimed/cancelled
+      .filter((p) => p.status === 'open' && !isPostExpired(p)); // exclude claimed/cancelled/expired
 
     if (!location) return all;
 
@@ -390,6 +411,7 @@ export const useSwaps = () => {
     // New posts
     createPost,
     getAreaPosts,
+    isPostExpired,
     getMyPosts,
     claimPost,
     cancelPost,
