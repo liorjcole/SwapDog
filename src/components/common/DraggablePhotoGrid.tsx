@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Image, Text, TouchableOpacity, Animated,
   LayoutAnimation, ActivityIndicator, StyleSheet,
-  Platform, UIManager, GestureResponderEvent,
+  Platform, UIManager, PanResponder, PanResponderInstance,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -13,6 +13,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 const THUMB = 80;
 const GAP = 4;
 const COLS = 4;
+const LONG_PRESS_MS = 300;
+const MOVE_THRESHOLD = 8; // px — cancel long-press if finger wanders before timer
 
 interface DraggablePhotoGridProps {
   photos: string[];
@@ -21,9 +23,7 @@ interface DraggablePhotoGridProps {
   onAdd: () => void;
   maxPhotos: number;
   uploading: boolean;
-  /** Number of gray placeholder boxes to show (photos being uploaded) */
   loadingCount?: number;
-  /** Parent should set scrollEnabled={false} when dragging */
   onDragStart?: () => void;
   onDragEnd?: () => void;
   colors: {
@@ -50,17 +50,17 @@ export function DraggablePhotoGrid({
   const [orderedPhotos, setOrderedPhotos] = useState(photos);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
 
-  // Mutable refs — no re-renders during drag
   const isDragging = useRef(false);
   const currentIdx = useRef(-1);
   const photosRef = useRef(photos);
   const gridOrigin = useRef({ x: 0, y: 0 });
   const containerRef = useRef<View>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dragX = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
+  const dragScale = useRef(new Animated.Value(1)).current;
 
-  // Sync props → state when not dragging
   useEffect(() => {
     if (!isDragging.current) {
       setOrderedPhotos(photos);
@@ -82,8 +82,7 @@ export function DraggablePhotoGrid({
     return Math.max(0, Math.min(idx, photosRef.current.length - 1));
   }, []);
 
-  // ── Long-press starts drag ──
-  const handleLongPress = useCallback((index: number) => {
+  const activateDrag = useCallback((index: number) => {
     isDragging.current = true;
     currentIdx.current = index;
     photosRef.current = [...orderedPhotos];
@@ -96,46 +95,115 @@ export function DraggablePhotoGrid({
     dragX.setValue(pos.x);
     dragY.setValue(pos.y);
 
+    // Scale up animation
+    Animated.spring(dragScale, {
+      toValue: 1.15,
+      useNativeDriver: true,
+      speed: 20,
+      bounciness: 8,
+    }).start();
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setDraggingIdx(index);
     onDragStart?.();
-  }, [orderedPhotos, getGridPos, onDragStart, dragX, dragY]);
+  }, [orderedPhotos, getGridPos, onDragStart, dragX, dragY, dragScale]);
 
-  // ── Finger move — reorder on overlap ──
-  const handleMove = useCallback((e: GestureResponderEvent) => {
-    if (!isDragging.current) return;
-
-    const { pageX, pageY } = e.nativeEvent;
-    dragX.setValue(pageX - gridOrigin.current.x - THUMB / 2);
-    dragY.setValue(pageY - gridOrigin.current.y - THUMB / 2);
-
-    const targetIdx = getIdxFromTouch(pageX, pageY);
-    if (targetIdx !== currentIdx.current) {
-      LayoutAnimation.configureNext({
-        duration: 200,
-        update: { type: LayoutAnimation.Types.easeInEaseOut },
-      });
-      const arr = [...photosRef.current];
-      const [moved] = arr.splice(currentIdx.current, 1);
-      arr.splice(targetIdx, 0, moved);
-      photosRef.current = arr;
-      currentIdx.current = targetIdx;
-      setOrderedPhotos(arr);
-      setDraggingIdx(targetIdx);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const clearTimer = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
     }
-  }, [getIdxFromTouch, dragX, dragY]);
+  }, []);
 
-  // ── Release — commit order ──
-  const handleRelease = useCallback(() => {
-    if (!isDragging.current) return;
-    isDragging.current = false;
-    onReorder(photosRef.current);
-    setDraggingIdx(null);
-    onDragEnd?.();
-  }, [onReorder, onDragEnd]);
+  // Create a PanResponder for a given photo index
+  const makePanResponder = useCallback((index: number): PanResponderInstance => {
+    let startX = 0;
+    let startY = 0;
 
-  // Grid container height — include loading placeholders
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => isDragging.current,
+      onPanResponderTerminationRequest: () => !isDragging.current,
+
+      onPanResponderGrant: (e) => {
+        startX = e.nativeEvent.pageX;
+        startY = e.nativeEvent.pageY;
+
+        // Start long-press timer
+        clearTimer();
+        longPressTimer.current = setTimeout(() => {
+          activateDrag(index);
+        }, LONG_PRESS_MS);
+      },
+
+      onPanResponderMove: (e) => {
+        const { pageX, pageY } = e.nativeEvent;
+
+        if (!isDragging.current) {
+          // If finger moved too far before long-press fired, cancel
+          const dx = Math.abs(pageX - startX);
+          const dy = Math.abs(pageY - startY);
+          if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+            clearTimer();
+          }
+          return;
+        }
+
+        // Drag mode active — move the floating thumb
+        dragX.setValue(pageX - gridOrigin.current.x - THUMB / 2);
+        dragY.setValue(pageY - gridOrigin.current.y - THUMB / 2);
+
+        const targetIdx = getIdxFromTouch(pageX, pageY);
+        if (targetIdx !== currentIdx.current) {
+          LayoutAnimation.configureNext({
+            duration: 200,
+            update: { type: LayoutAnimation.Types.easeInEaseOut },
+          });
+          const arr = [...photosRef.current];
+          const [moved] = arr.splice(currentIdx.current, 1);
+          arr.splice(targetIdx, 0, moved);
+          photosRef.current = arr;
+          currentIdx.current = targetIdx;
+          setOrderedPhotos(arr);
+          setDraggingIdx(targetIdx);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      },
+
+      onPanResponderRelease: () => {
+        clearTimer();
+        if (isDragging.current) {
+          isDragging.current = false;
+          Animated.spring(dragScale, {
+            toValue: 1,
+            useNativeDriver: true,
+            speed: 20,
+          }).start();
+          onReorder(photosRef.current);
+          setDraggingIdx(null);
+          onDragEnd?.();
+        }
+      },
+
+      onPanResponderTerminate: () => {
+        clearTimer();
+        if (isDragging.current) {
+          isDragging.current = false;
+          dragScale.setValue(1);
+          onReorder(photosRef.current);
+          setDraggingIdx(null);
+          onDragEnd?.();
+        }
+      },
+    });
+  }, [activateDrag, clearTimer, dragX, dragY, dragScale, getIdxFromTouch, onReorder, onDragEnd]);
+
+  // Keep stable PanResponder instances — rebuild when orderedPhotos change
+  const panResponders = useRef<PanResponderInstance[]>([]);
+  useEffect(() => {
+    panResponders.current = orderedPhotos.map((_, idx) => makePanResponder(idx));
+  }, [orderedPhotos.length, makePanResponder]);
+
   const effectiveCount = orderedPhotos.length + loadingCount;
   const showAdd = effectiveCount < maxPhotos && !uploading;
   const totalSlots = effectiveCount + (showAdd ? 1 : 0);
@@ -143,23 +211,17 @@ export function DraggablePhotoGrid({
   const gridHeight = rowCount * (THUMB + GAP) - GAP;
 
   return (
-    <View
-      ref={containerRef}
-      style={{ height: gridHeight, position: 'relative' }}
-      // Capture move events once drag mode is active
-      onMoveShouldSetResponderCapture={() => isDragging.current}
-      onResponderMove={handleMove}
-      onResponderRelease={handleRelease}
-      onResponderTerminate={handleRelease}
-    >
+    <View ref={containerRef} style={{ height: gridHeight, position: 'relative' }}>
       {orderedPhotos.map((uri, idx) => {
         const pos = getGridPos(idx);
         const isBeingDragged = draggingIdx === idx;
+        const responder = panResponders.current[idx];
 
         if (isBeingDragged) {
           return (
             <Animated.View
               key={uri}
+              {...(responder?.panHandlers ?? {})}
               style={[
                 styles.item,
                 {
@@ -167,7 +229,7 @@ export function DraggablePhotoGrid({
                   top: dragY,
                   zIndex: 999,
                   opacity: 0.9,
-                  transform: [{ scale: 1.1 }],
+                  transform: [{ scale: dragScale }],
                   shadowColor: '#000',
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.3,
@@ -187,15 +249,12 @@ export function DraggablePhotoGrid({
         }
 
         return (
-          <View key={uri} style={[styles.item, { left: pos.x, top: pos.y }]}>
-            <TouchableOpacity
-              onLongPress={() => handleLongPress(idx)}
-              delayLongPress={300}
-              activeOpacity={0.8}
-              style={styles.touchArea}
-            >
-              <Image source={{ uri }} style={styles.thumb} />
-            </TouchableOpacity>
+          <View
+            key={uri}
+            style={[styles.item, { left: pos.x, top: pos.y }]}
+            {...(responder?.panHandlers ?? {})}
+          >
+            <Image source={{ uri }} style={styles.thumb} />
             {idx === 0 && (
               <View style={[styles.primaryBadge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.primaryText}>Primary</Text>
@@ -213,7 +272,7 @@ export function DraggablePhotoGrid({
         );
       })}
 
-      {/* Loading placeholders — gray boxes with spinners */}
+      {/* Loading placeholders */}
       {Array.from({ length: loadingCount }).map((_, i) => {
         const placeholderIdx = orderedPhotos.length + i;
         const pos = getGridPos(placeholderIdx);
@@ -268,10 +327,6 @@ export function DraggablePhotoGrid({
 const styles = StyleSheet.create({
   item: {
     position: 'absolute',
-    width: THUMB,
-    height: THUMB,
-  },
-  touchArea: {
     width: THUMB,
     height: THUMB,
   },
