@@ -8,14 +8,18 @@ interface Props {
   isMe: boolean;
   createdAt: Date;
   /** Optional message type for special rendering */
-  type?: 'text' | 'reschedule' | 'image';
+  type?: 'text' | 'reschedule' | 'image' | 'help_request';
   /** Optional image URL for photo messages */
   imageURL?: string;
   /** Callback when "Review Reschedule" is tapped */
   onReviewReschedule?: () => void;
+  /** Callback when "Accept" is tapped on a help request */
+  onAcceptHelp?: () => void;
+  /** Whether this help request has already been accepted */
+  helpAccepted?: boolean;
 }
 
-const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL, onReviewReschedule }) => {
+const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL, onReviewReschedule, onAcceptHelp, helpAccepted }) => {
   const { colors } = useTheme();
   const timeStr = createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -50,6 +54,17 @@ const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL,
             <Text style={styles.reviewLinkText}>Review Reschedule</Text>
           </TouchableOpacity>
         )}
+        {type === 'help_request' && !isMe && (
+          helpAccepted ? (
+            <View style={styles.acceptedBadge}>
+              <Text style={styles.acceptedBadgeText}>✅ Accepted</Text>
+            </View>
+          ) : onAcceptHelp ? (
+            <TouchableOpacity onPress={onAcceptHelp} style={styles.acceptBtn}>
+              <Text style={styles.acceptBtnText}>Accept</Text>
+            </TouchableOpacity>
+          ) : null
+        )}
         <Text style={[styles.time, { color: isMe ? 'rgba(255,255,255,0.7)' : colors.textSecondary }]}>
           {timeStr}
         </Text>
@@ -78,6 +93,10 @@ const styles = StyleSheet.create({
   time: { fontSize: 10, marginTop: 2, alignSelf: 'flex-end' },
   reviewLink: { marginTop: 6, paddingVertical: 4 },
   reviewLinkText: { color: '#0984E3', fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
+  acceptBtn: { marginTop: 8, backgroundColor: '#00B894', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 8, alignItems: 'center' },
+  acceptBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  acceptedBadge: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 16, borderRadius: 8, backgroundColor: 'rgba(0,184,148,0.15)', alignItems: 'center' },
+  acceptedBadgeText: { color: '#00B894', fontSize: 13, fontWeight: '600' },
 });
 
 export default MessageBubble;

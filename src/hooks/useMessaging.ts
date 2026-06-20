@@ -41,16 +41,20 @@ export const useMessaging = () => {
   const sendMessage = async (
     convId: string,
     senderId: string,
-    text: string
+    text: string,
+    options?: { type?: string; metadata?: Record<string, string> }
   ): Promise<void> => {
     // Add the message
-    await addDoc(collection(db, 'conversations', convId, 'messages'), {
+    const msgData: Record<string, unknown> = {
       conversationId: convId,
       senderId,
       text,
       read: false,
       createdAt: serverTimestamp(),
-    });
+    };
+    if (options?.type) msgData.type = options.type;
+    if (options?.metadata) msgData.metadata = options.metadata;
+    await addDoc(collection(db, 'conversations', convId, 'messages'), msgData);
     // Update conversation metadata
     await updateDoc(doc(db, 'conversations', convId), {
       lastMessage: text,

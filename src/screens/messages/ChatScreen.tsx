@@ -12,6 +12,7 @@ import { MessagesStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useMessaging } from '../../hooks/useMessaging';
+import { useSwaps } from '../../hooks/useSwaps';
 import { useFavorites } from '../../hooks/useFavorites';
 import { setActiveConversation } from '../../services/NotificationService';
 import { Message, SwapPost } from '../../models/types';
@@ -35,6 +36,8 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   const { user } = useAuthContext();
   const { subscribeToMessages, sendMessage, markConversationRead } = useMessaging();
   const { isFavorite, addFavorite, removeFavorite, setNotifyOnPost } = useFavorites();
+  const { claimPost } = useSwaps();
+  const [acceptedPostIds, setAcceptedPostIds] = useState<Set<string>>(new Set());
   const starred = isFavorite(otherUserId);
   const isSystem = otherUserId === 'swapdog-team';
   const [messages, setMessages] = useState<Message[]>([]);
@@ -77,6 +80,24 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   useEffect(() => {
     const unsub = subscribeToMessages(conversationId, (msgs) => {
       setMessages(msgs.reverse()); // inverted for FlatList inverted
+
+      // Check if any help_request posts are already claimed
+      const helpMsgs = msgs.filter((m) => m.type === 'help_request' && m.metadata?.postId);
+      const postIds = [...new Set(helpMsgs.map((m) => m.metadata!.postId!))];
+      postIds.forEach(async (postId) => {
+        try {
+          const snap = await getDoc(firestoreDoc(db, 'swapPosts', postId));
+          const data = snap.data();
+          if (data && data.status === 'claimed') {
+            setAcceptedPostIds((prev) => {
+              if (prev.has(postId)) return prev;
+              const next = new Set(prev);
+              next.add(postId);
+              return next;
+            });
+          }
+        } catch {}
+      });
     });
     return unsub;
   }, [conversationId]);
@@ -391,7 +412,21 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
         data={messages}
         keyExtractor={(m) => m.id}
         inverted
-        renderItem={({ item }) => (
+        renderItem={({ item }) => {
+          const handleAcceptHelp = async () => {
+            const postId = item.metadata?.postId;
+            const helperId = item.metadata?.helperId;
+            if (!postId || !helperId) return;
+            try {
+              await claimPost(postId, helperId);
+              setAcceptedPostIds((prev) => new Set(prev).add(postId));
+              await sendMessage(conversationId, user!.uid, "You're accepted! Looking forward to it 🎉");
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (err: unknown) {
+              Alert.alert('Error', err instanceof Error ? err.message : 'Failed to accept');
+            }
+          };
+          return (
           <MessageBubble
             text={item.text}
             isMe={item.senderId === user?.uid}
@@ -399,8 +434,11 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
             createdAt={item.createdAt}
             type={item.type}
             onReviewReschedule={item.type === 'reschedule' ? () => handleReviewReschedule(item) : undefined}
+            onAcceptHelp={item.type === 'help_request' && item.metadata?.postId && !acceptedPostIds.has(item.metadata.postId) ? handleAcceptHelp : undefined}
+            helpAccepted={item.type === 'help_request' && item.metadata?.postId ? acceptedPostIds.has(item.metadata.postId) : false}
           />
-        )}
+          );
+        }}
         contentContainerStyle={styles.list}
       />
       {/* Reschedule review modal (triggered from "Review Reschedule" link in chat) */}

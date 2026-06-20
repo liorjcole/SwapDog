@@ -272,7 +272,7 @@ export interface Message {
   createdAt: Date;
   read: boolean;
   /** Optional message type for special messages (e.g. reschedule proposals) */
-  type?: 'text' | 'reschedule' | 'image';
+  type?: 'text' | 'reschedule' | 'image' | 'help_request';
   /** Optional image URL for photo messages */
   imageURL?: string;
   /** Optional metadata for typed messages */
@@ -280,6 +280,7 @@ export interface Message {
     postId?: string;
     proposedStart?: string;  // ISO string
     proposedEnd?: string;    // ISO string
+    helperId?: string;
   };
 }
 
