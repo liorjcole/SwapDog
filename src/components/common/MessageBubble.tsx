@@ -17,9 +17,13 @@ interface Props {
   onAcceptHelp?: () => void;
   /** Whether this help request has already been accepted */
   helpAccepted?: boolean;
+  /** Callback when helper removes their own help request */
+  onRemoveRequest?: () => void;
+  /** Whether this help request removal is in progress */
+  removingRequest?: boolean;
 }
 
-const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL, onReviewReschedule, onAcceptHelp, helpAccepted }) => {
+const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL, onReviewReschedule, onAcceptHelp, helpAccepted, onRemoveRequest, removingRequest }) => {
   const { colors } = useTheme();
   const timeStr = createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -65,6 +69,17 @@ const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL,
             </TouchableOpacity>
           ) : null
         )}
+        {type === 'help_request' && isMe && onRemoveRequest && (
+          <TouchableOpacity
+            onPress={onRemoveRequest}
+            style={styles.removeRequestBtn}
+            disabled={removingRequest}
+          >
+            <Text style={styles.removeRequestBtnText}>
+              {removingRequest ? 'Removing...' : 'Remove Request'}
+            </Text>
+          </TouchableOpacity>
+        )}
         <Text style={[styles.time, { color: isMe ? 'rgba(255,255,255,0.7)' : colors.textSecondary }]}>
           {timeStr}
         </Text>
@@ -97,6 +112,8 @@ const styles = StyleSheet.create({
   acceptBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   acceptedBadge: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 16, borderRadius: 8, backgroundColor: 'rgba(0,184,148,0.15)', alignItems: 'center' },
   acceptedBadgeText: { color: '#00B894', fontSize: 13, fontWeight: '600' },
+  removeRequestBtn: { marginTop: 8, backgroundColor: 'rgba(255,59,48,0.15)', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 8, alignItems: 'center' },
+  removeRequestBtnText: { color: '#FF3B30', fontSize: 13, fontWeight: '600' },
 });
 
 export default MessageBubble;

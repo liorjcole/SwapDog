@@ -34,10 +34,11 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAuthContext();
-  const { subscribeToMessages, sendMessage, markConversationRead } = useMessaging();
+  const { subscribeToMessages, sendMessage, deleteMessage, markConversationRead } = useMessaging();
   const { isFavorite, addFavorite, removeFavorite, setNotifyOnPost } = useFavorites();
-  const { claimPost } = useSwaps();
+  const { claimPost, removeResponder } = useSwaps();
   const [acceptedPostIds, setAcceptedPostIds] = useState<Set<string>>(new Set());
+  const [removingMessageId, setRemovingMessageId] = useState<string | null>(null);
   const starred = isFavorite(otherUserId);
   const isSystem = otherUserId === 'swapdog-team';
   const [messages, setMessages] = useState<Message[]>([]);
@@ -426,6 +427,40 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
               Alert.alert('Error', err instanceof Error ? err.message : 'Failed to accept');
             }
           };
+          const handleRemoveRequest = async () => {
+            const postId = item.metadata?.postId;
+            if (!postId || !user) return;
+            Alert.alert(
+              'Remove Request',
+              'Are you sure you want to remove your help request?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Remove',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      setRemovingMessageId(item.id);
+                      // Remove from post's respondedBy
+                      await removeResponder(postId, user.uid);
+                      // Delete the help_request message
+                      await deleteMessage(conversationId, item.id);
+                      // Notify the dog owner
+                      await sendMessage(conversationId, 'swapdog-team',
+                        'Heads up — someone requested to help on one of your posts but has since removed their request. ' +
+                        'You may have seen a notification about it, but there are no active requests from this person.'
+                      );
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    } catch (err: unknown) {
+                      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to remove request');
+                    } finally {
+                      setRemovingMessageId(null);
+                    }
+                  },
+                },
+              ]
+            );
+          };
           return (
           <MessageBubble
             text={item.text}
@@ -436,6 +471,8 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
             onReviewReschedule={item.type === 'reschedule' ? () => handleReviewReschedule(item) : undefined}
             onAcceptHelp={item.type === 'help_request' && item.metadata?.postId && !acceptedPostIds.has(item.metadata.postId) ? handleAcceptHelp : undefined}
             helpAccepted={item.type === 'help_request' && item.metadata?.postId ? acceptedPostIds.has(item.metadata.postId) : false}
+            onRemoveRequest={item.type === 'help_request' && item.senderId === user?.uid && !acceptedPostIds.has(item.metadata?.postId ?? '') ? handleRemoveRequest : undefined}
+            removingRequest={removingMessageId === item.id}
           />
           );
         }}

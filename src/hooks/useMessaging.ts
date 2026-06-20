@@ -8,6 +8,7 @@ import {
   orderBy,
   serverTimestamp,
   updateDoc,
+  deleteDoc,
   doc,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -177,8 +178,15 @@ export const useMessaging = () => {
     }
   };
 
+
+  /** Delete a specific message from a conversation */
+  const deleteMessage = async (conversationId: string, messageId: string): Promise<void> => {
+    await deleteDoc(doc(db, 'conversations', conversationId, 'messages', messageId));
+  };
+
   return {
     sendMessage,
+    deleteMessage,
     subscribeToMessages,
     getConversations,
     subscribeToConversations,

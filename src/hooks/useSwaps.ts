@@ -318,6 +318,21 @@ export const useSwaps = () => {
     });
   };
 
+
+  /** Remove a responder from a post's respondedBy array */
+  const removeResponder = async (postId: string, userId: string): Promise<void> => {
+    const postSnap = await getDoc(doc(db, 'swapPosts', postId));
+    if (!postSnap.exists()) return;
+    const data = postSnap.data() as Record<string, unknown>;
+    const existing = (data.respondedBy as Array<Record<string, unknown>> | undefined) ?? [];
+    const entry = existing.find((r) => r.userId === userId);
+    if (!entry) return; // not in the list
+    await updateDoc(doc(db, 'swapPosts', postId), {
+      respondedBy: arrayRemove(entry),
+      updatedAt: serverTimestamp(),
+    });
+  };
+
   /** Fetch open posts where the given user has responded (Pending tab) */
   const getPendingPosts = async (userId: string): Promise<SwapPost[]> => {
     // Firestore doesn't support querying inside array-of-maps directly,
@@ -416,6 +431,7 @@ export const useSwaps = () => {
     claimPost,
     cancelPost,
     addResponder,
+    removeResponder,
     getPendingPosts,
     approveHelper,
     getAcceptedPosts,
