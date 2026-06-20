@@ -688,6 +688,8 @@ const MAX_PLAY_SESSIONS = 5;
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
         ref={kbScrollRef}
+        onScroll={kbOnScroll}
+        scrollEventThrottle={16}
         automaticallyAdjustKeyboardInsets={true}
         style={[styles.container, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.content}

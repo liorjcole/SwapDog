@@ -280,6 +280,8 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
         ref={scrollRef}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         automaticallyAdjustKeyboardInsets={true} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
 
       {isCreateMode && (
