@@ -54,6 +54,7 @@ export type ProfileStackParamList = {
   Referral: undefined;
   Profile: undefined;
   UserDetail: { userId: string };
+  DogDetail: { dogId: string };
   Review: {
     postId: string;
     role: 'owner' | 'caregiver';
