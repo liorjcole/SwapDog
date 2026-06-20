@@ -415,9 +415,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         }}
       />
 
-
-
-      <View>
+      <View style={{ marginTop: 16 }}>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="Dog's name"
