@@ -965,6 +965,14 @@ const MAX_PLAY_SESSIONS = 5;
                           markingType="period"
                           markedDates={buildMarkedDates()}
                           minDate={new Date().toISOString().split('T')[0]}
+                          enableSwipeMonths={true}
+                          renderArrow={(direction: string) => (
+                            <Ionicons
+                              name={direction === 'left' ? 'chevron-back' : 'chevron-forward'}
+                              size={22}
+                              color="#FF2D55"
+                            />
+                          )}
                           onDayPress={(day: DateData) => {
                             const selected = new Date(day.dateString + 'T12:00:00');
                             if (rangeSelectStep === 'start') {
