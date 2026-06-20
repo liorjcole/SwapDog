@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch,
   Image, Platform, ActivityIndicator, Linking, Animated as RNAnimated, LayoutAnimation,
@@ -48,6 +49,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
   const { dogForm: form, setDogForm: setForm, updateDogForm: set, savedDogs, savedCount, addSavedDog, removeSavedDog, popLastSavedDog, resetDogForm } = useOnboarding();
   const scrollRef = useRef<ScrollView>(null);
+  const didNavigateForward = useRef(false);
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [showRefChart, setShowRefChart] = useState(false);
@@ -127,6 +129,22 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const [uploadingCount, setUploadingCount] = useState(0);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [transitionMode, setTransitionMode] = useState<'addAnother' | 'continue'>('addAnother');
+
+  // When user navigates back from Paywall, undo the Continue action:
+  // pop the last saved dog so the form shows it as the current dog (not duplicated)
+  useFocusEffect(useCallback(() => {
+    if (didNavigateForward.current) {
+      didNavigateForward.current = false;
+      const popped = popLastSavedDog();
+      if (popped?.id) {
+        // Delete from Firestore so it doesn't duplicate when they hit Continue again
+        deleteDog(popped.id).catch(() => {});
+      }
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: 0, animated: false });
+      }, 50);
+    }
+  }, [popLastSavedDog, deleteDog]));
   const [transitionDogName, setTransitionDogName] = useState('');
 
 
@@ -656,6 +674,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           onFinish={() => {
             setShowTransition(false);
             if (transitionMode === 'continue') {
+              didNavigateForward.current = true;
               navigation.navigate('Paywall');
             } else {
               resetDogForm();
