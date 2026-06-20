@@ -368,9 +368,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={[styles.posterName, { color: isClaimed ? '#5D4E00' : colors.text }]}>
               {(item.dogNames && item.dogNames.length > 0) ? item.dogNames.join(' & ') : item.dogName}
             </Text>
-            <Text style={[styles.dateRange, { color: isClaimed ? '#8B7500' : colors.textSecondary }]}>
-              {startStr} – {endStr}
-            </Text>
+
           </View>
           <View style={[styles.statusBadge, { backgroundColor: statusColor[item.status] + '25' }]}>
             <Text style={[styles.statusBadgeText, { color: statusColor[item.status] }]}>
