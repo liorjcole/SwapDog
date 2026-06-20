@@ -942,7 +942,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   {post.feedingSlots.map((slot, i) => (
                     <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
                       <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                        {slot.time}{slot.daily ? '  (repeats daily)' : ''}
+                        {slot.time}{slot.daily ? '  ·  repeat daily' : ''}
                         {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                           ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
                           : ''}
@@ -959,7 +959,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   {post.medicationSlots.map((slot, i) => (
                     <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
                       <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                        {slot.time}{slot.daily ? '  (repeats daily)' : ''}
+                        {slot.time}{slot.daily ? '  ·  repeat daily' : ''}
                         {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                           ? `  \u00b7  ${resolveDogNames(slot.dogIds, post)}`
                           : ''}
@@ -985,7 +985,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                     return (
                       <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
                         <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                          {ws.startTime} – {ws.endTime}  ({durLabel}){ws.repeatDaily ? '  (repeats daily)' : ''}
+                          {ws.startTime} – {ws.endTime}  ({durLabel}){ws.repeatDaily ? '  ·  repeat daily' : ''}
                           {ws.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                             ? `  ·  ${resolveDogNames(ws.dogIds, post)}`
                             : ''}
@@ -1010,7 +1010,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                           {ps.flexible
                             ? `Flexible · ${durLabel}`
                             : `${ps.startTime} – ${ps.endTime}  (${durLabel})`}
-                          {ps.repeatDaily ? '  (repeats daily)' : ''}
+                          {ps.repeatDaily ? '  ·  repeat daily' : ''}
                           {ps.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                             ? `  ·  ${resolveDogNames(ps.dogIds, post)}`
                             : ''}

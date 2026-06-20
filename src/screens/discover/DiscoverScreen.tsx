@@ -260,7 +260,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
               <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>🍽️ Feeding</Text>
               {post.feedingSlots.map((slot, i) => (
                 <Text key={i} style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
-                  {slot.time}{slot.daily ? '  ✅ daily' : ''}
+                  {slot.time}{slot.daily ? '  ·  repeat daily' : ''}
                   {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                     ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
                     : ''}
@@ -275,7 +275,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
               <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>💊 Medication</Text>
               {post.medicationSlots.map((slot, i) => (
                 <Text key={i} style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }} numberOfLines={1}>
-                  {slot.time}{slot.daily ? '  ✅ daily' : ''}{slot.details ? ` — ${slot.details}` : ''}
+                  {slot.time}{slot.daily ? '  ·  repeat daily' : ''}{slot.details ? ` — ${slot.details}` : ''}
                   {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                     ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
                     : ''}
@@ -294,7 +294,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
                   : `${ws.durationMins}m`;
                 return (
                   <Text key={i} style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
-                    {ws.startTime} – {ws.endTime}  ({durLabel}){ws.repeatDaily ? '  ✅ daily' : ''}
+                    {ws.startTime} – {ws.endTime}  ({durLabel}){ws.repeatDaily ? '  ·  repeat daily' : ''}
                     {ws.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                       ? `  ·  ${resolveDogNames(ws.dogIds, post)}`
                       : ''}
@@ -317,7 +317,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
                     {ps.flexible
                       ? `Flexible · ${durLabel}`
                       : `${ps.startTime} – ${ps.endTime}  (${durLabel})`}
-                    {ps.repeatDaily ? '  ✅ daily' : ''}
+                    {ps.repeatDaily ? '  ·  repeat daily' : ''}
                     {ps.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                       ? `  ·  ${resolveDogNames(ps.dogIds, post)}`
                       : ''}
