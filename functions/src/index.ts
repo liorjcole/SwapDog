@@ -3,6 +3,10 @@ import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/fire
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import Expo, { ExpoPushMessage, ExpoPushTicket, ExpoPushReceipt } from "expo-server-sdk";
 
+// Force Cloud Functions to interpret local times as US Eastern.
+// All user-facing times ("3:00 PM") are in this timezone.
+process.env.TZ = "America/New_York";
+
 admin.initializeApp();
 const db = admin.firestore();
 const expo = new Expo();
