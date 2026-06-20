@@ -16,7 +16,7 @@ import { useSwaps } from '../../hooks/useSwaps';
 import { useFavorites } from '../../hooks/useFavorites';
 import { setActiveConversation } from '../../services/NotificationService';
 import { Message, SwapPost } from '../../models/types';
-import { collection, query, where, getDocs, getDoc, doc as firestoreDoc, updateDoc as firestoreUpdateDoc, serverTimestamp as fsServerTimestamp, addDoc as fsAddDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc as firestoreDoc, updateDoc as firestoreUpdateDoc, serverTimestamp as fsServerTimestamp, addDoc as fsAddDoc, deleteDoc} from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { smartDate } from '../../utils/dateHelpers';
 import RescheduleReviewModal from '../../components/common/RescheduleReviewModal';
@@ -445,11 +445,37 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
                       await removeResponder(postId, user.uid);
                       // Delete the help_request message
                       await deleteMessage(conversationId, item.id);
-                      // Notify the dog owner
-                      await sendMessage(conversationId, 'swapdog-team',
-                        'Heads up — someone requested to help on one of your posts but has since removed their request. ' +
-                        'You may have seen a notification about it, but there are no active requests from this person.'
+
+                      // Check remaining messages in this conversation
+                      const msgsSnap = await getDocs(
+                        query(collection(db, 'conversations', conversationId, 'messages'))
                       );
+
+                      if (msgsSnap.empty) {
+                        // No other messages — delete the entire conversation
+                        await deleteDoc(firestoreDoc(db, 'conversations', conversationId));
+                        // Navigate back to messages list
+                        navigation.goBack();
+                      }
+
+                      // Notify the post owner via their WatchDog team conversation
+                      try {
+                        const ownerConvQuery = query(collection(db, 'conversations'));
+                        const allConvSnap = await getDocs(ownerConvQuery);
+                        const ownerWatchdogConv = allConvSnap.docs.find((d) => {
+                          const participants = (d.data().participantIds as string[]) ?? [];
+                          return participants.includes(otherUserId) && participants.includes('swapdog-team');
+                        });
+                        if (ownerWatchdogConv) {
+                          await sendMessage(ownerWatchdogConv.id, 'swapdog-team',
+                            'Heads up — someone requested to help on one of your posts but has since removed their request. ' +
+                            'You may have seen a notification about it, but there are no active requests from this person.'
+                          );
+                        }
+                      } catch {
+                        // Non-fatal — the core removal succeeded
+                      }
+
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     } catch (err: unknown) {
                       Alert.alert('Error', err instanceof Error ? err.message : 'Failed to remove request');
