@@ -214,7 +214,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   return (
     <>
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.surface, ...shadow.sm }]}>
+      <View style={[styles.header, { backgroundColor: colors.background }]}>
         {/* Favorited badge + star above avatar */}
         {isUserFavorited && (
           <View style={{ alignItems: 'center', marginBottom: 4 }}>
@@ -257,7 +257,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         </Text>
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Dogs</Text>
         {dogs.map((dog) => (
           <TouchableOpacity
@@ -285,7 +285,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       </View>
 
       {/* ── Reviews with filters ── */}
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Reviews</Text>
 
         {reviews.length > 0 && (
@@ -393,7 +393,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       </View>
 
       {showSendButton && (
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.primary, opacity: sending ? 0.7 : 1 }]}
             onPress={() => { void handleMessageUser(); }}
@@ -412,7 +412,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
       {/* Block / Unblock — shown for all other users */}
       {me && me.id !== user.id && (
-        <View style={[styles.section, { paddingTop: 0 }]}>
+        <View style={[styles.section, { paddingTop: 0, backgroundColor: colors.surface }]}>
           <TouchableOpacity
             onPress={handleBlockToggle}
             disabled={blocking}
