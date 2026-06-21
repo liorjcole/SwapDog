@@ -2099,11 +2099,11 @@ const MAX_PLAY_SESSIONS = 5;
                         display="spinner"
                         themeVariant="dark"
                         accentColor="#FF2D55"
-                        maximumDate={endTimeDate ? getMaxStartDate(endTimeDate, startTimeDate ?? endTimeDate) : undefined}
+                        {...(careType === 'daySitting' && endTimeDate ? { maximumDate: getMaxStartDate(endTimeDate, startTimeDate ?? endTimeDate) } : {})}
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) setStartTimeDate(d);
                         }}
-                        style={{ height: 150 }}
+                        style={{ height: 200 }}
                       />
                     )}
                     {showEndTime && (
@@ -2113,11 +2113,11 @@ const MAX_PLAY_SESSIONS = 5;
                         display="spinner"
                         themeVariant="dark"
                         accentColor="#FF2D55"
-                        minimumDate={startTimeDate ? getMinEndDate(startTimeDate, endTimeDate ?? startTimeDate) : undefined}
+                        {...(careType === 'daySitting' && startTimeDate ? { minimumDate: getMinEndDate(startTimeDate, endTimeDate ?? startTimeDate) } : {})}
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) setEndTimeDate(d);
                         }}
-                        style={{ height: 150 }}
+                        style={{ height: 200 }}
                       />
                     )}
                   </View>
@@ -2298,7 +2298,7 @@ const MAX_PLAY_SESSIONS = 5;
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) updateFeedingSlot(idx, 'time', d);
                         }}
-                        style={{ height: 150 }}
+                        style={{ height: 200 }}
                       />
                     )}
 
@@ -2501,7 +2501,7 @@ const MAX_PLAY_SESSIONS = 5;
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) updateWalkSession(wIdx, { startDate: d });
                         }}
-                        style={{ height: 150 }}
+                        style={{ height: 200 }}
                       />
                     )}
                     {ws.showEnd && (
@@ -2515,7 +2515,7 @@ const MAX_PLAY_SESSIONS = 5;
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) updateWalkSession(wIdx, { endDate: d });
                         }}
-                        style={{ height: 150 }}
+                        style={{ height: 200 }}
                       />
                     )}
 
@@ -2748,7 +2748,7 @@ const MAX_PLAY_SESSIONS = 5;
                             onChange={(_: DateTimePickerEvent, d?: Date) => {
                               if (d) updatePlaySession(pIdx, { startDate: d });
                             }}
-                            style={{ height: 150 }}
+                            style={{ height: 200 }}
                           />
                         )}
                         {pSession.showEnd && (
@@ -2762,7 +2762,7 @@ const MAX_PLAY_SESSIONS = 5;
                             onChange={(_: DateTimePickerEvent, d?: Date) => {
                               if (d) updatePlaySession(pIdx, { endDate: d });
                             }}
-                            style={{ height: 150 }}
+                            style={{ height: 200 }}
                           />
                         )}
                         <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
@@ -2985,7 +2985,7 @@ const MAX_PLAY_SESSIONS = 5;
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) updateMedicationSlot(idx, 'time', d);
                         }}
-                        style={{ height: 150 }}
+                        style={{ height: 200 }}
                       />
                     )}
 
@@ -3021,7 +3021,7 @@ const MAX_PLAY_SESSIONS = 5;
                             onChange={(_: DateTimePickerEvent, d?: Date) => {
                               if (d) updateMedExtraTime(idx, etIdx, d);
                             }}
-                            style={{ height: 150 }}
+                            style={{ height: 200 }}
                           />
                         )}
                       </View>
