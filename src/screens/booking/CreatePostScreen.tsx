@@ -3035,6 +3035,7 @@ const MAX_PLAY_SESSIONS = 5;
                       keyboardType="number-pad"
                       accessibilityLabel="Points offered"
                       returnKeyType="done"
+                      inputAccessoryViewID={DONE_ACCESSORY_ID}
                       onFocus={() => scrollToInput('points')}
                     />
                     <Text style={[styles.pointsUnit, { color: colors.textSecondary }]}>pts</Text>
