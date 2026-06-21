@@ -1207,13 +1207,10 @@ const MAX_PLAY_SESSIONS = 5;
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.pageTitle, { color: colors.text, textAlign: 'center' }]} accessibilityRole="header">
-          Create Post
-        </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xl * 2, paddingHorizontal: spacing.lg }}>
           <Text style={{ fontSize: 16 }}>🐾</Text>
           <Text style={[styles.pageSubtitle, { color: colors.textSecondary, marginBottom: 0, marginHorizontal: 12, textAlign: 'center', lineHeight: 20 }]}>
-            Your post will be visible to SwapDog members in your area.
+            Your post will be visible to the WatchDog members in your area!
           </Text>
           <Text style={{ fontSize: 16 }}>🐾</Text>
         </View>
