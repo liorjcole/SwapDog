@@ -94,8 +94,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         // Pulse 1
         Animated.parallel([
           Animated.sequence([
-            Animated.timing(pulseAnim, { toValue: 1.02, duration: 200, useNativeDriver: true }),
-            Animated.timing(pulseAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+            Animated.timing(pulseAnim, { toValue: 1.02, duration: 200, useNativeDriver: false }),
+            Animated.timing(pulseAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
           ]),
           Animated.sequence([
             Animated.timing(glowAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
@@ -105,8 +105,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
         // Pulse 2
         Animated.parallel([
           Animated.sequence([
-            Animated.timing(pulseAnim, { toValue: 1.02, duration: 200, useNativeDriver: true }),
-            Animated.timing(pulseAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+            Animated.timing(pulseAnim, { toValue: 1.02, duration: 200, useNativeDriver: false }),
+            Animated.timing(pulseAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
           ]),
           Animated.sequence([
             Animated.timing(glowAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
