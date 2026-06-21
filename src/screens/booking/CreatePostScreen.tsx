@@ -2041,9 +2041,9 @@ const MAX_PLAY_SESSIONS = 5;
                 {walkSessions.map((ws, wIdx) => {
                   const wsStartTime = ws.startDate ? formatTime12(ws.startDate) : 'No time selected';
                   const wsEndTime = ws.endDate ? formatTime12(ws.endDate) : 'No time selected';
-                  const wsStartMins = ws.startDate.getHours() * 60 + ws.startDate.getMinutes();
-                  const wsEndMins = ws.endDate.getHours() * 60 + ws.endDate.getMinutes();
-                  const wsDurMins = wsEndMins > wsStartMins ? wsEndMins - wsStartMins : 0;
+                  const wsStartMins = ws.startDate ? ws.startDate.getHours() * 60 + ws.startDate.getMinutes() : 0;
+                  const wsEndMins = ws.endDate ? ws.endDate.getHours() * 60 + ws.endDate.getMinutes() : 0;
+                  const wsDurMins = (ws.startDate && ws.endDate && wsEndMins > wsStartMins) ? wsEndMins - wsStartMins : 0;
                   const wsDurText = wsDurMins >= 60
                     ? `${Math.floor(wsDurMins / 60)}h ${wsDurMins % 60 > 0 ? `${wsDurMins % 60}m` : ''} walk`.trim()
                     : `${wsDurMins}m walk`;
