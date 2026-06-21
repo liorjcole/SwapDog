@@ -1231,6 +1231,10 @@ const MAX_PLAY_SESSIONS = 5;
           showValidationAlert('Time Required', `Please set a time for ${feedingSlots.length > 1 ? 'Feeding #' + (i + 1) : 'Feeding'}.`, 'feeding-' + i);
           return;
         }
+        if (primaryCareType === 'overnight' && !feedingSlots[i].repeatSchedule) {
+          showValidationAlert('Select Days Required', `Please select which days ${feedingSlots.length > 1 ? 'Feeding #' + (i + 1) : 'Feeding'} should occur during the stay.`, 'feeding-' + i);
+          return;
+        }
       }
     }
     if (addOnCareTypes.has('dogWalking')) {
@@ -1241,6 +1245,10 @@ const MAX_PLAY_SESSIONS = 5;
         }
         if (!walkSessions[i].endDate) {
           showValidationAlert('End Time Required', `Please set an end time for ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'}.`, 'walk-' + i);
+          return;
+        }
+        if (primaryCareType === 'overnight' && !walkSessions[i].repeatSchedule) {
+          showValidationAlert('Select Days Required', `Please select which days ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'} should occur during the stay.`, 'walk-' + i);
           return;
         }
       }
@@ -1257,12 +1265,20 @@ const MAX_PLAY_SESSIONS = 5;
             return;
           }
         }
+        if (primaryCareType === 'overnight' && !playSessions[i].repeatSchedule) {
+          showValidationAlert('Select Days Required', `Please select which days ${playSessions.length > 1 ? 'Playtime #' + (i + 1) : 'Playtime'} should occur during the stay.`, 'play-' + i);
+          return;
+        }
       }
     }
     if (addOnCareTypes.has('medication')) {
       for (let i = 0; i < medicationSlots.length; i++) {
         if (!medicationSlots[i].time) {
           showValidationAlert('Time Required', `Please set a time for ${medicationSlots.length > 1 ? 'Medication #' + (i + 1) : 'Medication'}.`, 'med-' + i);
+          return;
+        }
+        if (primaryCareType === 'overnight' && !medicationSlots[i].repeatSchedule) {
+          showValidationAlert('Select Days Required', `Please select which days ${medicationSlots.length > 1 ? 'Medication #' + (i + 1) : 'Medication'} should occur during the stay.`, 'med-' + i);
           return;
         }
       }
