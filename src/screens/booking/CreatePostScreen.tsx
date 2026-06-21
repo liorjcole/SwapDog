@@ -370,6 +370,7 @@ const MAX_PLAY_SESSIONS = 5;
   };
   const [collapsedMeds, setCollapsedMeds] = useState<Set<number>>(new Set());
   const [servicesCollapsed, setServicesCollapsed] = useState(false);
+  const [compensationCollapsed, setCompensationCollapsed] = useState(false);
 
   const [walkSessions, setWalkSessions] = useState<WalkSession[]>([makeDefaultWalkSession()]);
   const addWalkSession = () => {
@@ -2242,14 +2243,26 @@ const MAX_PLAY_SESSIONS = 5;
             </Animated.View>
         )}
 
-        {/* Divider between Care Details and Compensation */}
-        <View style={{ paddingBottom: spacing.xl, alignItems: 'center' }}>
-          <View style={{ width: '100%', height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
-        </View>
+        {/* ── Compensation collapsible header ── */}
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.xl }}
+          onPress={() => {
+            setCompensationCollapsed(prev => !prev);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+          activeOpacity={0.7}
+        >
+          <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 }}>
+            <Text style={{ fontSize: 22, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.5 }}>Compensation</Text>
+            <Text style={{ fontSize: 18, color: colors.textSecondary, marginLeft: 8 }}>{compensationCollapsed ? '›' : '▾'}</Text>
+          </View>
+          <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+        </TouchableOpacity>
 
         {/* ── Compensation ── */}
+        {!compensationCollapsed && (
             <Animated.View ref={validationRefFor('compensation')} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'compensation' ? pulseAnim : 1 }] }, pulsingSection === 'compensation' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Compensation</Text>
 
               {/* Recommended points — only when points toggle is ON */}
               {offerPoints && recommendedPoints.total > 0 && (
@@ -2497,6 +2510,7 @@ const MAX_PLAY_SESSIONS = 5;
                 </>
               )}
             </Animated.View>
+        )}
 
             {/* ── Submit ── */}
             <TouchableOpacity
