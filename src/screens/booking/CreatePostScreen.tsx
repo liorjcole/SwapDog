@@ -1304,6 +1304,47 @@ const MAX_PLAY_SESSIONS = 5;
         return;
       }
     }
+    // Check that all required times are filled in
+    if (addOnCareTypes.has('feeding')) {
+      for (let i = 0; i < feedingSlots.length; i++) {
+        if (!feedingSlots[i].time) {
+          showValidationAlert('Time Required', `Please set a time for ${feedingSlots.length > 1 ? 'Feeding #' + (i + 1) : 'Feeding'}.`, 'careType');
+          return;
+        }
+      }
+    }
+    if (addOnCareTypes.has('dogWalking')) {
+      for (let i = 0; i < walkSessions.length; i++) {
+        if (!walkSessions[i].startDate) {
+          showValidationAlert('Start Time Required', `Please set a start time for ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'}.`, 'careType');
+          return;
+        }
+        if (!walkSessions[i].endDate) {
+          showValidationAlert('End Time Required', `Please set an end time for ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'}.`, 'careType');
+          return;
+        }
+      }
+    }
+    if (addOnCareTypes.has('playtime')) {
+      for (let i = 0; i < playSessions.length; i++) {
+        if (!playSessions[i].startDate) {
+          showValidationAlert('Start Time Required', `Please set a start time for ${playSessions.length > 1 ? 'Playtime #' + (i + 1) : 'Playtime'}.`, 'careType');
+          return;
+        }
+        if (!playSessions[i].endDate) {
+          showValidationAlert('End Time Required', `Please set an end time for ${playSessions.length > 1 ? 'Playtime #' + (i + 1) : 'Playtime'}.`, 'careType');
+          return;
+        }
+      }
+    }
+    if (addOnCareTypes.has('medication')) {
+      for (let i = 0; i < medicationSlots.length; i++) {
+        if (!medicationSlots[i].time) {
+          showValidationAlert('Time Required', `Please set a time for ${medicationSlots.length > 1 ? 'Medication #' + (i + 1) : 'Medication'}.`, 'careType');
+          return;
+        }
+      }
+    }
     if (!offerPoints && !offerMoney) {
       showValidationAlert('Required', 'Select at least one compensation type (points or money).', 'compensation');
       return;
