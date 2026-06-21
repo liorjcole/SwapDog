@@ -1277,6 +1277,77 @@ const MAX_PLAY_SESSIONS = 5;
       }
     }
 
+    // Check for services outside the care window (day sitting / overnight)
+    if (primaryCareType === 'daySitting' || primaryCareType === 'overnight') {
+      const windowStart = timeToMins(startTimeDate);
+      const windowEnd = timeToMins(endTimeDate);
+      const isOvernightWrap = primaryCareType === 'overnight' && windowStart > windowEnd;
+
+      // Helper: is a time-of-day (in minutes) inside the care window?
+      const insideWindow = (mins: number) => {
+        if (isOvernightWrap) {
+          // e.g. 8 PM–8 AM: valid = ≥8PM OR ≤8AM
+          return mins >= windowStart || mins <= windowEnd;
+        }
+        // e.g. 9 AM–5 PM: valid = ≥9AM AND ≤5PM
+        return mins >= windowStart && mins <= windowEnd;
+      };
+
+      const windowLabel = `${formatTimeShort(startTimeDate)} – ${formatTimeShort(endTimeDate)}`;
+
+      // Check feeding times
+      if (addOnCareTypes.has('feeding')) {
+        for (let i = 0; i < feedingSlots.length; i++) {
+          const m = timeToMins(feedingSlots[i].time);
+          if (!insideWindow(m)) {
+            showValidationAlert('Outside Care Window', `Feeding ${feedingSlots.length > 1 ? '#' + (i + 1) + ' ' : ''}at ${formatTimeShort(feedingSlots[i].time)} is outside your ${primaryCareType === 'overnight' ? 'overnight' : 'day sitting'} window (${windowLabel}).`, 'careType');
+            return;
+          }
+        }
+      }
+
+      // Check walk times
+      if (addOnCareTypes.has('dogWalking')) {
+        for (let i = 0; i < walkSessions.length; i++) {
+          const ws = walkSessions[i];
+          if (ws.startDate && !insideWindow(timeToMins(ws.startDate))) {
+            showValidationAlert('Outside Care Window', `Walk ${walkSessions.length > 1 ? '#' + (i + 1) + ' ' : ''}starts at ${formatTimeShort(ws.startDate)}, which is outside your ${primaryCareType === 'overnight' ? 'overnight' : 'day sitting'} window (${windowLabel}).`, 'careType');
+            return;
+          }
+          if (ws.endDate && !insideWindow(timeToMins(ws.endDate))) {
+            showValidationAlert('Outside Care Window', `Walk ${walkSessions.length > 1 ? '#' + (i + 1) + ' ' : ''}ends at ${formatTimeShort(ws.endDate)}, which is outside your ${primaryCareType === 'overnight' ? 'overnight' : 'day sitting'} window (${windowLabel}).`, 'careType');
+            return;
+          }
+        }
+      }
+
+      // Check playtime times
+      if (addOnCareTypes.has('playtime')) {
+        for (let i = 0; i < playSessions.length; i++) {
+          const ps = playSessions[i];
+          if (ps.startDate && !insideWindow(timeToMins(ps.startDate))) {
+            showValidationAlert('Outside Care Window', `Playtime ${playSessions.length > 1 ? '#' + (i + 1) + ' ' : ''}starts at ${formatTimeShort(ps.startDate)}, which is outside your ${primaryCareType === 'overnight' ? 'overnight' : 'day sitting'} window (${windowLabel}).`, 'careType');
+            return;
+          }
+          if (ps.endDate && !insideWindow(timeToMins(ps.endDate))) {
+            showValidationAlert('Outside Care Window', `Playtime ${playSessions.length > 1 ? '#' + (i + 1) + ' ' : ''}ends at ${formatTimeShort(ps.endDate)}, which is outside your ${primaryCareType === 'overnight' ? 'overnight' : 'day sitting'} window (${windowLabel}).`, 'careType');
+            return;
+          }
+        }
+      }
+
+      // Check medication times
+      if (addOnCareTypes.has('medication')) {
+        for (let i = 0; i < medicationSlots.length; i++) {
+          const m = timeToMins(medicationSlots[i].time);
+          if (!insideWindow(m)) {
+            showValidationAlert('Outside Care Window', `Medication ${medicationSlots.length > 1 ? '#' + (i + 1) + ' ' : ''}at ${formatTimeShort(medicationSlots[i].time)} is outside your ${primaryCareType === 'overnight' ? 'overnight' : 'day sitting'} window (${windowLabel}).`, 'careType');
+            return;
+          }
+        }
+      }
+    }
+
     setSubmitting(true);
     try {
       let posterLocation: { latitude: number; longitude: number } | undefined;
