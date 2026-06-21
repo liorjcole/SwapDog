@@ -454,7 +454,7 @@ const MAX_PLAY_SESSIONS = 5;
   };
   const [collapsedMeds, setCollapsedMeds] = useState<Set<number>>(new Set());
   const [servicesCollapsed, setServicesCollapsed] = useState(false);
-  const [careDetailsCollapsed, setCareDetailsCollapsed] = useState(true);
+  const [careDetailsCollapsed, setCareDetailsCollapsed] = useState(false);
   const [compensationCollapsed, setCompensationCollapsed] = useState(false);
 
   const [walkSessions, setWalkSessions] = useState<WalkSession[]>([makeDefaultWalkSession()]);
