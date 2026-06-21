@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, StyleSheet, Alert,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
-import { RepeatSchedule, DAY_LABELS, formatRepeatLabel, formatRepeatSubLabel } from '../../models/types';
+import { RepeatSchedule, DAY_LABELS } from '../../models/types';
 import { borderRadius, spacing } from '../../config/theme';
 
 interface Props {
@@ -13,11 +13,8 @@ interface Props {
   onConfirm: (schedule: RepeatSchedule) => void;
   onClear: () => void;
   currentSchedule?: RepeatSchedule | null;
-  /** Default time from the parent add-on (kept for interface compat) */
   defaultTime?: Date;
 }
-
-type Step = 'summary' | 'type';
 
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6]; // Sun-Sat
 
@@ -26,14 +23,12 @@ const RepeatScheduleModal: React.FC<Props> = ({
 }) => {
   const { colors } = useTheme();
 
-  const [step, setStep] = useState<Step>('type');
   const [repeatType, setRepeatType] = useState<'daily' | 'weekly' | 'custom'>('daily');
   const [weeklyDay, setWeeklyDay] = useState(1);
   const [customDays, setCustomDays] = useState<Set<number>>(new Set());
-  const [isEditing, setIsEditing] = useState(false);
 
-  // Snapshot of the confirmed schedule so Cancel can revert
-  const [savedSchedule, setSavedSchedule] = useState<RepeatSchedule | null>(null);
+  // Track original state to detect changes for discard warning
+  const originalRef = useRef<{ type: string; weeklyDay: number; customDays: number[] } | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -41,19 +36,31 @@ const RepeatScheduleModal: React.FC<Props> = ({
         setRepeatType(currentSchedule.type);
         setWeeklyDay(currentSchedule.weeklyDay ?? 1);
         setCustomDays(new Set(currentSchedule.customDays ?? []));
-        setSavedSchedule(currentSchedule);
-        setStep('summary');
-        setIsEditing(false);
+        originalRef.current = {
+          type: currentSchedule.type,
+          weeklyDay: currentSchedule.weeklyDay ?? 1,
+          customDays: Array.from(currentSchedule.customDays ?? []).sort(),
+        };
       } else {
         setRepeatType('daily');
         setWeeklyDay(1);
         setCustomDays(new Set());
-        setSavedSchedule(null);
-        setStep('type');
-        setIsEditing(false);
+        originalRef.current = null;
       }
     }
   }, [visible]);
+
+  const hasChanges = (): boolean => {
+    if (!originalRef.current) return false; // no prior schedule — nothing to discard
+    if (repeatType !== originalRef.current.type) return true;
+    if (repeatType === 'weekly' && weeklyDay !== originalRef.current.weeklyDay) return true;
+    if (repeatType === 'custom') {
+      const sorted = Array.from(customDays).sort();
+      if (sorted.length !== originalRef.current.customDays.length) return true;
+      return sorted.some((d, i) => d !== originalRef.current!.customDays[i]);
+    }
+    return false;
+  };
 
   const toggleCustomDay = (day: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -62,7 +69,7 @@ const RepeatScheduleModal: React.FC<Props> = ({
       if (next.has(day)) next.delete(day);
       else next.add(day);
 
-      // If all 7 days selected → auto-switch to daily
+      // If all 7 days selected -> auto-switch to daily
       if (next.size === 7) {
         setRepeatType('daily');
         return new Set();
@@ -82,35 +89,23 @@ const RepeatScheduleModal: React.FC<Props> = ({
     onConfirm(schedule);
   };
 
-  const handleEdit = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSavedSchedule(currentSchedule ?? null);
-    setIsEditing(true);
-    setStep('type');
-  };
-
-  const handleCancelEdit = () => {
-    Alert.alert(
-      'Discard changes?',
-      'Any edits you made will be lost.',
-      [
-        { text: 'Keep Editing', style: 'cancel' },
-        {
-          text: 'Discard',
-          style: 'destructive',
-          onPress: () => {
-            // Revert to saved
-            if (savedSchedule) {
-              setRepeatType(savedSchedule.type);
-              setWeeklyDay(savedSchedule.weeklyDay ?? 1);
-              setCustomDays(new Set(savedSchedule.customDays ?? []));
-            }
-            setIsEditing(false);
-            setStep('summary');
+  const handleClose = () => {
+    if (hasChanges()) {
+      Alert.alert(
+        'Discard changes?',
+        'Any edits you made will be lost.',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => onClose(),
           },
-        },
-      ],
-    );
+        ],
+      );
+    } else {
+      onClose();
+    }
   };
 
   const handleClear = () => {
@@ -118,190 +113,129 @@ const RepeatScheduleModal: React.FC<Props> = ({
     onClear();
   };
 
-  // ── Summary view (read-only) ─────────────────────────────────────────────
-  const renderSummary = () => {
-    if (!currentSchedule) return null;
-    const label = formatRepeatLabel(currentSchedule);
-    const subLabel = formatRepeatSubLabel(currentSchedule);
-
-    const days: number[] =
-      currentSchedule.type === 'daily' ? ALL_DAYS
-      : currentSchedule.type === 'weekly' ? [currentSchedule.weeklyDay ?? 1]
-      : (currentSchedule.customDays ?? []);
-
-    return (
-      <>
-        {/* Header with Edit */}
-        <View style={styles.summaryHeader}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>Repeat Schedule</Text>
-          <TouchableOpacity onPress={handleEdit} activeOpacity={0.7}>
-            <Text style={[styles.editBtn, { color: colors.primary }]}>Edit</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Cadence label */}
-        <View style={[styles.cadenceCard, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
-          <Text style={[styles.cadenceLabel, { color: colors.text }]}>✅ {label}</Text>
-          {subLabel && (
-            <Text style={[styles.cadenceSub, { color: colors.textSecondary }]}>{subLabel}</Text>
-          )}
-        </View>
-
-        {/* Day list */}
-        <View style={styles.dayList}>
-          {days.map(d => (
-            <View key={d} style={[styles.dayRow, { borderBottomColor: colors.border + '40' }]}>
-              <Text style={[styles.dayRowText, { color: colors.text }]}>{DAY_LABELS[d]}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Done */}
-        <TouchableOpacity
-          style={[styles.confirmBtn, { backgroundColor: colors.primary }]}
-          onPress={onClose}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.confirmBtnText}>Done</Text>
-        </TouchableOpacity>
-
-        {/* Remove */}
-        <TouchableOpacity style={styles.clearBtn} onPress={handleClear}>
-          <Text style={[styles.clearBtnText, { color: '#FF3B30' }]}>Remove repeat</Text>
-        </TouchableOpacity>
-      </>
-    );
-  };
-
-  // ── Edit view — cadence only ─────────────────────────────────────────────
-  const renderTypeStep = () => (
-    <>
-      {/* Header — Cancel if editing */}
-      <View style={styles.summaryHeader}>
-        <Text style={[styles.modalTitle, { color: colors.text }]}>Repeat this?</Text>
-        {isEditing && (
-          <TouchableOpacity onPress={handleCancelEdit} activeOpacity={0.7}>
-            <Text style={[styles.editBtn, { color: '#FF3B30' }]}>Cancel</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Radio: Daily */}
-      <TouchableOpacity
-        style={[styles.radioRow, repeatType === 'daily' && { backgroundColor: colors.primary + '10' }]}
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRepeatType('daily'); setCustomDays(new Set()); }}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.radioLabel, { color: colors.text }]}>Repeat daily</Text>
-        <Text style={[styles.radio, { color: repeatType === 'daily' ? colors.primary : colors.textSecondary }]}>
-          {repeatType === 'daily' ? '●' : '○'}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Radio: Weekly */}
-      <TouchableOpacity
-        style={[styles.radioRow, repeatType === 'weekly' && { backgroundColor: colors.primary + '10' }]}
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRepeatType('weekly'); setCustomDays(new Set()); }}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.radioLabel, { color: colors.text }]}>Repeat weekly</Text>
-        <Text style={[styles.radio, { color: repeatType === 'weekly' ? colors.primary : colors.textSecondary }]}>
-          {repeatType === 'weekly' ? '●' : '○'}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Weekly day picker */}
-      {repeatType === 'weekly' && (
-        <View style={styles.dayChips}>
-          {ALL_DAYS.map(d => (
-            <TouchableOpacity
-              key={d}
-              style={[
-                styles.dayChip,
-                { borderColor: colors.border, backgroundColor: colors.background },
-                weeklyDay === d && { backgroundColor: colors.primary, borderColor: colors.primary },
-              ]}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setWeeklyDay(d); }}
-              activeOpacity={0.7}
-            >
-              <Text style={[
-                styles.dayChipText,
-                { color: colors.text },
-                weeklyDay === d && { color: '#fff', fontWeight: '700' },
-              ]}>
-                {DAY_LABELS[d].slice(0, 3)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {/* Radio: Custom */}
-      <TouchableOpacity
-        style={[styles.radioRow, repeatType === 'custom' && { backgroundColor: colors.primary + '10' }]}
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRepeatType('custom'); }}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.radioLabel, { color: colors.text }]}>Repeat on select days</Text>
-        <Text style={[styles.radio, { color: repeatType === 'custom' ? colors.primary : colors.textSecondary }]}>
-          {repeatType === 'custom' ? '●' : '○'}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Custom day picker */}
-      {repeatType === 'custom' && (
-        <View style={styles.dayChips}>
-          {ALL_DAYS.map(d => (
-            <TouchableOpacity
-              key={d}
-              style={[
-                styles.dayChip,
-                { borderColor: colors.border, backgroundColor: colors.background },
-                customDays.has(d) && { backgroundColor: colors.primary, borderColor: colors.primary },
-              ]}
-              onPress={() => toggleCustomDay(d)}
-              activeOpacity={0.7}
-            >
-              <Text style={[
-                styles.dayChipText,
-                { color: colors.text },
-                customDays.has(d) && { color: '#fff', fontWeight: '700' },
-              ]}>
-                {DAY_LABELS[d].slice(0, 3)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {/* Confirm */}
-      <TouchableOpacity
-        style={[
-          styles.confirmBtn,
-          { backgroundColor: (repeatType === 'custom' && customDays.size === 0) ? colors.border : colors.primary },
-        ]}
-        onPress={handleConfirm}
-        activeOpacity={0.8}
-        disabled={repeatType === 'custom' && customDays.size === 0}
-      >
-        <Text style={styles.confirmBtnText}>Confirm</Text>
-      </TouchableOpacity>
-
-      {/* Close */}
-      {!isEditing && (
-        <TouchableOpacity style={styles.clearBtn} onPress={onClose}>
-          <Text style={[styles.clearBtnText, { color: colors.textSecondary }]}>Cancel</Text>
-        </TouchableOpacity>
-      )}
-    </>
-  );
-
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
-          {step === 'summary' && renderSummary()}
-          {step === 'type' && renderTypeStep()}
+          {/* Header with X */}
+          <View style={styles.header}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Repeat this?</Text>
+            <TouchableOpacity
+              onPress={handleClose}
+              activeOpacity={0.7}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Text style={[styles.closeX, { color: colors.textSecondary }]}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Radio: Daily */}
+          <TouchableOpacity
+            style={[styles.radioRow, repeatType === 'daily' && { backgroundColor: colors.primary + '10' }]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRepeatType('daily'); setCustomDays(new Set()); }}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.radioLabel, { color: colors.text }]}>Repeat daily</Text>
+            <Text style={[styles.radio, { color: repeatType === 'daily' ? colors.primary : colors.textSecondary }]}>
+              {repeatType === 'daily' ? '●' : '○'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Radio: Weekly */}
+          <TouchableOpacity
+            style={[styles.radioRow, repeatType === 'weekly' && { backgroundColor: colors.primary + '10' }]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRepeatType('weekly'); setCustomDays(new Set()); }}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.radioLabel, { color: colors.text }]}>Repeat weekly</Text>
+            <Text style={[styles.radio, { color: repeatType === 'weekly' ? colors.primary : colors.textSecondary }]}>
+              {repeatType === 'weekly' ? '●' : '○'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Weekly day picker */}
+          {repeatType === 'weekly' && (
+            <View style={styles.dayChips}>
+              {ALL_DAYS.map(d => (
+                <TouchableOpacity
+                  key={d}
+                  style={[
+                    styles.dayChip,
+                    { borderColor: colors.border, backgroundColor: colors.background },
+                    weeklyDay === d && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  ]}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setWeeklyDay(d); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.dayChipText,
+                    { color: colors.text },
+                    weeklyDay === d && { color: '#fff', fontWeight: '700' },
+                  ]}>
+                    {DAY_LABELS[d].slice(0, 3)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Radio: Custom */}
+          <TouchableOpacity
+            style={[styles.radioRow, repeatType === 'custom' && { backgroundColor: colors.primary + '10' }]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRepeatType('custom'); }}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.radioLabel, { color: colors.text }]}>Repeat on select days</Text>
+            <Text style={[styles.radio, { color: repeatType === 'custom' ? colors.primary : colors.textSecondary }]}>
+              {repeatType === 'custom' ? '●' : '○'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Custom day picker */}
+          {repeatType === 'custom' && (
+            <View style={styles.dayChips}>
+              {ALL_DAYS.map(d => (
+                <TouchableOpacity
+                  key={d}
+                  style={[
+                    styles.dayChip,
+                    { borderColor: colors.border, backgroundColor: colors.background },
+                    customDays.has(d) && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  ]}
+                  onPress={() => toggleCustomDay(d)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.dayChipText,
+                    { color: colors.text },
+                    customDays.has(d) && { color: '#fff', fontWeight: '700' },
+                  ]}>
+                    {DAY_LABELS[d].slice(0, 3)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Confirm */}
+          <TouchableOpacity
+            style={[
+              styles.confirmBtn,
+              { backgroundColor: (repeatType === 'custom' && customDays.size === 0) ? colors.border : colors.primary },
+            ]}
+            onPress={handleConfirm}
+            activeOpacity={0.8}
+            disabled={repeatType === 'custom' && customDays.size === 0}
+          >
+            <Text style={styles.confirmBtnText}>Confirm</Text>
+          </TouchableOpacity>
+
+          {/* Remove repeat — only show when editing an existing schedule */}
+          {currentSchedule && (
+            <TouchableOpacity style={styles.clearBtn} onPress={handleClear}>
+              <Text style={[styles.clearBtnText, { color: '#FF3B30' }]}>Remove repeat</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </Modal>
@@ -315,19 +249,11 @@ const styles = StyleSheet.create({
   sheet: {
     borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: spacing.lg, paddingBottom: 40,
   },
-  summaryHeader: {
+  header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg,
   },
   modalTitle: { fontSize: 22, fontWeight: '700' },
-  editBtn: { fontSize: 17, fontWeight: '600' },
-  cadenceCard: {
-    borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, alignItems: 'center',
-  },
-  cadenceLabel: { fontSize: 17, fontWeight: '700' },
-  cadenceSub: { fontSize: 15, marginTop: 2 },
-  dayList: { marginBottom: spacing.md },
-  dayRow: { paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
-  dayRowText: { fontSize: 16 },
+  closeX: { fontSize: 22, fontWeight: '400' },
   radioRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 14, paddingHorizontal: spacing.md,
