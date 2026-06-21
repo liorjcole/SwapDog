@@ -153,8 +153,13 @@ export const formatRepeatSubLabel = (schedule: RepeatSchedule): string | null =>
     return '(on ' + DAY_LABELS[schedule.weeklyDay ?? 1] + ')';
   }
   if (schedule.type === 'custom') {
-    const days = (schedule.customDays ?? []).map(d => DAY_LABELS[d]).join('/');
-    return '(on ' + days + ')';
+    const dayNames = (schedule.customDays ?? []).map(d => DAY_LABELS[d]);
+    if (dayNames.length > 4) {
+      const line1 = dayNames.slice(0, 4).join('/');
+      const line2 = dayNames.slice(4).join('/');
+      return '(on ' + line1 + '/\n' + line2 + ')';
+    }
+    return '(on ' + dayNames.join('/') + ')';
   }
   return null;
 };
