@@ -86,7 +86,7 @@ const PointsHistoryScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Right: points badge */}
-        <Text style={[styles.rowPoints, { color: pointsColor }]}>{pointsLabel} pts</Text>
+        <Text style={[styles.rowPoints, { color: pointsColor }]}>{pointsLabel} points</Text>
       </View>
     );
   };
