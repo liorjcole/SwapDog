@@ -223,7 +223,10 @@ const MAX_PLAY_SESSIONS = 5;
           Alert.alert('Duplicate Time', `You already have a playtime starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
           return prev;
         }
-        // Overlap check: new playtime can't start before previous ends
+        return [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+      }
+      if (updates.endDate) {
+        // Overlap check: runs when end time is set
         const sorted = [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
         for (let i = 1; i < sorted.length; i++) {
           if (timeToMins(sorted[i].startDate) < timeToMins(sorted[i - 1].endDate)) {
@@ -232,9 +235,6 @@ const MAX_PLAY_SESSIONS = 5;
           }
         }
         return sorted;
-      }
-      if (updates.endDate) {
-        return [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
       }
       return updated;
     });
@@ -477,7 +477,10 @@ const MAX_PLAY_SESSIONS = 5;
           Alert.alert('Duplicate Time', `You already have a walk starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
           return prev;
         }
-        // Overlap check: new walk can't start before a previous walk ends
+        return [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+      }
+      if (updates.endDate) {
+        // Overlap check: runs when end time is set
         const sorted = [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
         for (let i = 1; i < sorted.length; i++) {
           if (timeToMins(sorted[i].startDate) < timeToMins(sorted[i - 1].endDate)) {
@@ -486,10 +489,6 @@ const MAX_PLAY_SESSIONS = 5;
           }
         }
         return sorted;
-      }
-      if (updates.endDate) {
-        // Re-sort after end time change too
-        return [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
       }
       return updated;
     });
