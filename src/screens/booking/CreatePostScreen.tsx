@@ -2180,8 +2180,9 @@ const MAX_PLAY_SESSIONS = 5;
                   </TouchableOpacity>
 
                   {showPricingGuide && (
+                    <>
+                    {/* Cell 1: Your Breakdown + total + disclaimer */}
                     <View style={[styles.pricingGuideBody, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                      {/* Dynamic breakdown */}
                       <Text style={[styles.guideTitle, { color: colors.text }]}>Your Breakdown</Text>
                       {recommendedPoints.breakdown.map((item, i) => (
                         <View key={i} style={styles.guideRow}>
@@ -2198,14 +2199,25 @@ const MAX_PLAY_SESSIONS = 5;
                         </View>
                       )}
 
-                      {/* Explanation */}
-                      <View style={{ borderTopWidth: 0.5, borderTopColor: colors.border, marginTop: 12, paddingTop: 12 }}>
-                        <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 19 }}>
-                          Rates vary for every job — a standalone feeding is 1 pt because the caretaker is traveling just for that visit, but we don\'t add points for a feeding on an overnight stay because the caretaker is already there and getting points for the day. That\'s why some services on the chart below are ranges!
-                        </Text>
+                      {/* Total */}
+                      <View style={{ borderTopWidth: 0.5, borderTopColor: colors.border, marginTop: 8, paddingTop: 8 }}>
+                        <View style={styles.guideRow}>
+                          <Text style={[styles.guideRowLabel, { color: colors.text, fontWeight: '700' }]}>Total</Text>
+                          <Text style={[styles.guideRowValue, { color: colors.primary, fontWeight: '700' }]}>{recommendedPoints.total} pts</Text>
+                        </View>
                       </View>
 
-                      {/* Rate chart */}
+                      <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 10, lineHeight: 17, fontStyle: 'italic' }}>
+                        These suggestions don't factor in last-minute requests, holidays, or extra care details we may not be aware of — use your best judgment!
+                      </Text>
+                    </View>
+
+                    {/* Cell 2: Rate explanation + Suggested Rates chart */}
+                    <View style={[styles.pricingGuideBody, { backgroundColor: colors.background, borderColor: colors.border, marginTop: 10 }]}>
+                      <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 19 }}>
+                        Rates vary for every job — a standalone feeding is 1 pt because the caretaker is traveling just for that visit, but we don\'t add points for a feeding on an overnight stay because the caretaker is already there and getting points for the day. That\'s why some services on the chart below are ranges!
+                      </Text>
+
                       <View style={{ marginTop: 12 }}>
                         <Text style={[styles.guideTitle, { color: colors.text, marginBottom: 6 }]}>Suggested Rates</Text>
                         {[
@@ -2226,12 +2238,8 @@ const MAX_PLAY_SESSIONS = 5;
                           <Text style={{ fontSize: 14, color: colors.textSecondary }}>+10% each</Text>
                         </View>
                       </View>
-
-                      {/* Not factored in */}
-                      <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 10, lineHeight: 17, fontStyle: 'italic' }}>
-                        These suggestions don't factor in last-minute requests, holidays, or extra care details we may not be aware of — use your best judgment!
-                      </Text>
                     </View>
+                    </>
                   )}
                 </View>
               )}
