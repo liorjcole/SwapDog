@@ -1358,7 +1358,7 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('feeding') && (
               <>
                 {feedingSlots.map((slot, idx) => (
-                  <View key={idx} style={[styles.section, { backgroundColor: colors.surface }]}>
+                  <View key={idx} style={[styles.section, { backgroundColor: colors.surface }, idx === feedingSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedFeedings.has(idx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -1464,7 +1464,7 @@ const MAX_PLAY_SESSIONS = 5;
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
-                    ➕ Add Feeding #{feedingSlots.length + 1}
+                    ➕ Add another feeding
                   </Text>
                 </TouchableOpacity>
 
@@ -1484,7 +1484,7 @@ const MAX_PLAY_SESSIONS = 5;
                     ? `${Math.floor(wsDurMins / 60)}h ${wsDurMins % 60 > 0 ? `${wsDurMins % 60}m` : ''} walk`.trim()
                     : `${wsDurMins}m walk`;
                   return (
-                  <View key={wIdx} style={[styles.section, { backgroundColor: colors.surface }]}>
+                  <View key={wIdx} style={[styles.section, { backgroundColor: colors.surface }, wIdx === walkSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedWalks.has(wIdx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -1619,7 +1619,7 @@ const MAX_PLAY_SESSIONS = 5;
                     activeOpacity={0.7}
                   >
                     <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
-                      ➕ Add Walk #{walkSessions.length + 1}
+                      ➕ Add another walk
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -1631,7 +1631,7 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('playtime') && (
               <>
                 {playSessions.map((pSession, pIdx) => (
-                  <View key={pIdx} style={[styles.section, { backgroundColor: colors.surface }]}>
+                  <View key={pIdx} style={[styles.section, { backgroundColor: colors.surface }, pIdx === playSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedPlay.has(pIdx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -1824,7 +1824,7 @@ const MAX_PLAY_SESSIONS = 5;
                     activeOpacity={0.7}
                   >
                     <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
-                      ➕ Add Playtime Session #{playSessions.length + 1}
+                      ➕ Add another playtime
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -1837,7 +1837,7 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('medication') && (
               <>
                 {medicationSlots.map((slot, idx) => (
-                  <View key={idx} style={[styles.section, { backgroundColor: colors.surface }]}>
+                  <View key={idx} style={[styles.section, { backgroundColor: colors.surface }, idx === medicationSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedMeds.has(idx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2017,7 +2017,7 @@ const MAX_PLAY_SESSIONS = 5;
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
-                    ➕ Add Medication #{medicationSlots.length + 1}
+                    ➕ Add another medication
                   </Text>
                 </TouchableOpacity>
 
@@ -2648,10 +2648,14 @@ const styles = StyleSheet.create({
   addSessionBtn: {
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderRadius: borderRadius.md,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: borderRadius.lg,
+    borderBottomRightRadius: borderRadius.lg,
+    borderTopWidth: 0,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: -8,
+    marginTop: 0,
     marginBottom: spacing.lg,
   },
   addFeedingBtnText: { fontSize: 16, fontWeight: '600' },
