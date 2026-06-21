@@ -2978,6 +2978,8 @@ const MAX_PLAY_SESSIONS = 5;
                 </View>
               )}
 
+              <View style={{ height: 16 }} />
+
               {/* Points toggle */}
               <View style={styles.toggleRow}>
                 <View style={styles.toggleLabelGroup}>
