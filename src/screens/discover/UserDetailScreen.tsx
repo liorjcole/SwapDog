@@ -18,6 +18,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { User, Dog, SwapPost, Review } from '../../models/types';
 import { spacing, borderRadius, shadow, typography } from '../../config/theme';
+import { useFavorites } from '../../hooks/useFavorites';
 import { formatDogAge } from '../../utils/formatDogAge';
 import StarRating from '../../components/common/StarRating';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -212,11 +213,22 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     <>
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.surface, ...shadow.sm }]}>
+        {/* Favorited badge + star above avatar */}
+        {isUserFavorited && (
+          <View style={{ alignItems: 'center', marginBottom: 4 }}>
+            <TouchableOpacity
+              onPress={() => Alert.alert('Remove Favorite', `Remove ${user.displayName} from your favorites?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: () => removeFavorite(userId) }])}
+            >
+              <Text style={{ fontSize: 22, color: '#FFD700', marginBottom: 2 }}>★</Text>
+            </TouchableOpacity>
+            <Text style={{ fontSize: 13, fontStyle: 'italic', color: '#FFD700', marginBottom: 4 }}>Favorited Pup Parent</Text>
+          </View>
+        )}
         <AvatarImage
           photoURL={user.photoURL}
           displayName={user.displayName}
           size={90}
-          style={styles.avatar}
+          style={[styles.avatar, isUserFavorited && { borderWidth: 3, borderColor: '#FFD700' }]}
           emojiSize={36}
         />
         <Text style={[styles.name, { color: colors.text }]} accessibilityRole="header">{user.displayName}</Text>

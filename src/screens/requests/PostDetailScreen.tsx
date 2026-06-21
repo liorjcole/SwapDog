@@ -43,6 +43,7 @@ import { useMessaging } from '../../hooks/useMessaging';
 import { SwapPost, RepeatSchedule, formatRepeatLabel } from '../../models/types';
 import { spacing, borderRadius, shadow, typography } from '../../config/theme';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { useFavorites } from '../../hooks/useFavorites';
 import { scheduleOwnerReminders, requestNotificationPermissions } from '../../services/ReminderService';
 import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
 
@@ -259,6 +260,8 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
   const { user, userProfile } = useAuthContext();
   const { getAreaPosts, getMyPosts, addResponder, approveHelper, saveOwnerReminderIds, cancelPost } = useSwaps();
+  const { isFavorite, removeFavorite } = useFavorites();
+  const posterIsFavorited = isFavorite(post.posterId);
   const { getOrCreateConversation, sendMessage } = useMessaging();
 
   const [post, setPost] = useState<SwapPost | null>(null);
@@ -958,8 +961,19 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
 
         {/* ── Owner (clickable → full profile) ── */}
-        <View style={[styles.section, { backgroundColor: colors.surface, ...shadow.sm }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Owner</Text>
+        <View style={[styles.section, { backgroundColor: colors.surface, ...shadow.sm }, posterIsFavorited && !isOwner && { borderWidth: 2, borderColor: '#FFD700' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Owner</Text>
+            {posterIsFavorited && !isOwner && (
+              <TouchableOpacity
+                onPress={() => Alert.alert('Remove Favorite', `Remove ${post.posterName} from your favorites?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: () => removeFavorite(post.posterId) }])}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+              >
+                <Text style={{ fontSize: 13, fontStyle: 'italic', color: '#FFD700' }}>Favorited Pup Parent</Text>
+                <Text style={{ fontSize: 16, color: '#FFD700' }}>★</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <TouchableOpacity
             onPress={() => navigation.navigate('UserDetail', { userId: post.posterId })}
             accessibilityLabel={`View ${post.posterName}'s profile`}
@@ -970,7 +984,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               photoURL={post.posterPhotoURL}
               displayName={post.posterName}
               size={48}
-              style={[styles.posterAvatar, { borderColor: colors.border }]}
+              style={[styles.posterAvatar, { borderColor: posterIsFavorited && !isOwner ? '#FFD700' : colors.border }]}
             />
             <View style={styles.posterInfo}>
               <Text style={[styles.posterName, { color: colors.text }]}>{post.posterName}</Text>

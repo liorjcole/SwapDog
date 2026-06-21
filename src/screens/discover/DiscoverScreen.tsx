@@ -218,7 +218,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
         {/* Favorited badge — top right */}
         {isFavorited && !isOwnPost && (
           <Text style={{ position: 'absolute', top: 10, right: 12, fontSize: 14, fontStyle: 'italic', color: '#FFD700', zIndex: 5 }}>
-            Favorited pet parent!
+            Favorited pup parent!
           </Text>
         )}
         {/* Dog photos + names row */}
@@ -374,8 +374,8 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
           </View>
         )}
 
-        <View style={styles.detailsBtn}>
-          <Text style={styles.detailsBtnText}>See Full Details</Text>
+        <View style={[styles.detailsBtn, isFavorited && !isOwnPost && { borderColor: '#FFD700' }]}>
+          <Text style={[styles.detailsBtnText, isFavorited && !isOwnPost && { color: '#FFD700' }]}>See Full Details</Text>
         </View>
       </View>
     </TouchableOpacity>
