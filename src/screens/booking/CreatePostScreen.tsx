@@ -2220,19 +2220,44 @@ const MAX_PLAY_SESSIONS = 5;
 
                       <View style={{ marginTop: 12 }}>
                         <Text style={[styles.guideTitle, { color: colors.text, marginBottom: 6 }]}>Suggested Rates</Text>
-                        {[
-                          { svc: 'Overnight stay', rate: '6 pts / night' },
-                          { svc: 'Daytime care', rate: '1 pt / hr' },
-                          { svc: 'Walks', rate: '0.5 \u2013 1 pt / hr' },
-                          { svc: 'Playtime', rate: '0.5 \u2013 1 pt / hr' },
-                          { svc: 'Feeding', rate: '0 \u2013 1 pt' },
-                          { svc: 'Medication', rate: '0 \u2013 1 pt' },
-                        ].map((r, i) => (
-                          <View key={i} style={styles.guideRow}>
-                            <Text style={{ fontSize: 14, color: colors.text }}>{r.svc}</Text>
-                            <Text style={{ fontSize: 14, color: colors.textSecondary }}>{r.rate}</Text>
-                          </View>
-                        ))}
+                        {/* Fixed rates — no range */}
+                        <View style={styles.guideRow}>
+                          <Text style={{ fontSize: 14, color: colors.text }}>Overnight stay</Text>
+                          <Text style={{ fontSize: 14, color: colors.textSecondary }}>6 pts / night</Text>
+                        </View>
+                        <View style={styles.guideRow}>
+                          <Text style={{ fontSize: 14, color: colors.text }}>Daytime care</Text>
+                          <Text style={{ fontSize: 14, color: colors.textSecondary }}>1 pt / hr</Text>
+                        </View>
+                        {/* Range rates — underlined + tappable */}
+                        <View style={styles.guideRow}>
+                          <Text style={{ fontSize: 14, color: colors.text }}>Walks</Text>
+                          <Text
+                            style={{ fontSize: 14, color: colors.textSecondary, textDecorationLine: 'underline' }}
+                            onPress={() => Alert.alert('Walk Rates', '0.5 pts/hr when the caretaker is already there (overnight or day sitting) — they\'re just adding a walk to the stay.\n\n1 pt/hr as a standalone visit — the caretaker is traveling just for the walk.')}
+                          >0.5 \u2013 1 pt / hr</Text>
+                        </View>
+                        <View style={styles.guideRow}>
+                          <Text style={{ fontSize: 14, color: colors.text }}>Playtime</Text>
+                          <Text
+                            style={{ fontSize: 14, color: colors.textSecondary, textDecorationLine: 'underline' }}
+                            onPress={() => Alert.alert('Playtime Rates', '0.5 pts/hr when the caretaker is already there (overnight or day sitting) — they\'re just adding playtime to the stay.\n\n1 pt/hr as a standalone visit — the caretaker is traveling just for playtime.')}
+                          >0.5 \u2013 1 pt / hr</Text>
+                        </View>
+                        <View style={styles.guideRow}>
+                          <Text style={{ fontSize: 14, color: colors.text }}>Feeding</Text>
+                          <Text
+                            style={{ fontSize: 14, color: colors.textSecondary, textDecorationLine: 'underline' }}
+                            onPress={() => Alert.alert('Feeding Rates', '0 pts during an overnight or day sitting stay — the caretaker is already there, so feeding is included.\n\n1 pt as a standalone visit — the caretaker is traveling just to feed your pup.')}
+                          >0 \u2013 1 pt</Text>
+                        </View>
+                        <View style={styles.guideRow}>
+                          <Text style={{ fontSize: 14, color: colors.text }}>Medication</Text>
+                          <Text
+                            style={{ fontSize: 14, color: colors.textSecondary, textDecorationLine: 'underline' }}
+                            onPress={() => Alert.alert('Medication Rates', '0 pts during an overnight or day sitting stay — the caretaker is already there, so giving meds is included.\n\n1 pt as a standalone visit — the caretaker is traveling just to give medication.')}
+                          >0 \u2013 1 pt</Text>
+                        </View>
                         <View style={styles.guideRow}>
                           <Text style={{ fontSize: 14, color: colors.text }}>Extra dogs</Text>
                           <Text style={{ fontSize: 14, color: colors.textSecondary }}>+10% each</Text>
