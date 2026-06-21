@@ -89,6 +89,7 @@ function resolveDogNames(dogIds: string[], post: SwapPost): string {
 }
 type Props = {
   navigation: NativeStackNavigationProp<DiscoverStackParamList, 'Discover'>;
+  route: { params?: { highlightPostId?: string } };
 };
 
 // ─── Nearby user type ─────────────────────────────────────────────────────────
@@ -180,9 +181,12 @@ interface PostCardProps {
   onPress: (postId: string) => void;
   currentUserId?: string;
   isFavorited?: boolean;
+  isHighlighted?: boolean;
+  pulseScale?: Animated.Value;
+  glowOpacity?: Animated.Value;
 }
 
-const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, isFavorited }) => {
+const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, isFavorited, isHighlighted, pulseScale, glowOpacity }) => {
   const handlePostPress = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress(post.id);
@@ -194,6 +198,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
   const careLabel = post.careType ? getCareTypeLabel(post.careType) : 'Pet Care';
 
   return (
+    <Animated.View style={isHighlighted && pulseScale && glowOpacity ? { transform: [{ scale: pulseScale }], shadowColor: '#FFFFFF', shadowOpacity: glowOpacity as unknown as number, shadowRadius: 20, shadowOffset: { width: 0, height: 0 }, elevation: 10 } : undefined}>
     <TouchableOpacity
       style={[styles.postCard, { backgroundColor: post.status !== 'open' ? '#E8F5E9' : colors.surface, ...shadow.sm, ...(isFavorited ? { borderWidth: 2, borderColor: '#FFD700' } : {}), ...(post.status !== 'open' ? { borderLeftWidth: 4, borderLeftColor: '#4CAF50' } : {}) }]}
       onPress={handlePostPress}
@@ -365,6 +370,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
         </View>
       </View>
     </TouchableOpacity>
+    </Animated.View>
   );
 });
 
@@ -604,7 +610,7 @@ const FeedDividerRow: React.FC = memo(() => {
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
-const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
+const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
   const { userProfile } = useAuthContext();
   const { getUsersByLocation } = useUsers();
@@ -633,6 +639,10 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
   const initialUsersDoneRef = useRef(false);
 
   const mapRef = useRef<MapView>(null);
+  const flatListRef = useRef<FlatList<FeedItem>>(null);
+  const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
   const isProgrammaticMoveRef = useRef(false);
   const regionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -873,13 +883,70 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     [navigation],
   );
 
+  // ── Highlight newly created post: refresh, scroll to it + pulse ──
+  useEffect(() => {
+    const hpId = route.params?.highlightPostId;
+    if (!hpId) return;
+
+    // Refresh posts so the new one appears in the feed
+    const doHighlight = async () => {
+      await fetchAreaPosts();
+    };
+    void doHighlight();
+  }, [route.params?.highlightPostId]);
+
+  // Once feedData updates and contains the highlighted post, scroll + pulse
+  useEffect(() => {
+    const hpId = route.params?.highlightPostId;
+    if (!hpId || feedData.length === 0) return;
+
+    const idx = feedData.findIndex(item => item.kind === 'post' && item.id === hpId);
+    if (idx === -1) return;
+
+    setHighlightPostId(hpId);
+
+    // Wait for FlatList to be ready, then scroll
+    setTimeout(() => {
+      flatListRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.4 });
+    }, 500);
+
+    // After scroll settles, pulse 2 times with white glow
+    setTimeout(() => {
+      const pulseSequence = Animated.sequence([
+        // Pulse 1
+        Animated.parallel([
+          Animated.timing(pulseAnim, { toValue: 1.04, duration: 300, useNativeDriver: false }),
+          Animated.timing(glowAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
+        ]),
+        Animated.parallel([
+          Animated.timing(pulseAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
+          Animated.timing(glowAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
+        ]),
+        // Pulse 2
+        Animated.parallel([
+          Animated.timing(pulseAnim, { toValue: 1.04, duration: 300, useNativeDriver: false }),
+          Animated.timing(glowAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
+        ]),
+        Animated.parallel([
+          Animated.timing(pulseAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
+          Animated.timing(glowAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
+        ]),
+      ]);
+      pulseSequence.start(() => {
+        setHighlightPostId(null);
+        // Clear the route param so it doesn't re-trigger
+        navigation.setParams({ highlightPostId: undefined });
+      });
+    }, 1200);
+  }, [route.params?.highlightPostId, feedData]);
+
   const renderFeedItem: ListRenderItem<FeedItem> = useCallback(
     ({ item }) => {
       switch (item.kind) {
         case 'section_header':
           return <SectionHeaderRow item={item} onCreatePost={item.isPosts ? handleNavigateToCreatePost : undefined} />;
         case 'post':
-          return <PostCard post={item.post} onPress={handleNavigateToPost} currentUserId={userProfile?.id} isFavorited={favoriteIds.has(item.post.posterId)} />;
+          return <PostCard post={item.post} onPress={handleNavigateToPost} currentUserId={userProfile?.id} isFavorited={favoriteIds.has(item.post.posterId)} isHighlighted={highlightPostId === item.post.id} pulseScale={pulseAnim} glowOpacity={glowAnim} />;
         case 'user':
           return (
             <UserRow
@@ -1011,6 +1078,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       ) : (
         <FlatList<FeedItem>
+          ref={flatListRef}
           data={feedData}
           keyExtractor={keyExtractor}
           renderItem={renderFeedItem}
@@ -1029,6 +1097,11 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
           initialNumToRender={12}
           maxToRenderPerBatch={12}
           windowSize={5}
+          onScrollToIndexFailed={(info) => {
+            setTimeout(() => {
+              flatListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.4 });
+            }, 500);
+          }}
         />
       )}
 

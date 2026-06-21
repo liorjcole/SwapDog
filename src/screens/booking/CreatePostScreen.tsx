@@ -73,6 +73,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const glowAnim = useRef(new Animated.Value(0)).current;
   const [pulsingSection, setPulsingSection] = useState<string | null>(null);
   const [isReorderAnimating, setIsReorderAnimating] = useState(false);
+  const newPostIdRef = useRef<string | null>(null);
   const cellIdCounter = useRef(0);
   const nextCellId = () => `cell-${++cellIdCounter.current}`;
 
@@ -1293,7 +1294,8 @@ const MAX_PLAY_SESSIONS = 5;
       };
       const cleanData = deepClean(postData) as Record<string, unknown>;
 
-      await createPost(cleanData as unknown as Parameters<typeof createPost>[0]);
+      const newPostId = await createPost(cleanData as unknown as Parameters<typeof createPost>[0]);
+      newPostIdRef.current = newPostId;
 
       setCelebrationQueue([{
         title: 'Successfully posted!',
@@ -3141,7 +3143,13 @@ const MAX_PLAY_SESSIONS = 5;
         queue={celebrationQueue}
         onDismissAll={() => {
           setCelebrationQueue([]);
-          navigation.goBack();
+          // Navigate to Discover tab with the new post ID to highlight
+          const parent = navigation.getParent<any>();
+          if (parent) {
+            parent.navigate('DiscoverTab', { screen: 'Discover', params: { highlightPostId: newPostIdRef.current } });
+          } else {
+            navigation.goBack();
+          }
         }}
       />
       <RepeatScheduleModal

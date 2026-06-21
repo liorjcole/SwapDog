@@ -19,7 +19,7 @@ export type ApprovalStackParamList = {
 };
 
 export type DiscoverStackParamList = {
-  Discover: undefined;
+  Discover: { highlightPostId?: string } | undefined;
   UserDetail: { userId: string };
   DogDetail: { dogId: string };
   CreateSwap: { userId: string };
