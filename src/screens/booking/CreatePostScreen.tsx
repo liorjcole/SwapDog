@@ -2526,9 +2526,9 @@ const MAX_PLAY_SESSIONS = 5;
         {/* ── Care Details ── */}
         {(primaryCareType !== null || addOnCareTypes.size > 0) && (
         <Animated.View ref={(node: View | null) => { refFor('careDetails')(node); validationRefFor('careDetails')(node); }} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'careDetails' ? pulseAnim : 1 }] }, pulsingSection === 'careDetails' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>📋 Care Details</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>📋 Overall Care Details</Text>
               <Text style={[styles.careHint, { color: colors.textSecondary }]}>
-                Any info caretakers should know — behavioral notes, how to access your home, where the pup's food / leash is, etc.
+                Any other info the caretaker should know — behavioral notes, how to access your home, etc.
               </Text>
               <TextInput
                 style={[
@@ -2541,7 +2541,7 @@ const MAX_PLAY_SESSIONS = 5;
                         : colors.border,
                     color: colors.text },
                 ]}
-                placeholder="e.g. feed Bella 2 cups of kibble which I left on the counter, mixed with half a cup of water. She pulls hard on walks, so make sure you are strong enough to manage a 50 lb excited walker in nyc!"
+                placeholder="e.g. Bella is a big dog with a lot of energy and likes to jump! Please make sure you are physically able to handle this! I will message you the door code."
                 placeholderTextColor={colors.textSecondary}
                 value={careDetails}
                 onChangeText={setCareDetails}
