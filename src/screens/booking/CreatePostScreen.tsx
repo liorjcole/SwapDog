@@ -1471,6 +1471,11 @@ const MAX_PLAY_SESSIONS = 5;
               </>
             )}
 
+        {/* Divider between feeding and walk */}
+            {addOnCareTypes.has('dogWalking') && addOnCareTypes.has('feeding') && (
+              <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, marginVertical: spacing.lg }} />
+            )}
+
         {/* ── Walk Time (add-on) — multi-session ── */}
             {addOnCareTypes.has('dogWalking') && (
               <>
@@ -1625,6 +1630,11 @@ const MAX_PLAY_SESSIONS = 5;
                 )}
 
               </>
+            )}
+
+        {/* Divider before playtime */}
+            {addOnCareTypes.has('playtime') && (addOnCareTypes.has('dogWalking') || addOnCareTypes.has('feeding')) && (
+              <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, marginVertical: spacing.lg }} />
             )}
 
         {/* ── Playtime (add-on) — multi-session ── */}
@@ -1832,6 +1842,11 @@ const MAX_PLAY_SESSIONS = 5;
               </>
             )}
 
+
+        {/* Divider before medication */}
+            {addOnCareTypes.has('medication') && (addOnCareTypes.has('dogWalking') || addOnCareTypes.has('feeding') || addOnCareTypes.has('playtime')) && (
+              <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, marginVertical: spacing.lg }} />
+            )}
 
         {/* ── Medication (add-on) ── */}
             {addOnCareTypes.has('medication') && (
