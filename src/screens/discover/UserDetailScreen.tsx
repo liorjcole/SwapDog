@@ -215,17 +215,25 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     <>
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.background }]}>
-        {/* Favorited badge + star above avatar */}
+        {/* Favorited badge + star */}
         {isUserFavorited && (
           <View style={{ alignItems: 'center', marginBottom: 4 }}>
             <TouchableOpacity
               onPress={() => Alert.alert('Remove Favorite', `Remove ${user.displayName} from your favorites?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: () => removeFavorite(userId) }])}
             >
-              <Text style={{ fontSize: 22, color: '#FFD700', marginBottom: 2 }}>★</Text>
+              <Text style={{ fontSize: 22, color: '#FFD700', marginBottom: 2 }}>\u2605</Text>
             </TouchableOpacity>
             <Text style={{ fontSize: 13, fontStyle: 'italic', color: '#FFD700', marginBottom: 4 }}>Favorited Pup Parent</Text>
           </View>
         )}
+
+        {/* Name — above pfp */}
+        <Text style={[styles.name, { color: colors.text }]} accessibilityRole="header">{user.displayName}</Text>
+        {user.locationName && (
+          <Text style={[styles.location, { color: colors.textSecondary }]}>{user.locationName}</Text>
+        )}
+
+        {/* Profile picture */}
         <AvatarImage
           photoURL={user.photoURL}
           displayName={user.displayName}
@@ -233,17 +241,8 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           style={[styles.avatar, isUserFavorited && { borderWidth: 3, borderColor: '#FFD700' }]}
           emojiSize={36}
         />
-        <Text style={[styles.name, { color: colors.text }]} accessibilityRole="header">{user.displayName}</Text>
-        {user.locationName && (
-          <Text style={[styles.location, { color: colors.textSecondary }]}>{user.locationName}</Text>
-        )}
-        {user.rating !== undefined && (
-          <View style={styles.ratingRow}>
-            <StarRating rating={Math.round(user.rating)} />
-            <Text style={[styles.ratingText, { color: colors.textSecondary }]}>({user.reviewCount ?? 0} reviews)</Text>
-          </View>
-        )}
-        {user.bio && <Text style={[styles.bio, { color: colors.textSecondary }]}>{user.bio}</Text>}
+
+        {/* Instagram — clickable */}
         {user.instagramHandle ? (
           <TouchableOpacity
             onPress={() => { const h = cleanIgHandle(user.instagramHandle ?? ''); Linking.openURL('https://www.instagram.com/' + h + '/'); }}
@@ -252,9 +251,37 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             <Text style={[styles.igHandle, { color: colors.primary }]}>@{cleanIgHandle(user.instagramHandle ?? '')}</Text>
           </TouchableOpacity>
         ) : null}
-        <Text style={[styles.pointsBadge, { color: colors.textSecondary }]}>
-          {user.points ?? 0} points
-        </Text>
+
+        {/* Bio in darker cell */}
+        {user.bio ? (
+          <View style={{ backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 12, padding: 14, marginTop: spacing.sm, width: '100%' }}>
+            <Text style={{ fontSize: 16, color: '#FFFFFF', textAlign: 'center' }}>{user.bio}</Text>
+          </View>
+        ) : null}
+
+        {/* Points + Reviews — side by side in dark cells */}
+        <View style={{ flexDirection: 'row', marginTop: spacing.sm, width: '100%', gap: 10 }}>
+          {/* Points box */}
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 16, color: '#FFFFFF', textDecorationLine: 'underline' }}>
+              {typeof user.points === 'number' ? user.points.toFixed(1) : '0.0'} points
+            </Text>
+          </View>
+
+          {/* Reviews box */}
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center' }}>
+            {user.rating !== undefined && user.reviewCount ? (
+              <View style={{ alignItems: 'center' }}>
+                <StarRating rating={Math.round(user.rating)} />
+                <Text style={{ fontSize: 14, color: '#FFFFFF', textDecorationLine: 'underline', marginTop: 4 }}>
+                  {user.reviewCount ?? 0} review{(user.reviewCount ?? 0) !== 1 ? 's' : ''}
+                </Text>
+              </View>
+            ) : (
+              <Text style={{ color: colors.textSecondary, fontSize: 15 }}>No reviews yet</Text>
+            )}
+          </View>
+        </View>
       </View>
 
       <View style={[styles.section, { backgroundColor: colors.surface }]}>
@@ -491,8 +518,6 @@ const styles = StyleSheet.create({
   avatar: { width: 90, height: 90, borderRadius: 45, marginBottom: spacing.sm },
   name: { ...typography.h2, marginBottom: spacing.xs },
   location: { fontSize: 16, marginBottom: spacing.xs },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
-  ratingText: { fontSize: 15, marginLeft: spacing.xs },
   bio: { fontSize: 16, textAlign: 'center', marginTop: spacing.sm },
   section: { padding: spacing.lg },
   sectionTitle: { ...typography.h3, marginBottom: spacing.md },
@@ -510,7 +535,6 @@ const styles = StyleSheet.create({
   disabledBannerText: { fontSize: 16, textAlign: 'center' },
   igRow: { marginTop: 8 },
   igHandle: { fontSize: 16, fontWeight: '600' },
-  pointsBadge: { fontSize: 16, marginTop: 6, fontWeight: '500' },
   dogCardRow: { flexDirection: 'row', alignItems: 'center' },
   dogPhoto: { width: 50, height: 50, borderRadius: 25, marginRight: 12 },
   dogPhotoPlaceholder: { width: 50, height: 50, borderRadius: 25, marginRight: 12, alignItems: 'center', justifyContent: 'center' },
