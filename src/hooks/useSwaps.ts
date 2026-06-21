@@ -213,7 +213,7 @@ export const useSwaps = () => {
     const snap = await getDocs(q);
     const all = snap.docs
       .map((d) => parsePost(d.id, d.data() as Record<string, unknown>))
-      .filter((p) => p.status === 'open' && !isPostExpired(p)); // exclude claimed/cancelled/expired
+      .filter((p) => p.status === 'open' && !isPostExpired(p) && !((p as any).pointsDisabled)); // exclude claimed/cancelled/expired/points-disabled
 
     if (!location) return all;
 

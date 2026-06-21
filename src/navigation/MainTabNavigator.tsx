@@ -17,6 +17,7 @@ import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, 
 import { db } from '../config/firebase';
 import { smartDate, isSameDay } from '../utils/dateHelpers';
 import RescheduleReviewModal from '../components/common/RescheduleReviewModal';
+import InsufficientPointsModal from '../components/common/InsufficientPointsModal';
 import ConfettiCelebration, { CelebrationItem } from '../components/common/ConfettiCelebration';
 import { SwapPost } from '../models/types';
 import AppHeader from '../components/common/AppHeader';
