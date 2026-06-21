@@ -248,8 +248,8 @@ const MAX_PLAY_SESSIONS = 5;
 
   // Walk sessions array (multi-walk support)
   // Medication slots
-  const [medicationSlots, setMedicationSlots] = useState<{ time: Date; details: string; repeatSchedule: RepeatSchedule | null; showPicker: boolean; dogIds: string[] }[]>([
-    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds] },
+  const [medicationSlots, setMedicationSlots] = useState<{ time: Date; extraTimes: { time: Date; showPicker: boolean }[]; details: string; repeatSchedule: RepeatSchedule | null; showPicker: boolean; dogIds: string[] }[]>([
+    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds] },
   ]);
   const updateMedicationSlot = (index: number, field: string, value: unknown) => {
     setMedicationSlots(prev => prev.map((slot, i) => i === index ? { ...slot, [field]: value } : slot));
@@ -260,7 +260,41 @@ const MAX_PLAY_SESSIONS = 5;
   };
   const addMedicationSlot = () => {
     const d = new Date(); d.setHours(8, 0, 0, 0);
-    setMedicationSlots(prev => [...prev, { time: d, details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds] }]);
+    setMedicationSlots(prev => [...prev, { time: d, extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds] }]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  const addMedExtraTime = (slotIdx: number) => {
+    setMedicationSlots(prev => prev.map((slot, i) => {
+      if (i !== slotIdx) return slot;
+      const d = new Date();
+      // Default to 3 hours after the last time
+      const lastTime = slot.extraTimes.length > 0
+        ? slot.extraTimes[slot.extraTimes.length - 1].time
+        : slot.time;
+      d.setHours(lastTime.getHours() + 3, lastTime.getMinutes(), 0, 0);
+      return { ...slot, extraTimes: [...slot.extraTimes, { time: d, showPicker: false }] };
+    }));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  const updateMedExtraTime = (slotIdx: number, timeIdx: number, newTime: Date) => {
+    setMedicationSlots(prev => prev.map((slot, i) => {
+      if (i !== slotIdx) return slot;
+      const updated = slot.extraTimes.map((et, j) => j === timeIdx ? { ...et, time: newTime } : et);
+      return { ...slot, extraTimes: updated };
+    }));
+  };
+  const toggleMedExtraTimePicker = (slotIdx: number, timeIdx: number) => {
+    setMedicationSlots(prev => prev.map((slot, i) => {
+      if (i !== slotIdx) return slot;
+      const updated = slot.extraTimes.map((et, j) => j === timeIdx ? { ...et, showPicker: !et.showPicker } : et);
+      return { ...slot, extraTimes: updated };
+    }));
+  };
+  const removeMedExtraTime = (slotIdx: number, timeIdx: number) => {
+    setMedicationSlots(prev => prev.map((slot, i) => {
+      if (i !== slotIdx) return slot;
+      return { ...slot, extraTimes: slot.extraTimes.filter((_, j) => j !== timeIdx) };
+    }));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   const [collapsedMeds, setCollapsedMeds] = useState<Set<number>>(new Set());
@@ -764,6 +798,7 @@ const MAX_PLAY_SESSIONS = 5;
       if (addOnCareTypes.has('medication')) {
         careTypeFields.medicationSlots = medicationSlots.map(s => ({
           time: formatTime12(s.time),
+          extraTimes: s.extraTimes.map(et => formatTime12(et.time)),
           details: s.details.trim(),
           repeatSchedule: primaryCareType === 'overnight' && s.repeatSchedule ? s.repeatSchedule : null,
           dogIds: s.dogIds,
@@ -1807,6 +1842,55 @@ const MAX_PLAY_SESSIONS = 5;
                         style={{ height: 150 }}
                       />
                     )}
+
+                    {/* Extra medication times */}
+                    {slot.extraTimes.map((et, etIdx) => (
+                      <View key={etIdx} style={{ marginTop: 8 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <TouchableOpacity
+                            style={[styles.timePickerButton, { borderColor: et.showPicker ? colors.primary : colors.border, flex: 1 }]}
+                            onPress={() => toggleMedExtraTimePicker(idx, etIdx)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
+                              Time {etIdx + 2}
+                            </Text>
+                            <Text style={[styles.feedingTimePreview, { color: colors.text }]}>{formatTime12(et.time)}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => removeMedExtraTime(idx, etIdx)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={{ marginLeft: 10 }}
+                          >
+                            <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
+                          </TouchableOpacity>
+                        </View>
+                        {et.showPicker && (
+                          <DateTimePicker
+                            value={et.time}
+                            mode="time"
+                            display="spinner"
+                            themeVariant="dark"
+                            accentColor="#FF2D55"
+                            onChange={(_: DateTimePickerEvent, d?: Date) => {
+                              if (d) updateMedExtraTime(idx, etIdx, d);
+                            }}
+                            style={{ height: 150 }}
+                          />
+                        )}
+                      </View>
+                    ))}
+
+                    {/* Add another time */}
+                    <TouchableOpacity
+                      onPress={() => addMedExtraTime(idx)}
+                      activeOpacity={0.7}
+                      style={{ marginTop: 10, marginBottom: 4 }}
+                    >
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.primary, textAlign: 'center' }}>
+                        + Add another time for this medication
+                      </Text>
+                    </TouchableOpacity>
 
                     {/* Medication details text field */}
                     <TextInput
