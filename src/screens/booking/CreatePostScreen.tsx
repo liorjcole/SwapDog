@@ -242,15 +242,28 @@ const MAX_PLAY_SESSIONS = 5;
       let updated = prev.map((s, i) => i === index ? { ...s, ...updates } : s);
       if (updates.startDate) {
         const newStart = updates.startDate;
-        const isDuplicate = prev.some((s, i) => i !== index && isSameTime(s.startDate, newStart));
-        if (isDuplicate) {
-          Alert.alert('Duplicate Time', `You already have a playtime starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
-          return prev;
+        const currentEnd = updated[index].endDate;
+        // Only check duplicates when both start and end times are filled
+        if (currentEnd) {
+          const isDuplicate = prev.some((s, i) => i !== index && isSameTime(s.startDate, newStart));
+          if (isDuplicate) {
+            Alert.alert('Duplicate Time', `You already have a playtime starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
+            return prev;
+          }
         }
         // Native picker maximumDate prevents start > end, no JS clamping needed
         shouldSort = true;
       }
       if (updates.endDate) {
+        const currentStart = updated[index].startDate;
+        // Only check duplicates when both start and end times are filled
+        if (currentStart) {
+          const isDuplicate = prev.some((s, i) => i !== index && s.startDate && isSameTime(s.startDate, currentStart));
+          if (isDuplicate) {
+            Alert.alert('Duplicate Time', `You already have a playtime starting at ${formatTimeShort(currentStart)}. Please pick a different time.`);
+            return prev;
+          }
+        }
         shouldSort = true;
       }
       return updated;
@@ -535,15 +548,28 @@ const MAX_PLAY_SESSIONS = 5;
       let updated = prev.map((s: WalkSession, i: number) => i === idx ? { ...s, ...updates } : s);
       if (updates.startDate) {
         const newStart = updates.startDate;
-        const isDuplicate = prev.some((s, i) => i !== idx && isSameTime(s.startDate, newStart));
-        if (isDuplicate) {
-          Alert.alert('Duplicate Time', `You already have a walk starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
-          return prev;
+        const currentEnd = updated[idx].endDate;
+        // Only check duplicates when both start and end times are filled
+        if (currentEnd) {
+          const isDuplicate = prev.some((s, i) => i !== idx && isSameTime(s.startDate, newStart));
+          if (isDuplicate) {
+            Alert.alert('Duplicate Time', `You already have a walk starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
+            return prev;
+          }
         }
         // Native picker maximumDate prevents start > end, no JS clamping needed
         shouldSort = true;
       }
       if (updates.endDate) {
+        const currentStart = updated[idx].startDate;
+        // Only check duplicates when both start and end times are filled
+        if (currentStart) {
+          const isDuplicate = prev.some((s, i) => i !== idx && s.startDate && isSameTime(s.startDate, currentStart));
+          if (isDuplicate) {
+            Alert.alert('Duplicate Time', `You already have a walk starting at ${formatTimeShort(currentStart)}. Please pick a different time.`);
+            return prev;
+          }
+        }
         shouldSort = true;
       }
       return updated;
