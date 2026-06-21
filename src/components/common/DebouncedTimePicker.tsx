@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Keyboard, Platform } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 interface Props {
@@ -22,6 +23,10 @@ interface Props {
  *
  * On mount, the picker immediately commits its initial value so the user
  * doesn't have to scroll if the shown time is already what they want.
+ *
+ * Keyboard suppression: iOS 15+ lets users tap the selected spinner row
+ * to type a time via keyboard. We suppress this by dismissing the keyboard
+ * whenever it tries to appear while this picker is mounted.
  */
 const DebouncedTimePicker: React.FC<Props> = React.memo(({
   value,
@@ -42,6 +47,17 @@ const DebouncedTimePicker: React.FC<Props> = React.memo(({
   useEffect(() => {
     onTimeChangeRef.current(value);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Suppress keyboard input on the iOS spinner.
+  // iOS 15+ opens a numeric keyboard when the user taps the selected row.
+  // We don't want that — scroll-only interaction.
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    const sub = Keyboard.addListener('keyboardWillShow', () => {
+      Keyboard.dismiss();
+    });
+    return () => sub.remove();
   }, []);
 
   // Sync from parent ONLY when not actively scrolling
