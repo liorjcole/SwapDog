@@ -513,7 +513,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           />
           );
         }}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, isSystem && { paddingTop: 80 }]}
       />
       {/* Reschedule review modal (triggered from "Review Reschedule" link in chat) */}
       {reschedulePost && (
@@ -565,7 +565,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
 
       <View style={[styles.inputRow, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
         {isSystem ? (
-          <View style={{ flex: 1, alignItems: 'center', paddingVertical: 10, paddingHorizontal: 16 }}>
+          <View style={{ flex: 1, alignItems: 'center', paddingVertical: 20, paddingHorizontal: 16 }}>
             <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
               For support, email{' '}
               <Text style={{ color: colors.primary, fontWeight: '600' }}>david@joinwatchdog.com</Text>
