@@ -74,7 +74,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [isReorderAnimating, setIsReorderAnimating] = useState(false);
   const newPostIdRef = useRef<string | null>(null);
   const cellIdCounter = useRef(0);
-  const nextCellId = () => `cell-\${++cellIdCounter.current}`;
+  const nextCellId = () => `cell-${++cellIdCounter.current}`;
 
   // ── Refs for delayed sort (LayoutAnimation must be called OUTSIDE setState) ──
   const feedingSlotsRef = useRef<any[]>([]);
