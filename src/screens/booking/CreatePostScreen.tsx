@@ -1310,72 +1310,118 @@ const MAX_PLAY_SESSIONS = 5;
       }
     }
 
-    // Check for services outside the care window (day sitting / overnight)
-    if (primaryCareType === 'daySitting' || primaryCareType === 'overnight') {
+    // Check for services outside the care window — day sitting only
+    // Overnight: any time is fine (caretaker is there full days), EXCEPT
+    // services scheduled for specific dates that land on the first/last day
+    if (primaryCareType === 'daySitting') {
       const windowStart = startTimeDate ? timeToMins(startTimeDate) : 0;
       const windowEnd = endTimeDate ? timeToMins(endTimeDate) : 0;
-      const isOvernightWrap = primaryCareType === 'overnight' && windowStart > windowEnd;
 
-      // Helper: is a time-of-day (in minutes) inside the care window?
-      const insideWindow = (mins: number) => {
-        if (isOvernightWrap) {
-          // e.g. 8 PM–8 AM: valid = ≥8PM OR ≤8AM
-          return mins >= windowStart || mins <= windowEnd;
-        }
-        // e.g. 9 AM–5 PM: valid = ≥9AM AND ≤5PM
-        return mins >= windowStart && mins <= windowEnd;
-      };
-
+      const insideWindow = (mins: number) => mins >= windowStart && mins <= windowEnd;
       const windowLabel = `${startTimeDate ? formatTimeShort(startTimeDate) : '?'} – ${endTimeDate ? formatTimeShort(endTimeDate) : '?'}`;
 
-      // Check feeding times
       if (addOnCareTypes.has('feeding')) {
         for (let i = 0; i < feedingSlots.length; i++) {
-          const m = timeToMins(feedingSlots[i].time);
-          if (!insideWindow(m)) {
-            showValidationAlert('Outside Care Window', `Feeding ${feedingSlots.length > 1 ? '#' + (i + 1) + ' ' : ''}at ${formatTimeShort(feedingSlots[i].time)} is outside your ${primaryCareType === 'overnight' ? 'overnight' : 'day sitting'} window (${windowLabel}).`, 'careType');
+          if (!insideWindow(timeToMins(feedingSlots[i].time))) {
+            showValidationAlert('Outside Care Window', `Feeding ${feedingSlots.length > 1 ? '#' + (i + 1) + ' ' : ''}at ${formatTimeShort(feedingSlots[i].time)} is outside your day sitting window (${windowLabel}).`, 'careType');
             return;
           }
         }
       }
-
-      // Check walk times
       if (addOnCareTypes.has('dogWalking')) {
         for (let i = 0; i < walkSessions.length; i++) {
           const ws = walkSessions[i];
           if (ws.startDate && !insideWindow(timeToMins(ws.startDate))) {
-            showValidationAlert('Outside Care Window', `Walk ${walkSessions.length > 1 ? '#' + (i + 1) + ' ' : ''}starts at ${formatTimeShort(ws.startDate)}, which is outside your ${primaryCareType === 'overnight' ? 'overnight' : 'day sitting'} window (${windowLabel}).`, 'careType');
+            showValidationAlert('Outside Care Window', `Walk ${walkSessions.length > 1 ? '#' + (i + 1) + ' ' : ''}starts at ${formatTimeShort(ws.startDate)}, which is outside your day sitting window (${windowLabel}).`, 'careType');
             return;
           }
           if (ws.endDate && !insideWindow(timeToMins(ws.endDate))) {
-            showValidationAlert('Outside Care Window', `Walk ${walkSessions.length > 1 ? '#' + (i + 1) + ' ' : ''}ends at ${formatTimeShort(ws.endDate)}, which is outside your ${primaryCareType === 'overnight' ? 'overnight' : 'day sitting'} window (${windowLabel}).`, 'careType');
+            showValidationAlert('Outside Care Window', `Walk ${walkSessions.length > 1 ? '#' + (i + 1) + ' ' : ''}ends at ${formatTimeShort(ws.endDate)}, which is outside your day sitting window (${windowLabel}).`, 'careType');
             return;
           }
         }
       }
-
-      // Check playtime times
       if (addOnCareTypes.has('playtime')) {
         for (let i = 0; i < playSessions.length; i++) {
           const ps = playSessions[i];
           if (ps.startDate && !insideWindow(timeToMins(ps.startDate))) {
-            showValidationAlert('Outside Care Window', `Playtime ${playSessions.length > 1 ? '#' + (i + 1) + ' ' : ''}starts at ${formatTimeShort(ps.startDate)}, which is outside your ${primaryCareType === 'overnight' ? 'overnight' : 'day sitting'} window (${windowLabel}).`, 'careType');
+            showValidationAlert('Outside Care Window', `Playtime ${playSessions.length > 1 ? '#' + (i + 1) + ' ' : ''}starts at ${formatTimeShort(ps.startDate)}, which is outside your day sitting window (${windowLabel}).`, 'careType');
             return;
           }
           if (ps.endDate && !insideWindow(timeToMins(ps.endDate))) {
-            showValidationAlert('Outside Care Window', `Playtime ${playSessions.length > 1 ? '#' + (i + 1) + ' ' : ''}ends at ${formatTimeShort(ps.endDate)}, which is outside your ${primaryCareType === 'overnight' ? 'overnight' : 'day sitting'} window (${windowLabel}).`, 'careType');
+            showValidationAlert('Outside Care Window', `Playtime ${playSessions.length > 1 ? '#' + (i + 1) + ' ' : ''}ends at ${formatTimeShort(ps.endDate)}, which is outside your day sitting window (${windowLabel}).`, 'careType');
             return;
           }
         }
       }
-
-      // Check medication times
       if (addOnCareTypes.has('medication')) {
         for (let i = 0; i < medicationSlots.length; i++) {
-          const m = timeToMins(medicationSlots[i].time);
-          if (!insideWindow(m)) {
-            showValidationAlert('Outside Care Window', `Medication ${medicationSlots.length > 1 ? '#' + (i + 1) + ' ' : ''}at ${formatTimeShort(medicationSlots[i].time)} is outside your ${primaryCareType === 'overnight' ? 'overnight' : 'day sitting'} window (${windowLabel}).`, 'careType');
+          if (!insideWindow(timeToMins(medicationSlots[i].time))) {
+            showValidationAlert('Outside Care Window', `Medication ${medicationSlots.length > 1 ? '#' + (i + 1) + ' ' : ''}at ${formatTimeShort(medicationSlots[i].time)} is outside your day sitting window (${windowLabel}).`, 'careType');
             return;
+          }
+        }
+      }
+    }
+
+    // Overnight specific-dates boundary check:
+    // If a service is scheduled for specific dates and one of those dates is the
+    // first or last day of the stay, the service time can't be before arrival
+    // (first day) or after departure (last day).
+    if (primaryCareType === 'overnight' && startTimeDate && endTimeDate) {
+      const toDateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const firstDay = toDateKey(startDate);
+      const lastDay = toDateKey(endDate);
+      const arrivalMins = timeToMins(startTimeDate);
+      const departureMins = timeToMins(endTimeDate);
+
+      const checkBoundary = (serviceName: string, timeMins: number, timeLabel: string, specificDates: string[]): boolean => {
+        if (specificDates.includes(firstDay) && timeMins < arrivalMins) {
+          showValidationAlert('Time Conflict', `${serviceName} at ${timeLabel} is before your arrival at ${formatTimeShort(startTimeDate)} on the first day (${shortDate(startDate)}). Either remove ${shortDate(startDate)} from "Specific dates" or adjust the time.`, 'careType');
+          return true;
+        }
+        if (specificDates.includes(lastDay) && timeMins > departureMins) {
+          showValidationAlert('Time Conflict', `${serviceName} at ${timeLabel} is after your departure at ${formatTimeShort(endTimeDate)} on the last day (${shortDate(endDate)}). Either remove ${shortDate(endDate)} from "Specific dates" or adjust the time.`, 'careType');
+          return true;
+        }
+        return false;
+      };
+
+      if (addOnCareTypes.has('feeding')) {
+        for (let i = 0; i < feedingSlots.length; i++) {
+          const slot = feedingSlots[i];
+          if (slot.repeatSchedule?.type === 'specificDates' && slot.repeatSchedule.specificDates?.length) {
+            const label = feedingSlots.length > 1 ? 'Feeding #' + (i + 1) : 'Feeding';
+            if (checkBoundary(label, timeToMins(slot.time), formatTimeShort(slot.time), slot.repeatSchedule.specificDates)) return;
+          }
+        }
+      }
+      if (addOnCareTypes.has('dogWalking')) {
+        for (let i = 0; i < walkSessions.length; i++) {
+          const ws = walkSessions[i];
+          if (ws.repeatSchedule?.type === 'specificDates' && ws.repeatSchedule.specificDates?.length) {
+            const label = walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'Walk';
+            if (ws.startDate && checkBoundary(label, timeToMins(ws.startDate), formatTimeShort(ws.startDate), ws.repeatSchedule.specificDates)) return;
+            if (ws.endDate && checkBoundary(label, timeToMins(ws.endDate), formatTimeShort(ws.endDate), ws.repeatSchedule.specificDates)) return;
+          }
+        }
+      }
+      if (addOnCareTypes.has('playtime')) {
+        for (let i = 0; i < playSessions.length; i++) {
+          const ps = playSessions[i];
+          if (!ps.flexible && ps.repeatSchedule?.type === 'specificDates' && ps.repeatSchedule.specificDates?.length) {
+            const label = playSessions.length > 1 ? 'Playtime #' + (i + 1) : 'Playtime';
+            if (ps.startDate && checkBoundary(label, timeToMins(ps.startDate), formatTimeShort(ps.startDate), ps.repeatSchedule.specificDates)) return;
+            if (ps.endDate && checkBoundary(label, timeToMins(ps.endDate), formatTimeShort(ps.endDate), ps.repeatSchedule.specificDates)) return;
+          }
+        }
+      }
+      if (addOnCareTypes.has('medication')) {
+        for (let i = 0; i < medicationSlots.length; i++) {
+          const slot = medicationSlots[i];
+          if (slot.repeatSchedule?.type === 'specificDates' && slot.repeatSchedule.specificDates?.length) {
+            const label = medicationSlots.length > 1 ? 'Medication #' + (i + 1) : 'Medication';
+            if (checkBoundary(label, timeToMins(slot.time), formatTimeShort(slot.time), slot.repeatSchedule.specificDates)) return;
           }
         }
       }
