@@ -2323,7 +2323,7 @@ const MAX_PLAY_SESSIONS = 5;
                       style={{ alignSelf: 'stretch', paddingVertical: 12 }}
                     >
                       <Text style={{ color: '#fff', textAlign: 'center', fontSize: 14, fontWeight: '500' }}>
-                        {slot.showInstructions ? 'Hide feeding instructions ▲' : 'Have specific feeding instructions? ▼'}
+                        {slot.showInstructions ? '▾ Hide feeding instructions' : '› Have specific feeding instructions?'}
                       </Text>
                     </TouchableOpacity>
                     {slot.showInstructions && (
@@ -2546,7 +2546,7 @@ const MAX_PLAY_SESSIONS = 5;
                       style={{ alignSelf: 'stretch', paddingVertical: 12 }}
                     >
                       <Text style={{ color: '#fff', textAlign: 'center', fontSize: 14, fontWeight: '500' }}>
-                        {ws.showInstructions ? 'Hide walk instructions ▲' : 'Have specific walk instructions? ▼'}
+                        {ws.showInstructions ? '▾ Hide walk instructions' : '› Have specific walk instructions?'}
                       </Text>
                     </TouchableOpacity>
                     {ws.showInstructions && (
@@ -2820,7 +2820,7 @@ const MAX_PLAY_SESSIONS = 5;
                       style={{ alignSelf: 'stretch', paddingVertical: 12 }}
                     >
                       <Text style={{ color: '#fff', textAlign: 'center', fontSize: 14, fontWeight: '500' }}>
-                        {pSession.showInstructions ? 'Hide playtime instructions ▲' : 'Have specific playtime instructions? ▼'}
+                        {pSession.showInstructions ? '▾ Hide playtime instructions' : '› Have specific playtime instructions?'}
                       </Text>
                     </TouchableOpacity>
                     {pSession.showInstructions && (
