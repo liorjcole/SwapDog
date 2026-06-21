@@ -179,6 +179,33 @@ export const useMessaging = () => {
   };
 
 
+
+  /**
+   * Subscribe to ALL conversations where 'swapdog-team' is a participant.
+   * Used by admin users to see every user's WatchDog Team chat.
+   */
+  const subscribeToTeamConversations = (
+    cb: (conversations: Conversation[]) => void
+  ): (() => void) => {
+    const q = query(
+      collection(db, 'conversations'),
+      where('participantIds', 'array-contains', SYSTEM_SENDER_ID)
+    );
+    return onSnapshot(
+      q,
+      (snap) => {
+        const convs = snap.docs
+          .map((d) => parseConversation(d.id, d.data() as Record<string, unknown>))
+          .sort((a, b) => (b.updatedAt?.getTime() ?? 0) - (a.updatedAt?.getTime() ?? 0));
+        cb(convs);
+      },
+      (error) => {
+        console.warn('[useMessaging] subscribeToTeamConversations error:', error.message);
+        cb([]);
+      }
+    );
+  };
+
   /** Delete a specific message from a conversation */
   const deleteMessage = async (conversationId: string, messageId: string): Promise<void> => {
     await deleteDoc(doc(db, 'conversations', conversationId, 'messages', messageId));
@@ -192,6 +219,7 @@ export const useMessaging = () => {
     subscribeToConversations,
     getOrCreateConversation,
     markConversationRead,
+    subscribeToTeamConversations,
   };
 };
 
