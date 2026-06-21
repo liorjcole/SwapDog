@@ -121,7 +121,7 @@ export type CompensationType = 'points' | 'payment' | 'either';
 // ── Repeat scheduling for overnight add-on tasks ──────────────────────────────
 export interface RepeatSchedule {
   /** 'daily' = every day, 'weekly' = one day per week, 'custom' = specific days */
-  type: 'daily' | 'weekly' | 'custom';
+  type: 'daily' | 'weekly' | 'custom' | 'specificDates';
   /** Day index for weekly (0=Sun, 1=Mon ... 6=Sat) */
   weeklyDay?: number;
   /** Day indices for custom (sorted, 0-6) */
@@ -130,6 +130,8 @@ export interface RepeatSchedule {
   timeMode?: 'same' | 'different';
   /** Per-day times as "h:mm AM/PM" strings, keyed by day index (0-6). Only set when timeMode='different'. */
   dayTimes?: Record<number, string>;
+  /** ISO date strings ('YYYY-MM-DD') for specificDates type */
+  specificDates?: string[];
 }
 
 export const DAY_LABELS = ['Sun', 'Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat'] as const;
@@ -142,6 +144,9 @@ export const formatRepeatLabel = (schedule: RepeatSchedule): string => {
   }
   if (schedule.type === 'custom') {
     return 'Repeat';
+  }
+  if (schedule.type === 'specificDates') {
+    return 'Specific dates';
   }
   return 'Repeat';
 };
@@ -160,6 +165,9 @@ export const formatRepeatSubLabel = (schedule: RepeatSchedule): string | null =>
       return '(on ' + line1 + '/\n' + line2 + ')';
     }
     return '(on ' + dayNames.join('/') + ')';
+  }
+  if (schedule.type === 'specificDates') {
+    return null; // no sub-label — just show "Specific dates"
   }
   return null;
 };

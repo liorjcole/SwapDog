@@ -1054,6 +1054,9 @@ const MAX_PLAY_SESSIONS = 5;
       if (repeat.type === 'custom' && repeat.customDays) {
         return Math.max(1, Math.round(stayDays * repeat.customDays.length / 7));
       }
+      if (repeat.type === 'specificDates' && repeat.specificDates) {
+        return repeat.specificDates.length;
+      }
       return 1;
     };
     const stayDays = hasOvernight ? dayCount : 1;
@@ -2233,7 +2236,7 @@ const MAX_PLAY_SESSIONS = 5;
                           >
                             <View style={{ alignItems: 'center' }}>
                             <Text style={{ fontSize: 15, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.textSecondary }}>
-                              {slot.repeatSchedule ? '✓ ' + formatRepeatLabel(slot.repeatSchedule) : 'Repeat this?'}
+                              {slot.repeatSchedule ? '✓ ' + formatRepeatLabel(slot.repeatSchedule) : (primaryCareType === 'overnight' ? 'Select days' : 'Repeat this?')}
                             </Text>
                               {slot.repeatSchedule && formatRepeatSubLabel(slot.repeatSchedule) && (
                                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, textAlign: 'center' }}>
@@ -2425,7 +2428,7 @@ const MAX_PLAY_SESSIONS = 5;
                           >
                             <View style={{ alignItems: 'center' }}>
                             <Text style={{ fontSize: 15, fontWeight: '600', color: ws.repeatSchedule ? '#34C759' : colors.textSecondary }}>
-                              {ws.repeatSchedule ? '✓ ' + formatRepeatLabel(ws.repeatSchedule) : 'Repeat this?'}
+                              {ws.repeatSchedule ? '✓ ' + formatRepeatLabel(ws.repeatSchedule) : (primaryCareType === 'overnight' ? 'Select days' : 'Repeat this?')}
                             </Text>
                               {ws.repeatSchedule && formatRepeatSubLabel(ws.repeatSchedule) && (
                                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, textAlign: 'center' }}>
@@ -2642,7 +2645,7 @@ const MAX_PLAY_SESSIONS = 5;
                           >
                             <View style={{ alignItems: 'center' }}>
                             <Text style={{ fontSize: 15, fontWeight: '600', color: pSession.repeatSchedule ? '#34C759' : colors.textSecondary }}>
-                              {pSession.repeatSchedule ? '✓ ' + formatRepeatLabel(pSession.repeatSchedule) : 'Repeat this?'}
+                              {pSession.repeatSchedule ? '✓ ' + formatRepeatLabel(pSession.repeatSchedule) : (primaryCareType === 'overnight' ? 'Select days' : 'Repeat this?')}
                             </Text>
                               {pSession.repeatSchedule && formatRepeatSubLabel(pSession.repeatSchedule) && (
                                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, textAlign: 'center' }}>
@@ -2916,7 +2919,7 @@ const MAX_PLAY_SESSIONS = 5;
                           >
                             <View style={{ alignItems: 'center' }}>
                             <Text style={{ fontSize: 15, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.textSecondary }}>
-                              {slot.repeatSchedule ? '✓ ' + formatRepeatLabel(slot.repeatSchedule) : 'Repeat this?'}
+                              {slot.repeatSchedule ? '✓ ' + formatRepeatLabel(slot.repeatSchedule) : (primaryCareType === 'overnight' ? 'Select days' : 'Repeat this?')}
                             </Text>
                               {slot.repeatSchedule && formatRepeatSubLabel(slot.repeatSchedule) && (
                                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, textAlign: 'center' }}>
@@ -3513,6 +3516,9 @@ const MAX_PLAY_SESSIONS = 5;
         onClear={handleRepeatClear}
         currentSchedule={getRepeatScheduleForTarget()}
         defaultTime={getRepeatDefaultTime()}
+        stayStartDate={primaryCareType === 'overnight' ? startDate : undefined}
+        stayEndDate={primaryCareType === 'overnight' ? endDate : undefined}
+        isOvernight={primaryCareType === 'overnight'}
       />
 
       {/* ── Address Entry Modal ── */}
