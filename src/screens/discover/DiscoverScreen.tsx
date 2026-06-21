@@ -192,6 +192,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
     onPress(post.id);
   }, [onPress, post.id]);
   const { colors } = useTheme();
+  const isOwnPost = !!(currentUserId && post.posterId === currentUserId);
   const startStr = smartDate(post.startDate);
   const endStr = smartDate(post.endDate, { includeYear: true });
 
@@ -200,14 +201,20 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
   return (
     <Animated.View style={isHighlighted && pulseScale && glowOpacity ? { transform: [{ scale: pulseScale }], shadowColor: '#FFFFFF', shadowOpacity: glowOpacity as unknown as number, shadowRadius: 20, shadowOffset: { width: 0, height: 0 }, elevation: 10 } : undefined}>
     <TouchableOpacity
-      style={[styles.postCard, { backgroundColor: post.status !== 'open' ? '#E8F5E9' : colors.surface, ...shadow.sm, ...(isFavorited ? { borderWidth: 2, borderColor: '#FFD700' } : {}), ...(post.status !== 'open' ? { borderLeftWidth: 4, borderLeftColor: '#4CAF50' } : {}) }]}
+      style={[styles.postCard, { backgroundColor: post.status !== 'open' ? '#E8F5E9' : isOwnPost ? '#1A0A10' : colors.surface, ...shadow.sm, ...(isFavorited && !isOwnPost ? { borderWidth: 2, borderColor: '#FFD700' } : {}), ...(isOwnPost ? { borderWidth: 1.5, borderColor: RED + '80' } : {}), ...(post.status !== 'open' && !isOwnPost ? { borderLeftWidth: 4, borderLeftColor: '#4CAF50' } : {}) }]}
       onPress={handlePostPress}
       accessibilityRole="button"
       accessibilityLabel={`Post for ${post.dogName}`}
     >
       <View style={styles.postCardInner}>
+        {/* Own post badge — top right */}
+        {isOwnPost && (
+          <View style={{ position: 'absolute', top: -1, right: -1, backgroundColor: RED, paddingHorizontal: 10, paddingVertical: 4, borderBottomLeftRadius: 8, borderTopRightRadius: 10, zIndex: 10 }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 }}>YOUR POST</Text>
+          </View>
+        )}
         {/* Favorited badge — top right */}
-        {isFavorited && (
+        {isFavorited && !isOwnPost && (
           <Text style={{ position: 'absolute', top: 10, right: 12, fontSize: 14, fontStyle: 'italic', color: '#FFD700', zIndex: 5 }}>
             Favorited pet parent!
           </Text>
