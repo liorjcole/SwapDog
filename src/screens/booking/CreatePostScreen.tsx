@@ -31,6 +31,7 @@ import { useSwaps } from '../../hooks/useSwaps';
 import { Dog, CompensationType, CareType, RepeatSchedule, formatRepeatLabel, formatRepeatSubLabel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { uploadPhotoToStorage } from '../../utils/uploadHelper';
+import { BlurView } from 'expo-blur';
 import { onPostCreated } from '../../services/ReviewPromptService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import RepeatScheduleModal from '../../components/common/RepeatScheduleModal';
@@ -3025,7 +3026,9 @@ const MAX_PLAY_SESSIONS = 5;
         onRequestClose={() => setShowAddressModal(false)}
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowAddressModal(false)} />
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowAddressModal(false)}>
+            <BlurView intensity={50} tint="dark" style={{ flex: 1 }} />
+          </TouchableOpacity>
           <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 }}>
             <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: 4 }}>Enter Address</Text>
             <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginBottom: 16 }}>
