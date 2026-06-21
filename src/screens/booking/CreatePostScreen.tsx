@@ -626,6 +626,34 @@ const MAX_PLAY_SESSIONS = 5;
 
   const suggestedAddress = userProfile?.locationName ?? '';
 
+  // Address autocomplete (Nominatim / OpenStreetMap — same backend as Discover)
+  const [addressQuery, setAddressQuery] = useState('');
+  const [addressSuggestions, setAddressSuggestions] = useState<{ place_id: number; display_name: string }[]>([]);
+  const [addressFetching, setAddressFetching] = useState(false);
+  const addressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchAddressSuggestions = useCallback((q: string) => {
+    if (q.trim().length < 2) { setAddressSuggestions([]); return; }
+    setAddressFetching(true);
+    void fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=5&countrycodes=us`,
+      { headers: { 'Accept-Language': 'en', 'User-Agent': 'SwapDogApp/1.0' } },
+    )
+      .then((r) => {
+        if (!r || !r.ok) throw new Error('Geocode failed');
+        return r.json() as Promise<{ place_id: number; display_name: string }[]>;
+      })
+      .then((results) => setAddressSuggestions(results))
+      .catch(() => setAddressSuggestions([]))
+      .finally(() => setAddressFetching(false));
+  }, []);
+
+  const handleAddressQueryChange = useCallback((text: string) => {
+    setAddressQuery(text);
+    if (addressDebounceRef.current) clearTimeout(addressDebounceRef.current);
+    addressDebounceRef.current = setTimeout(() => fetchAddressSuggestions(text), 300);
+  }, [fetchAddressSuggestions]);
+
   const saveAddress = async (addr: string) => {
     const trimmed = addr.trim();
     if (!trimmed) return;
@@ -634,6 +662,8 @@ const MAX_PLAY_SESSIONS = 5;
     setSavedAddresses(updated);
     await AsyncStorage.setItem('saved_addresses', JSON.stringify(updated));
     setShowAddressModal(false);
+    setAddressQuery('');
+    setAddressSuggestions([]);
   };
 
   useEffect(() => {
@@ -3029,72 +3059,92 @@ const MAX_PLAY_SESSIONS = 5;
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowAddressModal(false)}>
             <BlurView intensity={50} tint="dark" style={{ flex: 1 }} />
           </TouchableOpacity>
-          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 }}>
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40, maxHeight: '80%' }}>
             <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: 4 }}>Enter Address</Text>
             <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginBottom: 16 }}>
               🔒 Your address is kept private and only revealed to an accepted caretaker.
             </Text>
 
-            {/* Suggested address from profile location */}
-            {suggestedAddress.length > 0 && careAddress !== suggestedAddress && (
+            {/* Current / suggested address from profile location */}
+            {suggestedAddress.length > 0 && (
               <TouchableOpacity
-                onPress={() => saveAddress(suggestedAddress)}
-                style={{ backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '40', borderRadius: 10, padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}
+                onPress={() => { saveAddress(suggestedAddress); setAddressQuery(''); setAddressSuggestions([]); }}
+                style={{ backgroundColor: careAddress === suggestedAddress ? colors.primary + '25' : colors.primary + '10', borderWidth: 1.5, borderColor: careAddress === suggestedAddress ? colors.primary : colors.primary + '40', borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}
                 activeOpacity={0.7}
               >
-                <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '600', marginRight: 6 }}>📍</Text>
-                <Text style={{ fontSize: 15, color: colors.text, flex: 1 }}>{suggestedAddress}</Text>
-                <Text style={{ fontSize: 12, color: colors.textSecondary }}>Your location</Text>
+                <Text style={{ fontSize: 16, marginRight: 8 }}>📍</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 11, color: colors.textSecondary, fontWeight: '600', marginBottom: 2 }}>YOUR CURRENT LOCATION</Text>
+                  <Text style={{ fontSize: 15, color: colors.text, fontWeight: '500' }}>{suggestedAddress}</Text>
+                </View>
+                {careAddress === suggestedAddress && <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '700' }}>✓</Text>}
               </TouchableOpacity>
             )}
 
             {/* Saved addresses */}
-            {savedAddresses.filter(a => a !== suggestedAddress && a !== careAddress).length > 0 && (
+            {savedAddresses.filter(a => a !== suggestedAddress).length > 0 && (
               <View style={{ marginBottom: 10 }}>
-                <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '600', marginBottom: 6 }}>Saved addresses</Text>
-                {savedAddresses.filter(a => a !== suggestedAddress && a !== careAddress).map((addr, i) => (
+                <Text style={{ fontSize: 11, color: colors.textSecondary, fontWeight: '600', marginBottom: 6, letterSpacing: 0.5 }}>SAVED ADDRESSES</Text>
+                {savedAddresses.filter(a => a !== suggestedAddress).map((addr, i) => (
                   <TouchableOpacity
                     key={i}
-                    onPress={() => saveAddress(addr)}
-                    style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, marginBottom: 6, flexDirection: 'row', alignItems: 'center' }}
+                    onPress={() => { saveAddress(addr); setAddressQuery(''); setAddressSuggestions([]); }}
+                    style={{ backgroundColor: careAddress === addr ? colors.primary + '15' : colors.background, borderWidth: 1, borderColor: careAddress === addr ? colors.primary : colors.border, borderRadius: 10, padding: 12, marginBottom: 6, flexDirection: 'row', alignItems: 'center' }}
                     activeOpacity={0.7}
                   >
-                    <Text style={{ fontSize: 14, color: colors.textSecondary, marginRight: 6 }}>🏠</Text>
+                    <Text style={{ fontSize: 14, marginRight: 8 }}>🏠</Text>
                     <Text style={{ fontSize: 15, color: colors.text, flex: 1 }}>{addr}</Text>
+                    {careAddress === addr && <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '700' }}>✓</Text>}
                   </TouchableOpacity>
                 ))}
               </View>
             )}
 
-            {/* Manual entry */}
+            {/* Search with autocomplete */}
+            <Text style={{ fontSize: 11, color: colors.textSecondary, fontWeight: '600', marginBottom: 6, letterSpacing: 0.5 }}>SEARCH FOR AN ADDRESS</Text>
             <TextInput
               style={{
                 backgroundColor: colors.background,
                 borderWidth: 1,
-                borderColor: colors.border,
+                borderColor: addressSuggestions.length > 0 ? colors.primary : colors.border,
                 borderRadius: 10,
                 padding: 14,
                 fontSize: 16,
                 color: colors.text,
                 minHeight: 48,
               }}
-              placeholder="Enter a new address..."
+              placeholder="Start typing an address..."
               placeholderTextColor={colors.textSecondary}
-              value={careAddress}
-              onChangeText={setCareAddress}
-              autoFocus={!suggestedAddress && savedAddresses.length === 0}
-              returnKeyType="done"
-              blurOnSubmit={true}
-              onSubmitEditing={() => { if (careAddress.trim()) saveAddress(careAddress); }}
+              value={addressQuery}
+              onChangeText={handleAddressQueryChange}
+              autoCorrect={false}
+              returnKeyType="search"
             />
+            {addressFetching && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4 }}>
+                <ActivityIndicator color={colors.primary} size="small" />
+                <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 8 }}>Searching…</Text>
+              </View>
+            )}
 
-            <TouchableOpacity
-              onPress={() => { if (careAddress.trim()) saveAddress(careAddress); else Alert.alert('Address Required', 'Please enter an address.'); }}
-              style={{ backgroundColor: colors.primary, borderRadius: 12, padding: 16, marginTop: 14, alignItems: 'center' }}
-              activeOpacity={0.7}
-            >
-              <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>Save Address</Text>
-            </TouchableOpacity>
+            {/* Autocomplete suggestions dropdown */}
+            {addressSuggestions.length > 0 && (
+              <ScrollView style={{ maxHeight: 200, borderWidth: 1, borderColor: colors.border, borderRadius: 10, marginTop: 4, backgroundColor: colors.background }} keyboardShouldPersistTaps="handled">
+                {addressSuggestions.map((item) => {
+                  const label = item.display_name.split(',').slice(0, 3).join(',').trim();
+                  return (
+                    <TouchableOpacity
+                      key={item.place_id}
+                      onPress={() => { saveAddress(label); setAddressQuery(''); setAddressSuggestions([]); }}
+                      style={{ padding: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={{ fontSize: 15, color: colors.text }} numberOfLines={2}>{item.display_name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
           </View>
         </KeyboardAvoidingView>
       </Modal>
