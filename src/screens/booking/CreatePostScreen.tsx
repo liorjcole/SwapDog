@@ -39,6 +39,7 @@ import { uploadPhotoToStorage } from '../../utils/uploadHelper';
 import { onPostCreated } from '../../services/ReviewPromptService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import RepeatScheduleModal from '../../components/common/RepeatScheduleModal';
+import DebouncedTimePicker from '../../components/common/DebouncedTimePicker';
 import ConfettiCelebration, { CelebrationItem } from '../../components/common/ConfettiCelebration';
 import Chip from '../../components/common/Chip';
 import { formatDogAge } from '../../utils/formatDogAge';
@@ -405,15 +406,6 @@ const MAX_PLAY_SESSIONS = 5;
   const [endDateSelected, setEndDateSelected] = useState(false);
   const [startDateSelected, setStartDateSelected] = useState(false);
 
-  // ── Debounced time picker helper ──
-  // iOS spinner onChange fires on EVERY scroll tick. Immediate state updates
-  // fight the scroll gesture, causing snap-back. Debounce so state only
-  // commits 400ms after the last scroll tick.
-  const timeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const debouncedTimeUpdate = useCallback((fn: () => void) => {
-    if (timeDebounceRef.current) clearTimeout(timeDebounceRef.current);
-    timeDebounceRef.current = setTimeout(fn, 400);
-  }, []);
 
   // Time fields — Date objects for native spinner picker
   const [startTimeDate, setStartTimeDate] = useState<Date | null>(null);
@@ -2106,31 +2098,17 @@ const MAX_PLAY_SESSIONS = 5;
                       </TouchableOpacity>
                     </View>
                     {showStartTime && (
-                      <DateTimePicker
+                      <DebouncedTimePicker
                         value={startTimeDate ?? (() => { const d = new Date(); d.setHours(9, 0, 0, 0); return d; })()}
-                        mode="time"
-                        display="spinner"
-                        themeVariant="dark"
-                        accentColor="#FF2D55"
+                        onTimeChange={(d) => setStartTimeDate(d)}
                         {...(careType === 'daySitting' && endTimeDate ? { maximumDate: getMaxStartDate(endTimeDate, startTimeDate ?? endTimeDate) } : {})}
-                        onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) debouncedTimeUpdate(() => setStartTimeDate(d));
-                        }}
-                        style={{ height: 200 }}
                       />
                     )}
                     {showEndTime && (
-                      <DateTimePicker
+                      <DebouncedTimePicker
                         value={endTimeDate ?? (() => { const d = new Date(); d.setHours(17, 0, 0, 0); return d; })()}
-                        mode="time"
-                        display="spinner"
-                        themeVariant="dark"
-                        accentColor="#FF2D55"
+                        onTimeChange={(d) => setEndTimeDate(d)}
                         {...(careType === 'daySitting' && startTimeDate ? { minimumDate: getMinEndDate(startTimeDate, endTimeDate ?? startTimeDate) } : {})}
-                        onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) debouncedTimeUpdate(() => setEndTimeDate(d));
-                        }}
-                        style={{ height: 200 }}
                       />
                     )}
                   </View>
@@ -2302,16 +2280,9 @@ const MAX_PLAY_SESSIONS = 5;
                       <Text style={[styles.timePickerValue, { color: slot.time ? colors.text : colors.textSecondary }]}>{slot.time ? formatTime12(slot.time) : 'Select time!'}</Text>
                     </TouchableOpacity>
                     {slot.showPicker && (
-                      <DateTimePicker
+                      <DebouncedTimePicker
                         value={slot.time || new Date()}
-                        mode="time"
-                        display="spinner"
-                        themeVariant="dark"
-                        accentColor="#FF2D55"
-                        onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) debouncedTimeUpdate(() => updateFeedingSlot(idx, 'time', d));
-                        }}
-                        style={{ height: 200 }}
+                        onTimeChange={(d) => updateFeedingSlot(idx, 'time', d)}
                       />
                     )}
 
@@ -2504,31 +2475,17 @@ const MAX_PLAY_SESSIONS = 5;
                       </TouchableOpacity>
                     </View>
                     {ws.showStart && (
-                      <DateTimePicker
+                      <DebouncedTimePicker
                         value={ws.startDate || new Date()}
-                        mode="time"
-                        display="spinner"
-                        themeVariant="dark"
-                        accentColor="#FF2D55"
+                        onTimeChange={(d) => updateWalkSession(wIdx, { startDate: d })}
                         maximumDate={getMaxStartDate(ws.endDate, ws.startDate || new Date())}
-                        onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) debouncedTimeUpdate(() => updateWalkSession(wIdx, { startDate: d }));
-                        }}
-                        style={{ height: 200 }}
                       />
                     )}
                     {ws.showEnd && (
-                      <DateTimePicker
+                      <DebouncedTimePicker
                         value={ws.endDate || new Date()}
-                        mode="time"
-                        display="spinner"
-                        themeVariant="dark"
-                        accentColor="#FF2D55"
+                        onTimeChange={(d) => updateWalkSession(wIdx, { endDate: d })}
                         minimumDate={getMinEndDate(ws.startDate, ws.endDate || new Date())}
-                        onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) debouncedTimeUpdate(() => updateWalkSession(wIdx, { endDate: d }));
-                        }}
-                        style={{ height: 200 }}
                       />
                     )}
 
@@ -2751,31 +2708,17 @@ const MAX_PLAY_SESSIONS = 5;
                           </TouchableOpacity>
                         </View>
                         {pSession.showStart && (
-                          <DateTimePicker
+                          <DebouncedTimePicker
                             value={pSession.startDate || new Date()}
-                            mode="time"
-                            display="spinner"
-                            themeVariant="dark"
-                            accentColor="#FF2D55"
+                            onTimeChange={(d) => updatePlaySession(pIdx, { startDate: d })}
                             maximumDate={getMaxStartDate(pSession.endDate, pSession.startDate || new Date())}
-                            onChange={(_: DateTimePickerEvent, d?: Date) => {
-                              if (d) debouncedTimeUpdate(() => updatePlaySession(pIdx, { startDate: d }));
-                            }}
-                            style={{ height: 200 }}
                           />
                         )}
                         {pSession.showEnd && (
-                          <DateTimePicker
+                          <DebouncedTimePicker
                             value={pSession.endDate || new Date()}
-                            mode="time"
-                            display="spinner"
-                            themeVariant="dark"
-                            accentColor="#FF2D55"
+                            onTimeChange={(d) => updatePlaySession(pIdx, { endDate: d })}
                             minimumDate={getMinEndDate(pSession.startDate, pSession.endDate || new Date())}
-                            onChange={(_: DateTimePickerEvent, d?: Date) => {
-                              if (d) debouncedTimeUpdate(() => updatePlaySession(pIdx, { endDate: d }));
-                            }}
-                            style={{ height: 200 }}
                           />
                         )}
                         <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
@@ -2989,16 +2932,9 @@ const MAX_PLAY_SESSIONS = 5;
                       <Text style={[styles.feedingTimePreview, { color: slot.time ? colors.text : colors.textSecondary }]}>{slot.time ? formatTime12(slot.time) : 'Select time!'}</Text>
                     </TouchableOpacity>
                     {slot.showPicker && (
-                      <DateTimePicker
+                      <DebouncedTimePicker
                         value={slot.time || new Date()}
-                        mode="time"
-                        display="spinner"
-                        themeVariant="dark"
-                        accentColor="#FF2D55"
-                        onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) debouncedTimeUpdate(() => updateMedicationSlot(idx, 'time', d));
-                        }}
-                        style={{ height: 200 }}
+                        onTimeChange={(d) => updateMedicationSlot(idx, 'time', d)}
                       />
                     )}
 
@@ -3025,16 +2961,9 @@ const MAX_PLAY_SESSIONS = 5;
                           </TouchableOpacity>
                         </View>
                         {et.showPicker && (
-                          <DateTimePicker
+                          <DebouncedTimePicker
                             value={et.time}
-                            mode="time"
-                            display="spinner"
-                            themeVariant="dark"
-                            accentColor="#FF2D55"
-                            onChange={(_: DateTimePickerEvent, d?: Date) => {
-                              if (d) debouncedTimeUpdate(() => updateMedExtraTime(idx, etIdx, d));
-                            }}
-                            style={{ height: 200 }}
+                            onTimeChange={(d) => updateMedExtraTime(idx, etIdx, d)}
                           />
                         )}
                       </View>
