@@ -971,7 +971,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
           return null;
       }
     },
-    [handleNavigateToPost, handleNavigateToUser],
+    [handleNavigateToPost, handleNavigateToUser, handleNavigateToCreatePost, highlightPostId, pulseAnim, glowAnim, userProfile?.id, favoriteIds],
   );
 
   const keyExtractor = useCallback((item: FeedItem) => item.id, []);
