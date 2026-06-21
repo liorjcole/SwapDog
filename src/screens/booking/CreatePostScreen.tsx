@@ -243,13 +243,15 @@ const MAX_PLAY_SESSIONS = 5;
           Alert.alert('Duplicate Time', `You already have a playtime starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
           return prev;
         }
-        // Push end time forward if it's now at or before start
+        // Smart clamp: try AM/PM flip on start first, then push end
         const session = updated[index];
-        if (session.endDate) {
-          const clampedEnd = clampEndAfterStart(newStart, session.endDate);
-          if (clampedEnd !== session.endDate) {
-            updated = updated.map((s, i) => i === index ? { ...s, endDate: clampedEnd } : s);
-          }
+        const clamped = smartClampStart(newStart, session.endDate);
+        if (clamped.startTime !== newStart) {
+          const flippedStart = clamped.startTime;
+          updated = updated.map((s, i) => i === index ? { ...s, startDate: flippedStart } : s);
+        } else if (clamped.endTime) {
+          const pushedEnd = clamped.endTime;
+          updated = updated.map((s, i) => i === index ? { ...s, endDate: pushedEnd } : s);
         }
         shouldSort = true;
       }
@@ -510,13 +512,15 @@ const MAX_PLAY_SESSIONS = 5;
           Alert.alert('Duplicate Time', `You already have a walk starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
           return prev;
         }
-        // Push end time forward if it's now at or before start
+        // Smart clamp: try AM/PM flip on start first, then push end
         const session = updated[idx];
-        if (session.endDate) {
-          const clampedEnd = clampEndAfterStart(newStart, session.endDate);
-          if (clampedEnd !== session.endDate) {
-            updated = updated.map((s, i) => i === idx ? { ...s, endDate: clampedEnd } : s);
-          }
+        const clamped = smartClampStart(newStart, session.endDate);
+        if (clamped.startTime !== newStart) {
+          const flippedStart = clamped.startTime;
+          updated = updated.map((s: WalkSession, i: number) => i === idx ? { ...s, startDate: flippedStart } : s);
+        } else if (clamped.endTime) {
+          const pushedEnd = clamped.endTime;
+          updated = updated.map((s: WalkSession, i: number) => i === idx ? { ...s, endDate: pushedEnd } : s);
         }
         shouldSort = true;
       }
@@ -598,21 +602,65 @@ const MAX_PLAY_SESSIONS = 5;
   const formatTimeShort = (d: Date | null) => d ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
 
   /**
-   * Ensure end time is after start time. If end <= start, push end
-   * to 1 minute after start (handles AM/PM flips automatically since
-   * we work with Date objects and compare hours*60+minutes).
+   * Smart end-time clamping with two strategies:
+   * 1. Try AM/PM flip first (more natural — user just forgot to toggle)
+   * 2. If flip doesn't help, clamp to start+1 minute (animated scroll)
+   *
+   * Returns { time, animate }:
+   *   animate=false → value is valid or was AM/PM-flipped (set immediately)
+   *   animate=true  → clamped to start+1 (caller should delay-set for smooth scroll)
    */
-  const clampEndAfterStart = (start: Date | null, end: Date): Date => {
-    if (!start) return end;
+  const smartClampEnd = (start: Date | null, end: Date): { time: Date; animate: boolean } => {
+    if (!start) return { time: end, animate: false };
     const startMins = start.getHours() * 60 + start.getMinutes();
     const endMins = end.getHours() * 60 + end.getMinutes();
-    if (endMins > startMins) return end; // end is already after start
-    // End is at or before start — push to start + 1 minute
+    if (endMins > startMins) return { time: end, animate: false };
+
+    // Strategy 1: try AM↔PM flip on the end time
+    const flippedHour = (end.getHours() + 12) % 24;
+    const flippedMins = flippedHour * 60 + end.getMinutes();
+    if (flippedMins > startMins) {
+      const flipped = new Date(end);
+      flipped.setHours(flippedHour, end.getMinutes(), 0, 0);
+      return { time: flipped, animate: false }; // spinner animates AM/PM wheel naturally
+    }
+
+    // Strategy 2: flip didn't help — clamp to start + 1 minute
     const clamped = new Date(end);
     const newMins = startMins + 1;
     clamped.setHours(Math.floor(newMins / 60) % 24, newMins % 60, 0, 0);
-    return clamped;
+    return { time: clamped, animate: true };
   };
+
+  /**
+   * Smart start-time clamping (when start moves past end):
+   * 1. Try AM/PM flip on start first (PM→AM to get before end)
+   * 2. If flip doesn't help, push end to start+1 minute
+   */
+  const smartClampStart = (start: Date, end: Date | null): { startTime: Date; endTime?: Date } => {
+    if (!end) return { startTime: start };
+    const startMins = start.getHours() * 60 + start.getMinutes();
+    const endMins = end.getHours() * 60 + end.getMinutes();
+    if (startMins < endMins) return { startTime: start };
+
+    // Strategy 1: try AM↔PM flip on start
+    const flippedHour = (start.getHours() + 12) % 24;
+    const flippedMins = flippedHour * 60 + start.getMinutes();
+    if (flippedMins < endMins) {
+      const flipped = new Date(start);
+      flipped.setHours(flippedHour, start.getMinutes(), 0, 0);
+      return { startTime: flipped };
+    }
+
+    // Strategy 2: push end to start + 1 minute
+    const pushedEnd = new Date(end);
+    const newMins = startMins + 1;
+    pushedEnd.setHours(Math.floor(newMins / 60) % 24, newMins % 60, 0, 0);
+    return { startTime: start, endTime: pushedEnd };
+  };
+
+  // Ref for animation delay timers
+  const clampAnimTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
 
   // ── Service-level photo picker ──
@@ -1852,10 +1900,11 @@ const MAX_PLAY_SESSIONS = 5;
                         themeVariant="dark"
                         accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) {
-                            setStartTimeDate(d);
-                            // Push end time forward if it's now at or before new start
-                            setEndTimeDate(prev => clampEndAfterStart(d, prev));
+                          if (!d) return;
+                          const result = smartClampStart(d, endTimeDate);
+                          setStartTimeDate(result.startTime);
+                          if (result.endTime) {
+                            setEndTimeDate(result.endTime);
                           }
                         }}
                         style={{ height: 150 }}
@@ -1869,7 +1918,16 @@ const MAX_PLAY_SESSIONS = 5;
                         themeVariant="dark"
                         accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) setEndTimeDate(clampEndAfterStart(startTimeDate, d));
+                          if (!d) return;
+                          const result = smartClampEnd(startTimeDate, d);
+                          if (!result.animate) {
+                            setEndTimeDate(result.time);
+                          } else {
+                            if (clampAnimTimerRef.current['daySitEnd']) clearTimeout(clampAnimTimerRef.current['daySitEnd']);
+                            clampAnimTimerRef.current['daySitEnd'] = setTimeout(() => {
+                              setEndTimeDate(result.time);
+                            }, 300);
+                          }
                         }}
                         style={{ height: 150 }}
                       />
@@ -2255,7 +2313,17 @@ const MAX_PLAY_SESSIONS = 5;
                         themeVariant="dark"
                         accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) updateWalkSession(wIdx, { endDate: clampEndAfterStart(ws.startDate, d) });
+                          if (!d) return;
+                          const result = smartClampEnd(ws.startDate, d);
+                          if (!result.animate) {
+                            updateWalkSession(wIdx, { endDate: result.time });
+                          } else {
+                            // Brief pause so user sees their position, then animate to corrected
+                            if (clampAnimTimerRef.current['walkEnd' + wIdx]) clearTimeout(clampAnimTimerRef.current['walkEnd' + wIdx]);
+                            clampAnimTimerRef.current['walkEnd' + wIdx] = setTimeout(() => {
+                              updateWalkSession(wIdx, { endDate: result.time });
+                            }, 300);
+                          }
                         }}
                         style={{ height: 150 }}
                       />
@@ -2495,7 +2563,16 @@ const MAX_PLAY_SESSIONS = 5;
                             themeVariant="dark"
                             accentColor="#FF2D55"
                             onChange={(_: DateTimePickerEvent, d?: Date) => {
-                              if (d) updatePlaySession(pIdx, { endDate: clampEndAfterStart(pSession.startDate, d) });
+                              if (!d) return;
+                              const result = smartClampEnd(pSession.startDate, d);
+                              if (!result.animate) {
+                                updatePlaySession(pIdx, { endDate: result.time });
+                              } else {
+                                if (clampAnimTimerRef.current['playEnd' + pIdx]) clearTimeout(clampAnimTimerRef.current['playEnd' + pIdx]);
+                                clampAnimTimerRef.current['playEnd' + pIdx] = setTimeout(() => {
+                                  updatePlaySession(pIdx, { endDate: result.time });
+                                }, 300);
+                              }
                             }}
                             style={{ height: 150 }}
                           />
