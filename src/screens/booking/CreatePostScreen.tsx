@@ -156,7 +156,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     endDate: Date;
     showStart: boolean;
     showEnd: boolean;
-    durationMins: number;
+    durationMins: number | null;
     repeatSchedule: RepeatSchedule | null;
     dogIds: string[];
     instructions: string;
@@ -165,11 +165,11 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   }
   const makeDefaultPlaySession = (): PlaySession => ({
     flexible: false,
-    startDate: (() => { const d = new Date(); d.setHours(10, 0, 0, 0); return d; })(),
-    endDate: (() => { const d = new Date(); d.setHours(11, 0, 0, 0); return d; })(),
+    startDate: null as unknown as Date,
+    endDate: null as unknown as Date,
     showStart: false,
     showEnd: false,
-    durationMins: 60,
+    durationMins: null,
     repeatSchedule: null,
     dogIds: [],
     instructions: '',
@@ -190,8 +190,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
 }
 
 const makeDefaultWalkSession = (): WalkSession => ({
-  startDate: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(),
-  endDate: (() => { const d = new Date(); d.setHours(9, 0, 0, 0); return d; })(),
+  startDate: null as unknown as Date,
+  endDate: null as unknown as Date,
   showStart: false,
   showEnd: false,
   dogIds: [],
@@ -344,7 +344,7 @@ const MAX_PLAY_SESSIONS = 5;
   const [showEndTime, setShowEndTime] = useState(false);
   // Feeding slots — Date objects for native spinner
   const [feedingSlots, setFeedingSlots] = useState<{ time: Date; repeatSchedule: RepeatSchedule | null; showPicker: boolean; dogIds: string[]; instructions: string; photos: string[]; showInstructions: boolean }[]>([
-    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), repeatSchedule: null, showPicker: false, dogIds: [], instructions: '', photos: [], showInstructions: false },
+    { time: null as unknown as Date, repeatSchedule: null, showPicker: false, dogIds: [], instructions: '', photos: [], showInstructions: false },
   ]);
 
   const updateFeedingSlot = (index: number, field: string, value: unknown) => {
@@ -370,17 +370,16 @@ const MAX_PLAY_SESSIONS = 5;
   };
 
   const addFeedingSlot = () => {
-    const d = new Date(); d.setHours(12, 0, 0, 0);
     // Auto-collapse all existing feeding slots
     setCollapsedFeedings(new Set(feedingSlots.map((_, i) => i)));
-    setFeedingSlots(prev => [...prev, { time: d, repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], instructions: '', photos: [], showInstructions: false }]);
+    setFeedingSlots(prev => [...prev, { time: null as unknown as Date, repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], instructions: '', photos: [], showInstructions: false }]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   // Walk sessions array (multi-walk support)
   // Medication slots
   const [medicationSlots, setMedicationSlots] = useState<{ time: Date; extraTimes: { time: Date; showPicker: boolean }[]; details: string; repeatSchedule: RepeatSchedule | null; showPicker: boolean; dogIds: string[]; photos: string[] }[]>([
-    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], photos: [] },
+    { time: null as unknown as Date, extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], photos: [] },
   ]);
   const updateMedicationSlot = (index: number, field: string, value: unknown) => {
     setMedicationSlots(prev => prev.map((slot, i) => {
@@ -404,10 +403,9 @@ const MAX_PLAY_SESSIONS = 5;
     setMedicationSlots(prev => prev.filter((_, i) => i !== index));
   };
   const addMedicationSlot = () => {
-    const d = new Date(); d.setHours(8, 0, 0, 0);
     // Auto-collapse all existing medication slots
     setCollapsedMeds(new Set(medicationSlots.map((_, i) => i)));
-    setMedicationSlots(prev => [...prev, { time: d, extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], photos: [] }]);
+    setMedicationSlots(prev => [...prev, { time: null as unknown as Date, extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], photos: [] }]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   const addMedExtraTime = (slotIdx: number) => {
@@ -891,7 +889,7 @@ const MAX_PLAY_SESSIONS = 5;
       let playPts = 0;
       let totalHrs = 0;
       for (const s of playSessions) {
-        const sessionMins = s.flexible ? s.durationMins : getPlayDurationMins(s);
+        const sessionMins = s.flexible ? (s.durationMins ?? 0) : (s.startDate && s.endDate ? getPlayDurationMins(s) : 0);
         const sessionHrs = sessionMins / 60;
         const reps = getRepeatCount(s.repeatSchedule, stayDays);
         playPts += sessionHrs * rate * reps;
@@ -1147,8 +1145,8 @@ const MAX_PLAY_SESSIONS = 5;
       }
       if (addOnCareTypes.has('dogWalking')) {
         careTypeFields.walkSessions = walkSessions.map(ws => ({
-          startTime: formatTime12(ws.startDate),
-          endTime: formatTime12(ws.endDate),
+          startTime: ws.startDate ? formatTime12(ws.startDate) : '',
+          endTime: ws.endDate ? formatTime12(ws.endDate) : '',
           durationMins: (() => {
             let s = ws.startDate.getHours() * 60 + ws.startDate.getMinutes();
             let e = ws.endDate.getHours() * 60 + ws.endDate.getMinutes();
@@ -1163,7 +1161,7 @@ const MAX_PLAY_SESSIONS = 5;
       }
       if (addOnCareTypes.has('feeding')) {
         careTypeFields.feedingSlots = feedingSlots.map(s => ({
-          time: formatTime12(s.time),
+          time: s.time ? formatTime12(s.time) : '',
           repeatSchedule: primaryCareType === 'overnight' && s.repeatSchedule ? s.repeatSchedule : null,
           dogIds: s.dogIds,
           instructions: s.instructions.trim() || undefined,
@@ -1176,8 +1174,8 @@ const MAX_PLAY_SESSIONS = 5;
       }
       if (addOnCareTypes.has('medication')) {
         careTypeFields.medicationSlots = medicationSlots.map(s => ({
-          time: formatTime12(s.time),
-          extraTimes: s.extraTimes.map(et => formatTime12(et.time)),
+          time: s.time ? formatTime12(s.time) : '',
+          extraTimes: s.extraTimes.map(et => et.time ? formatTime12(et.time) : ''),
           details: s.details.trim(),
           repeatSchedule: primaryCareType === 'overnight' && s.repeatSchedule ? s.repeatSchedule : null,
           dogIds: s.dogIds,
@@ -1189,9 +1187,9 @@ const MAX_PLAY_SESSIONS = 5;
         careTypeFields.playSessions = playSessions.map((s, i) => ({
           sessionNumber: i + 1,
           flexible: s.flexible,
-          startTime: s.flexible ? null : formatTime12(s.startDate),
-          endTime: s.flexible ? null : formatTime12(s.endDate),
-          durationMins: s.flexible ? s.durationMins : getPlayDurationMins(s),
+          startTime: s.flexible ? null : (s.startDate ? formatTime12(s.startDate) : ''),
+          endTime: s.flexible ? null : (s.endDate ? formatTime12(s.endDate) : ''),
+          durationMins: s.flexible ? s.durationMins : (s.startDate && s.endDate ? getPlayDurationMins(s) : 0),
           repeatSchedule: primaryCareType === 'overnight' && s.repeatSchedule ? s.repeatSchedule : null,
           dogIds: s.dogIds,
           instructions: s.instructions.trim() || undefined,
@@ -1913,11 +1911,11 @@ const MAX_PLAY_SESSIONS = 5;
                       <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
                         {feedingSlots.length > 1 ? `Feeding ${idx + 1} Time` : 'Feeding Time'}
                       </Text>
-                      <Text style={[styles.timePickerValue, { color: colors.text }]}>{formatTime12(slot.time)}</Text>
+                      <Text style={[styles.timePickerValue, { color: slot.time ? colors.text : colors.textSecondary }]}>{slot.time ? formatTime12(slot.time) : 'No time selected'}</Text>
                     </TouchableOpacity>
                     {slot.showPicker && (
                       <DateTimePicker
-                        value={slot.time}
+                        value={slot.time || new Date()}
                         mode="time"
                         display="spinner"
                         themeVariant="dark"
@@ -2014,8 +2012,8 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('dogWalking') && (
               <>
                 {walkSessions.map((ws, wIdx) => {
-                  const wsStartTime = formatTime12(ws.startDate);
-                  const wsEndTime = formatTime12(ws.endDate);
+                  const wsStartTime = ws.startDate ? formatTime12(ws.startDate) : 'No time selected';
+                  const wsEndTime = ws.endDate ? formatTime12(ws.endDate) : 'No time selected';
                   const wsStartMins = ws.startDate.getHours() * 60 + ws.startDate.getMinutes();
                   const wsEndMins = ws.endDate.getHours() * 60 + ws.endDate.getMinutes();
                   const wsDurMins = wsEndMins > wsStartMins ? wsEndMins - wsStartMins : 0;
@@ -2100,7 +2098,7 @@ const MAX_PLAY_SESSIONS = 5;
                         activeOpacity={0.7}
                       >
                         <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
-                        <Text style={[styles.timePickerValue, { color: colors.text }]}>{wsStartTime}</Text>
+                        <Text style={[styles.timePickerValue, { color: ws.startDate ? colors.text : colors.textSecondary }]}>{wsStartTime}</Text>
                       </TouchableOpacity>
                       <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
                       <TouchableOpacity
@@ -2109,12 +2107,12 @@ const MAX_PLAY_SESSIONS = 5;
                         activeOpacity={0.7}
                       >
                         <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>End Time</Text>
-                        <Text style={[styles.timePickerValue, { color: colors.text }]}>{wsEndTime}</Text>
+                        <Text style={[styles.timePickerValue, { color: ws.endDate ? colors.text : colors.textSecondary }]}>{wsEndTime}</Text>
                       </TouchableOpacity>
                     </View>
                     {ws.showStart && (
                       <DateTimePicker
-                        value={ws.startDate}
+                        value={ws.startDate || new Date()}
                         mode="time"
                         display="spinner"
                         themeVariant="dark"
@@ -2127,7 +2125,7 @@ const MAX_PLAY_SESSIONS = 5;
                     )}
                     {ws.showEnd && (
                       <DateTimePicker
-                        value={ws.endDate}
+                        value={ws.endDate || new Date()}
                         mode="time"
                         display="spinner"
                         themeVariant="dark"
@@ -2335,7 +2333,7 @@ const MAX_PLAY_SESSIONS = 5;
                             activeOpacity={0.7}
                           >
                             <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
-                            <Text style={[styles.timePickerValue, { color: colors.text }]}>{formatTime12(pSession.startDate)}</Text>
+                            <Text style={[styles.timePickerValue, { color: pSession.startDate ? colors.text : colors.textSecondary }]}>{pSession.startDate ? formatTime12(pSession.startDate) : 'No time selected'}</Text>
                           </TouchableOpacity>
                           <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
                           <TouchableOpacity
@@ -2347,12 +2345,12 @@ const MAX_PLAY_SESSIONS = 5;
                             activeOpacity={0.7}
                           >
                             <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>End Time</Text>
-                            <Text style={[styles.timePickerValue, { color: colors.text }]}>{formatTime12(pSession.endDate)}</Text>
+                            <Text style={[styles.timePickerValue, { color: pSession.endDate ? colors.text : colors.textSecondary }]}>{pSession.endDate ? formatTime12(pSession.endDate) : 'No time selected'}</Text>
                           </TouchableOpacity>
                         </View>
                         {pSession.showStart && (
                           <DateTimePicker
-                            value={pSession.startDate}
+                            value={pSession.startDate || new Date()}
                             mode="time"
                             display="spinner"
                             themeVariant="dark"
@@ -2365,7 +2363,7 @@ const MAX_PLAY_SESSIONS = 5;
                         )}
                         {pSession.showEnd && (
                           <DateTimePicker
-                            value={pSession.endDate}
+                            value={pSession.endDate || new Date()}
                             mode="time"
                             display="spinner"
                             themeVariant="dark"
@@ -2377,7 +2375,7 @@ const MAX_PLAY_SESSIONS = 5;
                           />
                         )}
                         <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
-                          {formatTime12(pSession.startDate)} → {formatTime12(pSession.endDate)}  •  {getPlayDurationText(pSession)}
+                          {pSession.startDate ? formatTime12(pSession.startDate) : '—'} → {pSession.endDate ? formatTime12(pSession.endDate) : '—'}  •  {getPlayDurationText(pSession)}
                         </Text>
                       </>
                     ) : (
@@ -2579,11 +2577,11 @@ const MAX_PLAY_SESSIONS = 5;
                       <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
                         {medicationSlots.length > 1 ? `Medication ${idx + 1} Time` : 'Medication Time'}
                       </Text>
-                      <Text style={[styles.feedingTimePreview, { color: colors.text }]}>{formatTime12(slot.time)}</Text>
+                      <Text style={[styles.feedingTimePreview, { color: slot.time ? colors.text : colors.textSecondary }]}>{slot.time ? formatTime12(slot.time) : 'No time selected'}</Text>
                     </TouchableOpacity>
                     {slot.showPicker && (
                       <DateTimePicker
-                        value={slot.time}
+                        value={slot.time || new Date()}
                         mode="time"
                         display="spinner"
                         themeVariant="dark"
