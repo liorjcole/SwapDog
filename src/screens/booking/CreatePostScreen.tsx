@@ -1318,23 +1318,22 @@ const MAX_PLAY_SESSIONS = 5;
                       />
                     )}
 
-                    {/* Add another feeding — inside last card */}
-                    {idx === feedingSlots.length - 1 && (
-                      <TouchableOpacity
-                        style={[styles.addSessionBtn, { borderColor: colors.primary, marginTop: 16 }]}
-                        onPress={addFeedingSlot}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
-                          ➕ Add Feeding #{feedingSlots.length + 1}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+
                     </>
                     )}
                   </View>
                 ))}
 
+                {/* Add another feeding — outside cards */}
+                <TouchableOpacity
+                  style={[styles.addSessionBtn, { borderColor: colors.primary }]}
+                  onPress={addFeedingSlot}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
+                    ➕ Add Feeding #{feedingSlots.length + 1}
+                  </Text>
+                </TouchableOpacity>
 
               </>
             )}
@@ -1465,24 +1464,25 @@ const MAX_PLAY_SESSIONS = 5;
                       {wsStartTime} → {wsEndTime}  •  {wsDurText}
                     </Text>
 
-                    {/* Add another walk — inside last card */}
-                    {wIdx === walkSessions.length - 1 && walkSessions.length < MAX_WALK_SESSIONS && (
-                      <TouchableOpacity
-                        style={[styles.addSessionBtn, { borderColor: colors.primary, marginTop: 16 }]}
-                        onPress={addWalkSession}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
-                          ➕ Add Walk #{walkSessions.length + 1}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+
                     </>
                     )}
                   </View>
                   );
                 })}
 
+                {/* Add another walk — outside cards */}
+                {walkSessions.length < MAX_WALK_SESSIONS && (
+                  <TouchableOpacity
+                    style={[styles.addSessionBtn, { borderColor: colors.primary }]}
+                    onPress={addWalkSession}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
+                      ➕ Add Walk #{walkSessions.length + 1}
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
               </>
             )}
@@ -1663,23 +1663,24 @@ const MAX_PLAY_SESSIONS = 5;
                       </>
                     )}
 
-                    {/* Add another session — inside last card */}
-                    {pIdx === playSessions.length - 1 && playSessions.length < MAX_PLAY_SESSIONS && (
-                      <TouchableOpacity
-                        style={[styles.addSessionBtn, { borderColor: colors.primary, marginTop: 16 }]}
-                        onPress={addPlaySession}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
-                          ➕ Add Playtime Session #{playSessions.length + 1}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+
                     </>
                     )}
                   </View>
                 ))}
 
+                {/* Add another playtime — outside cards */}
+                {playSessions.length < MAX_PLAY_SESSIONS && (
+                  <TouchableOpacity
+                    style={[styles.addSessionBtn, { borderColor: colors.primary }]}
+                    onPress={addPlaySession}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
+                      ➕ Add Playtime Session #{playSessions.length + 1}
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
               </>
             )}
@@ -1799,22 +1800,23 @@ const MAX_PLAY_SESSIONS = 5;
                       blurOnSubmit={true}
                     />
 
-                    {/* Add another medication — inside last card */}
-                    {idx === medicationSlots.length - 1 && (
-                      <TouchableOpacity
-                        style={[styles.addSessionBtn, { borderColor: colors.primary, marginTop: 16 }]}
-                        onPress={addMedicationSlot}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
-                          ➕ Add Medication #{medicationSlots.length + 1}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+
                     </>
                     )}
                   </View>
                 ))}
+
+                {/* Add another medication — outside cards */}
+                <TouchableOpacity
+                  style={[styles.addSessionBtn, { borderColor: colors.primary }]}
+                  onPress={addMedicationSlot}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.addFeedingBtnText, { color: colors.primary }]}>
+                    ➕ Add Medication #{medicationSlots.length + 1}
+                  </Text>
+                </TouchableOpacity>
+
               </>
             )}
 
@@ -2417,10 +2419,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderRadius: borderRadius.md,
-    padding: spacing.md,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.md,
+    marginTop: -8,
+    marginBottom: spacing.lg,
   },
   addFeedingBtnText: { fontSize: 16, fontWeight: '600' },
   fieldHint: { fontSize: 15, marginBottom: 8 },
