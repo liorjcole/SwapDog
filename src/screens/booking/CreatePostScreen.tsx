@@ -3126,7 +3126,7 @@ const MAX_PLAY_SESSIONS = 5;
               />
 
               <View style={{ backgroundColor: 'rgba(255, 59, 48, 0.1)', borderRadius: 10, padding: 12, marginTop: 12, borderWidth: 1, borderColor: 'rgba(255, 59, 48, 0.3)' }}>
-                <Text style={{ fontSize: 13, color: '#FF3B30', lineHeight: 18 }}>⚠️ Don't put sensitive info here (like how to get into your home). This will be shared with all pet parents in your area as part of your post.</Text>
+                <Text style={{ fontSize: 13, color: '#FF3B30', lineHeight: 18 }}>⚠️ Don't put sensitive info here (like how to get into your home). This will be shared with all pup parents in your area as part of your post.</Text>
               </View>
 
               <View style={{ height: 16 }} />
