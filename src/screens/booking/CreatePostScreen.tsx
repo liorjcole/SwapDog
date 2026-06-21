@@ -3384,7 +3384,7 @@ const MAX_PLAY_SESSIONS = 5;
                   <View style={{ height: 16 }} />
                   <View style={{ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, marginBottom: 16 }} />
                   <Text style={[styles.pointsInputLabel, { color: colors.text }]}>
-                    How many points is this job worth?
+                    How many points do you want to offer?
                   </Text>
                   <View style={{ height: 8 }} />
                   <View ref={refFor('points')} style={styles.pointsInputRow}>
