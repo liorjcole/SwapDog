@@ -2021,6 +2021,11 @@ const MAX_PLAY_SESSIONS = 5;
                         <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
                           🍽️ {idx === 0 ? 'Feeding' : `Feeding #${idx + 1}`}
                         </Text>
+                        {slot.time && (
+                          <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '400', marginLeft: 8 }}>
+                            {formatTime12(slot.time)}
+                          </Text>
+                        )}
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         {primaryCareType === 'overnight' && (
@@ -2208,6 +2213,11 @@ const MAX_PLAY_SESSIONS = 5;
                         <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
                           🐕 {wIdx === 0 ? 'Walk' : `Walk #${wIdx + 1}`}
                         </Text>
+                        {ws.startDate && (
+                          <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '400', marginLeft: 8 }}>
+                            {wsStartTime}{ws.endDate ? ` – ${wsEndTime}` : ''}
+                          </Text>
+                        )}
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         {primaryCareType === 'overnight' && (
@@ -2420,6 +2430,11 @@ const MAX_PLAY_SESSIONS = 5;
                         <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
                           🎾 {pIdx === 0 ? 'Playtime' : `Playtime #${pIdx + 1}`}
                         </Text>
+                        {pSession.startDate && (
+                          <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '400', marginLeft: 8 }}>
+                            {formatTime12(pSession.startDate)}{pSession.endDate ? ` – ${formatTime12(pSession.endDate)}` : ''}
+                          </Text>
+                        )}
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         {primaryCareType === 'overnight' && (
@@ -2689,6 +2704,11 @@ const MAX_PLAY_SESSIONS = 5;
                         <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
                           💊 {idx === 0 ? 'Medication' : `Medication #${idx + 1}`}
                         </Text>
+                        {slot.time && (
+                          <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '400', marginLeft: 8 }}>
+                            {formatTime12(slot.time)}
+                          </Text>
+                        )}
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         {primaryCareType === 'overnight' && (
