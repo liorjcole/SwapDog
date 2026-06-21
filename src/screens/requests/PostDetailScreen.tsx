@@ -38,7 +38,7 @@ import { smartDate, isSameDay as isSameDayUtil } from '../../utils/dateHelpers';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useUsers } from '../../hooks/useUsers';
 import { useMessaging } from '../../hooks/useMessaging';
-import { SwapPost } from '../../models/types';
+import { SwapPost, RepeatSchedule, formatRepeatLabel } from '../../models/types';
 import { spacing, borderRadius, shadow, typography } from '../../config/theme';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { scheduleOwnerReminders, requestNotificationPermissions } from '../../services/ReminderService';
@@ -1002,7 +1002,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   {post.feedingSlots.map((slot, i) => (
                     <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
                       <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                        {slot.time}{slot.daily ? '  ·  repeat daily' : ''}
+                        {slot.time}{(slot as any).repeatSchedule ? '  ·  ' + formatRepeatLabel((slot as any).repeatSchedule) : (slot as any).daily ? '  ·  Repeat daily' : ''}
                         {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                           ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
                           : ''}
@@ -1019,7 +1019,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   {post.medicationSlots.map((slot, i) => (
                     <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
                       <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                        {slot.time}{slot.daily ? '  ·  repeat daily' : ''}
+                        {slot.time}{(slot as any).repeatSchedule ? '  ·  ' + formatRepeatLabel((slot as any).repeatSchedule) : (slot as any).daily ? '  ·  Repeat daily' : ''}
                         {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                           ? `  \u00b7  ${resolveDogNames(slot.dogIds, post)}`
                           : ''}
@@ -1045,7 +1045,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                     return (
                       <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
                         <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                          {ws.startTime} – {ws.endTime}  ({durLabel}){ws.repeatDaily ? '  ·  repeat daily' : ''}
+                          {ws.startTime} – {ws.endTime}  ({durLabel}){(ws as any).repeatSchedule ? '  ·  ' + formatRepeatLabel((ws as any).repeatSchedule) : (ws as any).repeatDaily ? '  ·  Repeat daily' : ''}
                           {ws.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                             ? `  ·  ${resolveDogNames(ws.dogIds, post)}`
                             : ''}
@@ -1070,7 +1070,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                           {ps.flexible
                             ? `Flexible · ${durLabel}`
                             : `${ps.startTime} – ${ps.endTime}  (${durLabel})`}
-                          {ps.repeatDaily ? '  ·  repeat daily' : ''}
+                          {(ps as any).repeatSchedule ? '  ·  ' + formatRepeatLabel((ps as any).repeatSchedule) : (ps as any).repeatDaily ? '  ·  Repeat daily' : ''}
                           {ps.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                             ? `  ·  ${resolveDogNames(ps.dogIds, post)}`
                             : ''}

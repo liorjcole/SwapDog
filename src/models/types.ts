@@ -117,6 +117,35 @@ export type PostStatus = 'open' | 'claimed' | 'completed' | 'cancelled' | 'resch
 export type PaymentRate = 'per_hour' | 'per_day';
 export type CompensationType = 'points' | 'payment' | 'either';
 
+// ── Repeat scheduling for overnight add-on tasks ──────────────────────────────
+export interface RepeatSchedule {
+  /** 'daily' = every day, 'weekly' = one day per week, 'custom' = specific days */
+  type: 'daily' | 'weekly' | 'custom';
+  /** Day index for weekly (0=Sun, 1=Mon ... 6=Sat) */
+  weeklyDay?: number;
+  /** Day indices for custom (sorted, 0-6) */
+  customDays?: number[];
+  /** Whether all selected days share the same time or have individual times */
+  timeMode: 'same' | 'different';
+  /** Per-day times as "h:mm AM/PM" strings, keyed by day index (0-6). Only set when timeMode='different'. */
+  dayTimes?: Record<number, string>;
+}
+
+export const DAY_LABELS = ['Sun', 'Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat'] as const;
+
+/** Human-readable label for a repeat schedule */
+export const formatRepeatLabel = (schedule: RepeatSchedule): string => {
+  if (schedule.type === 'daily') return 'Repeat daily';
+  if (schedule.type === 'weekly') {
+    return 'Repeat weekly on ' + DAY_LABELS[schedule.weeklyDay ?? 1];
+  }
+  if (schedule.type === 'custom') {
+    const days = (schedule.customDays ?? []).map(d => DAY_LABELS[d]).join('/');
+    return 'Repeat ' + days;
+  }
+  return 'Repeat';
+};
+
 export interface SwapPost {
   id: string;
 

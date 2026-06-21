@@ -27,7 +27,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { useDogs } from '../../hooks/useDogs';
 import { useSwaps } from '../../hooks/useSwaps';
-import { Dog, CompensationType, CareType } from '../../models/types';
+import { Dog, CompensationType, CareType, RepeatSchedule, formatRepeatLabel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { uploadPhotoToStorage } from '../../utils/uploadHelper';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -79,7 +79,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     showStart: boolean;
     showEnd: boolean;
     durationMins: number;
-    repeatDaily: boolean;
+    repeatSchedule: RepeatSchedule | null;
     dogIds: string[];
   }
   const makeDefaultPlaySession = (): PlaySession => ({
@@ -89,7 +89,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     showStart: false,
     showEnd: false,
     durationMins: 60,
-    repeatDaily: false,
+    repeatSchedule: null,
     dogIds: [],
   });
   const [playSessions, setPlaySessions] = useState<PlaySession[]>([makeDefaultPlaySession()]);
@@ -99,7 +99,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   showStart: boolean;
   showEnd: boolean;
   dogIds: string[];
-  repeatDaily: boolean;
+  repeatSchedule: RepeatSchedule | null;
 }
 
 const makeDefaultWalkSession = (): WalkSession => ({
@@ -108,7 +108,7 @@ const makeDefaultWalkSession = (): WalkSession => ({
   showStart: false,
   showEnd: false,
   dogIds: [],
-  repeatDaily: false,
+  repeatSchedule: null,
 });
 
 const MAX_WALK_SESSIONS = 5;
@@ -126,7 +126,52 @@ const MAX_PLAY_SESSIONS = 5;
   const updatePlaySession = (index: number, updates: Partial<PlaySession>) => {
     setPlaySessions(prev => prev.map((s, i) => i === index ? { ...s, ...updates } : s));
   };
-  const [repeatDailyAlertShown, setRepeatDailyAlertShown] = useState(false);
+  // Repeat schedule modal state
+  const [repeatModalVisible, setRepeatModalVisible] = useState(false);
+  const [repeatModalTarget, setRepeatModalTarget] = useState<{ kind: 'feeding' | 'walk' | 'play' | 'medication'; index: number } | null>(null);
+  const openRepeatModal = (kind: 'feeding' | 'walk' | 'play' | 'medication', index: number) => {
+    setRepeatModalTarget({ kind, index });
+    setRepeatModalVisible(true);
+  };
+  const getRepeatScheduleForTarget = (): RepeatSchedule | null => {
+    if (!repeatModalTarget) return null;
+    const { kind, index } = repeatModalTarget;
+    if (kind === 'feeding') return feedingSlots[index]?.repeatSchedule ?? null;
+    if (kind === 'walk') return walkSessions[index]?.repeatSchedule ?? null;
+    if (kind === 'play') return playSessions[index]?.repeatSchedule ?? null;
+    if (kind === 'medication') return medicationSlots[index]?.repeatSchedule ?? null;
+    return null;
+  };
+  const getRepeatDefaultTime = (): Date | undefined => {
+    if (!repeatModalTarget) return undefined;
+    const { kind, index } = repeatModalTarget;
+    if (kind === 'feeding') return feedingSlots[index]?.time;
+    if (kind === 'walk') return walkSessions[index]?.startDate;
+    if (kind === 'play') return playSessions[index]?.startDate;
+    if (kind === 'medication') return medicationSlots[index]?.time;
+    return undefined;
+  };
+  const handleRepeatConfirm = (schedule: RepeatSchedule) => {
+    if (!repeatModalTarget) return;
+    const { kind, index } = repeatModalTarget;
+    if (kind === 'feeding') updateFeedingSlot(index, 'repeatSchedule', schedule);
+    if (kind === 'walk') updateWalkSession(index, { repeatSchedule: schedule });
+    if (kind === 'play') updatePlaySession(index, { repeatSchedule: schedule });
+    if (kind === 'medication') updateMedicationSlot(index, 'repeatSchedule', schedule);
+    setRepeatModalVisible(false);
+    setRepeatModalTarget(null);
+  };
+  const handleRepeatClear = () => {
+    if (!repeatModalTarget) return;
+    const { kind, index } = repeatModalTarget;
+    if (kind === 'feeding') updateFeedingSlot(index, 'repeatSchedule', null);
+    if (kind === 'walk') updateWalkSession(index, { repeatSchedule: null });
+    if (kind === 'play') updatePlaySession(index, { repeatSchedule: null });
+    if (kind === 'medication') updateMedicationSlot(index, 'repeatSchedule', null);
+    setRepeatModalVisible(false);
+    setRepeatModalTarget(null);
+  };
+
   const [collapsedFeedings, setCollapsedFeedings] = useState<Set<number>>(new Set());
   const [collapsedWalks, setCollapsedWalks] = useState<Set<number>>(new Set());
   const [collapsedPlay, setCollapsedPlay] = useState<Set<number>>(new Set());
@@ -180,8 +225,8 @@ const MAX_PLAY_SESSIONS = 5;
   const [showStartTime, setShowStartTime] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
   // Feeding slots — Date objects for native spinner
-  const [feedingSlots, setFeedingSlots] = useState<{ time: Date; daily: boolean; showPicker: boolean; dogIds: string[] }[]>([
-    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), daily: false, showPicker: false, dogIds: [] },
+  const [feedingSlots, setFeedingSlots] = useState<{ time: Date; repeatSchedule: RepeatSchedule | null; showPicker: boolean; dogIds: string[] }[]>([
+    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), repeatSchedule: null, showPicker: false, dogIds: [] },
   ]);
 
   const updateFeedingSlot = (index: number, field: string, value: unknown) => {
@@ -195,14 +240,14 @@ const MAX_PLAY_SESSIONS = 5;
 
   const addFeedingSlot = () => {
     const d = new Date(); d.setHours(12, 0, 0, 0);
-    setFeedingSlots(prev => [...prev, { time: d, daily: false, showPicker: false, dogIds: [...selectedDogIds] }]);
+    setFeedingSlots(prev => [...prev, { time: d, repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds] }]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   // Walk sessions array (multi-walk support)
   // Medication slots
-  const [medicationSlots, setMedicationSlots] = useState<{ time: Date; details: string; daily: boolean; showPicker: boolean; dogIds: string[] }[]>([
-    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), details: '', daily: false, showPicker: false, dogIds: [...selectedDogIds] },
+  const [medicationSlots, setMedicationSlots] = useState<{ time: Date; details: string; repeatSchedule: RepeatSchedule | null; showPicker: boolean; dogIds: string[] }[]>([
+    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds] },
   ]);
   const updateMedicationSlot = (index: number, field: string, value: unknown) => {
     setMedicationSlots(prev => prev.map((slot, i) => i === index ? { ...slot, [field]: value } : slot));
@@ -213,7 +258,7 @@ const MAX_PLAY_SESSIONS = 5;
   };
   const addMedicationSlot = () => {
     const d = new Date(); d.setHours(8, 0, 0, 0);
-    setMedicationSlots(prev => [...prev, { time: d, details: '', daily: false, showPicker: false, dogIds: [...selectedDogIds] }]);
+    setMedicationSlots(prev => [...prev, { time: d, details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds] }]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   const [collapsedMeds, setCollapsedMeds] = useState<Set<number>>(new Set());
@@ -699,14 +744,14 @@ const MAX_PLAY_SESSIONS = 5;
             return e > s ? e - s : 0;
           })(),
           dogIds: ws.dogIds,
-          repeatDaily: primaryCareType === 'overnight' ? ws.repeatDaily : false,
+          repeatSchedule: primaryCareType === 'overnight' && ws.repeatSchedule ? ws.repeatSchedule : null,
         }));
         careTypeFields.walkDurationMins = walkDurationMins;
       }
       if (addOnCareTypes.has('feeding')) {
         careTypeFields.feedingSlots = feedingSlots.map(s => ({
           time: formatTime12(s.time),
-          daily: primaryCareType === 'overnight' ? s.daily : false,
+          repeatSchedule: primaryCareType === 'overnight' && s.repeatSchedule ? s.repeatSchedule : null,
           dogIds: s.dogIds,
         }));
       }
@@ -718,7 +763,7 @@ const MAX_PLAY_SESSIONS = 5;
         careTypeFields.medicationSlots = medicationSlots.map(s => ({
           time: formatTime12(s.time),
           details: s.details.trim(),
-          daily: primaryCareType === 'overnight' ? s.daily : false,
+          repeatSchedule: primaryCareType === 'overnight' && s.repeatSchedule ? s.repeatSchedule : null,
           dogIds: s.dogIds,
         }));
       }
@@ -730,7 +775,7 @@ const MAX_PLAY_SESSIONS = 5;
           startTime: s.flexible ? null : formatTime12(s.startDate),
           endTime: s.flexible ? null : formatTime12(s.endDate),
           durationMins: s.flexible ? s.durationMins : getPlayDurationMins(s),
-          repeatDaily: primaryCareType === 'overnight' ? s.repeatDaily : false,
+          repeatSchedule: primaryCareType === 'overnight' && s.repeatSchedule ? s.repeatSchedule : null,
           dogIds: s.dogIds,
         }));
       }
@@ -1203,21 +1248,11 @@ const MAX_PLAY_SESSIONS = 5;
                         {primaryCareType === 'overnight' && (
                           <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                            onPress={() => {
-                              const newVal = !slot.daily;
-                              updateFeedingSlot(idx, 'daily', newVal);
-                              if (newVal) {
-                                Alert.alert(
-                                  'Repeat Daily',
-                                  'By selecting this, the caretaker will be expected to do this every day during the stay.',
-                                  [{ text: 'Got it' }],
-                                );
-                              }
-                            }}
+                            onPress={() => openRepeatModal('feeding', idx)}
                             activeOpacity={0.7}
                           >
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: slot.daily ? '#34C759' : colors.primary }}>
-                              {slot.daily ? '✅ Repeat daily' : '📅 Repeat daily?'}
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.primary }}>
+                              {slot.repeatSchedule ? '✅ ' + formatRepeatLabel(slot.repeatSchedule) : '📅 Repeat this?'}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -1333,21 +1368,11 @@ const MAX_PLAY_SESSIONS = 5;
                         {primaryCareType === 'overnight' && (
                           <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                            onPress={() => {
-                              const newVal = !ws.repeatDaily;
-                              updateWalkSession(wIdx, { repeatDaily: newVal });
-                              if (newVal) {
-                                Alert.alert(
-                                  'Repeat Daily',
-                                  'By selecting this, the caretaker will be expected to do this every day during the stay.',
-                                  [{ text: 'Got it' }],
-                                );
-                              }
-                            }}
+                            onPress={() => openRepeatModal('walk', wIdx)}
                             activeOpacity={0.7}
                           >
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: ws.repeatDaily ? '#34C759' : colors.primary }}>
-                              {ws.repeatDaily ? '✅ Repeat daily' : '📅 Repeat daily?'}
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: ws.repeatSchedule ? '#34C759' : colors.primary }}>
+                              {ws.repeatSchedule ? '✅ ' + formatRepeatLabel(ws.repeatSchedule) : '📅 Repeat this?'}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -1482,21 +1507,11 @@ const MAX_PLAY_SESSIONS = 5;
                         {primaryCareType === 'overnight' && (
                           <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                            onPress={() => {
-                              const newVal = !pSession.repeatDaily;
-                              updatePlaySession(pIdx, { repeatDaily: newVal });
-                              if (newVal) {
-                                Alert.alert(
-                                  'Repeat Daily',
-                                  'By selecting this, the caretaker will be expected to do this every day during the stay.',
-                                  [{ text: 'Got it' }],
-                                );
-                              }
-                            }}
+                            onPress={() => openRepeatModal('play', pIdx)}
                             activeOpacity={0.7}
                           >
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: pSession.repeatDaily ? '#34C759' : colors.primary }}>
-                              {pSession.repeatDaily ? '✅ Repeat daily' : '📅 Repeat daily?'}
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: pSession.repeatSchedule ? '#34C759' : colors.primary }}>
+                              {pSession.repeatSchedule ? '✅ ' + formatRepeatLabel(pSession.repeatSchedule) : '📅 Repeat this?'}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -1690,21 +1705,11 @@ const MAX_PLAY_SESSIONS = 5;
                         {primaryCareType === 'overnight' && (
                           <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                            onPress={() => {
-                              const newVal = !slot.daily;
-                              updateMedicationSlot(idx, 'daily', newVal);
-                              if (newVal) {
-                                Alert.alert(
-                                  'Repeat Daily',
-                                  'By selecting this, the caretaker will be expected to do this every day during the stay.',
-                                  [{ text: 'Got it' }],
-                                );
-                              }
-                            }}
+                            onPress={() => openRepeatModal('medication', idx)}
                             activeOpacity={0.7}
                           >
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: slot.daily ? '#34C759' : colors.primary }}>
-                              {slot.daily ? '✅ Repeat daily' : '📅 Repeat daily?'}
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.primary }}>
+                              {slot.repeatSchedule ? '\u2705 ' + formatRepeatLabel(slot.repeatSchedule) : '\U0001f4c5 Repeat this?'}
                             </Text>
                           </TouchableOpacity>
                         )}
