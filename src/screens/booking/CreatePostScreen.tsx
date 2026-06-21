@@ -330,18 +330,19 @@ const MAX_PLAY_SESSIONS = 5;
 
 
   // Check if a care type has any user-filled data
+  // Only count actual user-entered data as progress (not auto-populated dogIds)
   const hasFilledData = (type: string): boolean => {
     if (type === 'feeding') {
-      return feedingSlots.some(s => s.time || s.instructions.trim() || s.photos.length > 0 || s.dogIds.length > 0 || s.repeatSchedule);
+      return feedingSlots.some(s => s.time || s.instructions.trim() || s.photos.length > 0 || s.repeatSchedule);
     }
     if (type === 'dogWalking') {
-      return walkSessions.some(s => s.startDate || s.endDate || (s.instructions && s.instructions.trim()) || s.photos.length > 0 || s.dogIds.length > 0 || s.repeatSchedule);
+      return walkSessions.some(s => s.startDate || s.endDate || (s.instructions && s.instructions.trim()) || s.photos.length > 0 || s.repeatSchedule);
     }
     if (type === 'playtime') {
-      return playSessions.some(s => s.startDate || s.endDate || (s.instructions && s.instructions.trim()) || s.photos.length > 0 || s.dogIds.length > 0 || s.repeatSchedule);
+      return playSessions.some(s => s.startDate || s.endDate || (s.instructions && s.instructions.trim()) || s.photos.length > 0 || s.repeatSchedule || s.flexible);
     }
     if (type === 'medication') {
-      return medicationSlots.some(s => s.time || s.details.trim() || s.photos.length > 0 || s.dogIds.length > 0 || s.repeatSchedule || s.extraTimes.length > 0);
+      return medicationSlots.some(s => s.time || s.details.trim() || s.photos.length > 0 || s.repeatSchedule || s.extraTimes.length > 0);
     }
     if (type === 'overnight' || type === 'daySitting') {
       return startDateSelected || endDateSelected || overnightLocation !== null || careAddress.trim().length > 0;
