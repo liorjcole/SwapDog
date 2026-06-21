@@ -1033,7 +1033,7 @@ const MAX_PLAY_SESSIONS = 5;
   // ── Recommended points calculator ──
   const recommendedPoints = useMemo(() => {
     let total = 0;
-    const breakdown: { label: string; pts: number }[] = [];
+    const breakdown: { label: string; rateLine: string; detailLine: string; pts: number }[] = [];
     const numDogs = selectedDogs.length || 1;
     const dogMultiplier = 1 + (numDogs - 1) * 0.1; // +10% per extra dog
 
@@ -1062,13 +1062,13 @@ const MAX_PLAY_SESSIONS = 5;
     if (hasOvernight) {
       const pts = 6 * dayCount;
       total += pts;
-      breakdown.push({ label: 'Overnight (' + dayCount + ' night' + (dayCount > 1 ? 's' : '') + ')', pts });
+      breakdown.push({ label: 'Overnight', rateLine: '6 points per night', detailLine: '(' + dayCount + ' night' + (dayCount > 1 ? 's' : '') + ' total)', pts });
     }
     if (hasDaySitting && daySittingMinutes && daySittingMinutes > 0) {
       const hrs = daySittingMinutes / 60;
       const pts = Math.round(hrs * 10) / 10;
       total += pts;
-      breakdown.push({ label: 'Day sitting (' + hrs.toFixed(1) + ' hr' + (hrs !== 1 ? 's' : '') + ')', pts });
+      breakdown.push({ label: 'Day sitting', rateLine: '1 point per hour', detailLine: '(' + hrs.toFixed(1) + ' hour' + (hrs !== 1 ? 's' : '') + ' total)', pts });
     }
 
     // ── Walk: 0.5/hr with overnight/day sitting, 1/hr standalone ──
@@ -1090,7 +1090,7 @@ const MAX_PLAY_SESSIONS = 5;
       if (walkPts > 0) {
         total += walkPts;
         const lbl = totalHrs === 1 ? '1 hr' : totalHrs.toFixed(1) + ' hrs';
-        breakdown.push({ label: 'Walk (' + lbl + ' @ ' + rate + '/hr)', pts: walkPts });
+        breakdown.push({ label: 'Walk', rateLine: rate + ' point' + (rate !== 1 ? 's' : '') + ' per hour', detailLine: '(' + totalHrs.toFixed(1).replace(/\.0$/, '') + ' hour' + (totalHrs !== 1 ? 's' : '') + ' total)', pts: walkPts });
       }
     }
 
@@ -1110,7 +1110,7 @@ const MAX_PLAY_SESSIONS = 5;
       if (playPts > 0) {
         total += playPts;
         const lbl = totalHrs === 1 ? '1 hr' : totalHrs.toFixed(1) + ' hrs';
-        breakdown.push({ label: 'Playtime (' + lbl + ' @ ' + rate + '/hr)', pts: playPts });
+        breakdown.push({ label: 'Playtime', rateLine: rate + ' point' + (rate !== 1 ? 's' : '') + ' per hour', detailLine: '(' + totalHrs.toFixed(1).replace(/\.0$/, '') + ' hour' + (totalHrs !== 1 ? 's' : '') + ' total)', pts: playPts });
       }
     }
 
@@ -1119,20 +1119,20 @@ const MAX_PLAY_SESSIONS = 5;
       // Included in overnight/day sitting — 0 extra pts (not shown)
     } else if (hasWalkOrPlay) {
       // Add-on to walk/play: +0.5 each
-      if (hasFeeding) { total += 0.5; breakdown.push({ label: 'Feeding (add-on)', pts: 0.5 }); }
-      if (hasMeds) { total += 0.5; breakdown.push({ label: 'Medication (add-on)', pts: 0.5 }); }
+      if (hasFeeding) { total += 0.5; breakdown.push({ label: 'Feeding', rateLine: '0.5 points', detailLine: '(add-on)', pts: 0.5 }); }
+      if (hasMeds) { total += 0.5; breakdown.push({ label: 'Medication', rateLine: '0.5 points', detailLine: '(add-on)', pts: 0.5 }); }
     } else {
       // Standalone feeding/meds only
       if (hasFeeding && hasMeds) {
         total += 1.5;
-        breakdown.push({ label: 'Feeding', pts: 1 });
-        breakdown.push({ label: 'Medication', pts: 0.5 });
+        breakdown.push({ label: 'Feeding', rateLine: '1 point', detailLine: '(standalone visit)', pts: 1 });
+        breakdown.push({ label: 'Medication', rateLine: '0.5 points', detailLine: '(standalone visit)', pts: 0.5 });
       } else if (hasFeeding) {
         total += 1;
-        breakdown.push({ label: 'Feeding', pts: 1 });
+        breakdown.push({ label: 'Feeding', rateLine: '1 point', detailLine: '(standalone visit)', pts: 1 });
       } else if (hasMeds) {
         total += 1;
-        breakdown.push({ label: 'Medication', pts: 1 });
+        breakdown.push({ label: 'Medication', rateLine: '1 point', detailLine: '(standalone visit)', pts: 1 });
       }
     }
 
@@ -3253,9 +3253,12 @@ const MAX_PLAY_SESSIONS = 5;
                       </View>
                       <View style={{ padding: 12, backgroundColor: colors.background }}>
                       {recommendedPoints.breakdown.map((item, i) => (
-                        <View key={i} style={styles.guideRow}>
-                          <Text style={[styles.guideRowLabel, { color: colors.text }]}>{item.label}</Text>
-                          <Text style={[styles.guideRowValue, { color: colors.primary }]}>{item.pts} pt{item.pts !== 1 ? "s" : ""}</Text>
+                        <View key={i} style={{ paddingVertical: 6, borderBottomWidth: i < recommendedPoints.breakdown.length - 1 ? 0.5 : 0, borderBottomColor: colors.border }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{item.label}: {item.rateLine}</Text>
+                            <Text style={[styles.guideRowValue, { color: colors.primary }]}>{item.pts} {item.pts === 1 ? 'point' : 'points'}</Text>
+                          </View>
+                          <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '400', marginTop: 2 }}>{item.detailLine}</Text>
                         </View>
                       ))}
                       {recommendedPoints.numDogs > 1 && (
@@ -3263,7 +3266,7 @@ const MAX_PLAY_SESSIONS = 5;
                           <Text style={[styles.guideRowLabel, { color: colors.text }]}>
                             +10% per additional pup ({recommendedPoints.numDogs} pups)
                           </Text>
-                          <Text style={[styles.guideRowValue, { color: colors.primary }]}>+{recommendedPoints.surcharge} pt{recommendedPoints.surcharge !== 1 ? "s" : ""}</Text>
+                          <Text style={[styles.guideRowValue, { color: colors.primary }]}>+{recommendedPoints.surcharge} {recommendedPoints.surcharge === 1 ? 'point' : 'points'}</Text>
                         </View>
                       )}
 
@@ -3271,7 +3274,7 @@ const MAX_PLAY_SESSIONS = 5;
                       <View style={{ borderTopWidth: 0.5, borderTopColor: colors.border, marginTop: 8, paddingTop: 8 }}>
                         <View style={styles.guideRow}>
                           <Text style={[styles.guideRowLabel, { color: colors.text, fontWeight: '700' }]}>Total</Text>
-                          <Text style={[styles.guideRowValue, { color: colors.primary, fontWeight: '700' }]}>{recommendedPoints.total} pts</Text>
+                          <Text style={[styles.guideRowValue, { color: colors.primary, fontWeight: '700' }]}>{recommendedPoints.total} points</Text>
                         </View>
                       </View>
 
@@ -3289,47 +3292,47 @@ const MAX_PLAY_SESSIONS = 5;
                       </View>
                       <View style={{ padding: 12, backgroundColor: colors.background }}>
                       <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 19 }}>
-                        Rates vary per job — for example, a standalone feeding is 1 pt because the caretaker is traveling just for that visit, but we don{"'"}t add points for a feeding on an overnight stay because the caretaker is already there and getting points for the day. That{"'"}s why some services on the chart below are ranges!
+                        Rates vary per job — for example, a standalone feeding is 1 point because the caretaker is traveling just for that visit, but we don{"'"}t add points for a feeding on an overnight stay because the caretaker is already there and getting points for the night. That{"'"}s why some services on the chart below are ranges!
                       </Text>
 
                       <View style={{ marginTop: 12 }}>
                         {/* Fixed rates — no range */}
                         <View style={styles.guideRow}>
                           <Text style={{ fontSize: 14, color: colors.text }}>Overnight stay</Text>
-                          <Text style={{ fontSize: 14, color: colors.textSecondary }}>6 pts / night</Text>
+                          <Text style={{ fontSize: 14, color: colors.textSecondary }}>6 points / night</Text>
                         </View>
                         <View style={styles.guideRow}>
                           <Text style={{ fontSize: 14, color: colors.text }}>Daytime care</Text>
-                          <Text style={{ fontSize: 14, color: colors.textSecondary }}>1 pt / hr</Text>
+                          <Text style={{ fontSize: 14, color: colors.textSecondary }}>1 point / hour</Text>
                         </View>
                         {/* Range rates — underlined + tappable */}
                         <View style={styles.guideRow}>
                           <Text style={{ fontSize: 14, color: colors.text }}>Walks</Text>
                           <Text
                             style={{ fontSize: 14, color: colors.textSecondary, textDecorationLine: 'underline' }}
-                            onPress={() => Alert.alert('Walk Rates', '0.5 pts/hr when the caretaker is already there (overnight or day sitting) — they\'re just adding a walk to the stay.\n\n1 pt/hr as a standalone visit — the caretaker is traveling just for the walk.')}
-                          >0.5 – 1 pt / hr</Text>
+                            onPress={() => Alert.alert('Walk Rates', '0.5 points/hour when the caretaker is already there (overnight or day sitting) — they\'re just adding a walk to the stay.\n\n1 point/hour as a standalone visit — the caretaker is traveling just for the walk.')}
+                          >0.5 – 1 point / hour</Text>
                         </View>
                         <View style={styles.guideRow}>
                           <Text style={{ fontSize: 14, color: colors.text }}>Playtime</Text>
                           <Text
                             style={{ fontSize: 14, color: colors.textSecondary, textDecorationLine: 'underline' }}
-                            onPress={() => Alert.alert('Playtime Rates', '0.5 pts/hr when the caretaker is already there (overnight or day sitting) — they\'re just adding playtime to the stay.\n\n1 pt/hr as a standalone visit — the caretaker is traveling just for playtime.')}
-                          >0.5 – 1 pt / hr</Text>
+                            onPress={() => Alert.alert('Playtime Rates', '0.5 points/hour when the caretaker is already there (overnight or day sitting) — they\'re just adding playtime to the stay.\n\n1 point/hour as a standalone visit — the caretaker is traveling just for playtime.')}
+                          >0.5 – 1 point / hour</Text>
                         </View>
                         <View style={styles.guideRow}>
                           <Text style={{ fontSize: 14, color: colors.text }}>Feeding</Text>
                           <Text
                             style={{ fontSize: 14, color: colors.textSecondary, textDecorationLine: 'underline' }}
-                            onPress={() => Alert.alert('Feeding Rates', '0 pts during an overnight or day sitting stay — the caretaker is already there, so feeding is included.\n\n1 pt as a standalone visit — the caretaker is traveling just to feed your pup.')}
-                          >0 – 1 pt</Text>
+                            onPress={() => Alert.alert('Feeding Rates', '0 points during an overnight or day sitting stay — the caretaker is already there, so feeding is included.\n\n1 point as a standalone visit — the caretaker is traveling just to feed your pup.')}
+                          >0 – 1 points</Text>
                         </View>
                         <View style={styles.guideRow}>
                           <Text style={{ fontSize: 14, color: colors.text }}>Medication</Text>
                           <Text
                             style={{ fontSize: 14, color: colors.textSecondary, textDecorationLine: 'underline' }}
-                            onPress={() => Alert.alert('Medication Rates', '0 pts during an overnight or day sitting stay — the caretaker is already there, so giving meds is included.\n\n1 pt as a standalone visit — the caretaker is traveling just to give medication.')}
-                          >0 – 1 pt</Text>
+                            onPress={() => Alert.alert('Medication Rates', '0 points during an overnight or day sitting stay — the caretaker is already there, so giving meds is included.\n\n1 point as a standalone visit — the caretaker is traveling just to give medication.')}
+                          >0 – 1 points</Text>
                         </View>
                         <View style={styles.guideRow}>
                           <Text style={{ fontSize: 14, color: colors.text }}>Extra dogs</Text>
@@ -3412,7 +3415,7 @@ const MAX_PLAY_SESSIONS = 5;
                       inputAccessoryViewID={DONE_ACCESSORY_ID}
                       onFocus={() => scrollToInput('points')}
                     />
-                    <Text style={[styles.pointsUnit, { color: colors.textSecondary }]}>pts</Text>
+                    <Text style={[styles.pointsUnit, { color: colors.textSecondary }]}>points</Text>
                   </View>
 
                   {/* Insufficient points warning */}
