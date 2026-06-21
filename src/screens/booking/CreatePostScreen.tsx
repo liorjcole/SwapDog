@@ -1398,7 +1398,7 @@ const MAX_PLAY_SESSIONS = 5;
                               {slot.repeatSchedule ? '✓ ' + formatRepeatLabel(slot.repeatSchedule) : 'Repeat this?'}
                             </Text>
                               {slot.repeatSchedule && formatRepeatSubLabel(slot.repeatSchedule) && (
-                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1 }}>
+                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, textAlign: 'center' }}>
                                   {formatRepeatSubLabel(slot.repeatSchedule)}
                                 </Text>
                               )}
@@ -1529,7 +1529,7 @@ const MAX_PLAY_SESSIONS = 5;
                               {ws.repeatSchedule ? '✓ ' + formatRepeatLabel(ws.repeatSchedule) : 'Repeat this?'}
                             </Text>
                               {ws.repeatSchedule && formatRepeatSubLabel(ws.repeatSchedule) && (
-                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1 }}>
+                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, textAlign: 'center' }}>
                                   {formatRepeatSubLabel(ws.repeatSchedule)}
                                 </Text>
                               )}
@@ -1681,7 +1681,7 @@ const MAX_PLAY_SESSIONS = 5;
                               {pSession.repeatSchedule ? '✓ ' + formatRepeatLabel(pSession.repeatSchedule) : 'Repeat this?'}
                             </Text>
                               {pSession.repeatSchedule && formatRepeatSubLabel(pSession.repeatSchedule) && (
-                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1 }}>
+                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, textAlign: 'center' }}>
                                   {formatRepeatSubLabel(pSession.repeatSchedule)}
                                 </Text>
                               )}
@@ -1892,7 +1892,7 @@ const MAX_PLAY_SESSIONS = 5;
                               {slot.repeatSchedule ? '✓ ' + formatRepeatLabel(slot.repeatSchedule) : 'Repeat this?'}
                             </Text>
                               {slot.repeatSchedule && formatRepeatSubLabel(slot.repeatSchedule) && (
-                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1 }}>
+                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, textAlign: 'center' }}>
                                   {formatRepeatSubLabel(slot.repeatSchedule)}
                                 </Text>
                               )}
