@@ -31,6 +31,7 @@ import { Dog, CompensationType, CareType, RepeatSchedule, formatRepeatLabel } fr
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { uploadPhotoToStorage } from '../../utils/uploadHelper';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import RepeatScheduleModal from '../../components/common/RepeatScheduleModal';
 import ConfettiCelebration, { CelebrationItem } from '../../components/common/ConfettiCelebration';
 import Chip from '../../components/common/Chip';
 import { formatDogAge } from '../../utils/formatDogAge';
@@ -2091,6 +2092,14 @@ const MAX_PLAY_SESSIONS = 5;
           setCelebrationQueue([]);
           navigation.goBack();
         }}
+      />
+      <RepeatScheduleModal
+        visible={repeatModalVisible}
+        onClose={() => { setRepeatModalVisible(false); setRepeatModalTarget(null); }}
+        onConfirm={handleRepeatConfirm}
+        onClear={handleRepeatClear}
+        currentSchedule={getRepeatScheduleForTarget()}
+        defaultTime={getRepeatDefaultTime()}
       />
     </View>
   );
