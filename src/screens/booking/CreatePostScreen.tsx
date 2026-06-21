@@ -283,6 +283,7 @@ const MAX_PLAY_SESSIONS = 5;
   const [showRangeCalendar, setShowRangeCalendar] = useState(false);
   const [rangeSelectStep, setRangeSelectStep] = useState<'start' | 'end'>('start');
   const [endDateSelected, setEndDateSelected] = useState(false);
+  const [startDateSelected, setStartDateSelected] = useState(false);
 
   // Time fields — Date objects for native spinner picker
   const [startTimeDate, setStartTimeDate] = useState(() => {
@@ -837,6 +838,14 @@ const MAX_PLAY_SESSIONS = 5;
       });
       if (!proceed) return;
     }
+    if (!startDateSelected) {
+      showValidationAlert('Date Required', 'Please select a date for your care request.', 'dates');
+      return;
+    }
+    if (careType === 'overnight' && !endDateSelected) {
+      showValidationAlert('End Date Required', 'Please select both a start and end date for overnight sitting.', 'dates');
+      return;
+    }
     if (careDetails.trim().length < MIN_CARE_DETAILS) {
       showValidationAlert('Care Details Required', `Please provide at least ${MIN_CARE_DETAILS} characters`, 'careDetails');
       return;
@@ -1246,7 +1255,7 @@ const MAX_PLAY_SESSIONS = 5;
                       accessibilityRole="button"
                     >
                       <Text style={[styles.dateButtonLabel, { color: colors.textSecondary }]}>DATE</Text>
-                      <Text style={[styles.dateButtonValue, { color: colors.text }]}>{formatDate(startDate)}</Text>
+                      <Text style={[styles.dateButtonValue, { color: startDateSelected ? colors.text : colors.textSecondary }]}>{startDateSelected ? formatDate(startDate) : 'No date selected!'}</Text>
                     </TouchableOpacity>
                     {showStart && (
                       <DateTimePicker
@@ -1258,7 +1267,7 @@ const MAX_PLAY_SESSIONS = 5;
                         accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           setShowStart(Platform.OS === 'ios');
-                          if (d) setStartDate(d);
+                          if (d) { setStartDate(d); setStartDateSelected(true); }
                           if (Platform.OS !== 'ios') setShowStart(false);
                         }}
                       />
@@ -1276,8 +1285,12 @@ const MAX_PLAY_SESSIONS = 5;
                       accessibilityRole="button"
                     >
                       <Text style={[styles.dateButtonLabel, { color: colors.textSecondary }]}>DATES</Text>
-                      <Text style={[styles.dateButtonValue, { color: colors.text }]}>
-                        {endDateSelected ? `${formatDate(startDate)} → ${formatDate(endDate)}` : formatDate(startDate)}
+                      <Text style={[styles.dateButtonValue, { color: startDateSelected ? colors.text : colors.textSecondary }]}>
+                        {!startDateSelected
+                          ? 'No dates selected!'
+                          : endDateSelected
+                            ? `${formatDate(startDate)} →\n${formatDate(endDate)}`
+                            : formatDate(startDate)}
                       </Text>
                     </TouchableOpacity>
 
@@ -1311,6 +1324,7 @@ const MAX_PLAY_SESSIONS = 5;
                             const selected = new Date(day.dateString + 'T12:00:00');
                             if (rangeSelectStep === 'start') {
                               setStartDate(selected);
+                              setStartDateSelected(true);
                               setEndDateSelected(false);
                               setRangeSelectStep('end');
                             } else {
@@ -1321,6 +1335,7 @@ const MAX_PLAY_SESSIONS = 5;
                               } else {
                                 // Tapped before or on start — restart selection from here
                                 setStartDate(selected);
+                                setStartDateSelected(true);
                                 setEndDateSelected(false);
                                 // Stay on 'end' step
                               }
