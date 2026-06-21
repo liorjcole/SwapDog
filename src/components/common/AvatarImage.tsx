@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Image, View, Text, StyleProp, ViewStyle, ImageStyle, TouchableOpacity } from 'react-native';
 
 /**
@@ -18,6 +18,13 @@ const BG_COLORS = ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','
 
 const AvatarImage: React.FC<AvatarImageProps> = ({ photoURL, displayName, size, style, emojiSize, onPress }) => {
   const [failed, setFailed] = useState(false);
+
+  // Reset failure state when the URL changes — prevents permanent
+  // emoji fallback after a transient network error
+  useEffect(() => {
+    setFailed(false);
+  }, [photoURL]);
+
   const hasURL = !!photoURL && photoURL.length > 0 && !failed && !photoURL.startsWith('file://');
   const bgColor = BG_COLORS[(displayName?.length ?? 0) % BG_COLORS.length];
   const emoji = emojiSize ?? Math.round(size * 0.55);
