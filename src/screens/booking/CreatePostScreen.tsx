@@ -12,7 +12,8 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, Platform, Switch, Image, ActivityIndicator, Animated, Dimensions } from 'react-native';
+  Alert, Platform, Switch, Image, ActivityIndicator, Animated, Dimensions, Modal, KeyboardAvoidingView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Calendar, DateData } from 'react-native-calendars';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -138,6 +139,12 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [primaryCareType, setPrimaryCareType] = useState<'overnight' | 'daySitting' | null>(null);
   const [addOnCareTypes, setAddOnCareTypes] = useState<Set<CareType>>(new Set());
   const [overnightLocation, setOvernightLocation] = useState<'my_home' | 'sitters_home' | 'no_preference' | null>(null);
+  // Address modal state
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [careAddress, setCareAddress] = useState('');
+  const [savedAddresses, setSavedAddresses] = useState<string[]>([]);
+  // Sitter's home: pickup or dropoff
+  const [sitterTransport, setSitterTransport] = useState<'pickup' | 'dropoff' | null>(null);
   // Playtime — multi-session support (max 5 sessions)
   interface PlaySession {
     flexible: boolean;
@@ -608,6 +615,25 @@ const MAX_PLAY_SESSIONS = 5;
   const [pointsOffered, setPointsOffered] = useState('');
   const [showPricingGuide, setShowPricingGuide] = useState(false);
 
+  // Load saved addresses from AsyncStorage
+  useEffect(() => {
+    AsyncStorage.getItem('saved_addresses').then(val => {
+      if (val) setSavedAddresses(JSON.parse(val));
+    }).catch(() => {});
+  }, []);
+
+  const suggestedAddress = userProfile?.locationName ?? '';
+
+  const saveAddress = async (addr: string) => {
+    const trimmed = addr.trim();
+    if (!trimmed) return;
+    setCareAddress(trimmed);
+    const updated = [trimmed, ...savedAddresses.filter(a => a !== trimmed)].slice(0, 5);
+    setSavedAddresses(updated);
+    await AsyncStorage.setItem('saved_addresses', JSON.stringify(updated));
+    setShowAddressModal(false);
+  };
+
   useEffect(() => {
     if (!user) return;
     getDogsByOwner(user.uid).then((dogs) => {
@@ -1045,7 +1071,7 @@ const MAX_PLAY_SESSIONS = 5;
         : {};
 
       // Care-type-specific optional fields
-      const careTypeFields: Record<string, unknown> = { careType: primaryCareType, addOnCareTypes: Array.from(addOnCareTypes), overnightLocation: (primaryCareType === 'overnight' || primaryCareType === 'daySitting') ? overnightLocation : null };
+      const careTypeFields: Record<string, unknown> = { careType: primaryCareType, addOnCareTypes: Array.from(addOnCareTypes), overnightLocation: (primaryCareType === 'overnight' || primaryCareType === 'daySitting') ? overnightLocation : null, careAddress: careAddress.trim() || undefined, sitterTransport: overnightLocation === 'sitters_home' ? sitterTransport : undefined };
       if (offerPoints) {
         careTypeFields.pointsOffered = parseInt(pointsOffered, 10);
       }
@@ -1317,6 +1343,7 @@ const MAX_PLAY_SESSIONS = 5;
                     style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}
                     onPress={() => {
                       setOvernightLocation(option.value);
+                      if (option.value !== 'sitters_home') setSitterTransport(null);
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     }}
                     activeOpacity={0.7}
@@ -1339,6 +1366,82 @@ const MAX_PLAY_SESSIONS = 5;
                   </TouchableOpacity>
                 );
               })}
+            </View>
+          )}
+
+          {/* ── My Home: Enter Address ── */}
+          {(primaryCareType === 'overnight' || primaryCareType === 'daySitting') && overnightLocation === 'my_home' && (
+            <View style={{ marginTop: 12 }}>
+              <TouchableOpacity
+                onPress={() => setShowAddressModal(true)}
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                activeOpacity={0.7}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, color: careAddress ? colors.text : colors.textSecondary, fontWeight: careAddress ? '500' : '400' }}>
+                    {careAddress || '📍 Enter your home address'}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '600' }}>{careAddress ? 'Edit' : 'Add'}</Text>
+              </TouchableOpacity>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 6, textAlign: 'center' }}>
+                🔒 Your address is kept private and only shared with an accepted caretaker.
+              </Text>
+            </View>
+          )}
+
+          {/* ── Sitter's Home: Pickup or Dropoff ── */}
+          {(primaryCareType === 'overnight' || primaryCareType === 'daySitting') && overnightLocation === 'sitters_home' && (
+            <View style={{ marginTop: 12, gap: 8 }}>
+              <Text style={{ fontSize: 14, color: colors.textSecondary, fontWeight: '500' }}>How will your pup get there?</Text>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                {([
+                  { value: 'pickup' as const, label: '🚗 Caretaker picks up' },
+                  { value: 'dropoff' as const, label: '📦 I\'ll drop off' },
+                ] as const).map((opt) => {
+                  const sel = sitterTransport === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.value}
+                      onPress={() => { setSitterTransport(opt.value); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                      style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: sel ? 2 : 1, borderColor: sel ? colors.primary : colors.border, backgroundColor: sel ? colors.primary + '18' : colors.background, alignItems: 'center' }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={{ fontSize: 14, color: sel ? colors.primary : colors.text, fontWeight: sel ? '700' : '500' }}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Pickup selected — need user address */}
+              {sitterTransport === 'pickup' && (
+                <View style={{ marginTop: 4 }}>
+                  <TouchableOpacity
+                    onPress={() => setShowAddressModal(true)}
+                    style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 15, color: careAddress ? colors.text : colors.textSecondary, fontWeight: careAddress ? '500' : '400' }}>
+                        {careAddress || '📍 Enter your pickup address'}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '600' }}>{careAddress ? 'Edit' : 'Add'}</Text>
+                  </TouchableOpacity>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 6, textAlign: 'center' }}>
+                    🔒 Your address is kept private and only shared with an accepted caretaker.
+                  </Text>
+                </View>
+              )}
+
+              {/* Dropoff selected — info note */}
+              {sitterTransport === 'dropoff' && (
+                <View style={{ backgroundColor: colors.background, borderRadius: 10, padding: 14, marginTop: 4 }}>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
+                    Once a caretaker is confirmed, you can message them directly to coordinate their address and handoff details. 💬
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -2893,6 +2996,85 @@ const MAX_PLAY_SESSIONS = 5;
         currentSchedule={getRepeatScheduleForTarget()}
         defaultTime={getRepeatDefaultTime()}
       />
+
+      {/* ── Address Entry Modal ── */}
+      <Modal
+        visible={showAddressModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAddressModal(false)}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowAddressModal(false)} />
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: 4 }}>Enter Address</Text>
+            <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginBottom: 16 }}>
+              🔒 Your address is kept private and only revealed to an accepted caretaker.
+            </Text>
+
+            {/* Suggested address from profile location */}
+            {suggestedAddress.length > 0 && careAddress !== suggestedAddress && (
+              <TouchableOpacity
+                onPress={() => saveAddress(suggestedAddress)}
+                style={{ backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '40', borderRadius: 10, padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '600', marginRight: 6 }}>📍</Text>
+                <Text style={{ fontSize: 15, color: colors.text, flex: 1 }}>{suggestedAddress}</Text>
+                <Text style={{ fontSize: 12, color: colors.textSecondary }}>Your location</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Saved addresses */}
+            {savedAddresses.filter(a => a !== suggestedAddress && a !== careAddress).length > 0 && (
+              <View style={{ marginBottom: 10 }}>
+                <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '600', marginBottom: 6 }}>Saved addresses</Text>
+                {savedAddresses.filter(a => a !== suggestedAddress && a !== careAddress).map((addr, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    onPress={() => saveAddress(addr)}
+                    style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, marginBottom: 6, flexDirection: 'row', alignItems: 'center' }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontSize: 14, color: colors.textSecondary, marginRight: 6 }}>🏠</Text>
+                    <Text style={{ fontSize: 15, color: colors.text, flex: 1 }}>{addr}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Manual entry */}
+            <TextInput
+              style={{
+                backgroundColor: colors.background,
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: 10,
+                padding: 14,
+                fontSize: 16,
+                color: colors.text,
+                minHeight: 48,
+              }}
+              placeholder="Enter a new address..."
+              placeholderTextColor={colors.textSecondary}
+              value={careAddress}
+              onChangeText={setCareAddress}
+              autoFocus={!suggestedAddress && savedAddresses.length === 0}
+              returnKeyType="done"
+              blurOnSubmit={true}
+              onSubmitEditing={() => { if (careAddress.trim()) saveAddress(careAddress); }}
+            />
+
+            <TouchableOpacity
+              onPress={() => { if (careAddress.trim()) saveAddress(careAddress); else Alert.alert('Address Required', 'Please enter an address.'); }}
+              style={{ backgroundColor: colors.primary, borderRadius: 12, padding: 16, marginTop: 14, alignItems: 'center' }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>Save Address</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     <KeyboardDoneBar />
 </View>
   );
