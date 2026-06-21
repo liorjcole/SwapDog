@@ -2013,7 +2013,7 @@ const MAX_PLAY_SESSIONS = 5;
               {offerPoints && recommendedPoints.total > 0 && (
                 <View style={styles.recBox}>
                   <Text style={{ fontSize: 16, color: colors.textSecondary, lineHeight: 20 }}>
-                    Suggested <Text style={{ fontWeight: '700', color: colors.primary }}>{recommendedPoints.total} pts</Text> based on the care you've selected… but it's ultimately up to you!
+                    Suggested <Text style={{ fontWeight: '700', color: colors.primary }}>{recommendedPoints.total} points</Text> based on the care you've selected… but it's up to you!
                   </Text>
 
                   {/* Expandable pricing guide */}
@@ -2042,17 +2042,13 @@ const MAX_PLAY_SESSIONS = 5;
                       {recommendedPoints.numDogs > 1 && (
                         <View style={[styles.guideRow, { borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 8, marginTop: 4 }]}>
                           <Text style={[styles.guideRowLabel, { color: colors.text }]}>
-                            Multi-dog adjustment ({recommendedPoints.numDogs} dogs, +{((recommendedPoints.numDogs - 1) * 10)}%)
+                            +10% per additional pup ({recommendedPoints.numDogs} pups)
                           </Text>
                           <Text style={[styles.guideRowValue, { color: colors.primary }]}>{recommendedPoints.total} pts</Text>
                         </View>
                       )}
 
-                      {recommendedPoints.numDogs > 1 && (
-                        <Text style={[styles.guideNote, { color: colors.textSecondary }]}>
-                          We increase our suggested rate 10% for each additional pup!
-                        </Text>
-                      )}
+
                     </View>
                   )}
                 </View>
