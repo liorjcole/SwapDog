@@ -602,6 +602,58 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const isOwner = user?.uid === post.posterId;
   const respondents = post.respondedBy ?? [];
+  // Owner can edit compensation only when no active (non-declined) respondents exist
+  const hasActiveRespondents = respondents.some(r => !r.counterStatus || r.counterStatus !== 'declined');
+  const canEditComp = isOwner && post.status === 'open' && !hasActiveRespondents;
+
+  // Inline compensation editing
+  const [editingComp, setEditingComp] = useState(false);
+  const [editCompValue, setEditCompValue] = useState('');
+
+  const startEditingComp = () => {
+    if (!canEditComp) return;
+    // Pre-fill with current value
+    if (post.compensationType === 'points' || post.compensationType === 'either') {
+      setEditCompValue(String(post.pointsOffered ?? post.pointsCost ?? 0));
+    } else {
+      setEditCompValue(String(post.paymentAmount ?? post.totalPayment ?? 0));
+    }
+    setEditingComp(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const saveCompensation = async () => {
+    const numVal = Number(editCompValue);
+    if (isNaN(numVal) || numVal < 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid number.');
+      return;
+    }
+
+    try {
+      const updates: Record<string, any> = { updatedAt: serverTimestamp() };
+
+      if (post.compensationType === 'points') {
+        updates.pointsOffered = numVal;
+        updates.pointsCost = numVal;
+      } else if (post.compensationType === 'payment') {
+        updates.paymentAmount = numVal;
+        updates.totalPayment = numVal;
+      } else {
+        // 'either' — update points value
+        updates.pointsOffered = numVal;
+        updates.pointsCost = numVal;
+      }
+
+      await updateDoc(doc(db, 'swapPosts', post.id), updates);
+
+      // Update local state
+      setPost((prev) => prev ? { ...prev, ...updates, updatedAt: new Date() } : prev);
+      setEditingComp(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      Alert.alert('Error', 'Could not update compensation. Please try again.');
+    }
+  };
   const dogDisplayName = post.dogNames && post.dogNames.length > 1
     ? post.dogNames.join(' & ') : post.dogName;
   const dogDisplayBreed = post.dogBreeds && post.dogBreeds.length > 1
@@ -1116,8 +1168,57 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* ── Compensation (LAST before helpers) ── */}
         <View style={[styles.section, { backgroundColor: colors.surface, ...shadow.sm }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Compensation</Text>
-          <Text style={[styles.compText, { color: colors.text }]}>{compensationLabel()}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Compensation</Text>
+            {canEditComp && !editingComp && (
+              <TouchableOpacity onPress={startEditingComp} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Text style={{ color: RED, fontSize: 15, fontWeight: '600' }}>Edit</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {editingComp ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: spacing.sm }}>
+              <Text style={{ color: colors.textSecondary, fontSize: 17, fontWeight: '500' }}>
+                {post.compensationType === 'payment' ? '$' : '💰'}
+              </Text>
+              <TextInput
+                value={editCompValue}
+                onChangeText={setEditCompValue}
+                keyboardType="numeric"
+                autoFocus
+                selectTextOnFocus
+                inputAccessoryViewID={DONE_ACCESSORY_ID}
+                style={{
+                  flex: 1,
+                  fontSize: 17,
+                  fontWeight: '600',
+                  color: colors.text,
+                  backgroundColor: colors.background,
+                  borderRadius: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderWidth: 1.5,
+                  borderColor: RED,
+                }}
+                returnKeyType="done"
+                onSubmitEditing={saveCompensation}
+              />
+              <Text style={{ color: colors.textSecondary, fontSize: 15 }}>
+                {post.compensationType === 'payment' ? '' : post.compensationType === 'either' ? 'pts' : 'points'}
+              </Text>
+              <TouchableOpacity
+                onPress={saveCompensation}
+                style={{ backgroundColor: RED, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 }}
+              >
+                <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setEditingComp(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ color: colors.textSecondary, fontSize: 15 }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Text style={[styles.compText, { color: colors.text }]}>{compensationLabel()}</Text>
+          )}
           {(post.compensationType === 'payment' || post.compensationType === 'either') && (
             <View style={[styles.offAppNote, { backgroundColor: '#FFF9E6', borderColor: '#F0C040' }]}>
               <Text style={[styles.offAppNoteText, { color: '#7A6000' }]}>
