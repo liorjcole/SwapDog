@@ -127,7 +127,7 @@ export interface RepeatSchedule {
   /** Day indices for custom (sorted, 0-6) */
   customDays?: number[];
   /** Whether all selected days share the same time or have individual times */
-  timeMode: 'same' | 'different';
+  timeMode?: 'same' | 'different';
   /** Per-day times as "h:mm AM/PM" strings, keyed by day index (0-6). Only set when timeMode='different'. */
   dayTimes?: Record<number, string>;
 }
@@ -138,13 +138,25 @@ export const DAY_LABELS = ['Sun', 'Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat'] a
 export const formatRepeatLabel = (schedule: RepeatSchedule): string => {
   if (schedule.type === 'daily') return 'Repeat daily';
   if (schedule.type === 'weekly') {
-    return 'Repeat weekly on ' + DAY_LABELS[schedule.weeklyDay ?? 1];
+    return 'Repeat weekly';
+  }
+  if (schedule.type === 'custom') {
+    return 'Repeat';
+  }
+  return 'Repeat';
+};
+
+/** Second line for repeat label — day names in parentheses */
+export const formatRepeatSubLabel = (schedule: RepeatSchedule): string | null => {
+  if (schedule.type === 'daily') return null;
+  if (schedule.type === 'weekly') {
+    return '(on ' + DAY_LABELS[schedule.weeklyDay ?? 1] + ')';
   }
   if (schedule.type === 'custom') {
     const days = (schedule.customDays ?? []).map(d => DAY_LABELS[d]).join('/');
-    return 'Repeat ' + days;
+    return '(on ' + days + ')';
   }
-  return 'Repeat';
+  return null;
 };
 
 export interface SwapPost {

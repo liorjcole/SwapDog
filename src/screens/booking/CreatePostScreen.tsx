@@ -27,7 +27,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { useDogs } from '../../hooks/useDogs';
 import { useSwaps } from '../../hooks/useSwaps';
-import { Dog, CompensationType, CareType, RepeatSchedule, formatRepeatLabel } from '../../models/types';
+import { Dog, CompensationType, CareType, RepeatSchedule, formatRepeatLabel, formatRepeatSubLabel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { uploadPhotoToStorage } from '../../utils/uploadHelper';
 import { onPostCreated } from '../../services/ReviewPromptService';
@@ -1254,9 +1254,16 @@ const MAX_PLAY_SESSIONS = 5;
                             onPress={() => openRepeatModal('feeding', idx)}
                             activeOpacity={0.7}
                           >
+                            <View style={{ alignItems: 'center' }}>
                             <Text style={{ fontSize: 15, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.primary }}>
                               {slot.repeatSchedule ? '✅ ' + formatRepeatLabel(slot.repeatSchedule) : '📅 Repeat this?'}
                             </Text>
+                              {slot.repeatSchedule && formatRepeatSubLabel(slot.repeatSchedule) && (
+                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1 }}>
+                                  {formatRepeatSubLabel(slot.repeatSchedule)}
+                                </Text>
+                              )}
+                            </View>
                           </TouchableOpacity>
                         )}
                         <TouchableOpacity
@@ -1373,9 +1380,16 @@ const MAX_PLAY_SESSIONS = 5;
                             onPress={() => openRepeatModal('walk', wIdx)}
                             activeOpacity={0.7}
                           >
+                            <View style={{ alignItems: 'center' }}>
                             <Text style={{ fontSize: 15, fontWeight: '600', color: ws.repeatSchedule ? '#34C759' : colors.primary }}>
                               {ws.repeatSchedule ? '✅ ' + formatRepeatLabel(ws.repeatSchedule) : '📅 Repeat this?'}
                             </Text>
+                              {ws.repeatSchedule && formatRepeatSubLabel(ws.repeatSchedule) && (
+                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1 }}>
+                                  {formatRepeatSubLabel(ws.repeatSchedule)}
+                                </Text>
+                              )}
+                            </View>
                           </TouchableOpacity>
                         )}
                         <TouchableOpacity
@@ -1513,9 +1527,16 @@ const MAX_PLAY_SESSIONS = 5;
                             onPress={() => openRepeatModal('play', pIdx)}
                             activeOpacity={0.7}
                           >
+                            <View style={{ alignItems: 'center' }}>
                             <Text style={{ fontSize: 15, fontWeight: '600', color: pSession.repeatSchedule ? '#34C759' : colors.primary }}>
                               {pSession.repeatSchedule ? '✅ ' + formatRepeatLabel(pSession.repeatSchedule) : '📅 Repeat this?'}
                             </Text>
+                              {pSession.repeatSchedule && formatRepeatSubLabel(pSession.repeatSchedule) && (
+                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1 }}>
+                                  {formatRepeatSubLabel(pSession.repeatSchedule)}
+                                </Text>
+                              )}
+                            </View>
                           </TouchableOpacity>
                         )}
                         <TouchableOpacity
@@ -1712,9 +1733,16 @@ const MAX_PLAY_SESSIONS = 5;
                             onPress={() => openRepeatModal('medication', idx)}
                             activeOpacity={0.7}
                           >
+                            <View style={{ alignItems: 'center' }}>
                             <Text style={{ fontSize: 15, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.primary }}>
                               {slot.repeatSchedule ? '✅ ' + formatRepeatLabel(slot.repeatSchedule) : '📅 Repeat this?'}
                             </Text>
+                              {slot.repeatSchedule && formatRepeatSubLabel(slot.repeatSchedule) && (
+                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1 }}>
+                                  {formatRepeatSubLabel(slot.repeatSchedule)}
+                                </Text>
+                              )}
+                            </View>
                           </TouchableOpacity>
                         )}
                         <TouchableOpacity
