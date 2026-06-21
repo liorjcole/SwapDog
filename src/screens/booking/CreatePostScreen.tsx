@@ -1579,7 +1579,7 @@ const MAX_PLAY_SESSIONS = 5;
 
       setCelebrationQueue([{
         title: 'Successfully posted!',
-        subtitle: 'Your request is now visible to people in your area.',
+        subtitle: 'Your request is now visible to the pet parents in your area.',
         emoji: '🐾',
       }]);
       void onPostCreated();
