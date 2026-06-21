@@ -336,8 +336,8 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <ScrollView scrollEnabled={scrollEnabled} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={{ paddingBottom: 16 }} bounces={false} overScrollMode="never">
-      <View style={[styles.header, { backgroundColor: colors.surface }]}>
-        {/* View my profile — above pfp */}
+      <View style={[styles.header, { backgroundColor: colors.background }]}>
+        {/* View my profile — top */}
         {user && (
           <TouchableOpacity
             onPress={() => {
@@ -354,6 +354,15 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
         )}
 
+        {/* Name — above pfp */}
+        <Text style={[styles.name, { color: colors.text }]} accessibilityRole="header">
+          {userProfile?.displayName ?? 'User'}
+        </Text>
+        {userProfile?.locationName && (
+          <Text style={[styles.location, { color: colors.textSecondary }]}>{userProfile.locationName}</Text>
+        )}
+
+        {/* Profile picture */}
         <AvatarImage
           photoURL={userProfile?.photoURL}
           displayName={userProfile?.displayName}
@@ -362,12 +371,8 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           emojiSize={36}
           onPress={handleChangeProfilePhoto}
         />
-        <Text style={[styles.name, { color: colors.text }]} accessibilityRole="header">
-          {userProfile?.displayName ?? 'User'}
-        </Text>
-        {userProfile?.locationName && (
-          <Text style={[styles.location, { color: colors.textSecondary }]}>{userProfile.locationName}</Text>
-        )}
+
+        {/* Instagram — clickable */}
         {userProfile?.instagramHandle ? (
           <TouchableOpacity
             onPress={() => { const h = cleanIgHandle(userProfile.instagramHandle ?? ''); Linking.openURL('https://www.instagram.com/' + h + '/'); }}
@@ -377,35 +382,42 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={[styles.instagramHandle, { color: colors.primary }]}>@{cleanIgHandle(userProfile.instagramHandle ?? '')}</Text>
           </TouchableOpacity>
         ) : null}
-        <View style={styles.ratingRow}>
-          {userProfile?.rating !== undefined && userProfile?.reviewCount ? (
-            <>
-              <StarRating rating={Math.round(userProfile?.rating ?? 0)} />
-              <Text style={[styles.ratingCount, { color: colors.textSecondary }]}>({userProfile?.reviewCount ?? 0} review{(userProfile?.reviewCount ?? 0) !== 1 ? 's' : ''})</Text>
-            </>
-          ) : (
-            <Text style={{ color: colors.textSecondary, fontSize: 15 }}>No reviews yet</Text>
-          )}
-        </View>
 
         {/* Bio in darker cell */}
         {userProfile?.bio ? (
-          <View style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 12, padding: 14, marginTop: spacing.sm, width: '100%' }}>
+          <View style={{ backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 12, padding: 14, marginTop: spacing.sm, width: '100%' }}>
             <Text style={{ fontSize: 16, color: '#FFFFFF', textAlign: 'center' }}>{userProfile.bio}</Text>
           </View>
         ) : null}
 
-        {/* Points — no chevron */}
-        <TouchableOpacity
-          style={[styles.pointsBadge, { backgroundColor: colors.primary + '18', borderColor: colors.primary }]}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.navigate('PointsHistory'); }}
-          accessibilityLabel={`${(userProfile?.points ?? 0).toFixed(1)} points. Tap to see history.`}
-          accessibilityRole="button"
-        >
-          <Text style={[styles.pointsBadgeText, { color: '#FFFFFF' }]}>
-            {(userProfile?.points ?? 0).toFixed(1)} points
-          </Text>
-        </TouchableOpacity>
+        {/* Points + Reviews — side by side below bio */}
+        <View style={{ flexDirection: 'row', marginTop: spacing.sm, width: '100%', gap: 10 }}>
+          {/* Points box */}
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.navigate('PointsHistory'); }}
+            accessibilityLabel={`${(userProfile?.points ?? 0).toFixed(1)} points. Tap to see history.`}
+            accessibilityRole="button"
+          >
+            <Text style={{ fontSize: 16, color: '#FFFFFF', textDecorationLine: 'underline' }}>
+              {(userProfile?.points ?? 0).toFixed(1)} points
+            </Text>
+          </TouchableOpacity>
+
+          {/* Reviews box */}
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center' }}>
+            {userProfile?.rating !== undefined && userProfile?.reviewCount ? (
+              <View style={{ alignItems: 'center' }}>
+                <StarRating rating={Math.round(userProfile?.rating ?? 0)} />
+                <Text style={{ fontSize: 14, color: '#FFFFFF', textDecorationLine: 'underline', marginTop: 4 }}>
+                  {userProfile?.reviewCount ?? 0} review{(userProfile?.reviewCount ?? 0) !== 1 ? 's' : ''}
+                </Text>
+              </View>
+            ) : (
+              <Text style={{ color: colors.textSecondary, fontSize: 15 }}>No reviews yet</Text>
+            )}
+          </View>
+        </View>
 
         {/* Edit Profile — not bold, bottom right */}
         <TouchableOpacity
@@ -420,7 +432,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
 
 
 
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>My Dogs</Text>
         {dogs.map((dog) => (
           <View key={dog.id} style={[styles.dogCard, { backgroundColor: colors.surface, ...shadow.sm }]}>
@@ -490,7 +502,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Referrals</Text>
         <TouchableOpacity
           style={[styles.prefRow, { backgroundColor: colors.surface, ...shadow.sm }]}
@@ -510,7 +522,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Community</Text>
         <TouchableOpacity
           style={[styles.prefRow, { backgroundColor: colors.surface, ...shadow.sm }]}
