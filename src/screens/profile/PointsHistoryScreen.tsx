@@ -143,7 +143,7 @@ const PointsHistoryScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '600' }}>Earn More</Text>
       </TouchableOpacity>
       {showInvite && (
-        <Animated.View style={{ transform: [{ translateY: bounceAnim }] }}>
+        <Animated.View style={{ transform: [{ translateY: bounceAnim }], alignSelf: 'center' }}>
           <TouchableOpacity
             style={{ backgroundColor: colors.surface, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24, marginTop: 10, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             onPress={handleInviteShare}
