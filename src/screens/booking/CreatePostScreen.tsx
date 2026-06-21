@@ -22,6 +22,7 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { Calendar, DateData } from 'react-native-calendars';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
+import ReAnimated, { Layout } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import CharCountHint from '../../components/common/CharCountHint';
@@ -72,6 +73,8 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const glowAnim = useRef(new Animated.Value(0)).current;
   const [pulsingSection, setPulsingSection] = useState<string | null>(null);
   const [isReorderAnimating, setIsReorderAnimating] = useState(false);
+  const cellIdCounter = useRef(0);
+  const nextCellId = () => `cell-${++cellIdCounter.current}`;
 
   const scrollAndPulse = useCallback((sectionKey: string) => {
     const view = viewRefs.current[sectionKey];
@@ -152,6 +155,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [sitterTransport, setSitterTransport] = useState<'pickup' | 'dropoff' | null>(null);
   // Playtime — multi-session support (max 5 sessions)
   interface PlaySession {
+    id: string;
     flexible: boolean;
     startDate: Date;
     endDate: Date;
@@ -165,6 +169,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     showInstructions: boolean;
   }
   const makeDefaultPlaySession = (): PlaySession => ({
+    id: nextCellId(),
     flexible: false,
     startDate: null as unknown as Date,
     endDate: null as unknown as Date,
@@ -179,6 +184,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   });
   const [playSessions, setPlaySessions] = useState<PlaySession[]>([makeDefaultPlaySession()]);
   interface WalkSession {
+  id: string;
   startDate: Date;
   endDate: Date;
   showStart: boolean;
@@ -191,6 +197,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
 }
 
 const makeDefaultWalkSession = (): WalkSession => ({
+  id: nextCellId(),
   startDate: null as unknown as Date,
   endDate: null as unknown as Date,
   showStart: false,
@@ -344,8 +351,8 @@ const MAX_PLAY_SESSIONS = 5;
   const [showStartTime, setShowStartTime] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
   // Feeding slots — Date objects for native spinner
-  const [feedingSlots, setFeedingSlots] = useState<{ time: Date; repeatSchedule: RepeatSchedule | null; showPicker: boolean; dogIds: string[]; instructions: string; photos: string[]; showInstructions: boolean }[]>([
-    { time: null as unknown as Date, repeatSchedule: null, showPicker: false, dogIds: [], instructions: '', photos: [], showInstructions: false },
+  const [feedingSlots, setFeedingSlots] = useState<{ id: string; time: Date; repeatSchedule: RepeatSchedule | null; showPicker: boolean; dogIds: string[]; instructions: string; photos: string[]; showInstructions: boolean }[]>([
+    { id: nextCellId(), time: null as unknown as Date, repeatSchedule: null, showPicker: false, dogIds: [], instructions: '', photos: [], showInstructions: false },
   ]);
 
   const updateFeedingSlot = (index: number, field: string, value: unknown) => {
@@ -373,14 +380,14 @@ const MAX_PLAY_SESSIONS = 5;
   const addFeedingSlot = () => {
     // Auto-collapse all existing feeding slots
     setCollapsedFeedings(new Set(feedingSlots.map((_, i) => i)));
-    setFeedingSlots(prev => [...prev, { time: null as unknown as Date, repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], instructions: '', photos: [], showInstructions: false }]);
+    setFeedingSlots(prev => [...prev, { id: nextCellId(), time: null as unknown as Date, repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], instructions: '', photos: [], showInstructions: false }]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   // Walk sessions array (multi-walk support)
   // Medication slots
-  const [medicationSlots, setMedicationSlots] = useState<{ time: Date; extraTimes: { time: Date; showPicker: boolean }[]; details: string; repeatSchedule: RepeatSchedule | null; showPicker: boolean; dogIds: string[]; photos: string[] }[]>([
-    { time: null as unknown as Date, extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], photos: [] },
+  const [medicationSlots, setMedicationSlots] = useState<{ id: string; time: Date; extraTimes: { time: Date; showPicker: boolean }[]; details: string; repeatSchedule: RepeatSchedule | null; showPicker: boolean; dogIds: string[]; photos: string[] }[]>([
+    { id: nextCellId(), time: null as unknown as Date, extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], photos: [] },
   ]);
   const updateMedicationSlot = (index: number, field: string, value: unknown) => {
     setMedicationSlots(prev => prev.map((slot, i) => {
@@ -406,7 +413,7 @@ const MAX_PLAY_SESSIONS = 5;
   const addMedicationSlot = () => {
     // Auto-collapse all existing medication slots
     setCollapsedMeds(new Set(medicationSlots.map((_, i) => i)));
-    setMedicationSlots(prev => [...prev, { time: null as unknown as Date, extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], photos: [] }]);
+    setMedicationSlots(prev => [...prev, { id: nextCellId(), time: null as unknown as Date, extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], photos: [] }]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   const addMedExtraTime = (slotIdx: number) => {
@@ -513,12 +520,9 @@ const MAX_PLAY_SESSIONS = 5;
     const orderChanged = sorted.some((item, i) => updated[i] !== item);
     if (orderChanged) {
       setIsReorderAnimating(true);
-      LayoutAnimation.configureNext(
-        LayoutAnimation.create(4000, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity),
-        () => setIsReorderAnimating(false),  // completion callback
-      );
-      // Fallback timeout in case callback doesn't fire
-      setTimeout(() => setIsReorderAnimating(false), 4500);
+      // Reanimated Layout handles the sliding animation via stable keys.
+      // Touch-block for the animation duration:
+      setTimeout(() => setIsReorderAnimating(false), 4100);
     }
     // Remap collapsed state to follow items to their new positions
     const newCollapsed = new Set<number>();
@@ -1876,7 +1880,7 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('feeding') && (
               <>
                 {feedingSlots.map((slot, idx) => (
-                  <View key={idx} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === feedingSlots.length - 1 ? 0 : spacing.md }, idx === feedingSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                  <ReAnimated.View key={slot.id} layout={Layout.duration(4000)} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === feedingSlots.length - 1 ? 0 : spacing.md }, idx === feedingSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedFeedings.has(idx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2028,7 +2032,7 @@ const MAX_PLAY_SESSIONS = 5;
 
                     </>
                     )}
-                  </View>
+                  </ReAnimated.View>
                 ))}
 
                 {/* Add another feeding — outside cards */}
@@ -2063,7 +2067,7 @@ const MAX_PLAY_SESSIONS = 5;
                     ? `${Math.floor(wsDurMins / 60)}h ${wsDurMins % 60 > 0 ? `${wsDurMins % 60}m` : ''} walk`.trim()
                     : `${wsDurMins}m walk`;
                   return (
-                  <View key={wIdx} style={[styles.section, { backgroundColor: colors.surface, marginBottom: wIdx === walkSessions.length - 1 ? 0 : spacing.md }, wIdx === walkSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                  <ReAnimated.View key={ws.id} layout={Layout.duration(4000)} style={[styles.section, { backgroundColor: colors.surface, marginBottom: wIdx === walkSessions.length - 1 ? 0 : spacing.md }, wIdx === walkSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedWalks.has(wIdx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2244,7 +2248,7 @@ const MAX_PLAY_SESSIONS = 5;
 
                     </>
                     )}
-                  </View>
+                  </ReAnimated.View>
                   );
                 })}
 
@@ -2273,7 +2277,7 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('playtime') && (
               <>
                 {playSessions.map((pSession, pIdx) => (
-                  <View key={pIdx} style={[styles.section, { backgroundColor: colors.surface, marginBottom: pIdx === playSessions.length - 1 ? 0 : spacing.md }, pIdx === playSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                  <ReAnimated.View key={pSession.id} layout={Layout.duration(4000)} style={[styles.section, { backgroundColor: colors.surface, marginBottom: pIdx === playSessions.length - 1 ? 0 : spacing.md }, pIdx === playSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedPlay.has(pIdx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2511,7 +2515,7 @@ const MAX_PLAY_SESSIONS = 5;
 
                     </>
                     )}
-                  </View>
+                  </ReAnimated.View>
                 ))}
 
                 {/* Add another playtime — outside cards */}
@@ -2540,7 +2544,7 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('medication') && (
               <>
                 {medicationSlots.map((slot, idx) => (
-                  <View key={idx} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === medicationSlots.length - 1 ? 0 : spacing.md }, idx === medicationSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                  <ReAnimated.View key={slot.id} layout={Layout.duration(4000)} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === medicationSlots.length - 1 ? 0 : spacing.md }, idx === medicationSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedMeds.has(idx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2732,7 +2736,7 @@ const MAX_PLAY_SESSIONS = 5;
 
                     </>
                     )}
-                  </View>
+                  </ReAnimated.View>
                 ))}
 
                 {/* Add another medication — outside cards */}
