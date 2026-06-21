@@ -1243,13 +1243,15 @@ const MAX_PLAY_SESSIONS = 5;
     }
     if (addOnCareTypes.has('playtime')) {
       for (let i = 0; i < playSessions.length; i++) {
-        if (!playSessions[i].startDate) {
-          showValidationAlert('Start Time Required', `Please set a start time for ${playSessions.length > 1 ? 'Playtime #' + (i + 1) : 'Playtime'}.`, 'careType');
-          return;
-        }
-        if (!playSessions[i].endDate) {
-          showValidationAlert('End Time Required', `Please set an end time for ${playSessions.length > 1 ? 'Playtime #' + (i + 1) : 'Playtime'}.`, 'careType');
-          return;
+        if (!playSessions[i].flexible) {
+          if (!playSessions[i].startDate) {
+            showValidationAlert('Start Time Required', `Please set a start time for ${playSessions.length > 1 ? 'Playtime #' + (i + 1) : 'Playtime'}.`, 'careType');
+            return;
+          }
+          if (!playSessions[i].endDate) {
+            showValidationAlert('End Time Required', `Please set an end time for ${playSessions.length > 1 ? 'Playtime #' + (i + 1) : 'Playtime'}.`, 'careType');
+            return;
+          }
         }
       }
     }
@@ -1297,9 +1299,9 @@ const MAX_PLAY_SESSIONS = 5;
       }
     }
 
-    // Check for overlapping play sessions
+    // Check for overlapping play sessions (skip flexible — no fixed times)
     if (addOnCareTypes.has('playtime') && playSessions.length > 1) {
-      const sorted = [...playSessions].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+      const sorted = playSessions.filter(s => !s.flexible && s.startDate && s.endDate).sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
       for (let i = 1; i < sorted.length; i++) {
         if (sorted[i].startDate && sorted[i - 1].endDate && timeToMins(sorted[i].startDate) < timeToMins(sorted[i - 1].endDate)) {
           showValidationAlert('Playtime Overlap', `Playtime ${i + 1} (${formatTimeShort(sorted[i].startDate)}) overlaps with Playtime ${i} (ends ${formatTimeShort(sorted[i - 1].endDate)}). Please adjust the times.`, 'careType');
