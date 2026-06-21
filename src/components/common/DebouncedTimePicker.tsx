@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Keyboard, Platform } from 'react-native';
+import { Keyboard, Platform, InputAccessoryView, TextInput, findNodeHandle, UIManager } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 interface Props {
@@ -25,8 +25,8 @@ interface Props {
  * doesn't have to scroll if the shown time is already what they want.
  *
  * Keyboard suppression: iOS 15+ lets users tap the selected spinner row
- * to type a time via keyboard. We suppress this by dismissing the keyboard
- * whenever it tries to appear while this picker is mounted.
+ * to type a time via keyboard. We aggressively suppress this using both
+ * keyboardWillShow and keyboardDidShow listeners, plus a periodic check.
  */
 const DebouncedTimePicker: React.FC<Props> = React.memo(({
   value,
@@ -37,27 +37,40 @@ const DebouncedTimePicker: React.FC<Props> = React.memo(({
   const [localValue, setLocalValue] = useState(value);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isScrollingRef = useRef(false);
+  const mountedRef = useRef(true);
 
   // On mount, immediately commit the initial value.
-  // The picker is conditionally rendered (mounts when user taps to open),
-  // so this fires exactly when the picker appears and "locks in" whatever
-  // time the spinner shows — no scroll required.
   const onTimeChangeRef = useRef(onTimeChange);
   onTimeChangeRef.current = onTimeChange;
   useEffect(() => {
     onTimeChangeRef.current(value);
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Suppress keyboard input on the iOS spinner.
+  // Aggressively suppress keyboard input on the iOS spinner.
   // iOS 15+ opens a numeric keyboard when the user taps the selected row.
-  // We don't want that — scroll-only interaction.
+  // We use multiple layers of suppression to ensure scroll-only interaction.
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
-    const sub = Keyboard.addListener('keyboardWillShow', () => {
-      Keyboard.dismiss();
-    });
-    return () => sub.remove();
+
+    const dismiss = () => {
+      if (mountedRef.current) Keyboard.dismiss();
+    };
+
+    // Layer 1: Catch keyboard before it appears
+    const sub1 = Keyboard.addListener('keyboardWillShow', dismiss);
+    // Layer 2: If it slips through, dismiss immediately after it appears
+    const sub2 = Keyboard.addListener('keyboardDidShow', dismiss);
+    // Layer 3: Periodic check as a safety net (every 300ms)
+    const interval = setInterval(dismiss, 300);
+
+    return () => {
+      sub1.remove();
+      sub2.remove();
+      clearInterval(interval);
+    };
   }, []);
 
   // Sync from parent ONLY when not actively scrolling
