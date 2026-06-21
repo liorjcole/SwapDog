@@ -19,6 +19,9 @@ interface Props {
  * immediately (so the spinner never snaps back) and debounces the
  * callback to the parent (so the parent doesn't re-render on every tick).
  * React.memo prevents parent re-renders from resetting the local state.
+ *
+ * On mount, the picker immediately commits its initial value so the user
+ * doesn't have to scroll if the shown time is already what they want.
  */
 const DebouncedTimePicker: React.FC<Props> = React.memo(({
   value,
@@ -29,6 +32,17 @@ const DebouncedTimePicker: React.FC<Props> = React.memo(({
   const [localValue, setLocalValue] = useState(value);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isScrollingRef = useRef(false);
+
+  // On mount, immediately commit the initial value.
+  // The picker is conditionally rendered (mounts when user taps to open),
+  // so this fires exactly when the picker appears and "locks in" whatever
+  // time the spinner shows — no scroll required.
+  const onTimeChangeRef = useRef(onTimeChange);
+  onTimeChangeRef.current = onTimeChange;
+  useEffect(() => {
+    onTimeChangeRef.current(value);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync from parent ONLY when not actively scrolling
   useEffect(() => {
