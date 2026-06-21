@@ -261,7 +261,6 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { user, userProfile } = useAuthContext();
   const { getAreaPosts, getMyPosts, addResponder, approveHelper, saveOwnerReminderIds, cancelPost } = useSwaps();
   const { isFavorite, removeFavorite } = useFavorites();
-  const posterIsFavorited = isFavorite(post.posterId);
   const { getOrCreateConversation, sendMessage } = useMessaging();
 
   const [post, setPost] = useState<SwapPost | null>(null);
@@ -271,6 +270,8 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [isJustApproved, setIsJustApproved] = useState(false);
   const [celebrationQueue, setCelebrationQueue] = useState<CelebrationItem[]>([]);
+
+  const posterIsFavorited = isFavorite(post?.posterId ?? '');
 
   // Photo carousel state
   const [allPhotos, setAllPhotos] = useState<string[]>([]);
