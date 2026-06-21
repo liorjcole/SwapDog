@@ -85,7 +85,7 @@ export const useAuth = () => {
       try {
         await addDoc(collection(db, 'users', uid, 'pointsHistory'), {
           type: 'bonus',
-          description: 'Welcome bonus — thanks for joining WatchDog!',
+          description: 'Welcome to WatchDog!',
           points: 5,
           createdAt: serverTimestamp(),
         });
