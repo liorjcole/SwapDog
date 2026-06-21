@@ -1418,9 +1418,11 @@ const MAX_PLAY_SESSIONS = 5;
                 </View>
                 <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '600' }}>{careAddress ? 'Edit' : 'Add'}</Text>
               </TouchableOpacity>
-              <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 6, textAlign: 'center' }}>
-                🔒 Your address is kept private and only shared with an accepted caretaker.
-              </Text>
+              <View style={{ backgroundColor: colors.background, borderRadius: 10, padding: 14, marginTop: 8 }}>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
+                  🔒 Your address is kept private and only shared with an accepted caretaker.
+                </Text>
+              </View>
             </View>
           )}
 
@@ -1462,17 +1464,21 @@ const MAX_PLAY_SESSIONS = 5;
                     </View>
                     <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '600' }}>{careAddress ? 'Edit' : 'Add'}</Text>
                   </TouchableOpacity>
-                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 6, textAlign: 'center' }}>
-                    🔒 Your address is kept private and only shared with an accepted caretaker.
-                  </Text>
+                  <View style={{ backgroundColor: colors.background, borderRadius: 10, padding: 14, marginTop: 8 }}>
+                    <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
+                      🔒 Your address is kept private and only shared with an accepted caretaker.
+                    </Text>
+                  </View>
                 </View>
               )}
 
               {/* Dropoff selected — info note */}
               {sitterTransport === 'dropoff' && (
-                <Text style={{ fontSize: 15, color: colors.textSecondary, fontStyle: 'italic', marginTop: 8, lineHeight: 21 }}>
-                  Once a caretaker is confirmed, you can message them directly to coordinate their address and handoff details. 💬
-                </Text>
+                <View style={{ backgroundColor: colors.background, borderRadius: 10, padding: 14, marginTop: 8 }}>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
+                    Once a caretaker is confirmed, you can message them directly to coordinate their address and handoff details. 💬
+                  </Text>
+                </View>
               )}
             </View>
           )}
