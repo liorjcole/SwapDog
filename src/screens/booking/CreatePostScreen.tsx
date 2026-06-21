@@ -262,13 +262,6 @@ const MAX_PLAY_SESSIONS = 5;
         shouldSort = true;
       }
       if (updates.endDate) {
-        const tentative = [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
-        for (let i = 1; i < tentative.length; i++) {
-          if (timeToMins(tentative[i].startDate) < timeToMins(tentative[i - 1].endDate)) {
-            Alert.alert('Playtime Overlap', `This playtime can${"'"}t start before the previous one ends (${formatTimeShort(tentative[i - 1].endDate)}). Please adjust the time.`);
-            return prev;
-          }
-        }
         shouldSort = true;
       }
       return updated;
@@ -522,13 +515,6 @@ const MAX_PLAY_SESSIONS = 5;
         shouldSort = true;
       }
       if (updates.endDate) {
-        const tentative = [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
-        for (let i = 1; i < tentative.length; i++) {
-          if (timeToMins(tentative[i].startDate) < timeToMins(tentative[i - 1].endDate)) {
-            Alert.alert('Walk Overlap', `This walk can${"'"}t start before the previous walk ends (${formatTimeShort(tentative[i - 1].endDate)}). Please adjust the time.`);
-            return prev;
-          }
-        }
         shouldSort = true;
       }
       return updated;
@@ -1260,6 +1246,28 @@ const MAX_PLAY_SESSIONS = 5;
       }
     }
     if (!user) return;
+
+    // Check for overlapping walk sessions
+    if (addOnCareTypes.has('dogWalking') && walkSessions.length > 1) {
+      const sorted = [...walkSessions].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i].startDate && sorted[i - 1].endDate && timeToMins(sorted[i].startDate) < timeToMins(sorted[i - 1].endDate)) {
+          showValidationAlert('Walk Overlap', `Walk ${i + 1} (${formatTimeShort(sorted[i].startDate)}) overlaps with Walk ${i} (ends ${formatTimeShort(sorted[i - 1].endDate)}). Please adjust the times.`, 'careType');
+          return;
+        }
+      }
+    }
+
+    // Check for overlapping play sessions
+    if (addOnCareTypes.has('playtime') && playSessions.length > 1) {
+      const sorted = [...playSessions].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i].startDate && sorted[i - 1].endDate && timeToMins(sorted[i].startDate) < timeToMins(sorted[i - 1].endDate)) {
+          showValidationAlert('Playtime Overlap', `Playtime ${i + 1} (${formatTimeShort(sorted[i].startDate)}) overlaps with Playtime ${i} (ends ${formatTimeShort(sorted[i - 1].endDate)}). Please adjust the times.`, 'careType');
+          return;
+        }
+      }
+    }
 
     setSubmitting(true);
     try {
