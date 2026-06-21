@@ -73,6 +73,8 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { getReviewsForUser } = useReviews();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewFilter, setReviewFilter] = useState<string>('all');
+  const { isFavorite, removeFavorite } = useFavorites();
+  const isUserFavorited = isFavorite(userId);
 
   useEffect(() => {
     const load = async () => {
