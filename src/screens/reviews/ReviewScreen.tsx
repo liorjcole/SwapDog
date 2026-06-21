@@ -209,6 +209,8 @@ const ReviewScreen: React.FC<Props> = ({ navigation, route }) => {
           autoCorrect
           spellCheck
           autoCapitalize="sentences"
+          returnKeyType="done"
+          blurOnSubmit={true}
         />
 
         {/* Buttons */}

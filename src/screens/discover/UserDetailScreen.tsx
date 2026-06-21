@@ -453,6 +453,8 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               onChangeText={setBlockFeedbackText}
               multiline
               maxLength={500}
+              returnKeyType="done"
+              blurOnSubmit={true}
             />
             <TouchableOpacity
               onPress={() => void submitBlockFeedback(blockFeedbackText)}

@@ -398,6 +398,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
           textAlignVertical="top"
           accessibilityLabel="Care details for the dog watcher"
         returnKeyType="done"
+          blurOnSubmit={true}
                   />
         <CharCountHint current={careDetails.trim().length} min={MIN_CARE_DETAILS} />
       </View>
