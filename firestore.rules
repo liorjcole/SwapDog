@@ -171,5 +171,15 @@ service cloud.firestore {
         );
       allow delete: if false;
     }
+  
+    // ── Signed Agreements (durable legal records) ──────────────────
+    match /signed-agreements/{docId} {
+      // Any authenticated user can create (when they sign during onboarding)
+      allow create: if request.auth != null;
+      // Only admin can read (for legal/compliance)
+      allow read: if request.auth != null && isAdmin();
+      // Nobody can update or delete — these are immutable legal records
+      allow update, delete: if false;
+    }
   }
 }

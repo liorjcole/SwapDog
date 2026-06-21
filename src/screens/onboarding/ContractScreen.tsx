@@ -12,7 +12,7 @@ import {
   Alert,
   Platform } from 'react-native';
 import * as Haptics from 'expo-haptics'
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
 import { sendWelcomeMessageIfNeeded } from '../../hooks/useMessaging';
 import { db } from '../../config/firebase';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -30,6 +30,7 @@ interface ContractScreenProps {
   onSigned?: () => void;
 }
 
+const CONTRACT_VERSION = '1.0';
 const today = new Date();
 const FORMATTED_DATE = today.toLocaleDateString('en-US', {
   year: 'numeric',
@@ -91,9 +92,24 @@ const ContractScreen: React.FC<ContractScreenProps> = ({
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setLoading(true);
     try {
+      // 1. Update user profile
       await updateDoc(doc(db, 'users', user.uid), {
         contractSignedAt: serverTimestamp(),
+        contractSignedName: fullName.trim(),
+        contractVersion: CONTRACT_VERSION,
         updatedAt: serverTimestamp() });
+
+      // 2. Save a durable copy in signed-agreements (survives account deletion)
+      await addDoc(collection(db, 'signed-agreements'), {
+        userId: user.uid,
+        userEmail: user.email ?? '',
+        signedName: fullName.trim(),
+        contractVersion: CONTRACT_VERSION,
+        agreementSections: CONTRACT_SECTIONS.map(s => s.number + ' ' + s.title + ': ' + s.body),
+        signedAt: serverTimestamp(),
+        ipAddress: null, // could be populated server-side if needed
+      });
+
       // Send welcome message the first time (idempotent)
       await sendWelcomeMessageIfNeeded(user.uid);
       await refreshUserProfile();
