@@ -74,7 +74,14 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [isReorderAnimating, setIsReorderAnimating] = useState(false);
   const newPostIdRef = useRef<string | null>(null);
   const cellIdCounter = useRef(0);
-  const nextCellId = () => `cell-${++cellIdCounter.current}`;
+  const nextCellId = () => `cell-\${++cellIdCounter.current}`;
+
+  // ── Refs for delayed sort (LayoutAnimation must be called OUTSIDE setState) ──
+  const feedingSlotsRef = useRef<any[]>([]);
+  const walkSessionsRef = useRef<any[]>([]);
+  const playSessionsRef = useRef<any[]>([]);
+  const sortTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
 
   const scrollAndPulse = useCallback((sectionKey: string) => {
     const view = viewRefs.current[sectionKey];
@@ -224,20 +231,20 @@ const MAX_PLAY_SESSIONS = 5;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   const updatePlaySession = (index: number, updates: Partial<PlaySession>) => {
+    // Phase 1: update value immediately (no sort)
+    let shouldSort = false;
     setPlaySessions(prev => {
       const updated = prev.map((s, i) => i === index ? { ...s, ...updates } : s);
       if (updates.startDate) {
         const newStart = updates.startDate;
-        // Duplicate start time check
         const isDuplicate = prev.some((s, i) => i !== index && isSameTime(s.startDate, newStart));
         if (isDuplicate) {
           Alert.alert('Duplicate Time', `You already have a playtime starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
           return prev;
         }
-        return animatedSort(prev, updated, index, (a, b) => timeToMins(a.startDate) - timeToMins(b.startDate), collapsedPlay, setCollapsedPlay);
+        shouldSort = true;
       }
       if (updates.endDate) {
-        // Check for overlaps first before animating
         const tentative = [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
         for (let i = 1; i < tentative.length; i++) {
           if (timeToMins(tentative[i].startDate) < timeToMins(tentative[i - 1].endDate)) {
@@ -245,11 +252,14 @@ const MAX_PLAY_SESSIONS = 5;
             return prev;
           }
         }
-        // No overlap — animate the reorder
-        return animatedSort(prev, updated, index, (a, b) => timeToMins(a.startDate) - timeToMins(b.startDate), collapsedPlay, setCollapsedPlay);
+        shouldSort = true;
       }
       return updated;
     });
+    // Phase 2: schedule delayed sort
+    if (shouldSort || updates.startDate || updates.endDate) {
+      scheduleReorderSort('play', playSessionsRef, setPlaySessions, (a, b) => timeToMins(a.startDate) - timeToMins(b.startDate), collapsedPlay, setCollapsedPlay);
+    }
   };
   // Repeat schedule modal state
   const [repeatModalVisible, setRepeatModalVisible] = useState(false);
@@ -356,6 +366,7 @@ const MAX_PLAY_SESSIONS = 5;
   ]);
 
   const updateFeedingSlot = (index: number, field: string, value: unknown) => {
+    // Phase 1: update value immediately (no sort)
     setFeedingSlots(prev => {
       const updated = prev.map((slot, i) => i === index ? { ...slot, [field]: value } : slot);
       if (field === 'time') {
@@ -365,11 +376,13 @@ const MAX_PLAY_SESSIONS = 5;
           Alert.alert('Duplicate Time', `You already have a feeding at ${formatTimeShort(newTime)}. Please pick a different time.`);
           return prev;
         }
-        // Auto-sort by time earliest → latest (animated)
-        return animatedSort(prev, updated, index, (a, b) => timeToMins(a.time) - timeToMins(b.time), collapsedFeedings, setCollapsedFeedings);
       }
       return updated;
     });
+    // Phase 2: schedule delayed sort with LayoutAnimation BEFORE setState
+    if (field === 'time') {
+      scheduleReorderSort('feeding', feedingSlotsRef, setFeedingSlots, (a, b) => timeToMins(a.time) - timeToMins(b.time), collapsedFeedings, setCollapsedFeedings);
+    }
   };
 
   const removeFeedingSlot = (index: number) => {
@@ -477,20 +490,20 @@ const MAX_PLAY_SESSIONS = 5;
     setWalkSessions(prev => prev.filter((_: WalkSession, i: number) => i !== idx));
   };
   const updateWalkSession = (idx: number, updates: Partial<WalkSession>) => {
+    // Phase 1: update value immediately (no sort)
+    let shouldSort = false;
     setWalkSessions(prev => {
       const updated = prev.map((s: WalkSession, i: number) => i === idx ? { ...s, ...updates } : s);
       if (updates.startDate) {
         const newStart = updates.startDate;
-        // Duplicate start time check
         const isDuplicate = prev.some((s, i) => i !== idx && isSameTime(s.startDate, newStart));
         if (isDuplicate) {
           Alert.alert('Duplicate Time', `You already have a walk starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
           return prev;
         }
-        return animatedSort(prev, updated, idx, (a, b) => timeToMins(a.startDate) - timeToMins(b.startDate), collapsedWalks, setCollapsedWalks);
+        shouldSort = true;
       }
       if (updates.endDate) {
-        // Check for overlaps first before animating
         const tentative = [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
         for (let i = 1; i < tentative.length; i++) {
           if (timeToMins(tentative[i].startDate) < timeToMins(tentative[i - 1].endDate)) {
@@ -498,54 +511,69 @@ const MAX_PLAY_SESSIONS = 5;
             return prev;
           }
         }
-        // No overlap — animate the reorder
-        return animatedSort(prev, updated, idx, (a, b) => timeToMins(a.startDate) - timeToMins(b.startDate), collapsedWalks, setCollapsedWalks);
+        shouldSort = true;
       }
       return updated;
     });
+    // Phase 2: schedule delayed sort
+    if (shouldSort || updates.startDate || updates.endDate) {
+      scheduleReorderSort('walk', walkSessionsRef, setWalkSessions, (a, b) => timeToMins(a.startDate) - timeToMins(b.startDate), collapsedWalks, setCollapsedWalks);
+    }
   };
 
 
-  // ── Animated reorder helper ──
-  const animatedSort = <T,>(
-    prev: T[],
-    updated: T[],
-    editedIndex: number,
+  // ── Delayed animated sort ──
+  // LayoutAnimation.configureNext() must be called OUTSIDE setState updaters.
+  // Calling it inside a setState updater doesn't work — React has already
+  // started processing the state transition and the native layout system
+  // doesn't pick up the config for cell position changes.
+  //
+  // Two-phase approach:
+  //   Phase 1 (immediate): update the field value, check duplicates, return unsorted
+  //   Phase 2 (delayed):   read latest state from ref, sort, call LayoutAnimation
+  //                         BEFORE setState, then set sorted state
+  //
+  const scheduleReorderSort = <T extends { id: string }>(
+    key: string,
+    stateRef: React.MutableRefObject<T[]>,
+    setState: React.Dispatch<React.SetStateAction<T[]>>,
     sortFn: (a: T, b: T) => number,
     collapsedSet: Set<number>,
     setCollapsed: (s: Set<number>) => void,
-  ): T[] => {
-    const sorted = [...updated].sort(sortFn);
-    // Check if order actually changed
-    const orderChanged = sorted.some((item, i) => updated[i] !== item);
-    if (orderChanged) {
-      // Configure LayoutAnimation BEFORE React commits the state change.
-      // With stable keys (slot.id), React detects position changes and
-      // LayoutAnimation animates the actual sliding movement.
+  ) => {
+    // Debounce: cancel any pending sort for this category
+    if (sortTimersRef.current[key]) clearTimeout(sortTimersRef.current[key]);
+    sortTimersRef.current[key] = setTimeout(() => {
+      const current = stateRef.current;
+      const sorted = [...current].sort(sortFn);
+      const orderChanged = sorted.some((item, i) => current[i] !== item);
+      if (!orderChanged) return;
+
+      // Remap collapsed state to follow items to their new positions
+      const newCollapsed = new Set<number>();
+      sorted.forEach((item, newIdx) => {
+        const oldIdx = current.findIndex(c => c.id === item.id);
+        if (oldIdx !== -1 && collapsedSet.has(oldIdx)) {
+          newCollapsed.add(newIdx);
+        }
+      });
+
+      // ★ THE KEY FIX: LayoutAnimation called BEFORE setState, OUTSIDE any updater
       LayoutAnimation.configureNext({
         duration: 4000,  // 4s test value — will reduce for production
         update: { type: LayoutAnimation.Types.easeInEaseOut },
-        create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-        delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
       });
+      setCollapsed(newCollapsed);
       setIsReorderAnimating(true);
+      setState(sorted);
       setTimeout(() => setIsReorderAnimating(false), 4100);
-    }
-    // Remap collapsed state to follow items to their new positions
-    const newCollapsed = new Set<number>();
-    sorted.forEach((item, newIdx) => {
-      const oldIdx = prev.indexOf(item);
-      if (oldIdx === -1) {
-        // This is the edited item (new object from spread) — keep expanded
-        return;
-      }
-      if (collapsedSet.has(oldIdx)) {
-        newCollapsed.add(newIdx);
-      }
-    });
-    setCollapsed(newCollapsed);
-    return sorted;
+    }, 350); // 350ms debounce — waits for spinner to settle
   };
+
+  // Keep refs in sync with state (needed to read latest state inside setTimeout)
+  useEffect(() => { feedingSlotsRef.current = feedingSlots; }, [feedingSlots]);
+  useEffect(() => { walkSessionsRef.current = walkSessions; }, [walkSessions]);
+  useEffect(() => { playSessionsRef.current = playSessions; }, [playSessions]);
 
   // ── Time helpers: duplicate check, auto-sort ──
   const timeToMins = (d: Date | null) => d ? d.getHours() * 60 + d.getMinutes() : 0;
