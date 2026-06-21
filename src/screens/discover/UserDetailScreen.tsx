@@ -186,7 +186,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     } else {
       Alert.alert(
         'Block User',
-        `Are you sure you want to block ${user.displayName}? They won't be able to see your posts or message you, and your conversation will be removed.`,
+        `This action can't be reversed unless you contact WatchDog support.`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -415,11 +415,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               </Text>
             )}
           </TouchableOpacity>
-          {!blocked && (
-            <Text style={styles.blockNote}>
-              This action can't be reversed unless you contact support.
-            </Text>
-          )}
+
         </View>
       )}
     </ScrollView>
