@@ -1318,6 +1318,8 @@ const MAX_PLAY_SESSIONS = 5;
         style={[styles.container, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        bounces={false}
+        overScrollMode="never"
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.xl * 2, marginBottom: spacing.xl * 2, paddingHorizontal: spacing.lg }}>
           <Text style={{ fontSize: 16 }}>🐾</Text>
@@ -3254,7 +3256,7 @@ const MAX_PLAY_SESSIONS = 5;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: spacing.md, paddingBottom: spacing.xl * 2 },
+  content: { padding: spacing.md, paddingBottom: spacing.md },
   pageTitle: { ...typography.h3, marginBottom: spacing.xs },
   pageSubtitle: { fontSize: 15, marginBottom: spacing.md, lineHeight: 18 },
   section: {

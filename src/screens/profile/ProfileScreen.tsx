@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Alert,
-  ActivityIndicator, Linking, Keyboard, Dimensions,
+  ActivityIndicator, Linking, Keyboard,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -335,7 +335,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const hasContract = !!userProfile?.contractSignedAt;
 
   return (
-    <ScrollView scrollEnabled={scrollEnabled} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={{ paddingBottom: Dimensions.get('window').height * 0.25 }}>
+    <ScrollView scrollEnabled={scrollEnabled} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={{ paddingBottom: 16 }} bounces={false} overScrollMode="never">
       <View style={[styles.header, { backgroundColor: colors.surface }]}>
         <AvatarImage
           photoURL={userProfile?.photoURL}
