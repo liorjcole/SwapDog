@@ -1207,21 +1207,7 @@ const MAX_PLAY_SESSIONS = 5;
       showValidationAlert('Invalid dates', 'End date must be after start date.', 'dates'); return;
     }
 
-    // 24-hour warning (non-blocking — uses a Promise to wait for user choice)
-    const hoursUntilCare = (careStart.getTime() - now.getTime()) / (1000 * 60 * 60);
-    if (hoursUntilCare < 24) {
-      const proceed = await new Promise<boolean>((resolve) => {
-        Alert.alert(
-          'Heads up! ⏰',
-          "Posts are more likely to get a response when posted more than 24 hours in advance — but let's see what happens!",
-          [
-            { text: 'Go Back', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Post Anyway', onPress: () => resolve(true) },
-          ]
-        );
-      });
-      if (!proceed) return;
-    }
+
     if (!startDateSelected) {
       showValidationAlert('Date Required', 'Please select a date for your care request.', 'dates');
       return;
@@ -1460,6 +1446,22 @@ const MAX_PLAY_SESSIONS = 5;
           }
         }
       }
+    }
+
+    // 24-hour warning (non-blocking — shown AFTER all validation passes, right before posting)
+    const hoursUntilCare = (careStart.getTime() - now.getTime()) / (1000 * 60 * 60);
+    if (hoursUntilCare < 24) {
+      const proceed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Heads up! ⏰',
+          "Posts are more likely to get a response when posted more than 24 hours in advance — but let's see what happens!",
+          [
+            { text: 'Go Back', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Post Anyway', onPress: () => resolve(true) },
+          ]
+        );
+      });
+      if (!proceed) return;
     }
 
     setSubmitting(true);
