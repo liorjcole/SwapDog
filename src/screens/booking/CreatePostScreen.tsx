@@ -406,12 +406,8 @@ const MAX_PLAY_SESSIONS = 5;
   const [startDateSelected, setStartDateSelected] = useState(false);
 
   // Time fields — Date objects for native spinner picker
-  const [startTimeDate, setStartTimeDate] = useState(() => {
-    const d = new Date(); d.setHours(9, 0, 0, 0); return d;
-  });
-  const [endTimeDate, setEndTimeDate] = useState(() => {
-    const d = new Date(); d.setHours(17, 0, 0, 0); return d;
-  });
+  const [startTimeDate, setStartTimeDate] = useState<Date | null>(null);
+  const [endTimeDate, setEndTimeDate] = useState<Date | null>(null);
   const [showStartTime, setShowStartTime] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
   // Feeding slots — Date objects for native spinner
@@ -794,8 +790,8 @@ const MAX_PLAY_SESSIONS = 5;
   };
 
   // Derived formatted times
-  const startTime = formatTime12(startTimeDate);
-  const endTime = formatTime12(endTimeDate);
+  const startTime = startTimeDate ? formatTime12(startTimeDate) : 'Select time!';
+  const endTime = endTimeDate ? formatTime12(endTimeDate) : 'Select time!';
   // Play time formatting is now per-session (computed inline)
   // Total walk duration across all sessions
   const walkDurationMins = walkSessions.reduce((total: number, ws: WalkSession) => {
@@ -1238,6 +1234,12 @@ const MAX_PLAY_SESSIONS = 5;
     if ((primaryCareType === 'overnight' || primaryCareType === 'daySitting') && !overnightLocation) {
       showValidationAlert('Required', 'Please select where the stay will be.', 'careType'); return;
     }
+    if ((primaryCareType === 'overnight' || primaryCareType === 'daySitting') && !startTimeDate) {
+      showValidationAlert('Start Time Required', 'Please select a start time for your stay.', 'dates'); return;
+    }
+    if ((primaryCareType === 'overnight' || primaryCareType === 'daySitting') && !endTimeDate) {
+      showValidationAlert('End Time Required', 'Please select an end time for your stay.', 'dates'); return;
+    }
     // Build the full requested care datetime
     const now = new Date();
     const parseTime12 = (t: string): { h: number; m: number } => {
@@ -1254,7 +1256,7 @@ const MAX_PLAY_SESSIONS = 5;
     // For add-on only (feeding/walk/playtime): no time fields, assume noon
     const careStart = new Date(startDate);
     if (careType === 'overnight' || careType === 'daySitting') {
-      careStart.setHours(startTimeDate.getHours(), startTimeDate.getMinutes(), 0, 0);
+      if (startTimeDate) careStart.setHours(startTimeDate.getHours(), startTimeDate.getMinutes(), 0, 0);
     } else {
       careStart.setHours(12, 0, 0, 0); // add-on only — no time selected
     }
@@ -1394,8 +1396,8 @@ const MAX_PLAY_SESSIONS = 5;
 
     // Check for services outside the care window (day sitting / overnight)
     if (primaryCareType === 'daySitting' || primaryCareType === 'overnight') {
-      const windowStart = timeToMins(startTimeDate);
-      const windowEnd = timeToMins(endTimeDate);
+      const windowStart = startTimeDate ? timeToMins(startTimeDate) : 0;
+      const windowEnd = endTimeDate ? timeToMins(endTimeDate) : 0;
       const isOvernightWrap = primaryCareType === 'overnight' && windowStart > windowEnd;
 
       // Helper: is a time-of-day (in minutes) inside the care window?
@@ -1408,7 +1410,7 @@ const MAX_PLAY_SESSIONS = 5;
         return mins >= windowStart && mins <= windowEnd;
       };
 
-      const windowLabel = `${formatTimeShort(startTimeDate)} – ${formatTimeShort(endTimeDate)}`;
+      const windowLabel = `${startTimeDate ? formatTimeShort(startTimeDate) : '?'} – ${endTimeDate ? formatTimeShort(endTimeDate) : '?'}`;
 
       // Check feeding times
       if (addOnCareTypes.has('feeding')) {
@@ -2076,7 +2078,7 @@ const MAX_PLAY_SESSIONS = 5;
                         <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
                           Start Time{careType === 'overnight' ? ` (on ${shortDate(startDate)})` : ''}
                         </Text>
-                        <Text style={[styles.timePickerValue, { color: colors.text }]}>{startTime}</Text>
+                        <Text style={[styles.timePickerValue, { color: startTimeDate ? colors.text : colors.textSecondary }]}>{startTime}</Text>
                       </TouchableOpacity>
                       <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
                       <TouchableOpacity
@@ -2087,17 +2089,17 @@ const MAX_PLAY_SESSIONS = 5;
                         <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
                           End Time{careType === 'overnight' ? ` (on ${shortDate(endDate)})` : ''}
                         </Text>
-                        <Text style={[styles.timePickerValue, { color: colors.text }]}>{endTime}</Text>
+                        <Text style={[styles.timePickerValue, { color: endTimeDate ? colors.text : colors.textSecondary }]}>{endTime}</Text>
                       </TouchableOpacity>
                     </View>
                     {showStartTime && (
                       <DateTimePicker
-                        value={startTimeDate}
+                        value={startTimeDate ?? (() => { const d = new Date(); d.setHours(9, 0, 0, 0); return d; })()}
                         mode="time"
                         display="spinner"
                         themeVariant="dark"
                         accentColor="#FF2D55"
-                        maximumDate={getMaxStartDate(endTimeDate, startTimeDate)}
+                        maximumDate={endTimeDate ? getMaxStartDate(endTimeDate, startTimeDate ?? endTimeDate) : undefined}
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) setStartTimeDate(d);
                         }}
@@ -2106,12 +2108,12 @@ const MAX_PLAY_SESSIONS = 5;
                     )}
                     {showEndTime && (
                       <DateTimePicker
-                        value={endTimeDate}
+                        value={endTimeDate ?? (() => { const d = new Date(); d.setHours(17, 0, 0, 0); return d; })()}
                         mode="time"
                         display="spinner"
                         themeVariant="dark"
                         accentColor="#FF2D55"
-                        minimumDate={getMinEndDate(startTimeDate, endTimeDate)}
+                        minimumDate={startTimeDate ? getMinEndDate(startTimeDate, endTimeDate ?? startTimeDate) : undefined}
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) setEndTimeDate(d);
                         }}
