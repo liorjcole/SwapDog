@@ -897,59 +897,72 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
   // don't reliably propagate through nested tab→stack navigators
   // when the Discover screen is already mounted.
   const pendingHighlightRef = useRef<string | null>(null);
+  const feedDataRef = useRef(feedData);
+  feedDataRef.current = feedData;
+
+  // Poll for the new post after focus (Firestore takes a moment)
+  const startHighlightPolling = useCallback((hpId: string) => {
+    let attempts = 0;
+    const maxAttempts = 15; // 15 × 500ms = 7.5s max wait
+
+    const tryFind = () => {
+      attempts++;
+      const currentFeed = feedDataRef.current;
+      const idx = currentFeed.findIndex(item => item.kind === 'post' && item.id === hpId);
+
+      if (idx !== -1) {
+        // Found it — scroll + pulse
+        setHighlightPostId(hpId);
+
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.4 });
+        }, 300);
+
+        setTimeout(() => {
+          Animated.sequence([
+            Animated.parallel([
+              Animated.timing(pulseAnim, { toValue: 1.04, duration: 300, useNativeDriver: false }),
+              Animated.timing(glowAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
+            ]),
+            Animated.parallel([
+              Animated.timing(pulseAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
+              Animated.timing(glowAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
+            ]),
+            Animated.parallel([
+              Animated.timing(pulseAnim, { toValue: 1.04, duration: 300, useNativeDriver: false }),
+              Animated.timing(glowAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
+            ]),
+            Animated.parallel([
+              Animated.timing(pulseAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
+              Animated.timing(glowAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
+            ]),
+          ]).start(() => {
+            setHighlightPostId(null);
+          });
+        }, 1000);
+        return;
+      }
+
+      if (attempts < maxAttempts) {
+        // Re-fetch and try again
+        void fetchAreaPosts();
+        setTimeout(tryFind, 500);
+      }
+    };
+
+    // First fetch, then start looking
+    void fetchAreaPosts();
+    setTimeout(tryFind, 800);
+  }, [fetchAreaPosts, pulseAnim, glowAnim]);
 
   // Check for pending highlight every time this screen gets focus
   useFocusEffect(
     useCallback(() => {
       const hpId = consumePendingHighlightPost();
       if (!hpId) return;
-      pendingHighlightRef.current = hpId;
-      // Refresh posts so the newly created one appears
-      void fetchAreaPosts();
-    }, [])
+      startHighlightPolling(hpId);
+    }, [startHighlightPolling])
   );
-
-  // Once feedData updates and contains the post, scroll + pulse
-  useEffect(() => {
-    const hpId = pendingHighlightRef.current;
-    if (!hpId || feedData.length === 0) return;
-
-    const idx = feedData.findIndex(item => item.kind === 'post' && item.id === hpId);
-    if (idx === -1) return;
-
-    // Found it — clear the pending ref and start the animation
-    pendingHighlightRef.current = null;
-    setHighlightPostId(hpId);
-
-    // Wait for FlatList to be ready, then scroll
-    setTimeout(() => {
-      flatListRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.4 });
-    }, 500);
-
-    // After scroll settles, pulse 2 times with white glow
-    setTimeout(() => {
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(pulseAnim, { toValue: 1.04, duration: 300, useNativeDriver: false }),
-          Animated.timing(glowAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
-        ]),
-        Animated.parallel([
-          Animated.timing(pulseAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
-          Animated.timing(glowAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
-        ]),
-        Animated.parallel([
-          Animated.timing(pulseAnim, { toValue: 1.04, duration: 300, useNativeDriver: false }),
-          Animated.timing(glowAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
-        ]),
-        Animated.parallel([
-          Animated.timing(pulseAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
-          Animated.timing(glowAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
-        ]),
-      ]).start(() => {
-        setHighlightPostId(null);
-      });
-    }, 1200);
-  }, [feedData]);
 
   const renderFeedItem: ListRenderItem<FeedItem> = useCallback(
     ({ item }) => {

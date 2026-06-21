@@ -3292,16 +3292,19 @@ const MAX_PLAY_SESSIONS = 5;
         queue={celebrationQueue}
         onDismissAll={() => {
           setCelebrationQueue([]);
-          // 1. Capture tab navigator BEFORE popping (ref stays valid)
+          // 1. Write highlight ID to module-level store FIRST
+          //    (route params don't reliably reach already-mounted screens
+          //    through nested tab → stack → screen navigators)
+          if (newPostIdRef.current) {
+            setPendingHighlightPost(newPostIdRef.current);
+          }
+          // 2. Capture tab navigator BEFORE popping (ref stays valid)
           const tabNav = navigation.getParent<any>();
-          // 2. Pop CreatePost off whichever stack we're in (Requests or Discover)
-          //    This prevents stacking — without it, CreatePost stays in the stack
-          //    and shows a back arrow when the user returns to that tab.
+          // 3. Pop CreatePost off whichever stack we're in
           navigation.goBack();
-          // 3. Switch to DiscoverTab and navigate to root Discover screen
-          //    Since Discover is the stack root, no back button appears.
+          // 4. Switch to DiscoverTab (no route params — store handles it)
           if (tabNav) {
-            tabNav.navigate('DiscoverTab', { screen: 'Discover', params: { highlightPostId: newPostIdRef.current } });
+            tabNav.navigate('DiscoverTab');
           }
         }}
       />
