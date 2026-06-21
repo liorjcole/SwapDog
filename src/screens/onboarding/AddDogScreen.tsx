@@ -21,6 +21,7 @@ import Chip from '../../components/common/Chip';
 import DogAddedTransition from '../../components/onboarding/DogAddedTransition';
 import { DraggablePhotoGrid } from '../../components/common/DraggablePhotoGrid';
 import { useOnboarding } from '../../contexts/OnboardingContext';
+import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
 
 const MAX_DOGS = 10;
 
@@ -382,7 +383,8 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         accessibilityRole="switch"
         accessibilityState={{ checked: value }}
       />
-    </View>
+    <KeyboardDoneBar />
+</View>
   );
 
   return (
@@ -600,6 +602,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           value={form.dogBio}
           onChangeText={(v) => set('dogBio', v)}
           multiline
+          inputAccessoryViewID={DONE_ACCESSORY_ID}
           numberOfLines={4}
           textAlignVertical="top"
           maxLength={500}

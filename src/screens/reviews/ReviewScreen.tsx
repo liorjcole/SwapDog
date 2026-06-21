@@ -20,6 +20,7 @@ import { useReviews } from '../../hooks/useReviews';
 import StarRating from '../../components/common/StarRating';
 import { spacing, borderRadius } from '../../config/theme';
 import { ReviewTargetType } from '../../models/types';
+import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
 
 // ─── Param types ─────────────────────────────────────────────────────────────
 export type ReviewScreenParams = {
@@ -180,7 +181,8 @@ const ReviewScreen: React.FC<Props> = ({ navigation, route }) => {
               setRatings(updated);
             }}
           />
-        </View>
+              <KeyboardDoneBar />
+</View>
 
         {/* Hint text */}
         <Text style={[styles.hint, { color: colors.textSecondary }]}>{step.hint}</Text>
@@ -204,6 +206,7 @@ const ReviewScreen: React.FC<Props> = ({ navigation, route }) => {
             setNotes(updated);
           }}
           multiline
+          inputAccessoryViewID={DONE_ACCESSORY_ID}
           textAlignVertical="top"
           maxLength={500}
           autoCorrect

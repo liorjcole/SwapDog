@@ -18,6 +18,7 @@ import { Dog, DogSize, DogSex, EnergyLevel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Chip from '../../components/common/Chip';
+import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'EditDog'>;
@@ -501,6 +502,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           value={dogBio}
           onChangeText={setDogBio}
           multiline
+          inputAccessoryViewID={DONE_ACCESSORY_ID}
           numberOfLines={4}
           textAlignVertical="top"
           maxLength={500}
@@ -579,7 +581,8 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         </Modal>
       )}
-    </View>
+          <KeyboardDoneBar />
+</View>
     </>
   );
 };

@@ -13,6 +13,7 @@ import { spacing, borderRadius, typography } from '../../config/theme';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { validateReferralCode, redeemReferralCode } from '../../hooks/useReferrals';
+import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
 
 type Props = {
   navigation: NativeStackNavigationProp<OnboardingStackParamList, 'ProfileSetup'>;
@@ -177,6 +178,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
           value={bio}
           onChangeText={setBio}
           multiline
+          inputAccessoryViewID={DONE_ACCESSORY_ID}
           numberOfLines={4}
           returnKeyType="done"
           blurOnSubmit={true}
@@ -245,7 +247,8 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
 
 
 
-    </View>
+          <KeyboardDoneBar />
+</View>
     </>
   );
 };

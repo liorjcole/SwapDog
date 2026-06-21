@@ -19,6 +19,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import PhotoCarousel from '../../components/common/PhotoCarousel';
 import Chip from '../../components/common/Chip';
 import { formatDogAge } from '../../utils/formatDogAge';
+import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
 
 const MIN_CARE_DETAILS = 50;
 
@@ -394,6 +395,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
           value={careDetails}
           onChangeText={setCareDetails}
           multiline
+          inputAccessoryViewID={DONE_ACCESSORY_ID}
           numberOfLines={6}
           textAlignVertical="top"
           accessibilityLabel="Care details for the dog watcher"
@@ -413,6 +415,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
           value={message}
           onChangeText={setMessage}
           multiline
+          inputAccessoryViewID={DONE_ACCESSORY_ID}
           numberOfLines={3}
           textAlignVertical="top"
           accessibilityLabel="Optional message to the other user"
@@ -431,7 +434,8 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
         <Text style={styles.submitBtnText}>{submitting ? 'Sending...' : 'Send Swap Request 🔄'}</Text>
       </TouchableOpacity>
     </ScrollView>
-  </View>
+  <KeyboardDoneBar />
+</View>
   );
 };
 

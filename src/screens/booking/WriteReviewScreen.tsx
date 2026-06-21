@@ -9,6 +9,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useReviews } from '../../hooks/useReviews';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import StarRating from '../../components/common/StarRating';
+import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
 
 type Props = {
   navigation: NativeStackNavigationProp<RequestsStackParamList, 'WriteReview'>;
@@ -67,6 +68,7 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
         value={comment}
         onChangeText={setComment}
         multiline
+        inputAccessoryViewID={DONE_ACCESSORY_ID}
         numberOfLines={4}
         accessibilityLabel="Review comment, optional"
         returnKeyType="done"
@@ -82,7 +84,8 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
         <Text style={styles.btnText}>{loading ? 'Submitting...' : 'Submit Review'}</Text>
       </TouchableOpacity>
       </ScrollView>
-    </View>
+    <KeyboardDoneBar />
+</View>
   );
 };
 

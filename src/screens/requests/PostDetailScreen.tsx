@@ -43,6 +43,7 @@ import { SwapPost, RepeatSchedule, formatRepeatLabel } from '../../models/types'
 import { spacing, borderRadius, shadow, typography } from '../../config/theme';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { scheduleOwnerReminders, requestNotificationPermissions } from '../../services/ReminderService';
+import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
 
 const RED = '#FF2D55';
 const GREEN = '#00B894';
@@ -181,7 +182,8 @@ const PhotoCarouselSection: React.FC<PhotoCarouselProps> = ({ photos, onPhotoPre
           ))}
         </View>
       )}
-    </View>
+    <KeyboardDoneBar />
+</View>
   );
 };
 
@@ -759,6 +761,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   value={rescheduleNote}
                   onChangeText={setRescheduleNote}
                   multiline
+                  inputAccessoryViewID={DONE_ACCESSORY_ID}
                   returnKeyType="done"
                   blurOnSubmit={true}
                 />

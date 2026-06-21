@@ -36,6 +36,7 @@ import RepeatScheduleModal from '../../components/common/RepeatScheduleModal';
 import ConfettiCelebration, { CelebrationItem } from '../../components/common/ConfettiCelebration';
 import Chip from '../../components/common/Chip';
 import { formatDogAge } from '../../utils/formatDogAge';
+import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
 
 const MIN_CARE_DETAILS = 50;
 const RED = '#FF2D55';
@@ -1906,6 +1907,7 @@ const MAX_PLAY_SESSIONS = 5;
                       value={slot.details}
                       onChangeText={(text) => updateMedicationSlot(idx, 'details', text)}
                       multiline
+                      inputAccessoryViewID={DONE_ACCESSORY_ID}
                       numberOfLines={3}
                       textAlignVertical="top"
                       returnKeyType="done"
@@ -1955,6 +1957,7 @@ const MAX_PLAY_SESSIONS = 5;
                 value={careDetails}
                 onChangeText={setCareDetails}
                 multiline
+                inputAccessoryViewID={DONE_ACCESSORY_ID}
                 numberOfLines={6}
                 textAlignVertical="top"
                 accessibilityLabel="Care details for the sitter"
@@ -2201,7 +2204,8 @@ const MAX_PLAY_SESSIONS = 5;
         currentSchedule={getRepeatScheduleForTarget()}
         defaultTime={getRepeatDefaultTime()}
       />
-    </View>
+    <KeyboardDoneBar />
+</View>
   );
 };
 

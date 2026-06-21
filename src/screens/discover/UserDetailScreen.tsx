@@ -21,6 +21,7 @@ import { spacing, borderRadius, shadow, typography } from '../../config/theme';
 import { formatDogAge } from '../../utils/formatDogAge';
 import StarRating from '../../components/common/StarRating';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
 
 type Props = {
   navigation: NativeStackNavigationProp<DiscoverStackParamList, 'UserDetail'>;
@@ -452,6 +453,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               value={blockFeedbackText}
               onChangeText={setBlockFeedbackText}
               multiline
+              inputAccessoryViewID={DONE_ACCESSORY_ID}
               maxLength={500}
               returnKeyType="done"
               blurOnSubmit={true}
@@ -465,7 +467,8 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 {blockFeedbackText.trim() ? 'Submit & Continue' : 'Skip'}
               </Text>
             </TouchableOpacity>
-          </View>
+                <KeyboardDoneBar />
+</View>
         </TouchableOpacity>
       </Modal>
     </>

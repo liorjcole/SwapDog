@@ -9,6 +9,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { useUsers } from '../../hooks/useUsers';
 import { spacing, borderRadius, typography } from '../../config/theme';
+import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
 
 
 /** Extract clean Instagram handle from any format (handle, @handle, full URL) */
@@ -111,6 +112,7 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
           value={bio}
           onChangeText={setBio}
           multiline
+          inputAccessoryViewID={DONE_ACCESSORY_ID}
           numberOfLines={4}
           accessibilityLabel="Bio"
           returnKeyType="done"
@@ -145,7 +147,8 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
     </ScrollView>
 
 
-    </View>
+          <KeyboardDoneBar />
+</View>
     </>
   );
 };
