@@ -234,13 +234,21 @@ const MAX_PLAY_SESSIONS = 5;
     // Phase 1: update value immediately (no sort)
     let shouldSort = false;
     setPlaySessions(prev => {
-      const updated = prev.map((s, i) => i === index ? { ...s, ...updates } : s);
+      let updated = prev.map((s, i) => i === index ? { ...s, ...updates } : s);
       if (updates.startDate) {
         const newStart = updates.startDate;
         const isDuplicate = prev.some((s, i) => i !== index && isSameTime(s.startDate, newStart));
         if (isDuplicate) {
           Alert.alert('Duplicate Time', `You already have a playtime starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
           return prev;
+        }
+        // Push end time forward if it's now at or before start
+        const session = updated[index];
+        if (session.endDate) {
+          const clampedEnd = clampEndAfterStart(newStart, session.endDate);
+          if (clampedEnd !== session.endDate) {
+            updated = updated.map((s, i) => i === index ? { ...s, endDate: clampedEnd } : s);
+          }
         }
         shouldSort = true;
       }
@@ -493,13 +501,21 @@ const MAX_PLAY_SESSIONS = 5;
     // Phase 1: update value immediately (no sort)
     let shouldSort = false;
     setWalkSessions(prev => {
-      const updated = prev.map((s: WalkSession, i: number) => i === idx ? { ...s, ...updates } : s);
+      let updated = prev.map((s: WalkSession, i: number) => i === idx ? { ...s, ...updates } : s);
       if (updates.startDate) {
         const newStart = updates.startDate;
         const isDuplicate = prev.some((s, i) => i !== idx && isSameTime(s.startDate, newStart));
         if (isDuplicate) {
           Alert.alert('Duplicate Time', `You already have a walk starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
           return prev;
+        }
+        // Push end time forward if it's now at or before start
+        const session = updated[idx];
+        if (session.endDate) {
+          const clampedEnd = clampEndAfterStart(newStart, session.endDate);
+          if (clampedEnd !== session.endDate) {
+            updated = updated.map((s, i) => i === idx ? { ...s, endDate: clampedEnd } : s);
+          }
         }
         shouldSort = true;
       }
@@ -579,6 +595,23 @@ const MAX_PLAY_SESSIONS = 5;
   const timeToMins = (d: Date | null) => d ? d.getHours() * 60 + d.getMinutes() : 0;
   const isSameTime = (a: Date | null, b: Date | null) => !!(a && b) && timeToMins(a) === timeToMins(b);
   const formatTimeShort = (d: Date | null) => d ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+
+  /**
+   * Ensure end time is after start time. If end <= start, push end
+   * to 1 minute after start (handles AM/PM flips automatically since
+   * we work with Date objects and compare hours*60+minutes).
+   */
+  const clampEndAfterStart = (start: Date | null, end: Date): Date => {
+    if (!start) return end;
+    const startMins = start.getHours() * 60 + start.getMinutes();
+    const endMins = end.getHours() * 60 + end.getMinutes();
+    if (endMins > startMins) return end; // end is already after start
+    // End is at or before start — push to start + 1 minute
+    const clamped = new Date(end);
+    const newMins = startMins + 1;
+    clamped.setHours(Math.floor(newMins / 60) % 24, newMins % 60, 0, 0);
+    return clamped;
+  };
 
 
   // ── Service-level photo picker ──
@@ -1818,7 +1851,11 @@ const MAX_PLAY_SESSIONS = 5;
                         themeVariant="dark"
                         accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) setStartTimeDate(d);
+                          if (d) {
+                            setStartTimeDate(d);
+                            // Push end time forward if it's now at or before new start
+                            setEndTimeDate(prev => clampEndAfterStart(d, prev));
+                          }
                         }}
                         style={{ height: 150 }}
                       />
@@ -1831,7 +1868,7 @@ const MAX_PLAY_SESSIONS = 5;
                         themeVariant="dark"
                         accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) setEndTimeDate(d);
+                          if (d) setEndTimeDate(clampEndAfterStart(startTimeDate, d));
                         }}
                         style={{ height: 150 }}
                       />
@@ -2217,7 +2254,7 @@ const MAX_PLAY_SESSIONS = 5;
                         themeVariant="dark"
                         accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) updateWalkSession(wIdx, { endDate: d });
+                          if (d) updateWalkSession(wIdx, { endDate: clampEndAfterStart(ws.startDate, d) });
                         }}
                         style={{ height: 150 }}
                       />
@@ -2457,7 +2494,7 @@ const MAX_PLAY_SESSIONS = 5;
                             themeVariant="dark"
                             accentColor="#FF2D55"
                             onChange={(_: DateTimePickerEvent, d?: Date) => {
-                              if (d) updatePlaySession(pIdx, { endDate: d });
+                              if (d) updatePlaySession(pIdx, { endDate: clampEndAfterStart(pSession.startDate, d) });
                             }}
                             style={{ height: 150 }}
                           />
