@@ -337,6 +337,23 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <ScrollView scrollEnabled={scrollEnabled} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={{ paddingBottom: 16 }} bounces={false} overScrollMode="never">
       <View style={[styles.header, { backgroundColor: colors.surface }]}>
+        {/* View my profile — above pfp */}
+        {user && (
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.navigate('UserDetail', { userId: user.uid });
+            }}
+            style={{ marginBottom: spacing.sm }}
+            accessibilityLabel="View my profile"
+            accessibilityRole="link"
+          >
+            <Text style={{ fontSize: 15, color: '#FFFFFF', textDecorationLine: 'underline' }}>
+              View my profile
+            </Text>
+          </TouchableOpacity>
+        )}
+
         <AvatarImage
           photoURL={userProfile?.photoURL}
           displayName={userProfile?.displayName}
@@ -370,10 +387,15 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={{ color: colors.textSecondary, fontSize: 15 }}>No reviews yet</Text>
           )}
         </View>
-        {userProfile?.bio && <Text style={[styles.bio, { color: colors.textSecondary }]}>{userProfile.bio}</Text>}
 
+        {/* Bio in darker cell */}
+        {userProfile?.bio ? (
+          <View style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 12, padding: 14, marginTop: spacing.sm, width: '100%' }}>
+            <Text style={{ fontSize: 16, color: '#FFFFFF', textAlign: 'center' }}>{userProfile.bio}</Text>
+          </View>
+        ) : null}
 
-        {/* SUB-TASK 3: Points badge — tappable → PointsHistory */}
+        {/* Points — no chevron */}
         <TouchableOpacity
           style={[styles.pointsBadge, { backgroundColor: colors.primary + '18', borderColor: colors.primary }]}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.navigate('PointsHistory'); }}
@@ -381,36 +403,22 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           accessibilityRole="button"
         >
           <Text style={[styles.pointsBadgeText, { color: '#FFFFFF' }]}>
-            {(userProfile?.points ?? 0).toFixed(1)} points {'>'}
+            {(userProfile?.points ?? 0).toFixed(1)} points
           </Text>
         </TouchableOpacity>
 
+        {/* Edit Profile — not bold, bottom right */}
         <TouchableOpacity
-          style={styles.editBtn}
+          style={{ alignSelf: 'flex-end', paddingVertical: spacing.xs, marginTop: spacing.sm }}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.navigate('EditProfile'); }}
           accessibilityLabel="Edit profile"
           accessibilityRole="button"
         >
-          <Text style={styles.editBtnText}>Edit Profile</Text>
+          <Text style={{ fontSize: 15, color: '#FFFFFF' }}>Edit Profile</Text>
         </TouchableOpacity>
       </View>
 
-      {/* View my profile as others see it */}
-      {user && (
-        <TouchableOpacity
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            navigation.navigate('UserDetail', { userId: user.uid });
-          }}
-          style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xs }}
-          accessibilityLabel="View my profile"
-          accessibilityRole="link"
-        >
-          <Text style={{ fontSize: 17, color: colors.primary, textDecorationLine: 'underline', fontWeight: '600' }}>
-            View my profile
-          </Text>
-        </TouchableOpacity>
-      )}
+
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>My Dogs</Text>
@@ -439,9 +447,6 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
 
             {/* Photo gallery grid — draggable reorder */}
-            <Text style={{ fontSize: 15, color: colors.textSecondary, marginTop: 4, marginBottom: 6, fontStyle: 'italic' }}>
-              * Hold & drag to reorder
-            </Text>
             <DraggablePhotoGrid
               photos={dog.photoURLs}
               onReorder={(newPhotos) => { void updateDog(dog.id, { photoURLs: newPhotos }); }}
@@ -464,7 +469,10 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               }}
             />
 
-
+            {/* Reorder hint — bottom right */}
+            <Text style={{ fontSize: 13, color: colors.textSecondary, fontStyle: 'italic', alignSelf: 'flex-end', marginTop: 6 }}>
+              * Hold & drag to reorder
+            </Text>
           </View>
         ))}
 
