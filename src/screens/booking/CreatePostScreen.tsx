@@ -723,6 +723,9 @@ const MAX_PLAY_SESSIONS = 5;
     if (!primaryCareType && addOnCareTypes.size === 0) {
       Alert.alert('Required', 'Please select at least one type of care.'); return;
     }
+    if (primaryCareType === 'overnight' && !overnightLocation) {
+      Alert.alert('Required', 'Please select where the stay will be.'); return;
+    }
     // Build the full requested care datetime
     const now = new Date();
     const parseTime12 = (t: string): { h: number; m: number } => {
@@ -1075,6 +1078,46 @@ const MAX_PLAY_SESSIONS = 5;
             })}
           </View>
 
+          {/* ── Overnight Location (radio buttons, right under overnight card) ── */}
+          {primaryCareType === 'overnight' && (
+            <View style={{ marginTop: 12, gap: 8 }}>
+              {([
+                { value: 'my_home' as const, label: 'My home' },
+                { value: 'sitters_home' as const, label: "Sitter's home" },
+                { value: 'no_preference' as const, label: 'No preference' },
+              ]).map((option) => {
+                const selected = overnightLocation === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}
+                    onPress={() => {
+                      setOvernightLocation(option.value);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{
+                      width: 24, height: 24, borderRadius: 12,
+                      borderWidth: 2,
+                      borderColor: selected ? colors.primary : colors.textSecondary + '80',
+                      backgroundColor: selected ? colors.primary : 'transparent',
+                      alignItems: 'center', justifyContent: 'center',
+                      marginRight: 10,
+                    }}>
+                      {selected && (
+                        <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700', marginTop: -1 }}>✓</Text>
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 17, color: colors.text, fontWeight: selected ? '600' : '400' }}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
           {/* Add-ons — tap to toggle */}
           <Text style={[styles.careTypeHint, { color: colors.textSecondary, marginTop: 16, marginBottom: 8 }]}>
             Anything else? (optional)
@@ -1323,45 +1366,6 @@ const MAX_PLAY_SESSIONS = 5;
             )}
 
 
-        {/* ── Overnight Location Preference ── */}
-        {primaryCareType === 'overnight' && (
-          <View style={[styles.section, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>📍 Where will the stay be?</Text>
-            <View style={{ gap: 10, marginTop: 4 }}>
-              {([
-                { value: 'my_home' as const, label: 'My home', icon: '🏠' },
-                { value: 'sitters_home' as const, label: "Sitter's home", icon: '🏡' },
-                { value: 'no_preference' as const, label: 'No preference', icon: '🤷' },
-              ]).map((option) => {
-                const selected = overnightLocation === option.value;
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.locationOption,
-                      { borderColor: selected ? colors.primary : colors.border,
-                        backgroundColor: selected ? colors.primary + '10' : colors.background,
-                        borderWidth: selected ? 2 : 1 },
-                    ]}
-                    onPress={() => {
-                      setOvernightLocation(option.value);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={{ fontSize: 22 }}>{option.icon}</Text>
-                    <Text style={[styles.locationOptionText, { color: colors.text, fontWeight: selected ? '700' : '500' }]}>
-                      {option.label}
-                    </Text>
-                    {selected && (
-                      <Text style={{ fontSize: 18, color: colors.primary, marginLeft: 'auto' }}>✓</Text>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        )}
 
                 {/* ── Feeding Time (add-on) ── */}
             {addOnCareTypes.has('feeding') && (
