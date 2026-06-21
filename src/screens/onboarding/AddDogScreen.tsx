@@ -262,6 +262,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         ageYears: form.ageYears,
         ageMonths: form.ageYears === 0 ? form.ageMonths : form.ageMonths,
         size: weightToSize(form.weightLbs),
+        weightLbs: form.weightLbs,
         sex: form.sex,
         energyLevel: form.energy,
         photoURLs: form.photoURLs,

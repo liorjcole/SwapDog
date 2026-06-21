@@ -262,7 +262,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               )}
               <View style={styles.dogCardInfo}>
                 <Text style={[styles.dogName, { color: colors.text }]}>{dog.name}</Text>
-                <Text style={[styles.dogBreed, { color: colors.textSecondary }]}>{dog.breed} • {formatDogAge(dog.ageYears, dog.ageMonths)} • {dog.size}</Text>
+                <Text style={[styles.dogBreed, { color: colors.textSecondary }]}>{dog.breed} • {formatDogAge(dog.ageYears, dog.ageMonths)}{dog.weightLbs ? ` • ${dog.weightLbs} lbs` : ''}</Text>
               </View>
             </View>
           </TouchableOpacity>

@@ -35,6 +35,7 @@ const parseDog = (id: string, data: Record<string, unknown>): Dog => {
     ageYears,
     ageMonths,
     size: data.size as DogSize,
+    weightLbs: (data.weightLbs as number | undefined) ?? undefined,
     sex: data.sex as DogSex,
     energyLevel: data.energyLevel as EnergyLevel,
     photoURLs,

@@ -90,6 +90,7 @@ export interface Dog {
   /** Additional months (0-11). For puppies (ageYears=0) this is the primary age. */
   ageMonths: number;
   size: DogSize;
+  weightLbs?: number;
   sex: DogSex;
   energyLevel: EnergyLevel;
   /** Up to 10 photo URLs. First photo is the primary/thumbnail. */

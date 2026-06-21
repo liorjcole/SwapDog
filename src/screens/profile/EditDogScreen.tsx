@@ -80,8 +80,10 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         if (d.isGoodWithKids !== undefined) setGoodWithKids(d.isGoodWithKids);
         if (d.vaccinated !== undefined) setVaccinated(d.vaccinated);
         if ((d as any).bio) setDogBio((d as any).bio);
-        // Reverse-map size to weight estimate for existing dogs
-        if (d.size === DogSize.small) setWeightLbs(10);
+        // Use actual weight if saved, otherwise reverse-map from size
+        if (d.weightLbs && d.weightLbs > 0) {
+          setWeightLbs(d.weightLbs);
+        } else if (d.size === DogSize.small) setWeightLbs(10);
         else if (d.size === DogSize.medium) setWeightLbs(35);
         else if (d.size === DogSize.large) setWeightLbs(75);
         else if (d.size === DogSize.extra_large) setWeightLbs(120);
@@ -229,6 +231,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           ageYears,
           ageMonths,
           size: weightToSize(weightLbs),
+          weightLbs,
           sex,
           energyLevel: energy,
           photoURLs,
@@ -245,6 +248,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           ageYears,
           ageMonths,
           size: weightToSize(weightLbs),
+          weightLbs,
           sex,
           energyLevel: energy,
           photoURLs,
