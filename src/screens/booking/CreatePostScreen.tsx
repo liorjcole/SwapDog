@@ -338,6 +338,59 @@ const MAX_PLAY_SESSIONS = 5;
     });
   };
 
+
+
+  // Check if a care type has any user-filled data
+  const hasFilledData = (type: string): boolean => {
+    if (type === 'feeding') {
+      return feedingSlots.some(s => s.time || s.instructions.trim() || s.photos.length > 0 || s.dogIds.length > 0 || s.repeatSchedule);
+    }
+    if (type === 'dogWalking') {
+      return walkSessions.some(s => s.startDate || s.endDate || (s.instructions && s.instructions.trim()) || s.photos.length > 0 || s.dogIds.length > 0 || s.repeatSchedule);
+    }
+    if (type === 'playtime') {
+      return playSessions.some(s => s.startDate || s.endDate || (s.instructions && s.instructions.trim()) || s.photos.length > 0 || s.dogIds.length > 0 || s.repeatSchedule);
+    }
+    if (type === 'medication') {
+      return medicationSlots.some(s => s.time || s.details.trim() || s.photos.length > 0 || s.dogIds.length > 0 || s.repeatSchedule || s.extraTimes.length > 0);
+    }
+    if (type === 'overnight' || type === 'daySitting') {
+      return startDateSelected || endDateSelected || overnightLocation !== null || careAddress.trim().length > 0;
+    }
+    return false;
+  };
+
+  // Confirm before unselecting a care type with data
+  const confirmUnselectAddOn = (type: CareType) => {
+    if (addOnCareTypes.has(type) && hasFilledData(type)) {
+      Alert.alert(
+        'Remove this service?',
+        'You\'ve already added details for this service. Unselecting it will clear all the info you entered.',
+        [
+          { text: 'Keep It', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: () => toggleAddOn(type) },
+        ]
+      );
+    } else {
+      toggleAddOn(type);
+    }
+  };
+
+  const confirmUnselectPrimary = (type: 'overnight' | 'daySitting') => {
+    if (primaryCareType === type && hasFilledData(type)) {
+      Alert.alert(
+        'Remove this service?',
+        'You\'ve already filled in dates and details for this service. Unselecting it will clear everything you entered.',
+        [
+          { text: 'Keep It', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: () => setPrimaryCareType(null) },
+        ]
+      );
+    } else {
+      setPrimaryCareType(prev => prev === type ? null : type);
+    }
+  };
+
   // Derived: primary care type for conditional fields
   const careType = primaryCareType;
 
@@ -1628,7 +1681,7 @@ const MAX_PLAY_SESSIONS = 5;
                       borderWidth: isSelected ? 2.5 : 1 },
                   ]}
                   onPress={() => {
-                    setPrimaryCareType(prev => prev === type ? null : type);
+                    confirmUnselectPrimary(type as 'overnight' | 'daySitting');
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }}
                   accessibilityLabel={label}
@@ -1795,7 +1848,7 @@ const MAX_PLAY_SESSIONS = 5;
                       borderWidth: isSelected ? 2.5 : 1 },
                   ]}
                   onPress={() => {
-                    toggleAddOn(type);
+                    confirmUnselectAddOn(type);
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }}
                   accessibilityLabel={label}
