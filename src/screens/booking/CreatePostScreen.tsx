@@ -405,6 +405,16 @@ const MAX_PLAY_SESSIONS = 5;
   const [endDateSelected, setEndDateSelected] = useState(false);
   const [startDateSelected, setStartDateSelected] = useState(false);
 
+  // ── Debounced time picker helper ──
+  // iOS spinner onChange fires on EVERY scroll tick. Immediate state updates
+  // fight the scroll gesture, causing snap-back. Debounce so state only
+  // commits 400ms after the last scroll tick.
+  const timeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedTimeUpdate = useCallback((fn: () => void) => {
+    if (timeDebounceRef.current) clearTimeout(timeDebounceRef.current);
+    timeDebounceRef.current = setTimeout(fn, 400);
+  }, []);
+
   // Time fields — Date objects for native spinner picker
   const [startTimeDate, setStartTimeDate] = useState<Date | null>(null);
   const [endTimeDate, setEndTimeDate] = useState<Date | null>(null);
@@ -2104,7 +2114,7 @@ const MAX_PLAY_SESSIONS = 5;
                         accentColor="#FF2D55"
                         {...(careType === 'daySitting' && endTimeDate ? { maximumDate: getMaxStartDate(endTimeDate, startTimeDate ?? endTimeDate) } : {})}
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) setStartTimeDate(d);
+                          if (d) debouncedTimeUpdate(() => setStartTimeDate(d));
                         }}
                         style={{ height: 200 }}
                       />
@@ -2118,7 +2128,7 @@ const MAX_PLAY_SESSIONS = 5;
                         accentColor="#FF2D55"
                         {...(careType === 'daySitting' && startTimeDate ? { minimumDate: getMinEndDate(startTimeDate, endTimeDate ?? startTimeDate) } : {})}
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) setEndTimeDate(d);
+                          if (d) debouncedTimeUpdate(() => setEndTimeDate(d));
                         }}
                         style={{ height: 200 }}
                       />
@@ -2299,7 +2309,7 @@ const MAX_PLAY_SESSIONS = 5;
                         themeVariant="dark"
                         accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) updateFeedingSlot(idx, 'time', d);
+                          if (d) debouncedTimeUpdate(() => updateFeedingSlot(idx, 'time', d));
                         }}
                         style={{ height: 200 }}
                       />
@@ -2502,7 +2512,7 @@ const MAX_PLAY_SESSIONS = 5;
                         accentColor="#FF2D55"
                         maximumDate={getMaxStartDate(ws.endDate, ws.startDate || new Date())}
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) updateWalkSession(wIdx, { startDate: d });
+                          if (d) debouncedTimeUpdate(() => updateWalkSession(wIdx, { startDate: d }));
                         }}
                         style={{ height: 200 }}
                       />
@@ -2516,7 +2526,7 @@ const MAX_PLAY_SESSIONS = 5;
                         accentColor="#FF2D55"
                         minimumDate={getMinEndDate(ws.startDate, ws.endDate || new Date())}
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) updateWalkSession(wIdx, { endDate: d });
+                          if (d) debouncedTimeUpdate(() => updateWalkSession(wIdx, { endDate: d }));
                         }}
                         style={{ height: 200 }}
                       />
@@ -2749,7 +2759,7 @@ const MAX_PLAY_SESSIONS = 5;
                             accentColor="#FF2D55"
                             maximumDate={getMaxStartDate(pSession.endDate, pSession.startDate || new Date())}
                             onChange={(_: DateTimePickerEvent, d?: Date) => {
-                              if (d) updatePlaySession(pIdx, { startDate: d });
+                              if (d) debouncedTimeUpdate(() => updatePlaySession(pIdx, { startDate: d }));
                             }}
                             style={{ height: 200 }}
                           />
@@ -2763,7 +2773,7 @@ const MAX_PLAY_SESSIONS = 5;
                             accentColor="#FF2D55"
                             minimumDate={getMinEndDate(pSession.startDate, pSession.endDate || new Date())}
                             onChange={(_: DateTimePickerEvent, d?: Date) => {
-                              if (d) updatePlaySession(pIdx, { endDate: d });
+                              if (d) debouncedTimeUpdate(() => updatePlaySession(pIdx, { endDate: d }));
                             }}
                             style={{ height: 200 }}
                           />
@@ -2986,7 +2996,7 @@ const MAX_PLAY_SESSIONS = 5;
                         themeVariant="dark"
                         accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (d) updateMedicationSlot(idx, 'time', d);
+                          if (d) debouncedTimeUpdate(() => updateMedicationSlot(idx, 'time', d));
                         }}
                         style={{ height: 200 }}
                       />
@@ -3022,7 +3032,7 @@ const MAX_PLAY_SESSIONS = 5;
                             themeVariant="dark"
                             accentColor="#FF2D55"
                             onChange={(_: DateTimePickerEvent, d?: Date) => {
-                              if (d) updateMedExtraTime(idx, etIdx, d);
+                              if (d) debouncedTimeUpdate(() => updateMedExtraTime(idx, etIdx, d));
                             }}
                             style={{ height: 200 }}
                           />
