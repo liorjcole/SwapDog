@@ -193,7 +193,31 @@ const MAX_PLAY_SESSIONS = 5;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   const updatePlaySession = (index: number, updates: Partial<PlaySession>) => {
-    setPlaySessions(prev => prev.map((s, i) => i === index ? { ...s, ...updates } : s));
+    setPlaySessions(prev => {
+      const updated = prev.map((s, i) => i === index ? { ...s, ...updates } : s);
+      if (updates.startDate) {
+        const newStart = updates.startDate;
+        // Duplicate start time check
+        const isDuplicate = prev.some((s, i) => i !== index && isSameTime(s.startDate, newStart));
+        if (isDuplicate) {
+          Alert.alert('Duplicate Time', `You already have a playtime starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
+          return prev;
+        }
+        // Overlap check: new playtime can't start before previous ends
+        const sorted = [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+        for (let i = 1; i < sorted.length; i++) {
+          if (timeToMins(sorted[i].startDate) < timeToMins(sorted[i - 1].endDate)) {
+            Alert.alert('Playtime Overlap', `This playtime can${"'"}t start before the previous one ends (${formatTimeShort(sorted[i - 1].endDate)}). Please adjust the time.`);
+            return prev;
+          }
+        }
+        return sorted;
+      }
+      if (updates.endDate) {
+        return [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+      }
+      return updated;
+    });
   };
   // Repeat schedule modal state
   const [repeatModalVisible, setRepeatModalVisible] = useState(false);
@@ -300,7 +324,20 @@ const MAX_PLAY_SESSIONS = 5;
   ]);
 
   const updateFeedingSlot = (index: number, field: string, value: unknown) => {
-    setFeedingSlots(prev => prev.map((slot, i) => i === index ? { ...slot, [field]: value } : slot));
+    setFeedingSlots(prev => {
+      const updated = prev.map((slot, i) => i === index ? { ...slot, [field]: value } : slot);
+      if (field === 'time') {
+        const newTime = value as Date;
+        const isDuplicate = prev.some((slot, i) => i !== index && isSameTime(slot.time, newTime));
+        if (isDuplicate) {
+          Alert.alert('Duplicate Time', `You already have a feeding at ${formatTimeShort(newTime)}. Please pick a different time.`);
+          return prev;
+        }
+        // Auto-sort by time earliest → latest
+        return [...updated].sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+      }
+      return updated;
+    });
   };
 
   const removeFeedingSlot = (index: number) => {
@@ -322,7 +359,21 @@ const MAX_PLAY_SESSIONS = 5;
     { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds] },
   ]);
   const updateMedicationSlot = (index: number, field: string, value: unknown) => {
-    setMedicationSlots(prev => prev.map((slot, i) => i === index ? { ...slot, [field]: value } : slot));
+    setMedicationSlots(prev => prev.map((slot, i) => {
+      if (i !== index) return slot;
+      if (field === 'time') {
+        const newTime = value as Date;
+        // Duplicate check against extra times in this slot
+        if (slot.extraTimes.some(et => isSameTime(et.time, newTime))) {
+          Alert.alert('Duplicate Time', `You already have medication at ${formatTimeShort(newTime)}. Please pick a different time.`);
+          return slot;
+        }
+        // After updating primary time, re-sort all times: rebuild so primary is always earliest
+        const allExtra = [...slot.extraTimes].sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+        return { ...slot, time: newTime, extraTimes: allExtra };
+      }
+      return { ...slot, [field]: value };
+    }));
   };
   const removeMedicationSlot = (index: number) => {
     if (medicationSlots.length <= 1) return;
@@ -344,15 +395,25 @@ const MAX_PLAY_SESSIONS = 5;
         ? slot.extraTimes[slot.extraTimes.length - 1].time
         : slot.time;
       d.setHours(lastTime.getHours() + 3, lastTime.getMinutes(), 0, 0);
-      return { ...slot, extraTimes: [...slot.extraTimes, { time: d, showPicker: false }] };
+      const newExtras = [...slot.extraTimes, { time: d, showPicker: false }]
+        .sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+      return { ...slot, extraTimes: newExtras };
     }));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   const updateMedExtraTime = (slotIdx: number, timeIdx: number, newTime: Date) => {
     setMedicationSlots(prev => prev.map((slot, i) => {
       if (i !== slotIdx) return slot;
+      // Duplicate check: compare against primary time and all other extra times
+      const allTimes = [slot.time, ...slot.extraTimes.filter((_, j) => j !== timeIdx).map(et => et.time)];
+      if (allTimes.some(t => isSameTime(t, newTime))) {
+        Alert.alert('Duplicate Time', `You already have medication at ${formatTimeShort(newTime)}. Please pick a different time.`);
+        return slot;
+      }
       const updated = slot.extraTimes.map((et, j) => j === timeIdx ? { ...et, time: newTime } : et);
-      return { ...slot, extraTimes: updated };
+      // Auto-sort extra times earliest → latest
+      const sorted = [...updated].sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+      return { ...slot, extraTimes: sorted };
     }));
   };
   const toggleMedExtraTimePicker = (slotIdx: number, timeIdx: number) => {
@@ -385,8 +446,39 @@ const MAX_PLAY_SESSIONS = 5;
     setWalkSessions(prev => prev.filter((_: WalkSession, i: number) => i !== idx));
   };
   const updateWalkSession = (idx: number, updates: Partial<WalkSession>) => {
-    setWalkSessions(prev => prev.map((s: WalkSession, i: number) => i === idx ? { ...s, ...updates } : s));
+    setWalkSessions(prev => {
+      const updated = prev.map((s: WalkSession, i: number) => i === idx ? { ...s, ...updates } : s);
+      if (updates.startDate) {
+        const newStart = updates.startDate;
+        // Duplicate start time check
+        const isDuplicate = prev.some((s, i) => i !== idx && isSameTime(s.startDate, newStart));
+        if (isDuplicate) {
+          Alert.alert('Duplicate Time', `You already have a walk starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
+          return prev;
+        }
+        // Overlap check: new walk can't start before a previous walk ends
+        const sorted = [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+        for (let i = 1; i < sorted.length; i++) {
+          if (timeToMins(sorted[i].startDate) < timeToMins(sorted[i - 1].endDate)) {
+            Alert.alert('Walk Overlap', `This walk can${"'"}t start before the previous walk ends (${formatTimeShort(sorted[i - 1].endDate)}). Please adjust the time.`);
+            return prev;
+          }
+        }
+        return sorted;
+      }
+      if (updates.endDate) {
+        // Re-sort after end time change too
+        return [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+      }
+      return updated;
+    });
   };
+
+
+  // ── Time helpers: duplicate check, auto-sort ──
+  const timeToMins = (d: Date) => d.getHours() * 60 + d.getMinutes();
+  const isSameTime = (a: Date, b: Date) => timeToMins(a) === timeToMins(b);
+  const formatTimeShort = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   // Care details
   const [careDetails, setCareDetails] = useState('');
