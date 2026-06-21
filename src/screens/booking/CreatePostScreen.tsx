@@ -1445,7 +1445,24 @@ const MAX_PLAY_SESSIONS = 5;
                       <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary, letterSpacing: 0.5 }}>Services</Text>
                       <Text style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 6 }}>{servicesCollapsed ? '›' : '▾'}</Text>
                     </View>
-                    <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+                    {servicesCollapsed ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 4 }}>
+                        {(() => {
+                          const icons: string[] = [];
+                          if (addOnCareTypes.has('feeding')) feedingSlots.forEach(() => icons.push('🍽️'));
+                          if (addOnCareTypes.has('dogWalking')) walkSessions.forEach(() => icons.push('🐕'));
+                          if (addOnCareTypes.has('playtime')) playSessions.forEach(() => icons.push('🎾'));
+                          if (addOnCareTypes.has('medication')) medicationSlots.forEach(() => icons.push('💊'));
+                          return icons.map((emoji, i) => (
+                            <View key={i} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                              <Text style={{ fontSize: 14 }}>{emoji}</Text>
+                            </View>
+                          ));
+                        })()}
+                      </View>
+                    ) : (
+                      <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+                    )}
                   </TouchableOpacity>
                 )}
 
