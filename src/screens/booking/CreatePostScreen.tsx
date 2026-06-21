@@ -1185,7 +1185,7 @@ const MAX_PLAY_SESSIONS = 5;
               <>
                 {feedingSlots.map((slot, idx) => (
                   <View key={idx} style={[styles.section, { backgroundColor: colors.surface }]}>
-                    {/* Header: arrow + title + ✕ + repeat daily — all inline centered */}
+                    {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedFeedings.has(idx) ? 0 : 10 }}>
                       <TouchableOpacity
                         onPress={() => toggleCollapse(setCollapsedFeedings, idx)}
@@ -1200,27 +1200,6 @@ const MAX_PLAY_SESSIONS = 5;
                         </Text>
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        <TouchableOpacity
-                          onPress={() => Alert.alert(
-                            feedingSlots.length === 1 ? 'Remove Feeding' : `Remove Feeding #${idx + 1}`,
-                            feedingSlots.length === 1
-                              ? 'Are you sure you want to remove feeding from this post?'
-                              : 'Are you sure you want to remove this feeding?',
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              { text: 'Remove', style: 'destructive', onPress: () => {
-                                if (feedingSlots.length === 1) {
-                                  setAddOnCareTypes(prev => { const n = new Set(prev); n.delete('feeding'); return n; });
-                                } else {
-                                  removeFeedingSlot(idx);
-                                }
-                              }},
-                            ]
-                          )}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
-                        </TouchableOpacity>
                         {primaryCareType === 'overnight' && (
                           <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
@@ -1242,6 +1221,27 @@ const MAX_PLAY_SESSIONS = 5;
                             </Text>
                           </TouchableOpacity>
                         )}
+                        <TouchableOpacity
+                          onPress={() => Alert.alert(
+                            feedingSlots.length === 1 ? 'Remove Feeding' : `Remove Feeding #${idx + 1}`,
+                            feedingSlots.length === 1
+                              ? 'Are you sure you want to remove feeding from this post?'
+                              : 'Are you sure you want to remove this feeding?',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Remove', style: 'destructive', onPress: () => {
+                                if (feedingSlots.length === 1) {
+                                  setAddOnCareTypes(prev => { const n = new Set(prev); n.delete('feeding'); return n; });
+                                } else {
+                                  removeFeedingSlot(idx);
+                                }
+                              }},
+                            ]
+                          )}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
                     {!collapsedFeedings.has(idx) && (
@@ -1315,7 +1315,7 @@ const MAX_PLAY_SESSIONS = 5;
                     : `${wsDurMins}m walk`;
                   return (
                   <View key={wIdx} style={[styles.section, { backgroundColor: colors.surface }]}>
-                    {/* Header: arrow + title + ✕ + repeat daily — all inline centered */}
+                    {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedWalks.has(wIdx) ? 0 : 10 }}>
                       <TouchableOpacity
                         onPress={() => toggleCollapse(setCollapsedWalks, wIdx)}
@@ -1330,27 +1330,6 @@ const MAX_PLAY_SESSIONS = 5;
                         </Text>
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        <TouchableOpacity
-                          onPress={() => Alert.alert(
-                            walkSessions.length === 1 ? 'Remove Walk' : `Remove Walk #${wIdx + 1}`,
-                            walkSessions.length === 1
-                              ? 'Are you sure you want to remove walking from this post?'
-                              : 'Are you sure you want to remove this walk?',
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              { text: 'Remove', style: 'destructive', onPress: () => {
-                                if (walkSessions.length === 1) {
-                                  setAddOnCareTypes(prev => { const n = new Set(prev); n.delete('dogWalking'); return n; });
-                                } else {
-                                  removeWalkSession(wIdx);
-                                }
-                              }},
-                            ]
-                          )}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
-                        </TouchableOpacity>
                         {primaryCareType === 'overnight' && (
                           <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
@@ -1372,6 +1351,27 @@ const MAX_PLAY_SESSIONS = 5;
                             </Text>
                           </TouchableOpacity>
                         )}
+                        <TouchableOpacity
+                          onPress={() => Alert.alert(
+                            walkSessions.length === 1 ? 'Remove Walk' : `Remove Walk #${wIdx + 1}`,
+                            walkSessions.length === 1
+                              ? 'Are you sure you want to remove walking from this post?'
+                              : 'Are you sure you want to remove this walk?',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Remove', style: 'destructive', onPress: () => {
+                                if (walkSessions.length === 1) {
+                                  setAddOnCareTypes(prev => { const n = new Set(prev); n.delete('dogWalking'); return n; });
+                                } else {
+                                  removeWalkSession(wIdx);
+                                }
+                              }},
+                            ]
+                          )}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
                     {!collapsedWalks.has(wIdx) && (
@@ -1464,7 +1464,7 @@ const MAX_PLAY_SESSIONS = 5;
               <>
                 {playSessions.map((pSession, pIdx) => (
                   <View key={pIdx} style={[styles.section, { backgroundColor: colors.surface }]}>
-                    {/* Header: arrow + title + ✕ + repeat daily — all inline centered */}
+                    {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedPlay.has(pIdx) ? 0 : 10 }}>
                       <TouchableOpacity
                         onPress={() => toggleCollapse(setCollapsedPlay, pIdx)}
@@ -1479,27 +1479,6 @@ const MAX_PLAY_SESSIONS = 5;
                         </Text>
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        <TouchableOpacity
-                          onPress={() => Alert.alert(
-                            playSessions.length === 1 ? 'Remove Playtime' : `Remove Playtime #${pIdx + 1}`,
-                            playSessions.length === 1
-                              ? 'Are you sure you want to remove playtime from this post?'
-                              : 'Are you sure you want to remove this session?',
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              { text: 'Remove', style: 'destructive', onPress: () => {
-                                if (playSessions.length === 1) {
-                                  setAddOnCareTypes(prev => { const n = new Set(prev); n.delete('playtime'); return n; });
-                                } else {
-                                  removePlaySession(pIdx);
-                                }
-                              }},
-                            ]
-                          )}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
-                        </TouchableOpacity>
                         {primaryCareType === 'overnight' && (
                           <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
@@ -1521,6 +1500,27 @@ const MAX_PLAY_SESSIONS = 5;
                             </Text>
                           </TouchableOpacity>
                         )}
+                        <TouchableOpacity
+                          onPress={() => Alert.alert(
+                            playSessions.length === 1 ? 'Remove Playtime' : `Remove Playtime #${pIdx + 1}`,
+                            playSessions.length === 1
+                              ? 'Are you sure you want to remove playtime from this post?'
+                              : 'Are you sure you want to remove this session?',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Remove', style: 'destructive', onPress: () => {
+                                if (playSessions.length === 1) {
+                                  setAddOnCareTypes(prev => { const n = new Set(prev); n.delete('playtime'); return n; });
+                                } else {
+                                  removePlaySession(pIdx);
+                                }
+                              }},
+                            ]
+                          )}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
                     {!collapsedPlay.has(pIdx) && (
@@ -1672,7 +1672,7 @@ const MAX_PLAY_SESSIONS = 5;
               <>
                 {medicationSlots.map((slot, idx) => (
                   <View key={idx} style={[styles.section, { backgroundColor: colors.surface }]}>
-                    {/* Header: arrow + title + ✕ + repeat daily — all inline centered */}
+                    {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedMeds.has(idx) ? 0 : 10 }}>
                       <TouchableOpacity
                         onPress={() => toggleCollapse(setCollapsedMeds, idx)}
@@ -1687,27 +1687,6 @@ const MAX_PLAY_SESSIONS = 5;
                         </Text>
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        <TouchableOpacity
-                          onPress={() => Alert.alert(
-                            medicationSlots.length === 1 ? 'Remove Medication' : `Remove Medication #${idx + 1}`,
-                            medicationSlots.length === 1
-                              ? 'Are you sure you want to remove medication from this post?'
-                              : 'Are you sure you want to remove this medication?',
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              { text: 'Remove', style: 'destructive', onPress: () => {
-                                if (medicationSlots.length === 1) {
-                                  setAddOnCareTypes(prev => { const n = new Set(prev); n.delete('medication'); return n; });
-                                } else {
-                                  removeMedicationSlot(idx);
-                                }
-                              }},
-                            ]
-                          )}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
-                        </TouchableOpacity>
                         {primaryCareType === 'overnight' && (
                           <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
@@ -1729,6 +1708,27 @@ const MAX_PLAY_SESSIONS = 5;
                             </Text>
                           </TouchableOpacity>
                         )}
+                        <TouchableOpacity
+                          onPress={() => Alert.alert(
+                            medicationSlots.length === 1 ? 'Remove Medication' : `Remove Medication #${idx + 1}`,
+                            medicationSlots.length === 1
+                              ? 'Are you sure you want to remove medication from this post?'
+                              : 'Are you sure you want to remove this medication?',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Remove', style: 'destructive', onPress: () => {
+                                if (medicationSlots.length === 1) {
+                                  setAddOnCareTypes(prev => { const n = new Set(prev); n.delete('medication'); return n; });
+                                } else {
+                                  removeMedicationSlot(idx);
+                                }
+                              }},
+                            ]
+                          )}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
                     {!collapsedMeds.has(idx) && (
