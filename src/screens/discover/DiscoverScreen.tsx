@@ -1038,8 +1038,10 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
           <Marker
             coordinate={location.coords}
             title={location.isOverride ? (location.label ?? 'Custom Location') : 'Your Location'}
-            pinColor={RED}
-          />
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={styles.currentUserDot} />
+          </Marker>
           {/* Other user dots — no info, just location markers */}
           {nearbyUsers.map((nu) => (
             nu.user.location ? (
@@ -1180,6 +1182,7 @@ const styles = StyleSheet.create({
 
   sectionDivider: { height: 1, marginVertical: spacing.sm },
   userDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FF2D55', opacity: 0.7 },
+  currentUserDot: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#FF2D55', borderWidth: 2, borderColor: '#000000' },
 
   // Post card — red left accent border
   postCard: { flexDirection: 'row', borderRadius: borderRadius.lg, marginBottom: spacing.sm, overflow: 'hidden' },
