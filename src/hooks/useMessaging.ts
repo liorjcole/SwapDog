@@ -219,7 +219,6 @@ export const useMessaging = () => {
     subscribeToConversations,
     getOrCreateConversation,
     markConversationRead,
-    subscribeToTeamConversations,
   };
 };
 

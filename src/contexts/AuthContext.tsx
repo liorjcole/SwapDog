@@ -8,7 +8,6 @@ import { toDate } from '../utils/firestoreConverters';
 import { REFERRAL_STORAGE_KEY } from '../screens/auth/ReferralCodeScreen';
 
 
-const ADMIN_UID = '5SUwrjPWPzbqf7qTYRS74Uj7CB82';
 interface AuthContextType {
   user: FirebaseUser | null;
   userProfile: User | null;
@@ -84,7 +83,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           contractSignedAt: data.contractSignedAt ? toDate(data.contractSignedAt) : undefined,
           vettingScheduledAt: data.vettingScheduledAt ? toDate(data.vettingScheduledAt) : undefined,
           instagramHandle: data.instagramHandle,
-          isAdmin: docSnap.id === ADMIN_UID || data.role === 'admin',
         };
       }
       return null;

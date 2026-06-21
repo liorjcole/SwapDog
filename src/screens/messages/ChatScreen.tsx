@@ -34,7 +34,6 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { user, userProfile } = useAuthContext();
-  const isAdmin = userProfile?.isAdmin === true;
   const { subscribeToMessages, sendMessage, deleteMessage, markConversationRead } = useMessaging();
   const { isFavorite, addFavorite, removeFavorite, setNotifyOnPost } = useFavorites();
   const { claimPost, removeResponder } = useSwaps();
@@ -42,8 +41,6 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   const [removingMessageId, setRemovingMessageId] = useState<string | null>(null);
   const starred = isFavorite(otherUserId);
   const isSystem = otherUserId === 'swapdog-team';
-  // Admin viewing another user's WatchDog Team conversation (navigated from support list)
-  const isAdminSupport = isAdmin && (route.params?.isTeamSupport === true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [reschedulePost, setReschedulePost] = useState<SwapPost | null>(null);
@@ -78,7 +75,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   useEffect(() => {
     if (user?.uid) {
       // In admin support mode, clear unread for swapdog-team key
-      void markConversationRead(conversationId, isAdminSupport ? "swapdog-team" : user.uid);
+      void markConversationRead(conversationId, user.uid);
     }
   }, [conversationId, user?.uid, markConversationRead]);
 
@@ -113,7 +110,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
     setText('');
     setSending(true);
     try {
-      await sendMessage(conversationId, isAdminSupport ? 'swapdog-team' : user.uid, toSend);
+      await sendMessage(conversationId, user.uid, toSend);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } finally {
       setSending(false);
@@ -167,7 +164,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
 
       const msgData = {
         conversationId,
-        senderId: isAdminSupport ? 'swapdog-team' : user.uid,
+        senderId: user.uid,
         text: '',
         type: 'image',
         imageURL: downloadURL,
@@ -332,7 +329,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
       if (conversationId && msgText) {
         const msgType = action === 'propose' ? 'reschedule' : 'text';
         const msgData: Record<string, any> = {
-          conversationId, senderId: isAdminSupport ? "swapdog-team" : user.uid, text: msgText,
+          conversationId, senderId: user.uid, text: msgText,
           read: false, createdAt: fsServerTimestamp(), type: msgType };
         if (action === 'propose' && newStart && newEnd) {
           msgData.metadata = { postId: reschedulePost.id, proposedStart: newStart.toISOString(), proposedEnd: newEnd.toISOString() };
@@ -494,7 +491,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           return (
           <MessageBubble
             text={item.text}
-            isMe={item.senderId === user?.uid || (isAdminSupport && item.senderId === 'swapdog-team')}
+            isMe={item.senderId === user?.uid}
             imageURL={item.imageURL}
             createdAt={item.createdAt}
             type={item.type}
@@ -567,6 +564,15 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
       </Modal>
 
       <View style={[styles.inputRow, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
+        {isSystem ? (
+          <View style={{ flex: 1, alignItems: 'center', paddingVertical: 10, paddingHorizontal: 16 }}>
+            <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
+              For support, email{' '}
+              <Text style={{ color: colors.primary, fontWeight: '600' }}>david@joinwatchdog.com</Text>
+            </Text>
+          </View>
+        ) : (
+        <>
         <TouchableOpacity
           style={styles.photoBtn}
           onPress={handlePhotoPress}
@@ -582,7 +588,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
         </TouchableOpacity>
         <TextInput
           style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-          placeholder={isAdminSupport ? "Reply as WatchDog Team..." : "Message..."}
+          placeholder={"Message..."}
           placeholderTextColor={colors.textSecondary}
           value={text}
           onChangeText={setText}
@@ -604,6 +610,8 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
         >
           <Text style={styles.sendBtnText}>➤</Text>
         </TouchableOpacity>
+        </>
+        )}
       </View>
     </KeyboardAvoidingView>
   );

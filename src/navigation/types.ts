@@ -28,7 +28,7 @@ export type DiscoverStackParamList = {
   /** Full detail view for a public area post (from Discover feed) */
   PostDetail: { postId: string };
   /** Chat screen within Discover stack (for back navigation) */
-  Chat: { conversationId: string; otherUserId: string; isTeamSupport?: boolean };
+  Chat: { conversationId: string; otherUserId: string };
 };
 
 export type RequestsStackParamList = {
@@ -41,12 +41,12 @@ export type RequestsStackParamList = {
   /** Create a new public post */
   CreatePost: undefined;
   /** Chat screen within Requests stack (for back navigation) */
-  Chat: { conversationId: string; otherUserId: string; isTeamSupport?: boolean };
+  Chat: { conversationId: string; otherUserId: string };
 };
 
 export type MessagesStackParamList = {
   ConversationsList: undefined;
-  Chat: { conversationId: string; otherUserId: string; isTeamSupport?: boolean };
+  Chat: { conversationId: string; otherUserId: string };
   UserDetail: { userId: string };
 };
 
@@ -70,7 +70,7 @@ export type ProfileStackParamList = {
   MyAgreement: undefined;
   PointsHistory: undefined;
   /** Chat screen within Profile stack (for back navigation) */
-  Chat: { conversationId: string; otherUserId: string; isTeamSupport?: boolean };
+  Chat: { conversationId: string; otherUserId: string };
 };
 
 export type MainTabParamList = {

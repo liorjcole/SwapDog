@@ -29,12 +29,10 @@ const getOtherParticipantLabel = (participantIds: string[], myUid: string, names
 const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user, userProfile } = useAuthContext();
-  const isAdmin = userProfile?.isAdmin === true;
-  const { subscribeToConversations, subscribeToTeamConversations } = useMessaging();
+  const { subscribeToConversations } = useMessaging();
   const { isFavorite, addFavorite, removeFavorite, setNotifyOnPost } = useFavorites();
   const { hiddenUserIds } = useBlocking();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [teamConversations, setTeamConversations] = useState<Conversation[]>([]);
   const [nameCache, setNameCache] = useState<Record<string, string>>({});
   const [photoCache, setPhotoCache] = useState<Record<string, string>>({});
 
@@ -44,17 +42,11 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
     return unsub;
   }, [user]);
 
-  // Admin: subscribe to all WatchDog Team conversations
-  useEffect(() => {
-    if (!isAdmin) return;
-    const unsub = subscribeToTeamConversations(setTeamConversations);
-    return unsub;
-  }, [isAdmin]);
 
   // Resolve display names for all other participants
   useEffect(() => {
     if (!user) return;
-    const allConvs = [...conversations, ...(isAdmin ? teamConversations : [])];
+    const allConvs = [...conversations];
     const otherIds: string[] = allConvs
       .flatMap((c) => c.participantIds)
       .filter((id) => id !== user.uid && id !== SYSTEM_SENDER_ID && !nameCache[id]);
@@ -73,7 +65,7 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
         }
       } catch { /* skip */ }
     });
-  }, [conversations, teamConversations, user]);
+  }, [conversations, user]);
 
   const handleStarPress = (otherId: string, otherName: string) => {
     if (otherId === SYSTEM_SENDER_ID) return;
@@ -186,90 +178,22 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
-  // For admin: team conversations (excluding own WatchDog Team chat which is in personal list)
-  const supportConvs = isAdmin
-    ? teamConversations.filter(c => {
-        // Exclude the admin's own WatchDog Team chat (already in personal list)
-        const otherParticipant = c.participantIds.find(id => id !== SYSTEM_SENDER_ID) ?? '';
-        return otherParticipant !== user?.uid && !hiddenUserIds.has(otherParticipant);
-      })
-    : [];
-
   const personalConvs = conversations.filter(c => {
     const otherId = c.participantIds.find(id => id !== user?.uid) ?? '';
     return !hiddenUserIds.has(otherId);
   });
 
-  // For admin team conversations, show the user's name (not "WatchDog Team")
-  const getTeamConvLabel = (conv: Conversation): string => {
-    const userId = conv.participantIds.find(id => id !== SYSTEM_SENDER_ID) ?? '';
-    return nameCache[userId] ?? 'Loading...';
-  };
 
-  const renderTeamItem = ({ item }: { item: Conversation }) => {
-    const userId = item.participantIds.find(id => id !== SYSTEM_SENDER_ID) ?? '';
-    const userName = getTeamConvLabel(item);
-    const unread = item.unreadCounts[SYSTEM_SENDER_ID] ?? 0;
-    const userPhoto = photoCache[userId];
 
-    return (
-      <TouchableOpacity
-        style={[styles.item, { backgroundColor: colors.surface, ...shadow.sm }]}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          navigation.navigate('Chat', { conversationId: item.id, otherUserId: userId, isTeamSupport: true });
-        }}
-        accessibilityLabel={`Support conversation with ${userName}`}
-        accessibilityRole="button"
-      >
-        {userPhoto ? (
-          <Image source={{ uri: userPhoto }} style={styles.convAvatar} />
-        ) : (
-          <View style={[styles.convAvatar, { backgroundColor: colors.primary + '22' }]}>
-            <Text style={styles.convAvatarInitial}>{userName.charAt(0).toUpperCase()}</Text>
-          </View>
-        )}
-        <View style={styles.info}>
-          <Text style={[styles.otherName, { color: colors.primary }]} numberOfLines={1}>
-            {userName}
-          </Text>
-          <Text style={[styles.preview, { color: colors.text }]} numberOfLines={1}>
-            {item.lastMessage ?? 'No messages yet'}
-          </Text>
-          {item.lastMessageAt && (
-            <Text style={[styles.time, { color: colors.textSecondary }]}>
-              {item.lastMessageAt.toLocaleDateString()}
-            </Text>
-          )}
-        </View>
-        {unread > 0 && (
-          <View
-            style={[styles.dot, { backgroundColor: '#FF2D55' }]}
-            accessibilityLabel="Unread message"
-          />
-        )}
-        <View style={[styles.supportBadge, { backgroundColor: colors.primary + '18' }]}>
-          <Text style={styles.supportBadgeText}>🐾</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
-        data={[...supportConvs, ...personalConvs]}
+        data={personalConvs}
         keyExtractor={(c) => c.id}
         ListEmptyComponent={<EmptyStateView emoji="💬" title="No conversations yet" subtitle="Start by requesting a swap" />}
-        renderItem={({ item }) => {
-          const isTeamConv = isAdmin && supportConvs.some(c => c.id === item.id);
-          return isTeamConv ? renderTeamItem({ item }) : renderItem({ item });
-        }}
-        ListHeaderComponent={isAdmin && supportConvs.length > 0 ? (
-          <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>
-            🐾 WatchDog Support ({supportConvs.length})
-          </Text>
-        ) : null}
+        renderItem={renderItem}
+
         contentContainerStyle={styles.list}
       />
     </View>
