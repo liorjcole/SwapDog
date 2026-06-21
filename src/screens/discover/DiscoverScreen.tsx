@@ -238,6 +238,17 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
             </Text>
             <Text style={[styles.dateRange, { color: colors.textSecondary }]}>{isSameDay(post.startDate, post.endDate) ? startStr : `${startStr} – ${endStr}`}</Text>
           </View>
+          {post.compensationType && (
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }} numberOfLines={1}>
+              💰 {post.compensationType === 'points'
+                ? `${post.pointsOffered ?? post.pointsCost ?? 0} points`
+                : post.compensationType === 'payment'
+                  ? `$${post.totalPayment ?? post.paymentAmount ?? 0}${post.paymentRate ? (post.paymentRate === 'per_hour' ? '/hr' : '/day') : ''}`
+                  : post.compensationType === 'either'
+                    ? `${post.pointsOffered ?? post.pointsCost ?? 0} pts or $${post.totalPayment ?? post.paymentAmount ?? 0}`
+                    : 'TBD'}
+            </Text>
+          )}
         </View>
 
         {/* ── Full Care Details ── */}
@@ -329,25 +340,12 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
 
           {/* Free-text care details */}
           {post.careDetails ? (
-            <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 6, fontStyle: 'italic' }} numberOfLines={3}>
+            <Text style={{ fontSize: 15, color: colors.textSecondary, marginTop: 6, fontStyle: 'italic' }} numberOfLines={3}>
               "{post.careDetails}"
             </Text>
           ) : null}
 
-          {/* Compensation summary */}
-          {post.compensationType && (
-            <View style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text }}>
-                💰  {post.compensationType === 'points'
-                  ? `${post.pointsOffered ?? post.pointsCost ?? 0} points`
-                  : post.compensationType === 'payment'
-                    ? `$${post.totalPayment ?? post.paymentAmount ?? 0}${post.paymentRate ? (post.paymentRate === 'per_hour' ? '/hr' : '/day') : ''}`
-                    : post.compensationType === 'either'
-                      ? `${post.pointsOffered ?? post.pointsCost ?? 0} pts or $${post.totalPayment ?? post.paymentAmount ?? 0}`
-                      : 'TBD'}
-              </Text>
-            </View>
-          )}
+
         </View>
 
         {post.status !== 'open' && (
@@ -1096,7 +1094,7 @@ const styles = StyleSheet.create({
   avatarEmoji: { fontSize: 18 },
   headerInfo: { flex: 1 },
   posterName: { fontSize: 15, fontWeight: '700' },
-  dateRange: { fontSize: 12, marginTop: 1 },
+  dateRange: { fontSize: 14, fontWeight: '600', marginTop: 1 },
   dogThumbSmall: { width: 44, height: 44, borderRadius: borderRadius.sm, borderWidth: 1 },
   dogThumbPlaceholder: { width: 44, height: 44, borderRadius: borderRadius.sm, alignItems: 'center', justifyContent: 'center' },
   dogThumbEmoji: { fontSize: 20 },
