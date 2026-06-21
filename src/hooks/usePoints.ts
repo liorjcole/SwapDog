@@ -35,15 +35,17 @@ export function usePoints() {
 
   /**
    * Deduct points from a user's balance (e.g. requester pays after swap).
-   * Throws if user has insufficient points.
+   * By default throws if user has insufficient points.
+   * Pass allowNegative=true for penalty deductions (e.g. late cancellation)
+   * which should go through even if balance drops below zero.
    */
-  const deductPoints = async (userId: string, amount: number): Promise<void> => {
+  const deductPoints = async (userId: string, amount: number, allowNegative = false): Promise<void> => {
     const userRef = doc(db, 'users', userId);
     await runTransaction(db, async (transaction) => {
       const snap = await transaction.get(userRef);
       if (!snap.exists()) throw new Error(`User ${userId} not found`);
       const current = (snap.data().points as number) ?? 0;
-      if (current < amount) {
+      if (!allowNegative && current < amount) {
         throw new Error(`Insufficient points: balance ${current}, required ${amount}`);
       }
       transaction.update(userRef, { points: current - amount, updatedAt: new Date() });
