@@ -841,6 +841,13 @@ const MAX_PLAY_SESSIONS = 5;
       showValidationAlert('Care Details Required', `Please provide at least ${MIN_CARE_DETAILS} characters`, 'careDetails');
       return;
     }
+    if (addOnCareTypes.has('medication')) {
+      const emptyMed = medicationSlots.find(s => s.details.trim().length < 10);
+      if (emptyMed) {
+        showValidationAlert('Medication Details Required', 'Please provide at least 10 characters describing the medication (name, dosage, instructions, etc.)', 'careDetails');
+        return;
+      }
+    }
     if (!offerPoints && !offerMoney) {
       showValidationAlert('Required', 'Select at least one compensation type (points or money).', 'compensation');
       return;
