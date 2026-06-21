@@ -399,6 +399,7 @@ const MAX_PLAY_SESSIONS = 5;
   // Time fields — Date objects for native spinner picker
   const [startTimeDate, setStartTimeDate] = useState<Date | null>(null);
   const [endTimeDate, setEndTimeDate] = useState<Date | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const [showStartTime, setShowStartTime] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
   // Feeding slots — Date objects for native spinner
@@ -563,6 +564,16 @@ const MAX_PLAY_SESSIONS = 5;
   // ── Time helpers: duplicate check, auto-sort ──
   const timeToMins = (d: Date | null) => d ? d.getHours() * 60 + d.getMinutes() : 0;
   const isSameTime = (a: Date | null, b: Date | null) => !!(a && b) && timeToMins(a) === timeToMins(b);
+  const getCareTypeLabel = (t: string): string => {
+    switch (t) {
+      case 'overnight': return 'Overnight Stay';
+      case 'daySitting': return 'Day Sitting';
+      case 'dogWalking': return 'Dog Walking';
+      case 'dropInVisit': return 'Drop-in Visit';
+      default: return 'Pet Care';
+    }
+  };
+
   const formatTimeShort = (d: Date | null) => d ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
 
   /**
@@ -3422,20 +3433,154 @@ const MAX_PLAY_SESSIONS = 5;
             </Animated.View>
         )}
 
-            {/* ── Submit ── */}
+            {/* ── Preview + Submit ── */}
+            <TouchableOpacity
+              onPress={() => setShowPreview(true)}
+              style={{ alignSelf: 'center', marginBottom: 12 }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '500', textDecorationLine: 'underline' }}>Preview Post</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.submitBtn, { backgroundColor: colors.primary, opacity: submitting ? 0.7 : 1 }]}
               onPress={validateAndSubmit}
               disabled={submitting}
-              accessibilityLabel={submitting ? 'Posting...' : 'Post Request'}
+              accessibilityLabel={submitting ? 'Posting...' : 'Post'}
               accessibilityRole="button"
             >
-              <Text style={styles.submitBtnText}>{submitting ? 'Posting...' : 'Post Request 🐾'}</Text>
+              <Text style={styles.submitBtnText}>{submitting ? 'Posting...' : '🐾 Post! 🐾'}</Text>
             </TouchableOpacity>
 
             <View style={{ height: 60 }} />
 
       </ScrollView>
+      {/* ── Post Preview Modal ── */}
+      <Modal visible={showPreview} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowPreview(false)}>
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
+          {/* Header with back arrow */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 56, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: colors.surface, borderBottomWidth: 0.5, borderBottomColor: colors.border }}>
+            <TouchableOpacity onPress={() => setShowPreview(false)} style={{ marginRight: 12, padding: 4 }}>
+              <Text style={{ fontSize: 22, color: colors.text }}>←</Text>
+            </TouchableOpacity>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Preview</Text>
+          </View>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+            {/* Post card preview */}
+            <View style={[styles.section, { backgroundColor: colors.surface, borderWidth: 1.5, borderColor: '#FF2D55' + '80' }]}>
+              {/* YOUR POST badge */}
+              <View style={{ position: 'absolute', top: -1, right: -1, backgroundColor: '#FF2D55', paddingHorizontal: 10, paddingVertical: 4, borderBottomLeftRadius: 8, borderTopRightRadius: 12, zIndex: 10 }}>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 }}>YOUR POST</Text>
+              </View>
+              {/* Dog photos + names */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                {selectedDogs.length > 1 ? (
+                  <View style={{ flexDirection: 'row', marginRight: 10 }}>
+                    {selectedDogs.map((dog, i) => (
+                      dog.photoURLs?.[0] ? (
+                        <Image key={dog.id} source={{ uri: dog.photoURLs[0] }} style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: colors.border, marginRight: i < selectedDogs.length - 1 ? -8 : 0, zIndex: selectedDogs.length - i }} />
+                      ) : (
+                        <View key={dog.id} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FF2D5512', alignItems: 'center', justifyContent: 'center', marginRight: i < selectedDogs.length - 1 ? -8 : 0, zIndex: selectedDogs.length - i }}>
+                          <Text style={{ fontSize: 20 }}>🐶</Text>
+                        </View>
+                      )
+                    ))}
+                  </View>
+                ) : selectedDogs[0]?.photoURLs?.[0] ? (
+                  <Image source={{ uri: selectedDogs[0].photoURLs[0] }} style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: colors.border, marginRight: 10 }} />
+                ) : (
+                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FF2D5512', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                    <Text style={{ fontSize: 20 }}>🐶</Text>
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }} numberOfLines={1}>
+                    {selectedDogs.map(d => d.name).join(' & ') || 'Select dogs'}
+                  </Text>
+                  <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                    {startDateSelected ? shortDate(startDate) : 'No date'}
+                    {primaryCareType === 'overnight' && endDateSelected ? ` – ${shortDate(endDate)}` : ''}
+                  </Text>
+                </View>
+                {/* Compensation badge */}
+                {(offerPoints || offerMoney) && (
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }} numberOfLines={1}>
+                    💰 {offerPoints && pointsOffered ? `${pointsOffered} points` : ''}
+                    {offerPoints && offerMoney && pointsOffered && paymentAmount ? ' or ' : ''}
+                    {offerMoney && paymentAmount ? `$${paymentAmount}` : ''}
+                  </Text>
+                )}
+              </View>
+
+              {/* Care type */}
+              <View style={{ borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 8 }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
+                  {getCareTypeLabel(primaryCareType ?? '')}
+                </Text>
+                {(primaryCareType === 'overnight' || primaryCareType === 'daySitting') && startTimeDate && endTimeDate && (
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 2 }}>
+                    🕐  {formatTime12(startTimeDate)} – {formatTime12(endTimeDate)}
+                  </Text>
+                )}
+
+                {/* Services summary */}
+                {addOnCareTypes.has('feeding') && (
+                  <View style={{ marginTop: 6 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>🍽️ Feeding × {feedingSlots.length}</Text>
+                    {feedingSlots.filter(s => s.time).map((slot, i) => (
+                      <Text key={i} style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
+                        {formatTime12(slot.time)}{slot.repeatSchedule ? '  ·  ' + (slot.repeatSchedule.type === 'daily' ? 'daily' : slot.repeatSchedule.type === 'specificDates' ? 'specific dates' : 'custom') : ''}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+                {addOnCareTypes.has('dogWalking') && (
+                  <View style={{ marginTop: 6 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>🐕 Walk × {walkSessions.length}</Text>
+                    {walkSessions.filter(ws => ws.startDate || ws.endDate).map((ws, i) => (
+                      <Text key={i} style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
+                        {ws.startDate ? formatTime12(ws.startDate) : '?'} – {ws.endDate ? formatTime12(ws.endDate) : '?'}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+                {addOnCareTypes.has('playtime') && (
+                  <View style={{ marginTop: 6 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>🎾 Playtime × {playSessions.length}</Text>
+                    {playSessions.filter(ps => ps.startDate || ps.endDate || ps.flexible).map((ps, i) => (
+                      <Text key={i} style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
+                        {ps.flexible ? 'Flexible hours' : `${ps.startDate ? formatTime12(ps.startDate) : '?'} – ${ps.endDate ? formatTime12(ps.endDate) : '?'}`}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+                {addOnCareTypes.has('medication') && (
+                  <View style={{ marginTop: 6 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>💊 Medication × {medicationSlots.length}</Text>
+                    {medicationSlots.filter(s => s.time).map((slot, i) => (
+                      <Text key={i} style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
+                        {formatTime12(slot.time)}{slot.details ? `  ·  ${slot.details.slice(0, 40)}${slot.details.length > 40 ? '…' : ''}` : ''}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+
+                {/* Care details */}
+                {careDetails.trim().length > 0 && (
+                  <View style={{ marginTop: 10, borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 8 }}>
+                    <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 20 }} numberOfLines={6}>
+                      {careDetails}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <Text style={{ textAlign: 'center', color: colors.textSecondary, fontSize: 13, marginTop: 16, fontStyle: 'italic' }}>
+              This is how your post will appear to other pet parents
+            </Text>
+          </ScrollView>
+        </View>
+      </Modal>
       <ConfettiCelebration
         queue={celebrationQueue}
         onDismissAll={() => {
