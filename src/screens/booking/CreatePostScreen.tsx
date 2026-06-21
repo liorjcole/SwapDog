@@ -3493,11 +3493,21 @@ const MAX_PLAY_SESSIONS = 5;
                     <Text style={{ fontSize: 15, color: colors.text, flex: 1 }}>{addr}</Text>
                     {careAddress === addr && <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '700', marginRight: 10 }}>✓</Text>}
                     <TouchableOpacity
-                      onPress={(e) => { e.stopPropagation(); removeSavedAddress(addr); }}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        Alert.alert(
+                          'Remove Address?',
+                          'This will remove this address from your saved list. You can always re-add it later.',
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Remove', style: 'destructive', onPress: () => removeSavedAddress(addr) },
+                          ]
+                        );
+                      }}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      style={{ padding: 4 }}
+                      style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255, 45, 85, 0.15)', alignItems: 'center', justifyContent: 'center' }}
                     >
-                      <Text style={{ fontSize: 18, color: colors.textSecondary, fontWeight: '300' }}>−</Text>
+                      <Text style={{ fontSize: 16, color: '#FF2D55', fontWeight: '600', lineHeight: 18 }}>−</Text>
                     </TouchableOpacity>
                   </TouchableOpacity>
                 ))}
