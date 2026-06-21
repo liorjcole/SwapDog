@@ -1433,7 +1433,7 @@ const MAX_PLAY_SESSIONS = 5;
                 {/* ── Services collapsible header ── */}
                 {(addOnCareTypes.has('feeding') || addOnCareTypes.has('dogWalking') || addOnCareTypes.has('playtime') || addOnCareTypes.has('medication')) && (
                   <TouchableOpacity
-                    style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.lg }}
+                    style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.xl }}
                     onPress={() => {
                       setServicesCollapsed(prev => !prev);
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1441,23 +1441,35 @@ const MAX_PLAY_SESSIONS = 5;
                     activeOpacity={0.7}
                   >
                     <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
-                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary, letterSpacing: 0.5 }}>Services</Text>
-                      <Text style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 6 }}>{servicesCollapsed ? '›' : '▾'}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 }}>
+                      <Text style={{ fontSize: 22, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.5 }}>Services</Text>
+                      <Text style={{ fontSize: 18, color: colors.textSecondary, marginLeft: 8 }}>{servicesCollapsed ? '›' : '▾'}</Text>
                     </View>
                     {servicesCollapsed ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingRight: 4 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', paddingRight: 4 }}>
                         {(() => {
                           const icons: string[] = [];
                           if (addOnCareTypes.has('feeding')) feedingSlots.forEach(() => icons.push('🍽️'));
                           if (addOnCareTypes.has('dogWalking')) walkSessions.forEach(() => icons.push('🐕'));
                           if (addOnCareTypes.has('playtime')) playSessions.forEach(() => icons.push('🎾'));
                           if (addOnCareTypes.has('medication')) medicationSlots.forEach(() => icons.push('💊'));
-                          return icons.map((emoji, i) => (
-                            <View key={i} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-                              <Text style={{ fontSize: 14 }}>{emoji}</Text>
-                            </View>
-                          ));
+                          const maxVisible = 6;
+                          const hasOverflow = icons.length > maxVisible;
+                          const visible = hasOverflow ? icons.slice(0, maxVisible) : icons;
+                          return (
+                            <>
+                              {visible.map((emoji, i) => (
+                                <View key={i} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.background, alignItems: 'center', justifyContent: 'center', marginLeft: i === 0 ? 0 : -10, zIndex: visible.length - i }}>
+                                  <Text style={{ fontSize: 14 }}>{emoji}</Text>
+                                </View>
+                              ))}
+                              {hasOverflow && (
+                                <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.background, alignItems: 'center', justifyContent: 'center', marginLeft: -10, zIndex: 0 }}>
+                                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>+{icons.length - maxVisible}</Text>
+                                </View>
+                              )}
+                            </>
+                          );
                         })()}
                       </View>
                     ) : (
