@@ -3027,6 +3027,9 @@ const MAX_PLAY_SESSIONS = 5;
                       returnKeyType="done"
                       blurOnSubmit={true}
                     />
+                    <Text style={{ fontSize: 12, color: slot.details.trim().length >= 10 ? '#00B894' : colors.textSecondary, marginTop: 4, marginLeft: 4 }}>
+                      {slot.details.trim().length}/10 characters minimum
+                    </Text>
 
                     {/* Medication Photos */}
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
