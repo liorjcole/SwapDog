@@ -1483,6 +1483,15 @@ const MAX_PLAY_SESSIONS = 5;
             </View>
           )}
 
+          {/* ── No Preference: coordination note ── */}
+          {(primaryCareType === 'overnight' || primaryCareType === 'daySitting') && overnightLocation === 'no_preference' && (
+            <View style={{ backgroundColor: colors.background, borderRadius: 10, padding: 14, marginTop: 12 }}>
+              <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
+                Once a caretaker is confirmed, you can message them directly to coordinate. 💬
+              </Text>
+            </View>
+          )}
+
           {/* Add-ons — tap to toggle */}
           <Text style={[styles.careTypeHint, { color: colors.textSecondary, marginTop: 16, marginBottom: 8 }]}>
             Need any specifics?
