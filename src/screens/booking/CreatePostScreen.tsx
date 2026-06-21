@@ -416,7 +416,7 @@ const MAX_PLAY_SESSIONS = 5;
       const lastTime = slot.extraTimes.length > 0
         ? slot.extraTimes[slot.extraTimes.length - 1].time
         : slot.time;
-      d.setHours(lastTime.getHours() + 3, lastTime.getMinutes(), 0, 0);
+      d.setHours(lastTime ? lastTime.getHours() + 3 : 11, lastTime ? lastTime.getMinutes() : 0, 0, 0);
       const newExtras = [...slot.extraTimes, { time: d, showPicker: false }]
         .sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
       return { ...slot, extraTimes: newExtras };
@@ -532,9 +532,9 @@ const MAX_PLAY_SESSIONS = 5;
   };
 
   // ── Time helpers: duplicate check, auto-sort ──
-  const timeToMins = (d: Date) => d.getHours() * 60 + d.getMinutes();
-  const isSameTime = (a: Date, b: Date) => timeToMins(a) === timeToMins(b);
-  const formatTimeShort = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const timeToMins = (d: Date | null) => d ? d.getHours() * 60 + d.getMinutes() : 0;
+  const isSameTime = (a: Date | null, b: Date | null) => !!(a && b) && timeToMins(a) === timeToMins(b);
+  const formatTimeShort = (d: Date | null) => d ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
 
 
   // ── Service-level photo picker ──
@@ -633,7 +633,8 @@ const MAX_PLAY_SESSIONS = 5;
   };
 
   // Format a Date to "h:mm AM/PM"
-  const formatTime12 = (d: Date): string => {
+  const formatTime12 = (d: Date | null): string => {
+    if (!d) return '';
     let h = d.getHours();
     const m = d.getMinutes();
     const period = h >= 12 ? 'PM' : 'AM';
@@ -647,6 +648,7 @@ const MAX_PLAY_SESSIONS = 5;
   // Play time formatting is now per-session (computed inline)
   // Total walk duration across all sessions
   const walkDurationMins = walkSessions.reduce((total: number, ws: WalkSession) => {
+    if (!ws.startDate || !ws.endDate) return total;
     let startMins = ws.startDate.getHours() * 60 + ws.startDate.getMinutes();
     let endMins = ws.endDate.getHours() * 60 + ws.endDate.getMinutes();
     return total + (endMins > startMins ? endMins - startMins : 0);
@@ -654,6 +656,7 @@ const MAX_PLAY_SESSIONS = 5;
 
   // Play duration helper — computed per session
   const getPlayDurationMins = (session: PlaySession) => {
+    if (!session.startDate || !session.endDate) return 0;
     let sMins = session.startDate.getHours() * 60 + session.startDate.getMinutes();
     let eMins = session.endDate.getHours() * 60 + session.endDate.getMinutes();
     if (eMins <= sMins) eMins += 1440;
@@ -889,6 +892,7 @@ const MAX_PLAY_SESSIONS = 5;
       let walkPts = 0;
       let totalHrs = 0;
       for (const ws of walkSessions) {
+        if (!ws.startDate || !ws.endDate) continue;
         const sMins = ws.startDate.getHours() * 60 + ws.startDate.getMinutes();
         const eMins = ws.endDate.getHours() * 60 + ws.endDate.getMinutes();
         const sessionMins = eMins > sMins ? eMins - sMins : 0;
@@ -1170,6 +1174,7 @@ const MAX_PLAY_SESSIONS = 5;
           startTime: ws.startDate ? formatTime12(ws.startDate) : '',
           endTime: ws.endDate ? formatTime12(ws.endDate) : '',
           durationMins: (() => {
+            if (!ws.startDate || !ws.endDate) return 0;
             let s = ws.startDate.getHours() * 60 + ws.startDate.getMinutes();
             let e = ws.endDate.getHours() * 60 + ws.endDate.getMinutes();
             return e > s ? e - s : 0;
