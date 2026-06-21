@@ -150,7 +150,7 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flexGrow: 1, padding: spacing.lg, paddingTop: 120 },
-  logo: { fontSize: 56, textAlign: 'center', marginBottom: spacing.md },
+  logo: { fontSize: 58, textAlign: 'center', marginBottom: spacing.md },
   title: { ...typography.h2, textAlign: 'center', marginBottom: spacing.xs },
   sub: { ...typography.body, textAlign: 'center', marginBottom: spacing.xl },
   input: {
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.md,
-    fontSize: 16 },
+    fontSize: 18 },
   btn: {
     padding: spacing.md,
     borderRadius: borderRadius.md,
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   passwordWrap: { position: 'relative', marginBottom: spacing.md },
   passwordInput: { marginBottom: 0, paddingRight: 48 },
   eyeBtn: { position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' },
-  link: { textAlign: 'center', fontSize: 15 },
+  link: { textAlign: 'center', fontSize: 17 },
   linkBold: { fontWeight: '700' } });
 
 export default SignUpScreen;

@@ -194,7 +194,7 @@ const MainTabNavigator: React.FC = () => {
   const MessagesIcon = useCallback(
     ({ color }: { color: string }) => (
       <View style={{ position: 'relative' }}>
-        <Text style={{ fontSize: 20, color }}>💬</Text>
+        <Text style={{ fontSize: 22, color }}>💬</Text>
         {unreadCount > 0 && (
           <View
             style={{
@@ -212,7 +212,7 @@ const MainTabNavigator: React.FC = () => {
               paddingHorizontal: 3,
             }}
           >
-            <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700', lineHeight: 13 }}>
+            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', lineHeight: 13 }}>
               {unreadCount > 99 ? '99+' : String(unreadCount)}
             </Text>
           </View>
@@ -549,12 +549,12 @@ const MainTabNavigator: React.FC = () => {
       <Tab.Screen
         name="DiscoverTab"
         component={DiscoverNavigator}
-        options={{ tabBarLabel: 'Discover', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🐾</Text> }}
+        options={{ tabBarLabel: 'Discover', tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>🐾</Text> }}
       />
       <Tab.Screen
         name="RequestsTab"
         component={RequestsNavigator}
-        options={{ tabBarLabel: 'Schedule', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>📅</Text> }}
+        options={{ tabBarLabel: 'Schedule', tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>📅</Text> }}
       />
       <Tab.Screen
         name="MessagesTab"
@@ -564,7 +564,7 @@ const MainTabNavigator: React.FC = () => {
       <Tab.Screen
         name="ProfileTab"
         component={ProfileNavigator}
-        options={{ tabBarLabel: 'Profile', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👤</Text> }}
+        options={{ tabBarLabel: 'Profile', tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>👤</Text> }}
       />
     </Tab.Navigator>
     </>

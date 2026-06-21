@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  logo: { fontSize: 52, marginBottom: spacing.xs },
+  logo: { fontSize: 54, marginBottom: spacing.xs },
   appName: { ...typography.h2, marginBottom: spacing.md },
   divider: { height: 1, width: '80%', marginBottom: spacing.md },
   heading: { ...typography.h2, textAlign: 'center', marginBottom: spacing.md },
@@ -158,17 +158,17 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
   },
-  statusText: { fontSize: 14, fontWeight: '500' },
+  statusText: { fontSize: 16, fontWeight: '500' },
   timelineCard: {
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     marginBottom: spacing.lg,
   },
   timelineRow: { flexDirection: 'row', alignItems: 'center' },
-  timelineIcon: { fontSize: 18, marginRight: spacing.sm },
-  timelineLabel: { fontSize: 15 },
+  timelineIcon: { fontSize: 20, marginRight: spacing.sm },
+  timelineLabel: { fontSize: 17 },
   emailBtn: { alignItems: 'center', paddingVertical: spacing.md },
-  emailText: { fontSize: 14, textAlign: 'center' },
+  emailText: { fontSize: 16, textAlign: 'center' },
 });
 
 export default WaitingApprovalScreen;

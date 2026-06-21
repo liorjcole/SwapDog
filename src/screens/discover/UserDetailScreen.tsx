@@ -257,7 +257,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 <Image source={{ uri: dog.photoURLs[0] }} style={styles.dogPhoto} />
               ) : (
                 <View style={[styles.dogPhotoPlaceholder, { backgroundColor: colors.primary + '22' }]}>
-                  <Text style={{ fontSize: 20 }}></Text>
+                  <Text style={{ fontSize: 22 }}></Text>
                 </View>
               )}
               <View style={styles.dogCardInfo}>
@@ -346,7 +346,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Filtered review list */}
         {reviews.length === 0 ? (
-          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>No reviews yet</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 16 }}>No reviews yet</Text>
         ) : (
           reviews
             .filter((r) => {
@@ -431,19 +431,19 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           onPress={() => Keyboard.dismiss()}
         >
           <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 24, width: '100%', maxWidth: 340 }}>
-            <Text style={{ fontSize: 22, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: 4 }}>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: 4 }}>
               ✅ Block Successful
             </Text>
-            <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: 16, lineHeight: 20 }}>
+            <Text style={{ fontSize: 16, color: colors.textSecondary, textAlign: 'center', marginBottom: 16, lineHeight: 20 }}>
               {blockedUserName} has been blocked.
             </Text>
-            <Text style={{ fontSize: 14, color: colors.text, textAlign: 'center', marginBottom: 12, lineHeight: 20 }}>
+            <Text style={{ fontSize: 16, color: colors.text, textAlign: 'center', marginBottom: 12, lineHeight: 20 }}>
               WatchDog is built on trust and a positive community. If this person was acting inappropriately, please let us know — we take reports seriously and may take action including account termination.
             </Text>
             <TextInput
               style={{
                 borderWidth: 1, borderColor: colors.border, borderRadius: 10,
-                padding: 12, fontSize: 15, color: colors.text,
+                padding: 12, fontSize: 17, color: colors.text,
                 backgroundColor: colors.background, minHeight: 90,
                 textAlignVertical: 'top',
               }}
@@ -461,7 +461,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               style={{ backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 14, marginTop: 14, alignItems: 'center' }}
               activeOpacity={0.8}
             >
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>
                 {blockFeedbackText.trim() ? 'Submit & Continue' : 'Skip'}
               </Text>
             </TouchableOpacity>
@@ -477,15 +477,15 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', padding: spacing.lg },
   avatar: { width: 90, height: 90, borderRadius: 45, marginBottom: spacing.sm },
   name: { ...typography.h2, marginBottom: spacing.xs },
-  location: { fontSize: 14, marginBottom: spacing.xs },
+  location: { fontSize: 16, marginBottom: spacing.xs },
   ratingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
-  ratingText: { fontSize: 13, marginLeft: spacing.xs },
-  bio: { fontSize: 14, textAlign: 'center', marginTop: spacing.sm },
+  ratingText: { fontSize: 15, marginLeft: spacing.xs },
+  bio: { fontSize: 16, textAlign: 'center', marginTop: spacing.sm },
   section: { padding: spacing.lg },
   sectionTitle: { ...typography.h3, marginBottom: spacing.md },
   dogCard: { padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.sm },
-  dogName: { fontSize: 16, fontWeight: '700' },
-  dogBreed: { fontSize: 13, marginTop: 2 },
+  dogName: { fontSize: 18, fontWeight: '700' },
+  dogBreed: { fontSize: 15, marginTop: 2 },
   actionBtn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center' },
   actionBtnText: { color: '#fff', ...typography.button },
   disabledBanner: {
@@ -494,10 +494,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
   },
-  disabledBannerText: { fontSize: 14, textAlign: 'center' },
+  disabledBannerText: { fontSize: 16, textAlign: 'center' },
   igRow: { marginTop: 8 },
-  igHandle: { fontSize: 14, fontWeight: '600' },
-  pointsBadge: { fontSize: 14, marginTop: 6, fontWeight: '500' },
+  igHandle: { fontSize: 16, fontWeight: '600' },
+  pointsBadge: { fontSize: 16, marginTop: 6, fontWeight: '500' },
   dogCardRow: { flexDirection: 'row', alignItems: 'center' },
   dogPhoto: { width: 50, height: 50, borderRadius: 25, marginRight: 12 },
   dogPhotoPlaceholder: { width: 50, height: 50, borderRadius: 25, marginRight: 12, alignItems: 'center', justifyContent: 'center' },
@@ -505,12 +505,12 @@ const styles = StyleSheet.create({
   // Reviews
   filterRow: { marginBottom: spacing.md },
   filterChip: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8 },
-  filterText: { fontSize: 13, fontWeight: '600' },
+  filterText: { fontSize: 15, fontWeight: '600' },
   reviewCard: { padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.sm },
   reviewHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  reviewBadge: { fontSize: 12, fontWeight: '700' },
-  reviewNote: { fontSize: 14, lineHeight: 20, marginBottom: 6 },
-  reviewMeta: { fontSize: 12 },
+  reviewBadge: { fontSize: 14, fontWeight: '700' },
+  reviewNote: { fontSize: 16, lineHeight: 20, marginBottom: 6 },
+  reviewMeta: { fontSize: 14 },
   blockBtn: {
     alignItems: 'center',
     marginTop: 8,
@@ -520,12 +520,12 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   blockBtnText: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
   blockNote: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#999',
     textAlign: 'center',
     marginTop: 4,

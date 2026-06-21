@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   ratingContainer: { alignItems: 'center', marginBottom: spacing.xl },
   input: {
     borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md,
-    fontSize: 15, height: 100, textAlignVertical: 'top', marginBottom: spacing.lg },
+    fontSize: 17, height: 100, textAlignVertical: 'top', marginBottom: spacing.lg },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center' },
   btnText: { color: '#fff', ...typography.button } });
 

@@ -295,17 +295,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   convAvatarEmoji: {
-    fontSize: 20,
+    fontSize: 22,
   },
   convAvatarInitial: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: '#FF2D55',
   },
   info: { flex: 1 },
-  otherName: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  preview: { fontSize: 15 },
-  time: { fontSize: 12, marginTop: 2 },
+  otherName: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  preview: { fontSize: 17 },
+  time: { fontSize: 14, marginTop: 2 },
   dot: {
     width: 9,
     height: 9,
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   starIcon: {
-    fontSize: 22,
+    fontSize: 24,
   },
   supportBadge: {
     marginLeft: 8,
@@ -326,10 +326,10 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   supportBadgeText: {
-    fontSize: 14,
+    fontSize: 16,
   },
   sectionHeader: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '600',
     marginBottom: 8,
     letterSpacing: 0.5,

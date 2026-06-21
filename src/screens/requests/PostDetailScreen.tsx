@@ -692,14 +692,14 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           <View style={{ flex: 1, backgroundColor: colors.background }}>
             <SafeAreaView style={{ flex: 1 }}>
               <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-                <Text style={{ color: colors.text, fontSize: 22, fontWeight: '800', marginBottom: 20 }}>{isOvernight ? 'Propose New Dates' : 'Propose New Date'}</Text>
+                <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800', marginBottom: 20 }}>{isOvernight ? 'Propose New Dates' : 'Propose New Date'}</Text>
 
-                <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 6 }}>{isOvernight ? 'Start Date' : 'Date'}</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 15, fontWeight: '600', marginBottom: 6 }}>{isOvernight ? 'Start Date' : 'Date'}</Text>
                 <TouchableOpacity
                   onPress={() => { setShowStartPicker(!showStartPicker); setShowEndPicker(false); }}
                   style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 14, marginBottom: 4 }}
                 >
-                  <Text style={{ color: showStartPicker ? colors.primary : colors.text, fontSize: 16, fontWeight: '600' }}>
+                  <Text style={{ color: showStartPicker ? colors.primary : colors.text, fontSize: 18, fontWeight: '600' }}>
                     {rescheduleStart.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                   </Text>
                 </TouchableOpacity>
@@ -725,12 +725,12 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
                 {isOvernight && (
                   <>
-                    <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: 16, marginBottom: 6 }}>End Date</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 15, fontWeight: '600', marginTop: 16, marginBottom: 6 }}>End Date</Text>
                     <TouchableOpacity
                       onPress={() => { setShowEndPicker(!showEndPicker); setShowStartPicker(false); }}
                       style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 14, marginBottom: 4 }}
                     >
-                      <Text style={{ color: showEndPicker ? colors.primary : colors.text, fontSize: 16, fontWeight: '600' }}>
+                      <Text style={{ color: showEndPicker ? colors.primary : colors.text, fontSize: 18, fontWeight: '600' }}>
                         {rescheduleEnd.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                       </Text>
                     </TouchableOpacity>
@@ -749,9 +749,9 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   </>
                 )}
 
-                <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: 16, marginBottom: 6 }}>Note (optional)</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 15, fontWeight: '600', marginTop: 16, marginBottom: 6 }}>Note (optional)</Text>
                 <TextInput
-                  style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 14, color: colors.text, fontSize: 15, minHeight: 60, textAlignVertical: 'top', marginBottom: 20 }}
+                  style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 14, color: colors.text, fontSize: 17, minHeight: 60, textAlignVertical: 'top', marginBottom: 20 }}
                   placeholder="e.g. Something came up, would these dates work?"
                   placeholderTextColor={colors.textSecondary}
                   value={rescheduleNote}
@@ -765,13 +765,13 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   style={{ backgroundColor: '#FFD700', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 8 }}
                   onPress={() => { setShowStartPicker(false); setShowEndPicker(false); handleReschedule(); }}
                 >
-                  <Text style={{ color: '#3D2E00', fontWeight: '700', fontSize: 16 }}>Send Proposal</Text>
+                  <Text style={{ color: '#3D2E00', fontWeight: '700', fontSize: 18 }}>Send Proposal</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={{ paddingVertical: 12, alignItems: 'center' }}
                   onPress={() => { setShowStartPicker(false); setShowEndPicker(false); setShowRescheduleModal(false); }}
                 >
-                  <Text style={{ color: colors.textSecondary, fontSize: 15 }}>Cancel</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 17 }}>Cancel</Text>
                 </TouchableOpacity>
               </ScrollView>
             </SafeAreaView>
@@ -805,10 +805,10 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* ── Reschedule / Cancel banner (owner, claimed post) ── */}
         {isOwner && post.status === 'claimed' && !isJustApproved && (
           <View style={[styles.rescheduleBanner, { backgroundColor: '#3D2E00', borderColor: '#FFD700' }]}>
-            <Text style={{ color: '#FFD700', fontSize: 15, fontWeight: '600', marginBottom: 8 }}>
+            <Text style={{ color: '#FFD700', fontSize: 17, fontWeight: '600', marginBottom: 8 }}>
               Plans changed?
             </Text>
-            <Text style={{ color: '#FFD700', fontSize: 13, marginBottom: 12 }}>
+            <Text style={{ color: '#FFD700', fontSize: 15, marginBottom: 12 }}>
               Reschedule or cancel this booking
             </Text>
             <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -816,13 +816,13 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 style={{ flex: 1, backgroundColor: '#FFD700', borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}
                 onPress={() => setShowRescheduleModal(true)}
               >
-                <Text style={{ color: '#3D2E00', fontWeight: '700', fontSize: 14 }}>Reschedule</Text>
+                <Text style={{ color: '#3D2E00', fontWeight: '700', fontSize: 16 }}>Reschedule</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={{ flex: 1, backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#FF4444', borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}
                 onPress={handleCancelClaimed}
               >
-                <Text style={{ color: '#FF4444', fontWeight: '700', fontSize: 14 }}>Cancel</Text>
+                <Text style={{ color: '#FF4444', fontWeight: '700', fontSize: 16 }}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -923,7 +923,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               </Text>
             </View>
             <View style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: colors.primary, fontSize: 18, fontWeight: '600', marginLeft: 1 }}>›</Text>
+              <Text style={{ color: colors.primary, fontSize: 20, fontWeight: '600', marginLeft: 1 }}>›</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -955,7 +955,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   {dBreed ? <Text style={[styles.dogBreed, { color: colors.textSecondary }]}>{dBreed}</Text> : null}
                 </View>
                 <View style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: colors.primary, fontSize: 18, fontWeight: '600', marginLeft: 1 }}>›</Text>
+                  <Text style={{ color: colors.primary, fontSize: 20, fontWeight: '600', marginLeft: 1 }}>›</Text>
                 </View>
               </TouchableOpacity>
             );
@@ -972,20 +972,20 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               {getCareTypeIcon(post.careType)}  {getCareTypeLabel(post.careType)}
             </Text>
           )}
-          <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 14 }]}>
+          <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 16 }]}>
             📅  {smartDate(post.startDate)} – {smartDate(post.endDate, { includeYear: true })}
           </Text>
 
           {/* Dogs */}
           {post.dogNames && post.dogNames.length > 0 && (
-            <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 14, marginTop: 4 }]}>
+            <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 16, marginTop: 4 }]}>
               🐕  {post.dogNames.join(', ')}
             </Text>
           )}
 
           {/* Day sitting / overnight times */}
           {(post.careType === 'daySitting' || post.careType === 'overnight') && post.startTime && post.endTime && (
-            <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 14, marginTop: 4 }]}>
+            <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 16, marginTop: 4 }]}>
               🕐  {post.startTime} – {post.endTime}
             </Text>
           )}
@@ -993,15 +993,15 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           {/* ── Add-on care breakdown ── */}
           {post.addOnCareTypes && post.addOnCareTypes.length > 0 && (
             <View style={{ marginTop: 12, borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 12 }}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 8 }}>Requested Care</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 8 }}>Requested Care</Text>
 
               {/* Feeding slots */}
               {post.feedingSlots && post.feedingSlots.length > 0 && (
                 <View style={{ marginBottom: 10 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }}>🍽️ Feeding</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 4 }}>🍽️ Feeding</Text>
                   {post.feedingSlots.map((slot, i) => (
                     <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
-                      <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                      <Text style={{ fontSize: 15, color: colors.textSecondary }}>
                         {slot.time}{(slot as any).repeatSchedule ? '  ·  ' + formatRepeatLabel((slot as any).repeatSchedule) : (slot as any).daily ? '  ·  Repeat daily' : ''}
                         {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                           ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
@@ -1015,17 +1015,17 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               {/* Medication slots */}
               {post.medicationSlots && post.medicationSlots.length > 0 && (
                 <View style={{ marginBottom: 10 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }}>💊 Medication</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 4 }}>💊 Medication</Text>
                   {post.medicationSlots.map((slot, i) => (
                     <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
-                      <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                      <Text style={{ fontSize: 15, color: colors.textSecondary }}>
                         {slot.time}{(slot as any).repeatSchedule ? '  ·  ' + formatRepeatLabel((slot as any).repeatSchedule) : (slot as any).daily ? '  ·  Repeat daily' : ''}
                         {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                           ? `  \u00b7  ${resolveDogNames(slot.dogIds, post)}`
                           : ''}
                       </Text>
                       {slot.details ? (
-                        <Text style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 4, fontStyle: 'italic', marginTop: 1 }}>
+                        <Text style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 4, fontStyle: 'italic', marginTop: 1 }}>
                           {slot.details}
                         </Text>
                       ) : null}
@@ -1037,14 +1037,14 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               {/* Walk sessions */}
               {post.walkSessions && post.walkSessions.length > 0 && (
                 <View style={{ marginBottom: 10 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }}>🐕 Walks</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 4 }}>🐕 Walks</Text>
                   {post.walkSessions.map((ws, i) => {
                     const durLabel = ws.durationMins >= 60
                       ? `${Math.floor(ws.durationMins / 60)}h${ws.durationMins % 60 > 0 ? ` ${ws.durationMins % 60}m` : ''}`
                       : `${ws.durationMins}m`;
                     return (
                       <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
-                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                        <Text style={{ fontSize: 15, color: colors.textSecondary }}>
                           {ws.startTime} – {ws.endTime}  ({durLabel}){(ws as any).repeatSchedule ? '  ·  ' + formatRepeatLabel((ws as any).repeatSchedule) : (ws as any).repeatDaily ? '  ·  Repeat daily' : ''}
                           {ws.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                             ? `  ·  ${resolveDogNames(ws.dogIds, post)}`
@@ -1059,14 +1059,14 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               {/* Play sessions */}
               {post.playSessions && post.playSessions.length > 0 && (
                 <View style={{ marginBottom: 10 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }}>🎾 Playtime</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 4 }}>🎾 Playtime</Text>
                   {post.playSessions.map((ps, i) => {
                     const durLabel = ps.durationMins >= 60
                       ? `${Math.floor(ps.durationMins / 60)}h${ps.durationMins % 60 > 0 ? ` ${ps.durationMins % 60}m` : ''}`
                       : `${ps.durationMins}m`;
                     return (
                       <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
-                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                        <Text style={{ fontSize: 15, color: colors.textSecondary }}>
                           {ps.flexible
                             ? `Flexible · ${durLabel}`
                             : `${ps.startTime} – ${ps.endTime}  (${durLabel})`}
@@ -1218,8 +1218,8 @@ const carouselStyles = StyleSheet.create({
   slide: { width: SCREEN_WIDTH, height: CAROUSEL_HEIGHT },
   image: { width: SCREEN_WIDTH, height: CAROUSEL_HEIGHT },
   placeholder: { width: SCREEN_WIDTH, height: CAROUSEL_HEIGHT, backgroundColor: '#1C1C1E', alignItems: 'center', justifyContent: 'center' },
-  placeholderEmoji: { fontSize: 64, marginBottom: 8 },
-  placeholderText: { fontSize: 16, color: '#666', fontWeight: '600' },
+  placeholderEmoji: { fontSize: 66, marginBottom: 8 },
+  placeholderText: { fontSize: 18, color: '#666', fontWeight: '600' },
   dotsRow: { position: 'absolute', bottom: 12, width: '100%', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 3.5 },
   dotActive: { backgroundColor: '#FFFFFF', width: 9, height: 9, borderRadius: 4.5 },
@@ -1231,7 +1231,7 @@ const modalStyles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center' },
   safeTop: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
   closeBtn: { alignSelf: 'flex-end', margin: 16, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
-  closeBtnText: { color: '#FFFFFF', fontSize: 18, fontWeight: '700', lineHeight: 20 },
+  closeBtnText: { color: '#FFFFFF', fontSize: 20, fontWeight: '700', lineHeight: 20 },
   slide: { width: SCREEN_WIDTH, flex: 1, justifyContent: 'center', alignItems: 'center' },
   image: { width: SCREEN_WIDTH, height: '100%' },
   safeBottom: { position: 'absolute', bottom: 0, left: 0, right: 0 },
@@ -1246,9 +1246,9 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingBottom: spacing.xl * 2 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  notFound: { fontSize: 16 },
+  notFound: { fontSize: 18 },
   section: { borderRadius: borderRadius.lg, padding: spacing.md, marginBottom: spacing.md, marginHorizontal: spacing.md, marginTop: spacing.md },
-  sectionTitle: { fontSize: 18, fontWeight: '800', marginBottom: spacing.sm },
+  sectionTitle: { fontSize: 20, fontWeight: '800', marginBottom: spacing.sm },
 
   // Care type banner
   careTypeBanner: {
@@ -1261,89 +1261,89 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderWidth: 1.5,
     padding: spacing.md },
-  careTypeBannerIcon: { fontSize: 30 },
-  careTypeBannerLabel: { fontSize: 17, fontWeight: '800', marginBottom: 2 },
-  careTypeSchedule: { fontSize: 14, fontWeight: '500' },
+  careTypeBannerIcon: { fontSize: 32 },
+  careTypeBannerLabel: { fontSize: 19, fontWeight: '800', marginBottom: 2 },
+  careTypeSchedule: { fontSize: 16, fontWeight: '500' },
 
   // Poster
   posterRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   posterAvatar: { width: 48, height: 48, borderRadius: 24, borderWidth: 1 },
   posterAvatarPlaceholder: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  posterAvatarEmoji: { fontSize: 22 },
+  posterAvatarEmoji: { fontSize: 24 },
   posterInfo: { flex: 1 },
   posterNameRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' },
-  posterName: { fontSize: 16, fontWeight: '700' },
-  ownerLabel: { fontSize: 13, fontWeight: '400', color: '#999999' },
-  postedAt: { fontSize: 12, marginTop: 2 },
+  posterName: { fontSize: 18, fontWeight: '700' },
+  ownerLabel: { fontSize: 15, fontWeight: '400', color: '#999999' },
+  postedAt: { fontSize: 14, marginTop: 2 },
   statusBadge: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.full },
-  statusBadgeText: { fontSize: 11, fontWeight: '700' },
+  statusBadgeText: { fontSize: 13, fontWeight: '700' },
 
   // Dog
   dogRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   dogThumb: { width: 60, height: 60, borderRadius: borderRadius.md, borderWidth: 1 },
   dogThumbPlaceholder: { width: 60, height: 60, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
-  dogThumbEmoji: { fontSize: 28 },
+  dogThumbEmoji: { fontSize: 30 },
   dogInfo: { flex: 1 },
-  dogName: { fontSize: 17, fontWeight: '700' },
-  dogBreed: { fontSize: 13, marginTop: 2 },
+  dogName: { fontSize: 19, fontWeight: '700' },
+  dogBreed: { fontSize: 15, marginTop: 2 },
 
   // Dates
-  dates: { fontSize: 16, fontWeight: '600' },
+  dates: { fontSize: 18, fontWeight: '600' },
 
   // Compensation
-  compText: { fontSize: 15, fontWeight: '400', marginBottom: spacing.sm },
+  compText: { fontSize: 17, fontWeight: '400', marginBottom: spacing.sm },
   offAppNote: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.sm, marginTop: spacing.xs },
-  offAppNoteText: { fontSize: 13, lineHeight: 18, fontWeight: '500' },
+  offAppNoteText: { fontSize: 15, lineHeight: 18, fontWeight: '500' },
 
   // Care details
-  careDetailLine: { fontSize: 15, fontWeight: '600', marginBottom: 4 },
-  careDetails: { fontSize: 14, lineHeight: 22 },
+  careDetailLine: { fontSize: 17, fontWeight: '600', marginBottom: 4 },
+  careDetails: { fontSize: 16, lineHeight: 22 },
 
   // Interested Helpers RED section
   helpersSection: { borderRadius: borderRadius.lg, marginBottom: spacing.md, marginHorizontal: spacing.md, marginTop: spacing.lg, overflow: 'hidden', borderWidth: 2, borderColor: RED, backgroundColor: 'rgba(255,45,85,0.06)', shadowColor: RED, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 6, elevation: 4 },
   helpersSectionHeader: { backgroundColor: RED, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  helpersSectionTitle: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  helpersSectionTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '800' },
   rescheduleBanner: { marginHorizontal: spacing.md, marginTop: spacing.sm, borderWidth: 1.5, borderRadius: borderRadius.lg, padding: spacing.md },
   claimedBadge: { backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  claimedBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  claimedBadgeText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   helperRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,45,85,0.25)' },
   helperAvatarTouchable: {},
   helperAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: RED },
   helperAvatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,45,85,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: RED },
-  helperAvatarEmoji: { fontSize: 20 },
+  helperAvatarEmoji: { fontSize: 22 },
   helperInfo: { flex: 1 },
   helperActions: { alignItems: 'flex-end', gap: spacing.xs },
-  helperName: { fontSize: 15, fontWeight: '600', color: '#2D3436' },
-  helperTap: { fontSize: 12, marginTop: 2 },
-  helperApprovedLabel: { fontSize: 12, marginTop: 2, color: '#00B894', fontWeight: '600' },
-  helperAcceptedPts: { fontSize: 12, marginTop: 2, color: '#00B894', fontWeight: '600' },
+  helperName: { fontSize: 17, fontWeight: '600', color: '#2D3436' },
+  helperTap: { fontSize: 14, marginTop: 2 },
+  helperApprovedLabel: { fontSize: 14, marginTop: 2, color: '#00B894', fontWeight: '600' },
+  helperAcceptedPts: { fontSize: 14, marginTop: 2, color: '#00B894', fontWeight: '600' },
   helperMsgBtn: { paddingVertical: 2 },
 
 
   // Approve button
   approveBtn: { backgroundColor: RED, borderRadius: borderRadius.sm, paddingHorizontal: spacing.md, paddingVertical: 7 },
   approveBtnDisabled: { opacity: 0.5 },
-  approveBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  approveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
 
   // Help button
   helpBtn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm, marginBottom: spacing.sm, marginHorizontal: spacing.md },
   helpBtnAlreadyResponded: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#FF2D55' },
-  helpBtnText: { color: '#fff', ...typography.button, fontSize: 17 },
+  helpBtnText: { color: '#fff', ...typography.button, fontSize: 19 },
 
   // Owner note
   ownerNote: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginHorizontal: spacing.md },
-  ownerNoteText: { fontSize: 14 },
+  ownerNoteText: { fontSize: 16 },
   deletePostBtn: { backgroundColor: '#FF3B3020', borderWidth: 1.5, borderColor: '#FF3B30', borderRadius: 12, padding: 14, alignItems: 'center' as const, marginHorizontal: 16, marginTop: 16 },
-  deletePostBtnText: { color: '#FF3B30', fontSize: 16, fontWeight: '700' },
+  deletePostBtnText: { color: '#FF3B30', fontSize: 18, fontWeight: '700' },
 
   // "I Can Help" modal
   helpModalOverlay: { flex: 1, justifyContent: 'flex-end' },
   helpModalCard: { borderRadius: 20, padding: spacing.xl, paddingBottom: spacing.xl * 2, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 10 },
-  helpModalTitle: { fontSize: 20, fontWeight: '800', marginBottom: spacing.xs, textAlign: 'center' },
-  helpModalSubtitle: { fontSize: 15, textAlign: 'center', marginBottom: spacing.lg },
+  helpModalTitle: { fontSize: 22, fontWeight: '800', marginBottom: spacing.xs, textAlign: 'center' },
+  helpModalSubtitle: { fontSize: 17, textAlign: 'center', marginBottom: spacing.lg },
   helpModalAcceptBtn: { borderRadius: borderRadius.md, padding: spacing.md, alignItems: 'center', marginBottom: spacing.sm },
-  helpModalBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  helpModalBtnText: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
   helpModalCancelLink: { alignItems: 'center', paddingVertical: spacing.sm },
-  helpModalCancelText: { fontSize: 14 } });
+  helpModalCancelText: { fontSize: 16 } });
 
 export default PostDetailScreen;

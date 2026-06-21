@@ -109,7 +109,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}
         >
-          <Text style={{ fontSize: 20, color: '#FFFFFF', fontWeight: '600', marginLeft: -2, marginTop: -1 }}>{'‹'}</Text>
+          <Text style={{ fontSize: 22, color: '#FFFFFF', fontWeight: '600', marginLeft: -2, marginTop: -1 }}>{'‹'}</Text>
         </TouchableOpacity>
       ) : undefined,
     });
@@ -412,7 +412,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
 
       {/* Photo grid — draggable reorder, first = primary */}
       <Text style={[styles.label, { color: colors.text }]}>Photos ({form.photoURLs.length}/{MAX_PHOTOS})</Text>
-      <Text style={{ fontSize: 15, color: colors.textSecondary, marginBottom: 8 }}>
+      <Text style={{ fontSize: 17, color: colors.textSecondary, marginBottom: 8 }}>
         Hold & drag to reorder
       </Text>
       <DraggablePhotoGrid
@@ -710,16 +710,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   multiDogHintText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: 20,
   },
-  input: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, fontSize: 15 },
-  label: { fontSize: 15, fontWeight: '600', marginBottom: spacing.sm, marginTop: spacing.sm },
+  input: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, fontSize: 17 },
+  label: { fontSize: 17, fontWeight: '600', marginBottom: spacing.sm, marginTop: spacing.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1 },
-  switchLabel: { fontSize: 15 },
+  switchLabel: { fontSize: 17 },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.lg, marginBottom: spacing.md },
   btnText: { color: '#fff', ...typography.button },
   addAnotherBtn: {
@@ -728,7 +728,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     alignItems: 'center',
     marginBottom: spacing.xl },
-  addAnotherBtnText: { fontSize: 15, fontWeight: '700' },
+  addAnotherBtnText: { fontSize: 17, fontWeight: '700' },
   deleteCurrentBtn: {
     alignItems: 'center',
     paddingVertical: spacing.sm,
@@ -736,50 +736,50 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   deleteCurrentBtnText: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '600',
     color: '#FF3B30',
   },
   dogBioInput: { minHeight: 100, paddingTop: spacing.md },
-  fieldHint: { fontSize: 12, color: '#999', marginTop: -8, marginBottom: 4 },
+  fieldHint: { fontSize: 14, color: '#999', marginTop: -8, marginBottom: 4 },
   refChartToggle: { alignSelf: 'flex-start', marginBottom: spacing.sm, paddingVertical: 4 },
-  refChartToggleText: { fontSize: 14, fontWeight: '600' },
+  refChartToggleText: { fontSize: 16, fontWeight: '600' },
   refChart: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md },
-  refChartTitle: { fontSize: 14, fontWeight: '700', marginBottom: spacing.sm },
+  refChartTitle: { fontSize: 16, fontWeight: '700', marginBottom: spacing.sm },
   refChartRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.1)' },
-  refChartBreed: { fontSize: 14 },
-  refChartWeight: { fontSize: 14, fontWeight: '600' },
-  refChartNote: { fontSize: 12, fontStyle: 'italic', marginTop: spacing.sm },
-  skip: { textAlign: 'center', fontSize: 15, marginBottom: spacing.lg },
+  refChartBreed: { fontSize: 16 },
+  refChartWeight: { fontSize: 16, fontWeight: '600' },
+  refChartNote: { fontSize: 14, fontStyle: 'italic', marginTop: spacing.sm },
+  skip: { textAlign: 'center', fontSize: 17, marginBottom: spacing.lg },
   // Photo grid
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md, gap: spacing.xs },
   photoThumb: { width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: borderRadius.sm, overflow: 'visible', marginBottom: spacing.xs },
   thumbImg: { width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: borderRadius.sm },
   primaryBadge: { position: 'absolute', bottom: 2, left: 2, paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 },
-  primaryBadgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
+  primaryBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   removeBtn: { position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  removeBtnText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  removeBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   addPhotoTile: { width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: borderRadius.sm, borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
-  addPhotoIcon: { fontSize: 24, fontWeight: '300', lineHeight: 28 },
-  addPhotoLabel: { fontSize: 10 },
+  addPhotoIcon: { fontSize: 26, fontWeight: '300', lineHeight: 28 },
+  addPhotoLabel: { fontSize: 12 },
   // Age
   ageRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xs },
   agePicker: { flex: 1 },
-  agePickerLabel: { fontSize: 13, marginBottom: spacing.xs },
+  agePickerLabel: { fontSize: 15, marginBottom: spacing.xs },
   ageControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   ageBtn: { width: 32, height: 32, borderRadius: borderRadius.sm, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  ageBtnText: { fontSize: 18, lineHeight: 22 },
-  ageValue: { fontSize: 18, fontWeight: '700', minWidth: 28, textAlign: 'center' },
-  ageHint: { fontSize: 12, fontStyle: 'italic', marginBottom: spacing.sm },
+  ageBtnText: { fontSize: 20, lineHeight: 22 },
+  ageValue: { fontSize: 20, fontWeight: '700', minWidth: 28, textAlign: 'center' },
+  ageHint: { fontSize: 14, fontStyle: 'italic', marginBottom: spacing.sm },
   savedDogsSection: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 20 },
-  savedDogsTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  savedDogsTitle: { fontSize: 20, fontWeight: '700', marginBottom: 8 },
   savedDogRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   savedDogThumb: { width: 36, height: 36, borderRadius: 18, marginRight: 10 },
   savedDogThumbPlaceholder: { width: 36, height: 36, borderRadius: 18, marginRight: 10, alignItems: 'center', justifyContent: 'center' },
-  savedDogName: { fontSize: 15, fontWeight: '500' },
+  savedDogName: { fontSize: 17, fontWeight: '500' },
   savedDogDelete: { marginLeft: 'auto', padding: 6 },
-  savedDogDeleteText: { fontSize: 16, color: '#FF3B30', fontWeight: '700' },
-  savedDogsHint: { fontSize: 13, marginTop: 6, fontStyle: 'italic' },
+  savedDogDeleteText: { fontSize: 18, color: '#FF3B30', fontWeight: '700' },
+  savedDogsHint: { fontSize: 15, marginTop: 6, fontStyle: 'italic' },
   // Photo preview modal
 });
 

@@ -340,7 +340,7 @@ export function DraggablePhotoGrid({
               disabled={uploading}
             >
               <Text style={[styles.addIcon, { color: colors.primary }]}>+</Text>
-              <Text style={{ fontSize: 10, color: colors.textSecondary }}>
+              <Text style={{ fontSize: 12, color: colors.textSecondary }}>
                 {effectiveCount}/{maxPhotos}
               </Text>
             </TouchableOpacity>
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   },
   primaryText: {
     color: '#fff',
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
   },
   deleteBtn: {
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   },
   deleteBtnText: {
     color: '#fff',
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
   },
   loadingPlaceholder: {
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addIcon: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '300',
     lineHeight: 28,
   },

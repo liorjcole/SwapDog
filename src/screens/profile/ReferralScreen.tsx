@@ -158,9 +158,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     ...shadow.sm,
   },
-  safetyTitle: { fontSize: 16, fontWeight: '700', marginBottom: spacing.sm },
-  safetyBody: { fontSize: 14, lineHeight: 20, marginBottom: spacing.sm },
-  safetyBold: { fontSize: 14, fontWeight: '700', marginBottom: spacing.sm },
+  safetyTitle: { fontSize: 18, fontWeight: '700', marginBottom: spacing.sm },
+  safetyBody: { fontSize: 16, lineHeight: 20, marginBottom: spacing.sm },
+  safetyBold: { fontSize: 16, fontWeight: '700', marginBottom: spacing.sm },
 
   // Warning blurb — visually part of the yellow card, separated by a subtle divider
   warningBlurb: {
@@ -169,11 +169,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F0AD4E',
   },
-  warningText: { fontSize: 13, lineHeight: 19, fontWeight: '500' },
+  warningText: { fontSize: 15, lineHeight: 19, fontWeight: '500' },
 
   // ── Points incentive ──
   pointsText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: spacing.md,
@@ -187,9 +187,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     gap: 8,
   },
-  codeLabel: { fontSize: 14 },
-  codeValue: { fontSize: 14 },
-  copyHint: { fontSize: 14, fontWeight: '600' },
+  codeLabel: { fontSize: 16 },
+  codeValue: { fontSize: 16 },
+  copyHint: { fontSize: 16, fontWeight: '600' },
 
   // ── Red Share button ──
   shareBtn: {
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   shareBtnDisabled: { opacity: 0.5 },
-  shareBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  shareBtnText: { fontSize: 17, fontWeight: '700', color: '#fff' },
 });
 
 export default ReferralScreen;

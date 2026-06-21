@@ -361,7 +361,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
 
         {isClaimed && (
           <View style={{ backgroundColor: '#FDCB6E', paddingVertical: 6, paddingHorizontal: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12, alignItems: 'center', marginTop: -spacing.md, marginHorizontal: -spacing.md }}>
-            <Text style={{ color: '#5D4E00', fontSize: 13, fontWeight: '800', letterSpacing: 0.5 }}>
+            <Text style={{ color: '#5D4E00', fontSize: 15, fontWeight: '800', letterSpacing: 0.5 }}>
               {item.status === 'reschedulePending' ? 'RESCHEDULE PENDING' : 'CLAIMED'}
             </Text>
           </View>
@@ -448,7 +448,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         {/* Completed label */}
         {isCompleted && (
           <View style={{ backgroundColor: '#0984E320', paddingVertical: 5, paddingHorizontal: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12, alignItems: 'center', marginTop: -spacing.md, marginHorizontal: -spacing.md }}>
-            <Text style={{ color: '#0984E3', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>
+            <Text style={{ color: '#0984E3', fontSize: 14, fontWeight: '700', letterSpacing: 0.5 }}>
               COMPLETED
             </Text>
           </View>
@@ -483,7 +483,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={[styles.posterName, { color: colors.textSecondary }]}>
               {(item.dogNames && item.dogNames.length > 0) ? item.dogNames.join(' & ') : item.dogName}
             </Text>
-            <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+            <Text style={{ fontSize: 15, color: colors.textSecondary }}>
               {isSameDay(item.startDate, item.endDate) ? startStr : `${startStr} — ${endStr}`}
             </Text>
           </View>
@@ -494,7 +494,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           <View style={{ marginTop: 8 }}>
             {isReviewed ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8 }}>
-                <Text style={{ color: '#00B894', fontSize: 14, fontWeight: '600' }}>✓ Reviewed</Text>
+                <Text style={{ color: '#00B894', fontSize: 16, fontWeight: '600' }}>✓ Reviewed</Text>
               </View>
             ) : (
               <TouchableOpacity
@@ -503,7 +503,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                 accessibilityLabel="Leave a review"
                 accessibilityRole="button"
               >
-                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>Leave Review</Text>
+                <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>Leave Review</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -904,7 +904,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                       <Text style={[
                         styles.calDayNum,
                         { color: isSelected ? colors.text : colors.text },
-                        isSelected && { fontSize: 20, fontWeight: '800' },
+                        isSelected && { fontSize: 22, fontWeight: '800' },
                         !isSelected && isToday ? { color: colors.primary, fontWeight: '700' } : undefined,
                       ]}>
                         {date.getDate()}
@@ -1074,7 +1074,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
             ListFooterComponent={
               archivedPosts.length > 0 ? (
                 <View style={{ marginTop: 24 }}>
-                  <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '700', letterSpacing: 1, marginBottom: 12, paddingHorizontal: 4, textTransform: 'uppercase' }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: 15, fontWeight: '700', letterSpacing: 1, marginBottom: 12, paddingHorizontal: 4, textTransform: 'uppercase' }}>
                     Archive
                   </Text>
                   {archivedPosts.map((post) => (
@@ -1102,7 +1102,7 @@ const styles = StyleSheet.create({
   // Tab bar
   tabs: { flexDirection: 'row', borderBottomWidth: 1 },
   tab: { flex: 1, alignItems: 'center', paddingVertical: spacing.md },
-  tabText: { fontSize: 13, fontWeight: '600' },
+  tabText: { fontSize: 15, fontWeight: '600' },
 
   // My Posts list
   list: { padding: spacing.md, paddingBottom: spacing.xl * 3 },
@@ -1111,8 +1111,8 @@ const styles = StyleSheet.create({
   card: { borderRadius: borderRadius.lg, padding: spacing.md, marginBottom: spacing.md },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
   headerInfo: { flex: 1 },
-  posterName: { fontSize: 15, fontWeight: '700' },
-  dateRange: { fontSize: 12, marginTop: 1 },
+  posterName: { fontSize: 17, fontWeight: '700' },
+  dateRange: { fontSize: 14, marginTop: 1 },
   dogThumbSmall: { width: 44, height: 44, borderRadius: borderRadius.sm, borderWidth: 1 },
   dogThumbPlaceholder: {
     width: 44,
@@ -1121,7 +1121,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dogThumbEmoji: { fontSize: 20 },
+  dogThumbEmoji: { fontSize: 22 },
   compBadge: {
     borderWidth: 1.5,
     borderRadius: borderRadius.full,
@@ -1130,9 +1130,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginBottom: spacing.xs,
   },
-  compBadgeText: { fontSize: 13, fontWeight: '700' },
+  compBadgeText: { fontSize: 15, fontWeight: '700' },
   statusBadge: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.full },
-  statusBadgeText: { fontSize: 11, fontWeight: '700' },
+  statusBadgeText: { fontSize: 13, fontWeight: '700' },
   cancelBtn: {
     borderWidth: 1.5,
     borderRadius: borderRadius.sm,
@@ -1141,7 +1141,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginTop: spacing.xs,
   },
-  cancelBtnText: { fontSize: 13, fontWeight: '600' },
+  cancelBtnText: { fontSize: 15, fontWeight: '600' },
   // Helpers interested — top left of card
   interestTopLeft: {
     backgroundColor: RED,
@@ -1156,13 +1156,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  interestBadgeText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  interestBadgeText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
   // Points — plain bold white text
-  compPlainText: { fontSize: 14, fontWeight: '700', marginBottom: spacing.xs },
+  compPlainText: { fontSize: 16, fontWeight: '700', marginBottom: spacing.xs },
   // Care type row (Wave 19B)
   careTypeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: spacing.xs },
-  careTypeIcon: { fontSize: 14 },
-  careTypeSummaryText: { fontSize: 12, fontWeight: '500', flex: 1 },
+  careTypeIcon: { fontSize: 16 },
+  careTypeSummaryText: { fontSize: 14, fontWeight: '500', flex: 1 },
 
   // Post Request Card (replaces FAB)
   postRequestCard: {
@@ -1176,7 +1176,7 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     marginVertical: spacing.lg,
   },
-  postRequestCardText: { color: '#FFFFFF', fontSize: 16, fontWeight: '400' },
+  postRequestCardText: { color: '#FFFFFF', fontSize: 18, fontWeight: '400' },
 
   // Calendar container
   calendarScroll: { padding: spacing.md, paddingBottom: spacing.xl * 3 },
@@ -1189,12 +1189,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   calNavBtn: { padding: spacing.sm },
-  calNavText: { fontSize: 28, lineHeight: 32 },
-  calMonthTitle: { fontSize: 18, fontWeight: '700' },
+  calNavText: { fontSize: 30, lineHeight: 32 },
+  calMonthTitle: { fontSize: 20, fontWeight: '700' },
 
   // Day-of-week row
   calDowRow: { flexDirection: 'row', marginBottom: spacing.xs },
-  calDowText: { width: CELL_WIDTH, textAlign: 'center', fontSize: 12, fontWeight: '600' },
+  calDowText: { width: CELL_WIDTH, textAlign: 'center', fontSize: 14, fontWeight: '600' },
 
   // Grid
   calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
@@ -1210,7 +1210,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  calDayNum: { fontSize: 14, fontWeight: '500' },
+  calDayNum: { fontSize: 16, fontWeight: '500' },
   calDots: { flexDirection: 'row', gap: 2, marginTop: 1 },
   calDot: { width: 10, height: 10, borderRadius: 5 },
 
@@ -1223,13 +1223,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   calLegendItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  calLegendText: { fontSize: 14 },
+  calLegendText: { fontSize: 16 },
 
   // Section header for all commitments list
   allCommitmentsHeader: { borderTopWidth: 1, paddingTop: spacing.md, marginBottom: spacing.sm },
-  selectedDayTitle: { fontSize: 15, fontWeight: '700' },
+  selectedDayTitle: { fontSize: 17, fontWeight: '700' },
   noneToday: { alignItems: 'center', paddingVertical: spacing.lg },
-  noneTodayText: { fontSize: 14, fontStyle: 'italic' },
+  noneTodayText: { fontSize: 16, fontStyle: 'italic' },
   // Popup overlay
   popupBackdrop: {
     flex: 1,
@@ -1254,9 +1254,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.md,
   },
-  popupDate: { fontSize: 16, fontWeight: '700', flex: 1, marginRight: spacing.sm },
+  popupDate: { fontSize: 18, fontWeight: '700', flex: 1, marginRight: spacing.sm },
   popupCloseBtn: { padding: 4 },
-  popupCloseText: { fontSize: 20, fontWeight: '300' },
+  popupCloseText: { fontSize: 22, fontWeight: '300' },
   popupScroll: { flexShrink: 1 },
   // Keep old selectedDayHeader alias so nothing breaks
   selectedDayHeader: { borderTopWidth: 1, paddingTop: spacing.md, marginBottom: spacing.sm },
@@ -1268,12 +1268,12 @@ const styles = StyleSheet.create({
   commitDogPhotos: { flexDirection: 'row', alignItems: 'center', marginRight: 12 },
   commitDogPhoto: { width: 48, height: 48, borderRadius: 24, borderWidth: 2 },
   commitInfo: { flex: 1 },
-  commitRoleLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', marginBottom: 1 },
-  commitDogName: { fontSize: 16, fontWeight: '700' },
-  commitOther: { fontSize: 13, marginTop: 1 },
-  commitDates: { fontSize: 12, marginTop: 2 },
-  commitComp: { fontSize: 12, marginTop: 2, fontWeight: '600' },
-  commitArrow: { fontSize: 24 },
+  commitRoleLabel: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', marginBottom: 1 },
+  commitDogName: { fontSize: 18, fontWeight: '700' },
+  commitOther: { fontSize: 15, marginTop: 1 },
+  commitDates: { fontSize: 14, marginTop: 2 },
+  commitComp: { fontSize: 14, marginTop: 2, fontWeight: '600' },
+  commitArrow: { fontSize: 26 },
   expandedSection: {
     borderLeftWidth: 4,
     borderTopWidth: 1,
@@ -1289,13 +1289,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   expandedLabel: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '600',
     width: 100,
     paddingTop: 1,
   },
   expandedValue: {
-    fontSize: 14,
+    fontSize: 16,
     flex: 1,
   },
   expandedButtons: {
@@ -1311,7 +1311,7 @@ const styles = StyleSheet.create({
   },
   expandedBtnText: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
   },
   deleteLink: {
@@ -1320,7 +1320,7 @@ const styles = StyleSheet.create({
   },
   deleteLinkText: {
     color: '#E74C3C',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     textDecorationLine: 'underline' as const,
   },

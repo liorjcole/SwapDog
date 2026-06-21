@@ -258,17 +258,17 @@ const ReviewScreen: React.FC<Props> = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, paddingTop: 40, paddingBottom: 60 },
-  progress: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: spacing.sm },
-  title: { fontSize: 22, fontWeight: '700', textAlign: 'center', marginBottom: 6 },
-  subtitle: { fontSize: 14, fontWeight: '600', textAlign: 'center', marginBottom: spacing.lg },
+  progress: { fontSize: 15, fontWeight: '600', textAlign: 'center', marginBottom: spacing.sm },
+  title: { fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: 6 },
+  subtitle: { fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: spacing.lg },
   starsRow: { alignItems: 'center', marginBottom: spacing.lg },
-  hint: { fontSize: 13, lineHeight: 19, textAlign: 'center', marginBottom: spacing.lg, paddingHorizontal: spacing.md },
+  hint: { fontSize: 15, lineHeight: 19, textAlign: 'center', marginBottom: spacing.lg, paddingHorizontal: spacing.md },
   noteInput: {
     borderWidth: 1,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     minHeight: 100,
-    fontSize: 15,
+    fontSize: 17,
     lineHeight: 21,
     marginBottom: spacing.lg,
   },
@@ -279,11 +279,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   btnDisabled: { opacity: 0.5 },
-  nextBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  nextBtnText: { fontSize: 18, fontWeight: '700', color: '#fff' },
   backBtn: { alignItems: 'center', padding: spacing.sm },
-  backBtnText: { fontSize: 15, fontWeight: '600' },
+  backBtnText: { fontSize: 17, fontWeight: '600' },
   skipBtn: { alignItems: 'center', padding: spacing.sm, marginTop: spacing.sm },
-  skipText: { fontSize: 14 },
+  skipText: { fontSize: 16 },
 });
 
 export default ReviewScreen;

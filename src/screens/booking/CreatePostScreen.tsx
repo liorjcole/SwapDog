@@ -1200,7 +1200,7 @@ const MAX_PLAY_SESSIONS = 5;
                 )}
                 {careType === 'daySitting' && daySittingTimeInvalid && (
                   <View style={{ backgroundColor: '#FF3B3020', borderRadius: 8, padding: 10, marginTop: 8 }}>
-                    <Text style={{ color: '#FF3B30', fontSize: 13, fontWeight: '600', textAlign: 'center' }}>
+                    <Text style={{ color: '#FF3B30', fontSize: 15, fontWeight: '600', textAlign: 'center' }}>
                       ⚠️ End time must be after start time
                     </Text>
                   </View>
@@ -1238,10 +1238,10 @@ const MAX_PLAY_SESSIONS = 5;
                         style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
                         activeOpacity={0.7}
                       >
-                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginRight: 8, width: 16 }}>
+                        <Text style={{ color: colors.text, fontSize: 18, fontWeight: '600', marginRight: 8, width: 16 }}>
                           {collapsedFeedings.has(idx) ? '›' : '▾'}
                         </Text>
-                        <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
+                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
                           🍽️ {idx === 0 ? 'Feeding' : `Feeding #${idx + 1}`}
                         </Text>
                       </TouchableOpacity>
@@ -1252,7 +1252,7 @@ const MAX_PLAY_SESSIONS = 5;
                             onPress={() => openRepeatModal('feeding', idx)}
                             activeOpacity={0.7}
                           >
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.primary }}>
+                            <Text style={{ fontSize: 15, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.primary }}>
                               {slot.repeatSchedule ? '✅ ' + formatRepeatLabel(slot.repeatSchedule) : '📅 Repeat this?'}
                             </Text>
                           </TouchableOpacity>
@@ -1276,7 +1276,7 @@ const MAX_PLAY_SESSIONS = 5;
                           )}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
-                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
+                          <Text style={{ fontSize: 17, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -1358,10 +1358,10 @@ const MAX_PLAY_SESSIONS = 5;
                         style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
                         activeOpacity={0.7}
                       >
-                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginRight: 8, width: 16 }}>
+                        <Text style={{ color: colors.text, fontSize: 18, fontWeight: '600', marginRight: 8, width: 16 }}>
                           {collapsedWalks.has(wIdx) ? '›' : '▾'}
                         </Text>
-                        <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
+                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
                           🐕 {wIdx === 0 ? 'Walk' : `Walk #${wIdx + 1}`}
                         </Text>
                       </TouchableOpacity>
@@ -1372,7 +1372,7 @@ const MAX_PLAY_SESSIONS = 5;
                             onPress={() => openRepeatModal('walk', wIdx)}
                             activeOpacity={0.7}
                           >
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: ws.repeatSchedule ? '#34C759' : colors.primary }}>
+                            <Text style={{ fontSize: 15, fontWeight: '600', color: ws.repeatSchedule ? '#34C759' : colors.primary }}>
                               {ws.repeatSchedule ? '✅ ' + formatRepeatLabel(ws.repeatSchedule) : '📅 Repeat this?'}
                             </Text>
                           </TouchableOpacity>
@@ -1396,7 +1396,7 @@ const MAX_PLAY_SESSIONS = 5;
                           )}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
-                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
+                          <Text style={{ fontSize: 17, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -1497,10 +1497,10 @@ const MAX_PLAY_SESSIONS = 5;
                         style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
                         activeOpacity={0.7}
                       >
-                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginRight: 8, width: 16 }}>
+                        <Text style={{ color: colors.text, fontSize: 18, fontWeight: '600', marginRight: 8, width: 16 }}>
                           {collapsedPlay.has(pIdx) ? '›' : '▾'}
                         </Text>
-                        <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
+                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
                           🎾 {pIdx === 0 ? 'Playtime' : `Playtime #${pIdx + 1}`}
                         </Text>
                       </TouchableOpacity>
@@ -1511,7 +1511,7 @@ const MAX_PLAY_SESSIONS = 5;
                             onPress={() => openRepeatModal('play', pIdx)}
                             activeOpacity={0.7}
                           >
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: pSession.repeatSchedule ? '#34C759' : colors.primary }}>
+                            <Text style={{ fontSize: 15, fontWeight: '600', color: pSession.repeatSchedule ? '#34C759' : colors.primary }}>
                               {pSession.repeatSchedule ? '✅ ' + formatRepeatLabel(pSession.repeatSchedule) : '📅 Repeat this?'}
                             </Text>
                           </TouchableOpacity>
@@ -1535,7 +1535,7 @@ const MAX_PLAY_SESSIONS = 5;
                           )}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
-                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
+                          <Text style={{ fontSize: 17, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -1563,7 +1563,7 @@ const MAX_PLAY_SESSIONS = 5;
                       onPress={() => updatePlaySession(pIdx, { flexible: !pSession.flexible })}
                       activeOpacity={0.7}
                     >
-                      <Text style={{ fontSize: 15 }}>{pSession.flexible ? '⏱️' : '🕐'}</Text>
+                      <Text style={{ fontSize: 17 }}>{pSession.flexible ? '⏱️' : '🕐'}</Text>
                       <Text style={[
                         styles.dailyToggleText,
                         { color: pSession.flexible ? colors.primary : colors.textSecondary },
@@ -1695,10 +1695,10 @@ const MAX_PLAY_SESSIONS = 5;
                         style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
                         activeOpacity={0.7}
                       >
-                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginRight: 8, width: 16 }}>
+                        <Text style={{ color: colors.text, fontSize: 18, fontWeight: '600', marginRight: 8, width: 16 }}>
                           {collapsedMeds.has(idx) ? '›' : '▾'}
                         </Text>
-                        <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
+                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
                           💊 {idx === 0 ? 'Medication' : `Medication #${idx + 1}`}
                         </Text>
                       </TouchableOpacity>
@@ -1709,7 +1709,7 @@ const MAX_PLAY_SESSIONS = 5;
                             onPress={() => openRepeatModal('medication', idx)}
                             activeOpacity={0.7}
                           >
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.primary }}>
+                            <Text style={{ fontSize: 15, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.primary }}>
                               {slot.repeatSchedule ? '✅ ' + formatRepeatLabel(slot.repeatSchedule) : '📅 Repeat this?'}
                             </Text>
                           </TouchableOpacity>
@@ -1733,7 +1733,7 @@ const MAX_PLAY_SESSIONS = 5;
                           )}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
-                          <Text style={{ fontSize: 15, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
+                          <Text style={{ fontSize: 17, color: '#FF3B30', fontWeight: '700' }}>✕</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -1896,7 +1896,7 @@ const MAX_PLAY_SESSIONS = 5;
               {/* Recommended points — only when points toggle is ON */}
               {offerPoints && recommendedPoints.total > 0 && (
                 <View style={styles.recBox}>
-                  <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 20 }}>
+                  <Text style={{ fontSize: 16, color: colors.textSecondary, lineHeight: 20 }}>
                     Suggested <Text style={{ fontWeight: '700', color: colors.primary }}>{recommendedPoints.total} pts</Text> based on the care you've selected… but it's ultimately up to you!
                   </Text>
 
@@ -1999,7 +1999,7 @@ const MAX_PLAY_SESSIONS = 5;
                         onPress={() => setPointsOffered(String(recommendedPoints.total))}
                         activeOpacity={0.7}
                       >
-                        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
+                        <Text style={{ fontSize: 15, fontWeight: '600', color: colors.primary }}>
                           Use {recommendedPoints.total} pts
                         </Text>
                       </TouchableOpacity>
@@ -2109,7 +2109,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.md, paddingBottom: spacing.xl * 2 },
   pageTitle: { ...typography.h3, marginBottom: spacing.xs },
-  pageSubtitle: { fontSize: 13, marginBottom: spacing.md, lineHeight: 18 },
+  pageSubtitle: { fontSize: 15, marginBottom: spacing.md, lineHeight: 18 },
   section: {
     borderRadius: borderRadius.lg,
     padding: spacing.md,
@@ -2119,25 +2119,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 2,
     elevation: 1 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: spacing.sm },
+  sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: spacing.sm },
 
   // Dog multi-select
-  dogSelectHint: { fontSize: 13, marginBottom: spacing.sm, fontStyle: 'italic' },
+  dogSelectHint: { fontSize: 15, marginBottom: spacing.sm, fontStyle: 'italic' },
   dogGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   dogCard: { width: '47%', borderRadius: borderRadius.md, overflow: 'hidden', position: 'relative' },
   dogCardPhoto: { width: '100%', height: 110, resizeMode: 'cover' },
   dogCardPhotoPlaceholder: { width: '100%', height: 110, alignItems: 'center', justifyContent: 'center' },
-  dogCardPhotoEmoji: { fontSize: 40 },
+  dogCardPhotoEmoji: { fontSize: 42 },
   dogCardInfo: { padding: spacing.xs + 2 },
-  dogCardName: { fontSize: 15, fontWeight: '700', marginBottom: 1 },
-  dogCardBreed: { fontSize: 12, marginBottom: 1 },
-  dogCardAge: { fontSize: 11 },
+  dogCardName: { fontSize: 17, fontWeight: '700', marginBottom: 1 },
+  dogCardBreed: { fontSize: 14, marginBottom: 1 },
+  dogCardAge: { fontSize: 13 },
   dogCardCheckmark: { position: 'absolute', top: 6, right: 6, width: 26, height: 26, borderRadius: 13, backgroundColor: RED, alignItems: 'center', justifyContent: 'center' },
-  dogCardCheckmarkText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  dogCardCheckmarkText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
   selectedSummary: { marginTop: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1.5, padding: spacing.sm },
-  selectedSummaryText: { fontSize: 14, fontWeight: '700' },
+  selectedSummaryText: { fontSize: 16, fontWeight: '700' },
   multiDogHint: {
-    fontSize: 13,
+    fontSize: 15,
     color: '#FF2D55',
     fontWeight: '500',
     marginTop: 6,
@@ -2156,7 +2156,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   dogAssignPillText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   recBox: {
@@ -2173,22 +2173,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   recLabel: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
   },
   recValue: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
   },
   recSubtext: {
-    fontSize: 13,
+    fontSize: 15,
     marginTop: 4,
   },
   pricingGuideToggle: {
     marginTop: 10,
   },
   pricingGuideToggleText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   pricingGuideBody: {
@@ -2198,7 +2198,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   guideTitle: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
     marginBottom: 8,
   },
@@ -2209,39 +2209,39 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   guideRowLabel: {
-    fontSize: 14,
+    fontSize: 16,
     flex: 1,
   },
   guideRowValue: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     marginLeft: 8,
   },
   guideRateList: {
-    fontSize: 12,
+    fontSize: 14,
     marginTop: 10,
     lineHeight: 18,
   },
   guideNote: {
-    fontSize: 12,
+    fontSize: 14,
     marginTop: 4,
     lineHeight: 18,
   },
   guideAsterisk: {
-    fontSize: 12,
+    fontSize: 14,
     fontStyle: 'italic',
     marginTop: 8,
     lineHeight: 18,
   },
-  selectedSummaryHint: { fontSize: 12, marginTop: 3, fontStyle: 'italic' },
+  selectedSummaryHint: { fontSize: 14, marginTop: 3, fontStyle: 'italic' },
   dogChipsSection: { marginTop: spacing.sm, gap: spacing.sm },
   dogChipGroup: {},
-  dogChipGroupLabel: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
+  dogChipGroupLabel: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
   dogChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  noDogText: { fontSize: 14, fontStyle: 'italic' },
+  noDogText: { fontSize: 16, fontStyle: 'italic' },
 
   // Care type selector
-  careTypeHint: { fontSize: 13, marginBottom: spacing.sm, fontStyle: 'italic' },
+  careTypeHint: { fontSize: 15, marginBottom: spacing.sm, fontStyle: 'italic' },
   careTypeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   careTypeCard: {
     width: '47%',
@@ -2251,15 +2251,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 80,
     position: 'relative' },
-  careTypeIcon: { fontSize: 28, marginBottom: 4 },
-  careTypeLabel: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  careTypeIcon: { fontSize: 30, marginBottom: 4 },
+  careTypeLabel: { fontSize: 15, fontWeight: '600', textAlign: 'center' },
   careTypeCheckmark: { position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: 11, backgroundColor: RED, alignItems: 'center', justifyContent: 'center' },
-  careTypeCheckmarkText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  careTypeCheckmarkText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
 
   // Dates
   dateButton: { borderWidth: 1.5, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm },
-  dateButtonLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
-  dateButtonValue: { fontSize: 16, fontWeight: '600' },
+  dateButtonLabel: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  dateButtonValue: { fontSize: 18, fontWeight: '600' },
   timePickerButton: {
     borderWidth: 1,
     borderRadius: borderRadius.md,
@@ -2268,7 +2268,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   timePickerValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
   },
   durationRow: {
@@ -2284,11 +2284,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   durationPillText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
-  rangeHint: { fontSize: 16, fontWeight: '700', textAlign: 'center', marginTop: spacing.sm, marginBottom: 2 },
-  rangeHintSub: { fontSize: 14, fontWeight: '500', textAlign: 'center', marginBottom: 4, opacity: 0.85 },
+  rangeHint: { fontSize: 18, fontWeight: '700', textAlign: 'center', marginTop: spacing.sm, marginBottom: 2 },
+  rangeHintSub: { fontSize: 16, fontWeight: '500', textAlign: 'center', marginBottom: 4, opacity: 0.85 },
   dateSummary: { padding: spacing.sm, borderRadius: borderRadius.sm, alignItems: 'center', marginTop: spacing.xs },
   dateSummaryRow: {
     flexDirection: 'row',
@@ -2309,23 +2309,23 @@ const styles = StyleSheet.create({
   },
   timeConfirmBtnText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
   },
-  dateSummaryText: { fontSize: 13 },
+  dateSummaryText: { fontSize: 15 },
 
   // Time fields
   timeRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, marginTop: spacing.sm },
   timeField: { flex: 1 },
-  timeFieldLabel: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
-  timeInput: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.sm, fontSize: 15, fontWeight: '600' },
-  timeSeparator: { fontSize: 20, paddingBottom: spacing.sm },
+  timeFieldLabel: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
+  timeInput: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.sm, fontSize: 17, fontWeight: '600' },
+  timeSeparator: { fontSize: 22, paddingBottom: spacing.sm },
 
   // Walk duration pills
 
   // Care details
-  careHint: { fontSize: 13, fontStyle: 'italic', lineHeight: 18, marginBottom: spacing.sm },
-  carePhotoLabel: { fontSize: 13, marginTop: 12, marginBottom: 8 },
+  careHint: { fontSize: 15, fontStyle: 'italic', lineHeight: 18, marginBottom: spacing.sm },
+  carePhotoLabel: { fontSize: 15, marginTop: 12, marginBottom: 8 },
   carePhotoRow: { flexDirection: 'row', marginBottom: 4 },
   carePhotoThumb: { width: 80, height: 80, borderRadius: 10, marginRight: 10, position: 'relative' },
   carePhotoImg: { width: 80, height: 80, borderRadius: 10 },
@@ -2334,36 +2334,36 @@ const styles = StyleSheet.create({
     width: 80, height: 80, borderRadius: 10, borderWidth: 1.5, borderStyle: 'dashed',
     justifyContent: 'center', alignItems: 'center',
   },
-  carePhotoAddText: { fontSize: 11, marginTop: 2 },
-  careInput: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, fontSize: 14, minHeight: 120, lineHeight: 20 },
+  carePhotoAddText: { fontSize: 13, marginTop: 2 },
+  careInput: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, fontSize: 16, minHeight: 120, lineHeight: 20 },
 
 
   // Compensation
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
   toggleLabelGroup: { flex: 1, marginRight: spacing.sm },
-  toggleLabel: { fontSize: 15, fontWeight: '600' },
-  toggleHint: { fontSize: 12, marginTop: 2 },
+  toggleLabel: { fontSize: 17, fontWeight: '600' },
+  toggleHint: { fontSize: 14, marginTop: 2 },
 
   // Points input
-  pointsInputLabel: { fontSize: 14, fontWeight: '600', marginBottom: spacing.xs },
+  pointsInputLabel: { fontSize: 16, fontWeight: '600', marginBottom: spacing.xs },
   pointsInputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm },
-  pointsInput: { flex: 1, borderWidth: 1.5, borderRadius: borderRadius.md, padding: spacing.sm, fontSize: 20, fontWeight: '700', textAlign: 'center' },
-  pointsUnit: { fontSize: 16, fontWeight: '600' },
+  pointsInput: { flex: 1, borderWidth: 1.5, borderRadius: borderRadius.md, padding: spacing.sm, fontSize: 22, fontWeight: '700', textAlign: 'center' },
+  pointsUnit: { fontSize: 18, fontWeight: '600' },
   pointsBadge: { borderWidth: 1.5, borderRadius: borderRadius.md, padding: spacing.sm, alignItems: 'center', marginTop: spacing.xs },
-  pointsBadgeText: { fontSize: 15, fontWeight: '700' },
+  pointsBadgeText: { fontSize: 17, fontWeight: '700' },
 
   // Payment input
   insufficientWarning: { backgroundColor: '#FF2D5520', borderRadius: 8, padding: 10, marginTop: 8, marginBottom: 4 },
-  insufficientWarningText: { color: '#FF2D55', fontSize: 13, fontWeight: '600' },
+  insufficientWarningText: { color: '#FF2D55', fontSize: 15, fontWeight: '600' },
   paymentInputRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, gap: spacing.xs },
-  dollarSign: { fontSize: 20, fontWeight: '700' },
-  paymentInput: { flex: 1, borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.sm, fontSize: 18, fontWeight: '600' },
-  rateUnitLabel: { fontSize: 14, fontWeight: '500', paddingLeft: 2 },
+  dollarSign: { fontSize: 22, fontWeight: '700' },
+  paymentInput: { flex: 1, borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.sm, fontSize: 20, fontWeight: '600' },
+  rateUnitLabel: { fontSize: 16, fontWeight: '500', paddingLeft: 2 },
   breakdownBadge: { borderWidth: 1.5, borderRadius: borderRadius.md, padding: spacing.sm, alignItems: 'center', marginBottom: spacing.sm },
-  breakdownText: { fontSize: 15, fontWeight: '700' },
-  calcHint: { fontSize: 13, fontStyle: 'italic', marginBottom: spacing.sm },
+  breakdownText: { fontSize: 17, fontWeight: '700' },
+  calcHint: { fontSize: 15, fontStyle: 'italic', marginBottom: spacing.sm },
   offAppNote: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.sm, marginTop: spacing.xs },
-  offAppNoteText: { fontSize: 13, lineHeight: 18, fontWeight: '500' },
+  offAppNoteText: { fontSize: 15, lineHeight: 18, fontWeight: '500' },
 
   // Submit
   submitBtn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm },
@@ -2372,7 +2372,7 @@ const styles = StyleSheet.create({
   // Feeding time picker
   feedingPickerRow: { marginTop: 8 },
   feedingPickerCol: { marginBottom: 12 },
-  feedingPickerLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6 },
+  feedingPickerLabel: { fontSize: 15, fontWeight: '600', marginBottom: 6 },
   feedingScrollContent: { gap: 8, paddingVertical: 4 },
   feedingPickerItem: {
     width: 44,
@@ -2382,7 +2382,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  feedingPickerItemText: { fontSize: 15 },
+  feedingPickerItemText: { fontSize: 17 },
   feedingAmPmRow: { flexDirection: 'row', gap: 8 },
   feedingAmPmBtn: {
     paddingHorizontal: 20,
@@ -2390,8 +2390,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1.5,
   },
-  feedingAmPmText: { fontSize: 15, fontWeight: '600' },
-  feedingTimePreview: { fontSize: 18, fontWeight: '700', textAlign: 'center', marginTop: 4 },
+  feedingAmPmText: { fontSize: 17, fontWeight: '600' },
+  feedingTimePreview: { fontSize: 20, fontWeight: '700', textAlign: 'center', marginTop: 4 },
   dailyToggle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2402,7 +2402,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1.5,
   },
-  dailyToggleText: { fontSize: 14, fontWeight: '600' },
+  dailyToggleText: { fontSize: 16, fontWeight: '600' },
   addFeedingBtn: {
     marginTop: 16,
     paddingVertical: 12,
@@ -2420,8 +2420,8 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
   },
-  addFeedingBtnText: { fontSize: 14, fontWeight: '600' },
-  fieldHint: { fontSize: 13, marginBottom: 8 },
+  addFeedingBtnText: { fontSize: 16, fontWeight: '600' },
+  fieldHint: { fontSize: 15, marginBottom: 8 },
 });
 
 export default CreatePostScreen;

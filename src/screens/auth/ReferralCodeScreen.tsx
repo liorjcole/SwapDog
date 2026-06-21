@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.xl },
   paws: {
-    fontSize: 64,
+    fontSize: 66,
     marginBottom: spacing.md },
   title: {
     ...typography.h1,
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
     letterSpacing: 4,
     textAlign: 'center',
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     ...typography.button,
-    fontSize: 17 },
+    fontSize: 19 },
   footer: {
     ...typography.bodySmall,
     textAlign: 'center',

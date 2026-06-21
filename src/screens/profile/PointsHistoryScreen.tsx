@@ -102,7 +102,7 @@ const PointsHistoryScreen: React.FC<Props> = ({ navigation }) => {
         style={{ backgroundColor: '#FF2D55', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24, marginTop: 16 }}
         onPress={() => navigation.getParent()?.navigate('DiscoverTab')}
       >
-        <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>Earn More</Text>
+        <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '600' }}>Earn More</Text>
       </TouchableOpacity>
     </View>
   );
@@ -159,9 +159,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  totalLabel: { fontSize: 14, fontWeight: '500', marginBottom: spacing.xs, textTransform: 'uppercase', letterSpacing: 1 },
-  totalPoints: { fontSize: 48, fontWeight: '400', lineHeight: 56, marginBottom: spacing.xs, color: '#FFFFFF' },
-  totalSub: { fontSize: 13 },
+  totalLabel: { fontSize: 16, fontWeight: '500', marginBottom: spacing.xs, textTransform: 'uppercase', letterSpacing: 1 },
+  totalPoints: { fontSize: 50, fontWeight: '400', lineHeight: 56, marginBottom: spacing.xs, color: '#FFFFFF' },
+  totalSub: { fontSize: 15 },
 
   // Row
   row: {
@@ -179,17 +179,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconText: { fontSize: 20 },
+  iconText: { fontSize: 22 },
   rowMiddle: { flex: 1 },
-  rowDescription: { fontSize: 14, fontWeight: '600', lineHeight: 18 },
-  rowDate: { fontSize: 12, marginTop: 2 },
-  rowPoints: { fontSize: 15, fontWeight: '700', minWidth: 64, textAlign: 'right' },
+  rowDescription: { fontSize: 16, fontWeight: '600', lineHeight: 18 },
+  rowDate: { fontSize: 14, marginTop: 2 },
+  rowPoints: { fontSize: 17, fontWeight: '700', minWidth: 64, textAlign: 'right' },
 
   // Empty
   emptyWrap: { alignItems: 'center', paddingTop: spacing.xl * 2 },
-  emptyIcon: { fontSize: 48, marginBottom: spacing.md },
+  emptyIcon: { fontSize: 50, marginBottom: spacing.md },
   emptyTitle: { ...typography.h3, marginBottom: spacing.sm },
-  emptySub: { fontSize: 14, textAlign: 'center', paddingHorizontal: spacing.xl },
+  emptySub: { fontSize: 16, textAlign: 'center', paddingHorizontal: spacing.xl },
 });
 
 export default PointsHistoryScreen;

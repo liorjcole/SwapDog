@@ -203,7 +203,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
       <View style={styles.postCardInner}>
         {/* Favorited badge — top right */}
         {isFavorited && (
-          <Text style={{ position: 'absolute', top: 10, right: 12, fontSize: 12, fontStyle: 'italic', color: '#FFD700', zIndex: 5 }}>
+          <Text style={{ position: 'absolute', top: 10, right: 12, fontSize: 14, fontStyle: 'italic', color: '#FFD700', zIndex: 5 }}>
             Favorited pet parent!
           </Text>
         )}
@@ -217,7 +217,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
                   <Image key={i} source={{ uri: url }} style={[styles.dogThumbLead, { borderColor: colors.border, marginRight: i < post.dogPhotoURLs!.length - 1 ? -8 : 0, zIndex: post.dogPhotoURLs!.length - i }]} />
                 ) : (
                   <View key={i} style={[styles.dogThumbLeadPlaceholder, { backgroundColor: RED + '12', marginRight: i < post.dogPhotoURLs!.length - 1 ? -8 : 0, zIndex: post.dogPhotoURLs!.length - i }]}>
-                    <Text style={{ fontSize: 22 }}>🐶</Text>
+                    <Text style={{ fontSize: 24 }}>🐶</Text>
                   </View>
                 )
               ))}
@@ -226,7 +226,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
             <Image source={{ uri: post.dogPhotoURL }} style={[styles.dogThumbLead, { borderColor: colors.border }]} />
           ) : (
             <View style={[styles.dogThumbLeadPlaceholder, { backgroundColor: RED + '12' }]}>
-              <Text style={{ fontSize: 22 }}>🐶</Text>
+              <Text style={{ fontSize: 24 }}>🐶</Text>
             </View>
           )}
           <View style={styles.headerInfo}>
@@ -239,7 +239,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
             <Text style={[styles.dateRange, { color: colors.textSecondary }]}>{isSameDay(post.startDate, post.endDate) ? startStr : `${startStr} – ${endStr}`}</Text>
           </View>
           {post.compensationType && (
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }} numberOfLines={1}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={1}>
               💰 {post.compensationType === 'points'
                 ? `${post.pointsOffered ?? post.pointsCost ?? 0} points`
                 : post.compensationType === 'payment'
@@ -254,13 +254,13 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
         {/* ── Full Care Details ── */}
         <View style={{ marginTop: 8, borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 8 }}>
           {/* Primary care type */}
-          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
             {careLabel}
           </Text>
 
           {/* Day sitting / overnight times */}
           {(post.careType === 'daySitting' || post.careType === 'overnight') && post.startTime && post.endTime && (
-            <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 2 }}>
+            <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 2 }}>
               🕐  {post.startTime} – {post.endTime}
             </Text>
           )}
@@ -268,9 +268,9 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
           {/* Feeding slots */}
           {post.feedingSlots && post.feedingSlots.length > 0 && (
             <View style={{ marginTop: 6 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>🍽️ Feeding</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>🍽️ Feeding</Text>
               {post.feedingSlots.map((slot, i) => (
-                <Text key={i} style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
+                <Text key={i} style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
                   {slot.time}{slot.daily ? '  ·  repeat daily' : ''}
                   {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                     ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
@@ -283,9 +283,9 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
           {/* Medication slots */}
           {post.medicationSlots && post.medicationSlots.length > 0 && (
             <View style={{ marginTop: 6 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>💊 Medication</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>💊 Medication</Text>
               {post.medicationSlots.map((slot, i) => (
-                <Text key={i} style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }} numberOfLines={1}>
+                <Text key={i} style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }} numberOfLines={1}>
                   {slot.time}{slot.daily ? '  ·  repeat daily' : ''}{slot.details ? ` — ${slot.details}` : ''}
                   {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                     ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
@@ -298,13 +298,13 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
           {/* Walk sessions */}
           {post.walkSessions && post.walkSessions.length > 0 && (
             <View style={{ marginTop: 6 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>🐕 Walks</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>🐕 Walks</Text>
               {post.walkSessions.map((ws, i) => {
                 const durLabel = ws.durationMins >= 60
                   ? `${Math.floor(ws.durationMins / 60)}h${ws.durationMins % 60 > 0 ? ` ${ws.durationMins % 60}m` : ''}`
                   : `${ws.durationMins}m`;
                 return (
-                  <Text key={i} style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
+                  <Text key={i} style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
                     {ws.startTime} – {ws.endTime}  ({durLabel}){ws.repeatDaily ? '  ·  repeat daily' : ''}
                     {ws.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                       ? `  ·  ${resolveDogNames(ws.dogIds, post)}`
@@ -318,13 +318,13 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
           {/* Play sessions */}
           {post.playSessions && post.playSessions.length > 0 && (
             <View style={{ marginTop: 6 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>🎾 Playtime</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>🎾 Playtime</Text>
               {post.playSessions.map((ps, i) => {
                 const durLabel = ps.durationMins >= 60
                   ? `${Math.floor(ps.durationMins / 60)}h${ps.durationMins % 60 > 0 ? ` ${ps.durationMins % 60}m` : ''}`
                   : `${ps.durationMins}m`;
                 return (
-                  <Text key={i} style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
+                  <Text key={i} style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
                     {ps.flexible
                       ? `Flexible · ${durLabel}`
                       : `${ps.startTime} – ${ps.endTime}  (${durLabel})`}
@@ -340,7 +340,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
 
           {/* Free-text care details */}
           {post.careDetails ? (
-            <Text style={{ fontSize: 15, color: colors.textSecondary, marginTop: 6, fontStyle: 'italic' }} numberOfLines={3}>
+            <Text style={{ fontSize: 17, color: colors.textSecondary, marginTop: 6, fontStyle: 'italic' }} numberOfLines={3}>
               "{post.careDetails}"
             </Text>
           ) : null}
@@ -573,7 +573,7 @@ const SectionHeaderRow: React.FC<SectionHeaderRowProps> = memo(({ item, onCreate
         )}
       </View>
       {item.isPosts && item.count > 0 && (
-        <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: 4 }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 15, fontWeight: '600', marginTop: 4 }}>
           {item.count} active {item.count === 1 ? 'post' : 'posts'}
         </Text>
       )}
@@ -1051,11 +1051,11 @@ const styles = StyleSheet.create({
 
   mapContainer: { position: 'relative' },
   locationBtn: { position: 'absolute', top: spacing.sm, left: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.full },
-  locationBtnText: { fontSize: 13, fontWeight: '600' },
+  locationBtnText: { fontSize: 15, fontWeight: '600' },
 
   circleOverlayContainer: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   circleOverlay: { borderWidth: 2 },
-  circleRadiusLabel: { marginTop: 6, fontSize: 12, fontWeight: '700', letterSpacing: 0.3, textShadowColor: 'rgba(255,255,255,0.8)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 3 },
+  circleRadiusLabel: { marginTop: 6, fontSize: 14, fontWeight: '700', letterSpacing: 0.3, textShadowColor: 'rgba(255,255,255,0.8)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 3 },
 
   dragHandle: { height: HANDLE_HEIGHT, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 1 },
   dragPill: { width: 40, height: 4, borderRadius: 2 },
@@ -1063,23 +1063,23 @@ const styles = StyleSheet.create({
   // Radius — single line, 3 chips only, no flexWrap
   radiusContainer: { borderBottomWidth: 1, paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   radiusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  radiusLabel: { fontSize: 13, fontWeight: '600', marginRight: spacing.xs },
+  radiusLabel: { fontSize: 15, fontWeight: '600', marginRight: spacing.xs },
   radiusChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: borderRadius.full, borderWidth: 1.5 },
-  radiusChipText: { fontSize: 13, fontWeight: '600' },
+  radiusChipText: { fontSize: 15, fontWeight: '600' },
 
   listLoadingContainer: { flex: 1, paddingTop: spacing.md },
   list: { padding: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xl * 2 },
 
   // Section headers
   sectionHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: 0, marginBottom: spacing.sm, gap: spacing.sm },
-  sectionHeaderText: { fontSize: 20, fontWeight: '800', flex: 1, letterSpacing: 0.3 },
+  sectionHeaderText: { fontSize: 22, fontWeight: '800', flex: 1, letterSpacing: 0.3 },
   sectionBadge: { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  sectionBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  sectionBadgeText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   createPostBtn: { backgroundColor: '#FF2D55', borderRadius: borderRadius.full, paddingHorizontal: 16, paddingVertical: 8 },
-  createPostBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  createPostBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 
   sectionEmpty: { paddingVertical: spacing.md, paddingHorizontal: spacing.sm, marginBottom: spacing.sm, borderRadius: borderRadius.md, alignItems: 'center' },
-  sectionEmptyText: { fontSize: 13, fontStyle: 'italic' },
+  sectionEmptyText: { fontSize: 15, fontStyle: 'italic' },
 
   sectionDivider: { height: 1, marginVertical: spacing.sm },
   userDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FF2D55', opacity: 0.7 },
@@ -1091,36 +1091,36 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
   avatarSmall: { width: 40, height: 40, borderRadius: 20, borderWidth: 1 },
   avatarPlaceholder: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  avatarEmoji: { fontSize: 18 },
+  avatarEmoji: { fontSize: 20 },
   headerInfo: { flex: 1 },
-  posterName: { fontSize: 15, fontWeight: '700' },
-  dateRange: { fontSize: 14, fontWeight: '600', marginTop: 1 },
+  posterName: { fontSize: 17, fontWeight: '700' },
+  dateRange: { fontSize: 16, fontWeight: '600', marginTop: 1 },
   dogThumbSmall: { width: 44, height: 44, borderRadius: borderRadius.sm, borderWidth: 1 },
   dogThumbPlaceholder: { width: 44, height: 44, borderRadius: borderRadius.sm, alignItems: 'center', justifyContent: 'center' },
-  dogThumbEmoji: { fontSize: 20 },
+  dogThumbEmoji: { fontSize: 22 },
   dogThumbLead: { width: 48, height: 48, borderRadius: 24, borderWidth: 1.5 },
   dogThumbLeadPlaceholder: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  dogLine: { fontSize: 14, fontWeight: '600', marginBottom: spacing.xs },
-  compInline: { fontSize: 13, fontWeight: '600', marginBottom: spacing.xs },
-  offAppInline: { fontSize: 11, marginBottom: spacing.xs },
-  carePreview: { fontSize: 13, lineHeight: 18, marginBottom: spacing.xs },
+  dogLine: { fontSize: 16, fontWeight: '600', marginBottom: spacing.xs },
+  compInline: { fontSize: 15, fontWeight: '600', marginBottom: spacing.xs },
+  offAppInline: { fontSize: 13, marginBottom: spacing.xs },
+  carePreview: { fontSize: 15, lineHeight: 18, marginBottom: spacing.xs },
   interestBadge: { backgroundColor: RED, borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 4, alignSelf: 'flex-start', marginBottom: spacing.xs, shadowColor: RED, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.30, shadowRadius: 4, elevation: 2 },
-  interestBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  interestBadgeText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   respondedBadge: { backgroundColor: '#0984E320', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start', marginTop: 6 },
-  respondedBadgeText: { color: '#0984E3', fontSize: 11, fontWeight: '700' },
+  respondedBadgeText: { color: '#0984E3', fontSize: 13, fontWeight: '700' },
   takenBadge: { backgroundColor: '#4CAF5025', borderRadius: 99, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start' as const, marginBottom: 6 },
-  takenBadgeText: { color: '#2E7D32', fontSize: 12, fontWeight: '600' },
+  takenBadgeText: { color: '#2E7D32', fontSize: 14, fontWeight: '600' },
   detailsBtn: { marginTop: spacing.sm, borderWidth: 1.5, borderColor: '#FF2D55', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16, alignSelf: 'flex-start' },
-  detailsBtnText: { fontSize: 13, fontWeight: '700', color: '#FF2D55' },
+  detailsBtnText: { fontSize: 15, fontWeight: '700', color: '#FF2D55' },
 
   // User row
   userRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.sm },
   avatar: { width: 52, height: 52, borderRadius: 26, marginRight: spacing.md },
   userInfo: { flex: 1 },
-  userName: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
-  userDistance: { fontSize: 13, fontWeight: '500', marginBottom: 2 },
-  userDogs: { fontSize: 12 },
-  chevron: { fontSize: 22, fontWeight: '300', marginLeft: spacing.xs },
+  userName: { fontSize: 18, fontWeight: '700', marginBottom: 2 },
+  userDistance: { fontSize: 15, fontWeight: '500', marginBottom: 2 },
+  userDogs: { fontSize: 14 },
+  chevron: { fontSize: 24, fontWeight: '300', marginLeft: spacing.xs },
 
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
@@ -1129,14 +1129,14 @@ const styles = StyleSheet.create({
   modalTitle: { ...typography.h3 },
   modalSubtitle: { ...typography.bodySmall, marginBottom: spacing.md },
   autocompleteWrapper: { marginBottom: spacing.md, zIndex: 10 },
-  searchInput: { borderWidth: 1.5, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, height: 48, fontSize: 16, marginBottom: 4 },
+  searchInput: { borderWidth: 1.5, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, height: 48, fontSize: 18, marginBottom: 4 },
   dropdown: { borderWidth: 1, borderRadius: borderRadius.md, overflow: 'hidden', maxHeight: 220, marginTop: 2 },
   dropdownItem: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth },
-  dropdownItemText: { fontSize: 14, lineHeight: 19 },
+  dropdownItemText: { fontSize: 16, lineHeight: 19 },
   resolvingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
-  resolvingText: { fontSize: 14 },
+  resolvingText: { fontSize: 16 },
   modalBtnOutline: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', borderWidth: 1.5, marginBottom: spacing.sm },
-  modalBtnOutlineText: { fontSize: 15, fontWeight: '600' },
-  modalCancelText: { fontSize: 16, fontWeight: '600' } });
+  modalBtnOutlineText: { fontSize: 17, fontWeight: '600' },
+  modalCancelText: { fontSize: 18, fontWeight: '600' } });
 
 export default DiscoverScreen;

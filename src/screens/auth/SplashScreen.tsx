@@ -36,9 +36,9 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emoji: { fontSize: 64, textAlign: 'center', marginBottom: spacing.sm },
-  title: { fontSize: 40, fontWeight: '800', color: '#fff', textAlign: 'center' },
-  subtitle: { fontSize: 16, color: 'rgba(255,255,255,0.85)', textAlign: 'center', marginTop: spacing.sm },
+  emoji: { fontSize: 66, textAlign: 'center', marginBottom: spacing.sm },
+  title: { fontSize: 42, fontWeight: '800', color: '#fff', textAlign: 'center' },
+  subtitle: { fontSize: 18, color: 'rgba(255,255,255,0.85)', textAlign: 'center', marginTop: spacing.sm },
 });
 
 export default SplashScreen;

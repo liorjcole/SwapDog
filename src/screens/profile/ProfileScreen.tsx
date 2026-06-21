@@ -367,7 +367,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={[styles.ratingCount, { color: colors.textSecondary }]}>({userProfile?.reviewCount ?? 0} review{(userProfile?.reviewCount ?? 0) !== 1 ? 's' : ''})</Text>
             </>
           ) : (
-            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>No reviews yet</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 15 }}>No reviews yet</Text>
           )}
         </View>
         {userProfile?.bio && <Text style={[styles.bio, { color: colors.textSecondary }]}>{userProfile.bio}</Text>}
@@ -406,7 +406,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           accessibilityLabel="View my profile"
           accessibilityRole="link"
         >
-          <Text style={{ fontSize: 15, color: colors.primary, textDecorationLine: 'underline', fontWeight: '600' }}>
+          <Text style={{ fontSize: 17, color: colors.primary, textDecorationLine: 'underline', fontWeight: '600' }}>
             View my profile
           </Text>
         </TouchableOpacity>
@@ -437,7 +437,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
 
             {/* Photo gallery grid — draggable reorder */}
-            <Text style={{ fontSize: 15, color: colors.textSecondary, marginTop: 4, marginBottom: 6 }}>
+            <Text style={{ fontSize: 17, color: colors.textSecondary, marginTop: 4, marginBottom: 6 }}>
               Hold & drag to reorder
             </Text>
             <DraggablePhotoGrid
@@ -533,7 +533,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         accessibilityRole="button"
         accessibilityHint="Signs you out of your WatchDog account"
       >
-        <Text style={{ color: '#FF0000', fontSize: 15, fontWeight: '600', textDecorationLine: 'underline' }}>Sign Out</Text>
+        <Text style={{ color: '#FF0000', fontSize: 17, fontWeight: '600', textDecorationLine: 'underline' }}>Sign Out</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -544,11 +544,11 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', padding: spacing.lg },
   avatar: { width: 90, height: 90, borderRadius: 45, marginBottom: spacing.sm },
   name: { ...typography.h2, marginBottom: spacing.xs },
-  location: { fontSize: 14, marginBottom: spacing.xs },
+  location: { fontSize: 16, marginBottom: spacing.xs },
   ratingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
-  ratingCount: { fontSize: 13, marginLeft: spacing.xs },
-  bio: { fontSize: 14, textAlign: 'center', marginTop: spacing.sm },
-  instagramHandle: { fontSize: 14, textAlign: 'center', marginTop: spacing.xs, fontWeight: '600' },
+  ratingCount: { fontSize: 15, marginLeft: spacing.xs },
+  bio: { fontSize: 16, textAlign: 'center', marginTop: spacing.sm },
+  instagramHandle: { fontSize: 16, textAlign: 'center', marginTop: spacing.xs, fontWeight: '600' },
   pointsBadge: {
     borderWidth: 1.5,
     borderRadius: borderRadius.full,
@@ -557,26 +557,26 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     alignItems: 'center',
   },
-  pointsBadgeText: { fontSize: 16, fontWeight: '700' },
+  pointsBadgeText: { fontSize: 18, fontWeight: '700' },
   editBtn: { paddingVertical: spacing.xs, marginTop: spacing.md },
-  editBtnText: { fontWeight: '600', fontSize: 15, color: '#FFFFFF' },
+  editBtnText: { fontWeight: '600', fontSize: 17, color: '#FFFFFF' },
   section: { padding: spacing.lg },
   sectionTitle: { ...typography.h3, marginBottom: spacing.md },
   dogCard: { padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.sm, position: 'relative' as const },
   dogCardDeleteX: { position: 'absolute' as const, top: 8, right: 8, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,59,48,0.15)', alignItems: 'center' as const, justifyContent: 'center' as const, zIndex: 2 },
-  dogCardDeleteXText: { color: '#FF3B30', fontSize: 14, fontWeight: '600' as const },
-  dogName: { fontSize: 16, fontWeight: '700' },
-  dogBreed: { fontSize: 13, marginTop: 2 },
+  dogCardDeleteXText: { color: '#FF3B30', fontSize: 16, fontWeight: '600' as const },
+  dogName: { fontSize: 18, fontWeight: '700' },
+  dogBreed: { fontSize: 15, marginTop: 2 },
   prefRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.sm },
-  prefLabel: { fontSize: 15 },
-  prefValue: { fontSize: 15 },
-  prefChevron: { fontSize: 22, fontWeight: '300' },
+  prefLabel: { fontSize: 17 },
+  prefValue: { fontSize: 17 },
+  prefChevron: { fontSize: 24, fontWeight: '300' },
   referralBadge: {
     borderRadius: 99,
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
-  referralBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  referralBadgeText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   // Dog photo gallery
   dogPhotoGrid: { marginTop: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   dogPhotoScroll: { marginBottom: spacing.xs },
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dogPhotoCropHintText: { color: '#fff', fontSize: 11 },
+  dogPhotoCropHintText: { color: '#fff', fontSize: 13 },
   // ✕ delete badge — top-right corner, outside the 80x80 bounds
   dogPhotoDeleteBadge: {
     position: 'absolute',
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
   },
-  dogPhotoDeleteBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  dogPhotoDeleteBadgeText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   // "+ Add Photo" dashed tile
   dogPhotoAddTile: {
     width: 80,
@@ -636,11 +636,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: spacing.xs,
   },
-  dogPhotoAddIcon: { fontSize: 28, fontWeight: '300', lineHeight: 32 },
-  dogPhotoAddLabel: { fontSize: 10, marginTop: 2 },
+  dogPhotoAddIcon: { fontSize: 30, fontWeight: '300', lineHeight: 32 },
+  dogPhotoAddLabel: { fontSize: 12, marginTop: 2 },
   // Add Another Dog button
   deleteDogBtn: { marginTop: 8, alignSelf: 'flex-end', paddingVertical: 6, paddingHorizontal: 12 },
-  deleteDogBtnText: { fontSize: 13, color: '#FF3B30', fontWeight: '600' },
+  deleteDogBtnText: { fontSize: 15, color: '#FF3B30', fontWeight: '600' },
   addAnotherDogBtn: {
     borderWidth: 2,
     borderRadius: borderRadius.full,
@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.sm,
   },
-  addAnotherDogBtnText: { fontSize: 15, fontWeight: '700' },
+  addAnotherDogBtnText: { fontSize: 17, fontWeight: '700' },
   signOutBtn: { margin: spacing.lg, padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center' },
   signOutText: { color: '#FF0000', ...typography.button },
 });

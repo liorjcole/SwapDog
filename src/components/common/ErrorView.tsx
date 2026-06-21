@@ -30,7 +30,7 @@ const ErrorView: React.FC<Props> = ({ message = 'Something went wrong', onRetry 
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  emoji: { fontSize: 48, marginBottom: spacing.md },
+  emoji: { fontSize: 50, marginBottom: spacing.md },
   message: { ...typography.body, textAlign: 'center', marginBottom: spacing.lg },
   btn: { paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: borderRadius.full },
   btnText: { color: '#fff', fontWeight: '600' },

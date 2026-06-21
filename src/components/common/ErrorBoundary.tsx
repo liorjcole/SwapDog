@@ -51,18 +51,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   emoji: {
-    fontSize: 48,
+    fontSize: 50,
     marginBottom: 16,
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: '#FF2D55',
     marginBottom: 8,
     textAlign: 'center',
   },
   message: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#636E72',
     textAlign: 'center',
     marginBottom: 24,
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
   },
 });

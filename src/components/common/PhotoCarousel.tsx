@@ -59,7 +59,7 @@ const PhotoCarousel: React.FC<Props> = ({ photos, height = 240 }) => {
 
 const styles = StyleSheet.create({
   placeholder: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f0f0' },
-  placeholderText: { fontSize: 48 },
+  placeholderText: { fontSize: 50 },
   dots: { flexDirection: 'row', justifyContent: 'center', marginTop: 8 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#ccc', marginHorizontal: 3 },
 });

@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     paddingHorizontal: spacing.lg,
   },
-  headerIcon: { fontSize: 40, marginBottom: spacing.xs },
+  headerIcon: { fontSize: 42, marginBottom: spacing.xs },
   headerTitle: { ...typography.h2, textAlign: 'center' },
   scrollContent: { padding: spacing.md, paddingTop: spacing.sm },
   introCard: {
@@ -255,9 +255,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   standardRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  standardIcon: { fontSize: 26, marginRight: spacing.md, marginTop: 2 },
+  standardIcon: { fontSize: 28, marginRight: spacing.md, marginTop: 2 },
   standardTextGroup: { flex: 1 },
-  standardTitle: { ...typography.h3, fontSize: 16, marginBottom: 4 },
+  standardTitle: { ...typography.h3, fontSize: 18, marginBottom: 4 },
   standardBody: { ...typography.bodySmall, lineHeight: 20 },
   agreeSection: {
     borderRadius: borderRadius.lg,
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   },
   scrollHint: {
     textAlign: 'center',
-    fontSize: 13,
+    fontSize: 15,
     marginBottom: spacing.md,
     fontStyle: 'italic',
   },
@@ -282,8 +282,8 @@ const styles = StyleSheet.create({
     marginTop: 1,
     flexShrink: 0,
   },
-  checkmark: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  checkLabel: { flex: 1, fontSize: 14, lineHeight: 20 },
+  checkmark: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  checkLabel: { flex: 1, fontSize: 16, lineHeight: 20 },
   agreeBtn: {
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,

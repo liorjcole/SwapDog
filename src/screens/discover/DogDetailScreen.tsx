@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.lg },
   name: { ...typography.h2, marginBottom: spacing.xs },
-  breed: { fontSize: 16, marginBottom: spacing.md },
+  breed: { fontSize: 18, marginBottom: spacing.md },
   row: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
   bio: { ...typography.body, marginBottom: spacing.lg, lineHeight: 22 },
   sectionTitle: { ...typography.h3, marginBottom: spacing.sm },

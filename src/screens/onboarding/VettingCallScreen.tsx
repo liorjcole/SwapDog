@@ -95,9 +95,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
-  calendarIcon: { fontSize: 52, marginBottom: spacing.sm },
+  calendarIcon: { fontSize: 54, marginBottom: spacing.sm },
   title: { ...typography.h2, textAlign: 'center', marginBottom: spacing.xs },
-  tagline: { fontSize: 16, fontWeight: '600' },
+  tagline: { fontSize: 18, fontWeight: '600' },
   messageCard: {
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
   },
-  pillText: { fontSize: 13, fontWeight: '500' },
+  pillText: { fontSize: 15, fontWeight: '500' },
   scheduleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -126,8 +126,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     gap: spacing.sm,
   },
-  scheduleBtnIcon: { fontSize: 20 },
-  scheduleBtnText: { color: '#fff', ...typography.button, fontSize: 18 },
+  scheduleBtnIcon: { fontSize: 22 },
+  scheduleBtnText: { color: '#fff', ...typography.button, fontSize: 20 },
 });
 
 export default VettingCallScreen;

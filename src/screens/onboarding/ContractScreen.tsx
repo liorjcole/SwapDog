@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: spacing.lg,
     paddingHorizontal: spacing.lg },
-  headerIcon: { fontSize: 36, marginBottom: spacing.xs },
+  headerIcon: { fontSize: 38, marginBottom: spacing.xs },
   headerTitle: { ...typography.h2, textAlign: 'center' },
   scrollContent: { padding: spacing.md, paddingTop: spacing.sm },
   noteCard: {
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm },
   sectionTitle: {
     ...typography.h3,
-    fontSize: 15,
+    fontSize: 17,
     marginBottom: spacing.xs },
   sectionBody: {
     ...typography.bodySmall,
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md },
   scrollHint: {
     textAlign: 'center',
-    fontSize: 13,
+    fontSize: 15,
     marginBottom: spacing.md,
     fontStyle: 'italic' },
   signatureLabel: {
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderRadius: borderRadius.md,
     padding: spacing.md,
-    fontSize: 16,
+    fontSize: 18,
     fontStyle: 'italic',
     marginBottom: spacing.md },
   dateText: {
@@ -343,8 +343,8 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
     marginTop: 1,
     flexShrink: 0 },
-  checkmark: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  checkLabel: { flex: 1, fontSize: 14, lineHeight: 20 },
+  checkmark: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  checkLabel: { flex: 1, fontSize: 16, lineHeight: 20 },
   acceptBtn: {
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   acceptBtnText: { color: '#fff', ...typography.button },
   // Read-only signed display
   signedName: {
-    fontSize: 22,
+    fontSize: 24,
     fontStyle: 'italic',
     fontWeight: '600',
     borderBottomWidth: 1.5,

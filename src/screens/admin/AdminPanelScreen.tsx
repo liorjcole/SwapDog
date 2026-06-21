@@ -310,11 +310,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
-  loadingText: { fontSize: 15 },
+  loadingText: { fontSize: 17 },
   listContent: { padding: spacing.md, gap: spacing.md },
   listContentEmpty: { flexGrow: 1 },
   listHeader: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '600',
     marginBottom: spacing.sm,
     textTransform: 'uppercase',
@@ -336,12 +336,12 @@ const styles = StyleSheet.create({
     borderRadius: 30,
   },
   cardHeaderText: { flex: 1, gap: 2 },
-  userName: { fontSize: 17, fontWeight: '700' },
-  userEmail: { fontSize: 13 },
-  joinDate: { fontSize: 12 },
-  bio: { fontSize: 14, lineHeight: 20 },
+  userName: { fontSize: 19, fontWeight: '700' },
+  userEmail: { fontSize: 15 },
+  joinDate: { fontSize: 14 },
+  bio: { fontSize: 16, lineHeight: 20 },
   dogsSection: { gap: spacing.xs },
-  dogsSectionTitle: { fontSize: 13, fontWeight: '600' },
+  dogsSectionTitle: { fontSize: 15, fontWeight: '600' },
   dogRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -352,8 +352,8 @@ const styles = StyleSheet.create({
   },
   dogPhoto: { width: 44, height: 44, borderRadius: 8 },
   dogInfo: { flex: 1 },
-  dogName: { fontSize: 15, fontWeight: '600' },
-  dogBreed: { fontSize: 13 },
+  dogName: { fontSize: 17, fontWeight: '600' },
+  dogBreed: { fontSize: 15 },
   actions: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     alignItems: 'center',
   },
-  approveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  approveBtnText: { color: '#fff', fontWeight: '700', fontSize: 17 },
   rejectBtn: {
     flex: 1,
     padding: spacing.sm,
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
   },
-  rejectBtnText: { fontWeight: '700', fontSize: 15 },
+  rejectBtnText: { fontWeight: '700', fontSize: 17 },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
@@ -381,9 +381,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: 80,
   },
-  emptyEmoji: { fontSize: 56 },
+  emptyEmoji: { fontSize: 58 },
   emptyTitle: { ...typography.h2, textAlign: 'center' },
-  emptySub: { fontSize: 16, textAlign: 'center' },
+  emptySub: { fontSize: 18, textAlign: 'center' },
 });
 
 export default AdminPanelScreen;

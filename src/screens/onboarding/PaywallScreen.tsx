@@ -209,23 +209,23 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, paddingTop: spacing.lg },
-  emoji: { fontSize: 56, marginBottom: 16 },
-  title: { fontSize: 24, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
-  subtitle: { fontSize: 15, textAlign: 'center', marginBottom: 32, paddingHorizontal: 20 },
+  emoji: { fontSize: 58, marginBottom: 16 },
+  title: { fontSize: 26, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
+  subtitle: { fontSize: 17, textAlign: 'center', marginBottom: 32, paddingHorizontal: 20 },
   retryBtn: {
     width: '100%',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
-  retryBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
-  loadingText: { marginTop: 16, fontSize: 14 },
+  retryBtnText: { color: '#fff', fontSize: 19, fontWeight: '700' },
+  loadingText: { marginTop: 16, fontSize: 16 },
   bypassBtn: { marginTop: 14, paddingVertical: 10, paddingHorizontal: 14 },
-  bypassBtnText: { fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
+  bypassBtnText: { fontSize: 16, fontWeight: '600', textDecorationLine: 'underline' },
   debugTap: { marginTop: 24, padding: 8 },
-  versionText: { fontSize: 11, opacity: 0.5 },
+  versionText: { fontSize: 13, opacity: 0.5 },
   debugContainer: { marginTop: 8, maxHeight: 120, width: '100%' },
-  debugText: { fontSize: 11, fontFamily: 'monospace', padding: 8 },
+  debugText: { fontSize: 13, fontFamily: 'monospace', padding: 8 },
 });
 
 export default PaywallScreen;

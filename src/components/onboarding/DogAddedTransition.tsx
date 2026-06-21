@@ -321,14 +321,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   addedText: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',
     lineHeight: 38,
   },
   addedSubText: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '500',
     color: 'rgba(255,255,255,0.7)',
   },
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rosterRow: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '600',
     color: 'rgba(255,255,255,0.85)',
     marginVertical: 4,
@@ -348,12 +348,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   arrow: {
-    fontSize: 20,
+    fontSize: 22,
     color: SPLASH_COLOR,
     marginTop: 4,
   },
   nextText: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',

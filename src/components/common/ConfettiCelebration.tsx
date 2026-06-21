@@ -221,17 +221,17 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   partyEmoji: {
-    fontSize: 80,
+    fontSize: 82,
     marginBottom: spacing.md,
   },
   headline: {
     ...typography.h1,
-    fontSize: 38,
+    fontSize: 40,
     textAlign: 'center',
     marginBottom: spacing.md,
   },
   pawAccents: {
-    fontSize: 30,
+    fontSize: 32,
     letterSpacing: 6,
     marginBottom: spacing.xl,
   },
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     ...typography.body,
     textAlign: 'center',
     lineHeight: 27,
-    fontSize: 17,
+    fontSize: 19,
   },
   button: {
     paddingVertical: spacing.md + 2,
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     ...typography.button,
-    fontSize: 18,
+    fontSize: 20,
   },
 });
 

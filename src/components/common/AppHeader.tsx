@@ -78,18 +78,18 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
   backIcon: {
-    fontSize: 30,
+    fontSize: 32,
     lineHeight: 36,
     fontWeight: '400',
   },
   backLabel: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '400',
     marginLeft: 2,
   },
   title: {
     flex: 1,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
   },

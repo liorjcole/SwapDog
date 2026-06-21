@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
     marginRight: spacing.xs,
     marginBottom: spacing.xs,
   },
-  label: { fontSize: 13, fontWeight: '500' },
+  label: { fontSize: 15, fontWeight: '500' },
 });
 
 export default Chip;

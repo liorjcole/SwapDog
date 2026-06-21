@@ -120,22 +120,22 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.lg,
   },
-  text: { fontSize: 15 },
+  text: { fontSize: 17 },
   chatImage: {
     width: Dimensions.get('window').width * 0.55,
     height: Dimensions.get('window').width * 0.55,
     borderRadius: 12,
     marginBottom: 4,
   },
-  time: { fontSize: 10, marginTop: 2, alignSelf: 'flex-end' },
+  time: { fontSize: 12, marginTop: 2, alignSelf: 'flex-end' },
   reviewLink: { marginTop: 6, paddingVertical: 4 },
-  reviewLinkText: { color: '#0984E3', fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
+  reviewLinkText: { color: '#0984E3', fontSize: 16, fontWeight: '600', textDecorationLine: 'underline' },
   acceptBtn: { marginTop: 8, backgroundColor: '#00B894', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 8, alignItems: 'center' },
-  acceptBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  acceptBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   acceptedBadge: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 16, borderRadius: 8, backgroundColor: 'rgba(0,184,148,0.15)', alignItems: 'center' },
-  acceptedBadgeText: { color: '#00B894', fontSize: 13, fontWeight: '600' },
+  acceptedBadgeText: { color: '#00B894', fontSize: 15, fontWeight: '600' },
   removeRequestBtn: { marginTop: 8, backgroundColor: 'rgba(255,255,255,0.25)', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 8, alignItems: 'center' },
-  removeRequestBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
+  removeRequestBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
 });
 
 export default MessageBubble;

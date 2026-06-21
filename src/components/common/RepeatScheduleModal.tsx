@@ -356,13 +356,13 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
     marginBottom: 6,
     textAlign: 'center',
   },
   modalSubtitle: {
-    fontSize: 14,
+    fontSize: 16,
     marginBottom: 18,
     textAlign: 'center',
   },
@@ -375,13 +375,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   radio: {
-    fontSize: 18,
+    fontSize: 20,
     marginRight: 12,
     width: 22,
     textAlign: 'center',
   },
   radioLabel: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     flex: 1,
   },
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dayPillText: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '700',
   },
   confirmBtn: {
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   },
   confirmBtnText: {
     color: '#fff',
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '700',
   },
   clearBtn: {
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   clearBtnText: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '600',
   },
   timeModeOption: {
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   timeModeText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     flex: 1,
   },
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   dayTimeLabel: {
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '700',
     width: 60,
   },

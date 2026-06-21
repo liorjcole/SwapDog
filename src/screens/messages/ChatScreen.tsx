@@ -388,7 +388,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
             <Image source={{ uri: otherUserPhoto }} style={styles.headerAvatar} />
           ) : (
             <View style={[styles.headerAvatarPlaceholder, { backgroundColor: colors.primary + '22' }]}>
-              <Text style={{ fontSize: 32 }}>{isSystem ? '🐾' : '👤'}</Text>
+              <Text style={{ fontSize: 34 }}>{isSystem ? '🐾' : '👤'}</Text>
             </View>
           )}
           <Text style={[styles.headerTitle, { color: colors.text, textDecorationLine: isSystem ? 'none' : 'underline' }]} numberOfLines={1}>
@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
     paddingRight: 8 },
   backIcon: {
-    fontSize: 36,
+    fontSize: 38,
     lineHeight: 40,
     fontWeight: '300' },
   headerCenter: {
@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
   },
@@ -668,11 +668,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     maxHeight: 100,
     marginRight: spacing.sm,
-    fontSize: 15 },
+    fontSize: 17 },
   sendBtn: {
     width: 40, height: 40, borderRadius: 20,
     justifyContent: 'center', alignItems: 'center' },
-  sendBtnText: { color: '#fff', fontSize: 16 },
+  sendBtnText: { color: '#fff', fontSize: 18 },
   photoBtn: {
     width: 36,
     height: 36,
@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   photoBtnText: {
-    fontSize: 22,
+    fontSize: 24,
   },
   pickerOverlay: {
     flex: 1,
@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
   },
   pickerOptionText: {
     color: '#FFFFFF',
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '500',
   },
   pickerDivider: {
@@ -718,7 +718,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   favBannerText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
 });

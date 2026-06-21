@@ -45,7 +45,7 @@ const CharCountHint: React.FC<Props> = ({ current, min, max, validLabel }) => {
 
 const styles = StyleSheet.create({
   hint: {
-    fontSize: 12,
+    fontSize: 14,
     marginTop: 4,
     paddingHorizontal: 4,
   },

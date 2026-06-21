@@ -154,12 +154,12 @@ const RescheduleReviewModal: React.FC<Props> = ({
               <View style={[styles.proposeSection, { borderColor: colors.textSecondary }]}>
                 <Text style={[styles.proposeLabel, { color: colors.text }]}>{isOvernight ? 'Your proposed dates' : 'Your proposed date'}</Text>
 
-                <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 4, textTransform: 'uppercase' }}>{isOvernight ? 'Start' : 'Date'}</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '600', marginBottom: 4, textTransform: 'uppercase' }}>{isOvernight ? 'Start' : 'Date'}</Text>
                 <TouchableOpacity
                   onPress={() => { setShowMyStartPicker(!showMyStartPicker); setShowMyEndPicker(false); }}
                   style={{ backgroundColor: colors.background, borderRadius: 8, padding: 12, marginBottom: 4 }}
                 >
-                  <Text style={{ color: showMyStartPicker ? colors.primary : colors.text, fontSize: 16, fontWeight: '600' }}>
+                  <Text style={{ color: showMyStartPicker ? colors.primary : colors.text, fontSize: 18, fontWeight: '600' }}>
                     {smartDate(myStart)}
                   </Text>
                 </TouchableOpacity>
@@ -185,12 +185,12 @@ const RescheduleReviewModal: React.FC<Props> = ({
 
                 {isOvernight && (
                   <>
-                    <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 4, textTransform: 'uppercase' }}>End</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '600', marginTop: 12, marginBottom: 4, textTransform: 'uppercase' }}>End</Text>
                     <TouchableOpacity
                       onPress={() => { setShowMyEndPicker(!showMyEndPicker); setShowMyStartPicker(false); }}
                       style={{ backgroundColor: colors.background, borderRadius: 8, padding: 12, marginBottom: 4 }}
                     >
-                      <Text style={{ color: showMyEndPicker ? colors.primary : colors.text, fontSize: 16, fontWeight: '600' }}>
+                      <Text style={{ color: showMyEndPicker ? colors.primary : colors.text, fontSize: 18, fontWeight: '600' }}>
                         {smartDate(myEnd)}
                       </Text>
                     </TouchableOpacity>
@@ -243,29 +243,29 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   container: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 40, maxHeight: '85%' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  title: { fontSize: 22, fontWeight: '800' },
-  closeX: { fontSize: 22, fontWeight: '600', padding: 4 },
-  subtitle: { fontSize: 15, marginBottom: spacing.md },
+  title: { fontSize: 24, fontWeight: '800' },
+  closeX: { fontSize: 24, fontWeight: '600', padding: 4 },
+  subtitle: { fontSize: 17, marginBottom: spacing.md },
   dateComparison: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md, gap: 8 },
   dateBlock: { flex: 1 },
-  dateLabel: { fontSize: 12, fontWeight: '600', marginBottom: 2, textTransform: 'uppercase' },
-  dateValue: { fontSize: 16 },
-  arrow: { fontSize: 20, fontWeight: '700' },
+  dateLabel: { fontSize: 14, fontWeight: '600', marginBottom: 2, textTransform: 'uppercase' },
+  dateValue: { fontSize: 18 },
+  arrow: { fontSize: 22, fontWeight: '700' },
   noteBlock: { padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.md },
-  noteLabel: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
-  noteText: { fontSize: 15 },
+  noteLabel: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
+  noteText: { fontSize: 17 },
   actionBtn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginBottom: spacing.sm },
   grayBtn: { backgroundColor: 'rgba(150,150,150,0.12)' },
   grayBtnText: { color: '#999', fontWeight: '500' },
-  actionBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  actionBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
   proposeSection: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm },
-  proposeLabel: { fontSize: 14, fontWeight: '600', marginBottom: spacing.sm, textAlign: 'center' },
+  proposeLabel: { fontSize: 16, fontWeight: '600', marginBottom: spacing.sm, textAlign: 'center' },
   datePickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: 4 },
   dateArrow: { padding: spacing.sm },
-  dateArrowText: { fontSize: 28, fontWeight: '300' },
-  datePickerText: { fontSize: 18, fontWeight: '600', minWidth: 120, textAlign: 'center' },
-  toText: { textAlign: 'center', fontSize: 13 },
+  dateArrowText: { fontSize: 30, fontWeight: '300' },
+  datePickerText: { fontSize: 20, fontWeight: '600', minWidth: 120, textAlign: 'center' },
+  toText: { textAlign: 'center', fontSize: 15 },
   noteInput: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.sm, marginTop: spacing.sm, minHeight: 60 },
-  noteInputField: { fontSize: 15, minHeight: 40 } });
+  noteInputField: { fontSize: 17, minHeight: 40 } });
 
 export default RescheduleReviewModal;

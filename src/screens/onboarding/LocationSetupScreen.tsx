@@ -115,13 +115,13 @@ const LocationSetupScreen: React.FC<Props> = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: spacing.lg, paddingTop: spacing.lg, justifyContent: 'center', alignItems: 'center' },
-  emoji: { fontSize: 64, marginBottom: spacing.lg },
+  emoji: { fontSize: 66, marginBottom: spacing.lg },
   title: { ...typography.h2, textAlign: 'center', marginBottom: spacing.sm },
   sub: { ...typography.body, textAlign: 'center', marginBottom: spacing.xl },
-  locationName: { fontSize: 16, fontWeight: '600', marginBottom: spacing.lg },
+  locationName: { fontSize: 18, fontWeight: '600', marginBottom: spacing.lg },
   btn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', width: '100%', marginBottom: spacing.md },
   btnText: { color: '#fff', ...typography.button },
-  skip: { fontSize: 15, marginTop: spacing.sm },
+  skip: { fontSize: 17, marginTop: spacing.sm },
 });
 
 export default LocationSetupScreen;
