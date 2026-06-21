@@ -432,13 +432,15 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               accessibilityLabel={`${dog.name}, ${dog.breed}. Tap to edit.`}
               accessibilityRole="button"
             >
-              <Text style={[styles.dogName, { color: colors.text }]}>{dog.name}</Text>
-              <Text style={[styles.dogBreed, { color: colors.textSecondary }]}>{dog.breed} {'\u2022'} {formatDogAge(dog.ageYears, dog.ageMonths)}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                <Text style={[styles.dogName, { color: colors.text }]}>{dog.name}</Text>
+                <Text style={[styles.dogBreed, { color: colors.textSecondary, marginLeft: 8 }]}>{dog.breed} {'\u2022'} {formatDogAge(dog.ageYears, dog.ageMonths)}</Text>
+              </View>
             </TouchableOpacity>
 
             {/* Photo gallery grid — draggable reorder */}
-            <Text style={{ fontSize: 17, color: colors.textSecondary, marginTop: 4, marginBottom: 6 }}>
-              Hold & drag to reorder
+            <Text style={{ fontSize: 15, color: colors.textSecondary, marginTop: 4, marginBottom: 6, fontStyle: 'italic' }}>
+              * Hold & drag to reorder
             </Text>
             <DraggablePhotoGrid
               photos={dog.photoURLs}
