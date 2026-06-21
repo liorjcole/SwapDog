@@ -1438,8 +1438,8 @@ const MAX_PLAY_SESSIONS = 5;
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.xl * 2, marginBottom: spacing.xl * 2, paddingHorizontal: spacing.lg }}>
           <Text style={{ fontSize: 16 }}>🐾</Text>
-          <Text style={[styles.pageSubtitle, { color: colors.textSecondary, marginBottom: 0, marginHorizontal: 12, textAlign: 'center', lineHeight: 20 }]}>
-            Your post will be visible to the WatchDog members in your area!
+          <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '600', marginHorizontal: 12, textAlign: 'center', lineHeight: 24 }}>
+            Post your request so nearby members can jump in to lend a paw!
           </Text>
           <Text style={{ fontSize: 16 }}>🐾</Text>
         </View>
