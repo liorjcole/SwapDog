@@ -354,9 +354,11 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
 
           {/* Free-text care details */}
           {post.careDetails ? (
-            <Text style={{ fontSize: 17, color: colors.textSecondary, marginTop: 6, fontStyle: 'italic' }} numberOfLines={3}>
-              "{post.careDetails}"
-            </Text>
+            <View style={{ backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, marginTop: 8 }}>
+              <Text style={{ fontSize: 16, color: colors.textSecondary, fontStyle: 'italic' }} numberOfLines={3}>
+                "{post.careDetails}"
+              </Text>
+            </View>
           ) : null}
 
 
