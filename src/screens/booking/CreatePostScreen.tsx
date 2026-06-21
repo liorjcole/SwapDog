@@ -1358,7 +1358,7 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('feeding') && (
               <>
                 {feedingSlots.map((slot, idx) => (
-                  <View key={idx} style={[styles.section, { backgroundColor: colors.surface }, idx === feedingSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 }]}>
+                  <View key={idx} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === feedingSlots.length - 1 ? 0 : spacing.md }, idx === feedingSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedFeedings.has(idx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -1472,8 +1472,8 @@ const MAX_PLAY_SESSIONS = 5;
             )}
 
         {/* Divider between feeding and walk */}
-            {addOnCareTypes.has('dogWalking') && addOnCareTypes.has('feeding') && (
-              <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, marginVertical: spacing.lg }} />
+            {addOnCareTypes.has('dogWalking') && addOnCareTypes.has('feeding') && feedingSlots.length > 1 && (
+              <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, marginTop: spacing.lg, marginBottom: spacing.xl }} />
             )}
 
         {/* ── Walk Time (add-on) — multi-session ── */}
@@ -1489,7 +1489,7 @@ const MAX_PLAY_SESSIONS = 5;
                     ? `${Math.floor(wsDurMins / 60)}h ${wsDurMins % 60 > 0 ? `${wsDurMins % 60}m` : ''} walk`.trim()
                     : `${wsDurMins}m walk`;
                   return (
-                  <View key={wIdx} style={[styles.section, { backgroundColor: colors.surface }, wIdx === walkSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 }]}>
+                  <View key={wIdx} style={[styles.section, { backgroundColor: colors.surface, marginBottom: wIdx === walkSessions.length - 1 ? 0 : spacing.md }, wIdx === walkSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedWalks.has(wIdx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -1633,15 +1633,15 @@ const MAX_PLAY_SESSIONS = 5;
             )}
 
         {/* Divider before playtime */}
-            {addOnCareTypes.has('playtime') && (addOnCareTypes.has('dogWalking') || addOnCareTypes.has('feeding')) && (
-              <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, marginVertical: spacing.lg }} />
+            {addOnCareTypes.has('playtime') && ((addOnCareTypes.has('dogWalking') && walkSessions.length > 1) || (!addOnCareTypes.has('dogWalking') && addOnCareTypes.has('feeding') && feedingSlots.length > 1)) && (
+              <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, marginTop: spacing.lg, marginBottom: spacing.xl }} />
             )}
 
         {/* ── Playtime (add-on) — multi-session ── */}
             {addOnCareTypes.has('playtime') && (
               <>
                 {playSessions.map((pSession, pIdx) => (
-                  <View key={pIdx} style={[styles.section, { backgroundColor: colors.surface }, pIdx === playSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 }]}>
+                  <View key={pIdx} style={[styles.section, { backgroundColor: colors.surface, marginBottom: pIdx === playSessions.length - 1 ? 0 : spacing.md }, pIdx === playSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedPlay.has(pIdx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -1844,15 +1844,15 @@ const MAX_PLAY_SESSIONS = 5;
 
 
         {/* Divider before medication */}
-            {addOnCareTypes.has('medication') && (addOnCareTypes.has('dogWalking') || addOnCareTypes.has('feeding') || addOnCareTypes.has('playtime')) && (
-              <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, marginVertical: spacing.lg }} />
+            {addOnCareTypes.has('medication') && ((addOnCareTypes.has('playtime') && playSessions.length > 1) || (!addOnCareTypes.has('playtime') && addOnCareTypes.has('dogWalking') && walkSessions.length > 1) || (!addOnCareTypes.has('playtime') && !addOnCareTypes.has('dogWalking') && addOnCareTypes.has('feeding') && feedingSlots.length > 1)) && (
+              <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, marginTop: spacing.lg, marginBottom: spacing.xl }} />
             )}
 
         {/* ── Medication (add-on) ── */}
             {addOnCareTypes.has('medication') && (
               <>
                 {medicationSlots.map((slot, idx) => (
-                  <View key={idx} style={[styles.section, { backgroundColor: colors.surface }, idx === medicationSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 }]}>
+                  <View key={idx} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === medicationSlots.length - 1 ? 0 : spacing.md }, idx === medicationSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedMeds.has(idx) ? 0 : 10 }}>
                       <TouchableOpacity
