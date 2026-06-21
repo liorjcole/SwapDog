@@ -2102,21 +2102,9 @@ const MAX_PLAY_SESSIONS = 5;
               {/* Points input */}
               {offerPoints && (
                 <>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={[styles.pointsInputLabel, { color: colors.text }]}>
-                      How many points is this job worth?
-                    </Text>
-                    {recommendedPoints.total > 0 && !pointsOffered && (
-                      <TouchableOpacity
-                        onPress={() => setPointsOffered(String(recommendedPoints.total))}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={{ fontSize: 15, fontWeight: '600', color: colors.primary }}>
-                          Use {recommendedPoints.total} pts
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                  <Text style={[styles.pointsInputLabel, { color: colors.text }]}>
+                    How many points is this job worth?
+                  </Text>
                   <View style={{ height: 12 }} />
                   <View ref={refFor('points')} style={styles.pointsInputRow}>
                     <TextInput
