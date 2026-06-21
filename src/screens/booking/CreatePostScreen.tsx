@@ -24,7 +24,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import CharCountHint from '../../components/common/CharCountHint';
 import * as Location from 'expo-location';
 import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -45,7 +44,6 @@ import Chip from '../../components/common/Chip';
 import { formatDogAge } from '../../utils/formatDogAge';
 import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
 
-const MIN_CARE_DETAILS = 50;
 const RED = '#FF2D55';
 
 
@@ -1217,11 +1215,6 @@ const MAX_PLAY_SESSIONS = 5;
     }
     if (careType === 'overnight' && !endDateSelected) {
       showValidationAlert('End Date Required', 'Please select both a start and end date for overnight sitting.', 'dates');
-      return;
-    }
-    if (careDetails.trim().length < MIN_CARE_DETAILS) {
-      setCareDetailsCollapsed(false);
-      showValidationAlert('Care Details Required', `Please provide at least ${MIN_CARE_DETAILS} characters`, 'careDetails');
       return;
     }
     if (addOnCareTypes.has('medication')) {
@@ -3077,7 +3070,7 @@ const MAX_PLAY_SESSIONS = 5;
           >
             <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 }}>
-              <Text style={{ fontSize: 22, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.5 }}>📋 Overall Care Details</Text>
+              <Text style={{ fontSize: 22, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.5 }}>📋 Other Info</Text>
               <Text style={{ fontSize: 18, color: colors.textSecondary, marginLeft: 8 }}>{careDetailsCollapsed ? '›' : '▾'}</Text>
             </View>
             <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
@@ -3086,20 +3079,17 @@ const MAX_PLAY_SESSIONS = 5;
           {!careDetailsCollapsed && (
         <Animated.View ref={(node: View | null) => { refFor('careDetails')(node); validationRefFor('careDetails')(node); }} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'careDetails' ? pulseAnim : 1 }] }, pulsingSection === 'careDetails' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
               <Text style={[styles.careHint, { color: colors.textSecondary }]}>
-                Any other info the caretaker should know — behavioral notes, how to access your home, etc.
+                Any other info the caretaker should know: behavioral notes, quirks your pup has, etc.
               </Text>
               <TextInput
                 style={[
                   styles.careInput,
                   {
                     backgroundColor: colors.background,
-                    borderColor:
-                      careDetails.trim().length > 0 && careDetails.trim().length < MIN_CARE_DETAILS
-                        ? colors.error
-                        : colors.border,
+                    borderColor: colors.border,
                     color: colors.text },
                 ]}
-                placeholder="e.g. Bella is a big dog with a lot of energy and likes to jump! Please make sure you are physically able to handle this! I will message you the door code."
+                placeholder="e.g. Bella is a big dog with a lot of energy and likes to jump! Please make sure you are physically able to handle this!"
                 placeholderTextColor={colors.textSecondary}
                 value={careDetails}
                 onChangeText={setCareDetails}
@@ -3115,7 +3105,10 @@ const MAX_PLAY_SESSIONS = 5;
                 autoCapitalize="sentences"
                 onFocus={() => scrollToInput('careDetails')}
               />
-              <CharCountHint current={careDetails.trim().length} min={MIN_CARE_DETAILS} />
+
+              <View style={{ backgroundColor: 'rgba(255, 59, 48, 0.1)', borderRadius: 10, padding: 12, marginTop: 12, borderWidth: 1, borderColor: 'rgba(255, 59, 48, 0.3)' }}>
+                <Text style={{ fontSize: 13, color: '#FF3B30', lineHeight: 18 }}>⚠️ Don't put sensitive info here (like how to get into your home). This will be shared with all pet parents in your area as part of your post.</Text>
+              </View>
 
               <View style={{ height: 16 }} />
               {/* ── Care Photos ── */}
