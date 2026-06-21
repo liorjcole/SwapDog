@@ -3310,28 +3310,28 @@ const MAX_PLAY_SESSIONS = 5;
                           <Text style={{ fontSize: 14, color: colors.text }}>Walks</Text>
                           <Text
                             style={{ fontSize: 14, color: colors.textSecondary, textDecorationLine: 'underline' }}
-                            onPress={() => Alert.alert('Walk Rates', '0.5 points/hour when the caretaker is already there (overnight or day sitting) — they\'re just adding a walk to the stay.\n\n1 point/hour as a standalone visit — the caretaker is traveling just for the walk.')}
+                            onPress={() => Alert.alert('Walk Rates', '0.5 points/hour when the caretaker is already there (overnight or day sitting) — they\'re adding a walk to the stay.\n\n1 point/hour as a standalone visit — the caretaker is traveling for the walk.')}
                           >0.5 – 1 point / hour</Text>
                         </View>
                         <View style={styles.guideRow}>
                           <Text style={{ fontSize: 14, color: colors.text }}>Playtime</Text>
                           <Text
                             style={{ fontSize: 14, color: colors.textSecondary, textDecorationLine: 'underline' }}
-                            onPress={() => Alert.alert('Playtime Rates', '0.5 points/hour when the caretaker is already there (overnight or day sitting) — they\'re just adding playtime to the stay.\n\n1 point/hour as a standalone visit — the caretaker is traveling just for playtime.')}
+                            onPress={() => Alert.alert('Playtime Rates', '0.5 points/hour when the caretaker is already there (overnight or day sitting) — they\'re adding playtime to the stay.\n\n1 point/hour as a standalone visit — the caretaker is traveling for playtime.')}
                           >0.5 – 1 point / hour</Text>
                         </View>
                         <View style={styles.guideRow}>
                           <Text style={{ fontSize: 14, color: colors.text }}>Feeding</Text>
                           <Text
                             style={{ fontSize: 14, color: colors.textSecondary, textDecorationLine: 'underline' }}
-                            onPress={() => Alert.alert('Feeding Rates', '0 points during an overnight or day sitting stay — the caretaker is already there, so feeding is included.\n\n1 point as a standalone visit — the caretaker is traveling just to feed your pup.')}
+                            onPress={() => Alert.alert('Feeding Rates', '0 points during an overnight or day sitting stay — the caretaker is already there and getting compensated well for the overnight stay.\n\n1 point as a standalone visit — the caretaker is traveling to feed your pup.')}
                           >0 – 1 points</Text>
                         </View>
                         <View style={styles.guideRow}>
                           <Text style={{ fontSize: 14, color: colors.text }}>Medication</Text>
                           <Text
                             style={{ fontSize: 14, color: colors.textSecondary, textDecorationLine: 'underline' }}
-                            onPress={() => Alert.alert('Medication Rates', '0 points during an overnight or day sitting stay — the caretaker is already there, so giving meds is included.\n\n1 point as a standalone visit — the caretaker is traveling just to give medication.')}
+                            onPress={() => Alert.alert('Medication Rates', '0 points during an overnight or day sitting stay — the caretaker is already there and getting compensated well for the overnight stay.\n\n1 point as a standalone visit — the caretaker is traveling to give medication.')}
                           >0 – 1 points</Text>
                         </View>
                         <View style={styles.guideRow}>
