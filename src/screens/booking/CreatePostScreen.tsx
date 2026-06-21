@@ -1144,7 +1144,7 @@ const MAX_PLAY_SESSIONS = 5;
 
           {/* ── Location preference (radio buttons, under overnight or day sitting card) ── */}
           {(primaryCareType === 'overnight' || primaryCareType === 'daySitting') && (
-            <View style={{ marginTop: 12, gap: 8 }}>
+            <View style={{ marginTop: 12, gap: 8, alignSelf: primaryCareType === 'daySitting' ? 'flex-end' : 'flex-start', width: '47%' }}>
               {([
                 { value: 'my_home' as const, label: 'My home' },
                 { value: 'sitters_home' as const, label: "Sitter's home" },
