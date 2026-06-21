@@ -1710,7 +1710,7 @@ const MAX_PLAY_SESSIONS = 5;
                             activeOpacity={0.7}
                           >
                             <Text style={{ fontSize: 13, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.primary }}>
-                              {slot.repeatSchedule ? '\u2705 ' + formatRepeatLabel(slot.repeatSchedule) : '\U0001f4c5 Repeat this?'}
+                              {slot.repeatSchedule ? '✅ ' + formatRepeatLabel(slot.repeatSchedule) : '📅 Repeat this?'}
                             </Text>
                           </TouchableOpacity>
                         )}
