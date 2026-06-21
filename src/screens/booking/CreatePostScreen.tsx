@@ -2205,6 +2205,11 @@ const MAX_PLAY_SESSIONS = 5;
               <>
                 {feedingSlots.map((slot, idx) => (
                   <Animated.View key={slot.id} onLayout={(e: LayoutChangeEvent) => { cellHeightsRef.current[slot.id] = e.nativeEvent.layout.height; }} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === feedingSlots.length - 1 ? 0 : spacing.md, transform: [{ translateY: getCellAnimY(slot.id) }] }, idx === feedingSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                    {slot.time && (
+                      <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '400', marginBottom: 4 }}>
+                        {formatTime12(slot.time)}
+                      </Text>
+                    )}
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedFeedings.has(idx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2218,11 +2223,6 @@ const MAX_PLAY_SESSIONS = 5;
                         <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
                           🍽️ {idx === 0 ? 'Feeding' : `Feeding #${idx + 1}`}
                         </Text>
-                        {slot.time && (
-                          <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '400', marginLeft: 8 }}>
-                            {formatTime12(slot.time)}
-                          </Text>
-                        )}
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         {primaryCareType === 'overnight' && (
@@ -2397,6 +2397,11 @@ const MAX_PLAY_SESSIONS = 5;
                     : `${wsDurMins}m walk`;
                   return (
                   <Animated.View key={ws.id} onLayout={(e: LayoutChangeEvent) => { cellHeightsRef.current[ws.id] = e.nativeEvent.layout.height; }} style={[styles.section, { backgroundColor: colors.surface, marginBottom: wIdx === walkSessions.length - 1 ? 0 : spacing.md, transform: [{ translateY: getCellAnimY(ws.id) }] }, wIdx === walkSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                    {ws.startDate && (
+                      <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '400', marginBottom: 4 }}>
+                        {wsStartTime}{ws.endDate ? ` – ${wsEndTime}` : ''}
+                      </Text>
+                    )}
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedWalks.has(wIdx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2410,11 +2415,6 @@ const MAX_PLAY_SESSIONS = 5;
                         <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
                           🐕 {wIdx === 0 ? 'Walk' : `Walk #${wIdx + 1}`}
                         </Text>
-                        {ws.startDate && (
-                          <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '400', marginLeft: 8 }}>
-                            {wsStartTime}{ws.endDate ? ` – ${wsEndTime}` : ''}
-                          </Text>
-                        )}
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         {primaryCareType === 'overnight' && (
@@ -2614,6 +2614,11 @@ const MAX_PLAY_SESSIONS = 5;
               <>
                 {playSessions.map((pSession, pIdx) => (
                   <Animated.View key={pSession.id} onLayout={(e: LayoutChangeEvent) => { cellHeightsRef.current[pSession.id] = e.nativeEvent.layout.height; }} style={[styles.section, { backgroundColor: colors.surface, marginBottom: pIdx === playSessions.length - 1 ? 0 : spacing.md, transform: [{ translateY: getCellAnimY(pSession.id) }] }, pIdx === playSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                    {pSession.startDate && (
+                      <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '400', marginBottom: 4 }}>
+                        {formatTime12(pSession.startDate)}{pSession.endDate ? ` – ${formatTime12(pSession.endDate)}` : ''}
+                      </Text>
+                    )}
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedPlay.has(pIdx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2627,11 +2632,6 @@ const MAX_PLAY_SESSIONS = 5;
                         <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
                           🎾 {pIdx === 0 ? 'Playtime' : `Playtime #${pIdx + 1}`}
                         </Text>
-                        {pSession.startDate && (
-                          <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '400', marginLeft: 8 }}>
-                            {formatTime12(pSession.startDate)}{pSession.endDate ? ` – ${formatTime12(pSession.endDate)}` : ''}
-                          </Text>
-                        )}
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         {primaryCareType === 'overnight' && (
@@ -2889,6 +2889,11 @@ const MAX_PLAY_SESSIONS = 5;
                 {medicationSlots.map((slot, idx) => (
                   <View key={slot.id} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === medicationSlots.length - 1 ? 0 : spacing.md }, idx === medicationSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
+                    {slot.time && (
+                      <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '400', marginBottom: 4 }}>
+                        {formatTime12(slot.time)}
+                      </Text>
+                    )}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedMeds.has(idx) ? 0 : 10 }}>
                       <TouchableOpacity
                         onPress={() => toggleCollapse(setCollapsedMeds, idx)}
@@ -2901,11 +2906,6 @@ const MAX_PLAY_SESSIONS = 5;
                         <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
                           💊 {idx === 0 ? 'Medication' : `Medication #${idx + 1}`}
                         </Text>
-                        {slot.time && (
-                          <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '400', marginLeft: 8 }}>
-                            {formatTime12(slot.time)}
-                          </Text>
-                        )}
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         {primaryCareType === 'overnight' && (
