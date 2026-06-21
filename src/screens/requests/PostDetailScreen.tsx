@@ -259,11 +259,13 @@ const FullscreenPhotoModal: React.FC<FullscreenModalProps> = ({ photos, initialI
 const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
   const { user, userProfile } = useAuthContext();
+  const { getUser } = useUsers();
   const { getAreaPosts, getMyPosts, addResponder, approveHelper, saveOwnerReminderIds, cancelPost } = useSwaps();
   const { isFavorite, removeFavorite } = useFavorites();
   const { getOrCreateConversation, sendMessage } = useMessaging();
 
   const [post, setPost] = useState<SwapPost | null>(null);
+  const [freshPosterPhoto, setFreshPosterPhoto] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
   const claimingRef = useRef(false);
@@ -324,13 +326,18 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         if (found) {
           setPost(found);
           setAllPhotos(await buildPhotos(found));
+          // Fetch fresh poster photo (post.posterPhotoURL can be stale/missing)
+          try { const pu = await getUser(found.posterId); if (pu?.photoURL) setFreshPosterPhoto(pu.photoURL); } catch { /* non-fatal */ }
           return;
         }
         if (user?.uid) {
           const myPosts = await getMyPosts(user.uid);
           const ownPost = myPosts.find((p) => p.id === postId) ?? null;
           setPost(ownPost);
-          if (ownPost) setAllPhotos(await buildPhotos(ownPost));
+          if (ownPost) {
+            setAllPhotos(await buildPhotos(ownPost));
+            try { const pu = await getUser(ownPost.posterId); if (pu?.photoURL) setFreshPosterPhoto(pu.photoURL); } catch { /* non-fatal */ }
+          }
         }
       } finally {
         setLoading(false);
@@ -982,7 +989,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             style={styles.posterRow}
           >
             <AvatarImage
-              photoURL={post.posterPhotoURL}
+              photoURL={freshPosterPhoto ?? post.posterPhotoURL}
               displayName={post.posterName}
               size={48}
               style={[styles.posterAvatar, { borderColor: posterIsFavorited && !isOwner ? '#FFD700' : colors.border }]}
