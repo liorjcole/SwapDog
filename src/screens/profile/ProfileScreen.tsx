@@ -459,6 +459,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
 
             {/* Photo gallery grid — draggable reorder */}
+            <View style={{ marginTop: 14 }} />
             <DraggablePhotoGrid
               photos={dog.photoURLs}
               onReorder={(newPhotos) => { void updateDog(dog.id, { photoURLs: newPhotos }); }}
