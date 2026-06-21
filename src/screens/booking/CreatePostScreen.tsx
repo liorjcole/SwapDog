@@ -1300,7 +1300,7 @@ const MAX_PLAY_SESSIONS = 5;
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xl * 2, paddingHorizontal: spacing.lg }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.xl * 2, marginBottom: spacing.xl * 2, paddingHorizontal: spacing.lg }}>
           <Text style={{ fontSize: 16 }}>🐾</Text>
           <Text style={[styles.pageSubtitle, { color: colors.textSecondary, marginBottom: 0, marginHorizontal: 12, textAlign: 'center', lineHeight: 20 }]}>
             Your post will be visible to the WatchDog members in your area!
