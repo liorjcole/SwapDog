@@ -71,6 +71,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const [pulsingSection, setPulsingSection] = useState<string | null>(null);
+  const [isReorderAnimating, setIsReorderAnimating] = useState(false);
 
   const scrollAndPulse = useCallback((sectionKey: string) => {
     const view = viewRefs.current[sectionKey];
@@ -511,9 +512,13 @@ const MAX_PLAY_SESSIONS = 5;
     // Check if order actually changed
     const orderChanged = sorted.some((item, i) => updated[i] !== item);
     if (orderChanged) {
+      setIsReorderAnimating(true);
       LayoutAnimation.configureNext(
-        LayoutAnimation.create(500, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity)
+        LayoutAnimation.create(600, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity),
+        () => setIsReorderAnimating(false),  // completion callback
       );
+      // Fallback timeout in case callback doesn't fire
+      setTimeout(() => setIsReorderAnimating(false), 700);
     }
     // Remap collapsed state to follow items to their new positions
     const newCollapsed = new Set<number>();
