@@ -306,6 +306,7 @@ const MAX_PLAY_SESSIONS = 5;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   const [collapsedMeds, setCollapsedMeds] = useState<Set<number>>(new Set());
+  const [servicesCollapsed, setServicesCollapsed] = useState(false);
 
   const [walkSessions, setWalkSessions] = useState<WalkSession[]>([makeDefaultWalkSession()]);
   const addWalkSession = () => {
@@ -1366,7 +1367,27 @@ const MAX_PLAY_SESSIONS = 5;
             )}
 
 
+                {/* ── Services collapsible header ── */}
+                {(addOnCareTypes.has('feeding') || addOnCareTypes.has('dogWalking') || addOnCareTypes.has('playtime') || addOnCareTypes.has('medication')) && (
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.lg }}
+                    onPress={() => {
+                      setServicesCollapsed(prev => !prev);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary, letterSpacing: 0.5 }}>Services</Text>
+                      <Text style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 6 }}>{servicesCollapsed ? '›' : '▾'}</Text>
+                    </View>
+                    <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+                  </TouchableOpacity>
+                )}
 
+                {!servicesCollapsed && (
+                <>
                 {/* ── Feeding Time (add-on) ── */}
             {addOnCareTypes.has('feeding') && (
               <>
@@ -2051,6 +2072,9 @@ const MAX_PLAY_SESSIONS = 5;
 
               </>
             )}
+
+        </>
+                )}
 
         {/* ── Care Details ── */}
         {(primaryCareType !== null || addOnCareTypes.size > 0) && (
