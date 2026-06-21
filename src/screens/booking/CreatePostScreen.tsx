@@ -89,6 +89,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     return cellAnimYRef.current[id];
   };
   const newPostIdRef = useRef<string | null>(null);
+  const postSucceededRef = useRef(false);
   const cellIdCounter = useRef(0);
   const nextCellId = () => `cell-${++cellIdCounter.current}`;
 
@@ -390,6 +391,7 @@ const MAX_PLAY_SESSIONS = 5;
       setPrimaryCareType(prev => prev === type ? null : type);
     }
   };
+
 
   // Derived: primary care type for conditional fields
   const careType = primaryCareType;
@@ -1547,6 +1549,7 @@ const MAX_PLAY_SESSIONS = 5;
 
       const newPostId = await createPost(cleanData as unknown as Parameters<typeof createPost>[0]);
       newPostIdRef.current = newPostId;
+      postSucceededRef.current = true;
 
       setCelebrationQueue([{
         title: 'Successfully posted!',
