@@ -618,27 +618,52 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleCancelCommitment = (post: SwapPost) => {
-    Alert.alert(
-      'Cancel this commitment?',
-      `This will cancel the ${post.dogName} care request. The other person will be notified.`,
-      [
-        { text: 'Keep it', style: 'cancel' },
-        {
-          text: 'Yes, cancel',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await cancelPost(post.id);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-              fetchPosts();
-            } catch (err) {
-              console.warn('[RequestsScreen] Cancel failed:', err);
-              Alert.alert('Oops', 'Failed to cancel. Please try again.');
-            }
+    const isSitter = post.claimedBy === user?.uid;
+    const now = new Date();
+    const startMs = post.startDate instanceof Date ? post.startDate.getTime() : new Date(post.startDate).getTime();
+    const hoursUntilStart = (startMs - now.getTime()) / (1000 * 60 * 60);
+    const isLateCancel = isSitter && hoursUntilStart < 24 && hoursUntilStart > 0;
+
+    const doCancel = async () => {
+      try {
+        await cancelPost(post.id);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        fetchPosts();
+      } catch (err) {
+        console.warn('[RequestsScreen] Cancel failed:', err);
+        Alert.alert('Oops', 'Failed to cancel. Please try again.');
+      }
+    };
+
+    if (isLateCancel) {
+      // Sitter canceling < 24 hours before start — strong warning
+      Alert.alert(
+        'Are you sure?',
+        'Canceling less than 24 hours before the scheduled care puts the owner in a very difficult position to find a replacement and will likely result in a negative review, which hurts your account overall.\n\nIf we notice a pattern of late cancellations, your account may be at risk for suspension.',
+        [
+          { text: 'Keep Commitment', style: 'cancel' },
+          {
+            text: 'Cancel Anyway',
+            style: 'destructive',
+            onPress: doCancel,
           },
-        },
-      ],
-    );
+        ],
+      );
+    } else {
+      // Owner canceling, or sitter with 24+ hours notice — normal prompt
+      Alert.alert(
+        'Cancel this commitment?',
+        `This will cancel the ${post.dogName} care request. The other person will be notified.`,
+        [
+          { text: 'Keep it', style: 'cancel' },
+          {
+            text: 'Yes, cancel',
+            style: 'destructive',
+            onPress: doCancel,
+          },
+        ],
+      );
+    }
   };
 
   const toggleExpand = (postId: string) => {
