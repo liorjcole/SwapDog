@@ -523,59 +523,107 @@ const MAX_PLAY_SESSIONS = 5;
     const numDogs = selectedDogs.length || 1;
     const dogMultiplier = 1 + (numDogs - 1) * 0.1; // +10% per extra dog
 
-    // Overnight: 4 pts per night
-    if (primaryCareType === 'overnight') {
-      const nights = dayCount;
-      const pts = 4 * nights;
-      total += pts;
-      breakdown.push({ label: `Overnight (${nights} night${nights > 1 ? 's' : ''})`, pts });
-    }
+    const hasOvernight = primaryCareType === 'overnight';
+    const hasDaySitting = primaryCareType === 'daySitting';
+    const hasWalk = addOnCareTypes.has('dogWalking');
+    const hasPlay = addOnCareTypes.has('playtime');
+    const hasFeeding = addOnCareTypes.has('feeding');
+    const hasMeds = addOnCareTypes.has('medication');
+    const hasPrimary = hasOvernight || hasDaySitting;
+    const hasWalkOrPlay = hasWalk || hasPlay;
 
-    // Day sitting: 1 pt per hour
-    if (primaryCareType === 'daySitting' && daySittingMinutes && daySittingMinutes > 0) {
+    // Repeat multiplier: how many times an activity occurs over the stay
+    const getRepeatCount = (repeat: RepeatSchedule | null, stayDays: number): number => {
+      if (!repeat || stayDays <= 1) return 1;
+      if (repeat.type === 'daily') return stayDays;
+      if (repeat.type === 'weekly') return Math.max(1, Math.ceil(stayDays / 7));
+      if (repeat.type === 'custom' && repeat.customDays) {
+        return Math.max(1, Math.round(stayDays * repeat.customDays.length / 7));
+      }
+      return 1;
+    };
+    const stayDays = hasOvernight ? dayCount : 1;
+
+    // ── Primary care ──
+    if (hasOvernight) {
+      const pts = 6 * dayCount;
+      total += pts;
+      breakdown.push({ label: 'Overnight (' + dayCount + ' night' + (dayCount > 1 ? 's' : '') + ')', pts });
+    }
+    if (hasDaySitting && daySittingMinutes && daySittingMinutes > 0) {
       const hrs = daySittingMinutes / 60;
       const pts = Math.round(hrs * 10) / 10;
       total += pts;
-      breakdown.push({ label: `Day sitting (${hrs.toFixed(1)} hr${hrs !== 1 ? 's' : ''})`, pts });
+      breakdown.push({ label: 'Day sitting (' + hrs.toFixed(1) + ' hr' + (hrs !== 1 ? 's' : '') + ')', pts });
     }
 
-    // Walk: 1 pt per hour
-    if (addOnCareTypes.has('dogWalking') && walkDurationMins > 0) {
-      const hrs = walkDurationMins / 60;
-      const pts = Math.round(hrs * 10) / 10;
-      total += pts;
-      breakdown.push({ label: `Walk (${hrs.toFixed(1)} hr${hrs !== 1 ? 's' : ''})`, pts });
-    }
-
-    // Feeding: 1 pt per feeding
-    if (addOnCareTypes.has('feeding')) {
-      const count = feedingSlots.length;
-      total += count;
-      breakdown.push({ label: `Feeding (${count} time${count > 1 ? 's' : ''})`, pts: count });
-    }
-
-    // Medication: 1 pt per medication
-    if (addOnCareTypes.has('medication')) {
-      const count = medicationSlots.length;
-      breakdown.push({ label: `Medication (${count} time${count > 1 ? 's' : ''})`, pts: count });
-    }
-
-    // Playtime: 1 pt per hour (per session)
-    if (addOnCareTypes.has('playtime')) {
-      let playMins = 0;
-      for (const s of playSessions) {
-        playMins += s.flexible ? s.durationMins : getPlayDurationMins(s);
+    // ── Walk: 0.5/hr with overnight/day sitting, 1/hr standalone ──
+    if (hasWalk && walkSessions.length > 0) {
+      const rate = hasPrimary ? 0.5 : 1;
+      let walkPts = 0;
+      let totalHrs = 0;
+      for (const ws of walkSessions) {
+        const sMins = ws.startDate.getHours() * 60 + ws.startDate.getMinutes();
+        const eMins = ws.endDate.getHours() * 60 + ws.endDate.getMinutes();
+        const sessionMins = eMins > sMins ? eMins - sMins : 0;
+        const sessionHrs = sessionMins / 60;
+        const reps = getRepeatCount(ws.repeatSchedule, stayDays);
+        walkPts += sessionHrs * rate * reps;
+        totalHrs += sessionHrs * reps;
       }
-      const hrs = playMins / 60;
-      const pts = Math.round(hrs * 10) / 10;
-      total += pts;
-      if (pts > 0) breakdown.push({ label: `Playtime (${hrs.toFixed(1)} hr${hrs !== 1 ? 's' : ''})`, pts });
+      walkPts = Math.round(walkPts * 10) / 10;
+      if (walkPts > 0) {
+        total += walkPts;
+        const lbl = totalHrs === 1 ? '1 hr' : totalHrs.toFixed(1) + ' hrs';
+        breakdown.push({ label: 'Walk (' + lbl + ' @ ' + rate + '/hr)', pts: walkPts });
+      }
     }
 
-    // Apply dog multiplier
+    // ── Playtime: 0.5/hr with overnight/day sitting, 1/hr standalone ──
+    if (hasPlay && playSessions.length > 0) {
+      const rate = hasPrimary ? 0.5 : 1;
+      let playPts = 0;
+      let totalHrs = 0;
+      for (const s of playSessions) {
+        const sessionMins = s.flexible ? s.durationMins : getPlayDurationMins(s);
+        const sessionHrs = sessionMins / 60;
+        const reps = getRepeatCount(s.repeatSchedule, stayDays);
+        playPts += sessionHrs * rate * reps;
+        totalHrs += sessionHrs * reps;
+      }
+      playPts = Math.round(playPts * 10) / 10;
+      if (playPts > 0) {
+        total += playPts;
+        const lbl = totalHrs === 1 ? '1 hr' : totalHrs.toFixed(1) + ' hrs';
+        breakdown.push({ label: 'Playtime (' + lbl + ' @ ' + rate + '/hr)', pts: playPts });
+      }
+    }
+
+    // ── Feeding & Medication — rate depends on context ──
+    if (hasPrimary) {
+      // Included in overnight/day sitting — 0 extra pts (not shown)
+    } else if (hasWalkOrPlay) {
+      // Add-on to walk/play: +0.5 each
+      if (hasFeeding) { total += 0.5; breakdown.push({ label: 'Feeding (add-on)', pts: 0.5 }); }
+      if (hasMeds) { total += 0.5; breakdown.push({ label: 'Medication (add-on)', pts: 0.5 }); }
+    } else {
+      // Standalone feeding/meds only
+      if (hasFeeding && hasMeds) {
+        total += 1.5;
+        breakdown.push({ label: 'Feeding', pts: 1 });
+        breakdown.push({ label: 'Medication', pts: 0.5 });
+      } else if (hasFeeding) {
+        total += 1;
+        breakdown.push({ label: 'Feeding', pts: 1 });
+      } else if (hasMeds) {
+        total += 1;
+        breakdown.push({ label: 'Medication', pts: 1 });
+      }
+    }
+
     const adjusted = Math.ceil(total * dogMultiplier);
     return { total: adjusted, baseTotal: Math.ceil(total), breakdown, dogMultiplier, numDogs };
-  }, [primaryCareType, dayCount, daySittingMinutes, addOnCareTypes, walkDurationMins, feedingSlots, medicationSlots, playSessions, selectedDogs.length]);
+  }, [primaryCareType, dayCount, daySittingMinutes, addOnCareTypes, walkSessions, feedingSlots, medicationSlots, playSessions, selectedDogs.length]);
 
   /** Format total duration as human-readable string */
   const formatDuration = (totalMinutes: number): string => {
@@ -2074,14 +2122,12 @@ const MAX_PLAY_SESSIONS = 5;
 
                   {showPricingGuide && (
                     <View style={[styles.pricingGuideBody, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                      <Text style={[styles.guideTitle, { color: colors.text }]}>Point Guidelines</Text>
-                      <Text style={[styles.guideAsterisk, { color: colors.textSecondary, marginBottom: 8 }]}>
-                        *These are standard guidelines — actual value may vary based on holidays, last-minute requests, dogs needing extra attention, or whether a service is part of an overnight/day stay vs. a standalone visit.
-                      </Text>
+                      {/* Dynamic breakdown */}
+                      <Text style={[styles.guideTitle, { color: colors.text }]}>Your Breakdown</Text>
                       {recommendedPoints.breakdown.map((item, i) => (
                         <View key={i} style={styles.guideRow}>
                           <Text style={[styles.guideRowLabel, { color: colors.text }]}>{item.label}</Text>
-                          <Text style={[styles.guideRowValue, { color: colors.primary }]}>{item.pts} pt{item.pts !== 1 ? 's' : ''}</Text>
+                          <Text style={[styles.guideRowValue, { color: colors.primary }]}>{item.pts} pt{item.pts !== 1 ? "s" : ""}</Text>
                         </View>
                       ))}
                       {recommendedPoints.numDogs > 1 && (
@@ -2093,7 +2139,39 @@ const MAX_PLAY_SESSIONS = 5;
                         </View>
                       )}
 
+                      {/* Explanation */}
+                      <View style={{ borderTopWidth: 0.5, borderTopColor: colors.border, marginTop: 12, paddingTop: 12 }}>
+                        <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 19 }}>
+                          Rates vary based on the nature of the job. A standalone feeding is 1 pt because the caretaker travels just for that visit — but during an overnight stay, feeding is included since they are already there.
+                        </Text>
+                      </View>
 
+                      {/* Rate chart */}
+                      <View style={{ marginTop: 12 }}>
+                        <Text style={[styles.guideTitle, { color: colors.text, marginBottom: 6 }]}>Suggested Rates</Text>
+                        {[
+                          { svc: 'Overnight stay', rate: '6 pts / night' },
+                          { svc: 'Daytime care', rate: '1 pt / hr' },
+                          { svc: 'Walks', rate: '0.5 \u2013 1 pt / hr' },
+                          { svc: 'Playtime', rate: '0.5 \u2013 1 pt / hr' },
+                          { svc: 'Feeding', rate: '0 \u2013 1 pt' },
+                          { svc: 'Medication', rate: '0 \u2013 1 pt' },
+                        ].map((r, i) => (
+                          <View key={i} style={styles.guideRow}>
+                            <Text style={{ fontSize: 14, color: colors.text }}>{r.svc}</Text>
+                            <Text style={{ fontSize: 14, color: colors.textSecondary }}>{r.rate}</Text>
+                          </View>
+                        ))}
+                        <View style={styles.guideRow}>
+                          <Text style={{ fontSize: 14, color: colors.text }}>Extra dogs</Text>
+                          <Text style={{ fontSize: 14, color: colors.textSecondary }}>+10% each</Text>
+                        </View>
+                      </View>
+
+                      {/* Not factored in */}
+                      <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 10, lineHeight: 17, fontStyle: 'italic' }}>
+                        These suggestions don't factor in last-minute requests, holidays, or extra care details we may not be aware of — use your best judgment!
+                      </Text>
                     </View>
                   )}
                 </View>
