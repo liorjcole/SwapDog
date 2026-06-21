@@ -514,11 +514,11 @@ const MAX_PLAY_SESSIONS = 5;
     if (orderChanged) {
       setIsReorderAnimating(true);
       LayoutAnimation.configureNext(
-        LayoutAnimation.create(600, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity),
+        LayoutAnimation.create(4000, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity),
         () => setIsReorderAnimating(false),  // completion callback
       );
       // Fallback timeout in case callback doesn't fire
-      setTimeout(() => setIsReorderAnimating(false), 700);
+      setTimeout(() => setIsReorderAnimating(false), 4500);
     }
     // Remap collapsed state to follow items to their new positions
     const newCollapsed = new Set<number>();
