@@ -1,0 +1,24 @@
+diff --git a/node_modules/@react-native-community/datetimepicker/ios/RNDateTimePicker.m b/node_modules/@react-native-community/datetimepicker/ios/RNDateTimePicker.m
+index 9c73c8e..64d0bcf 100644
+--- a/node_modules/@react-native-community/datetimepicker/ios/RNDateTimePicker.m
++++ b/node_modules/@react-native-community/datetimepicker/ios/RNDateTimePicker.m
+@@ -72,4 +72,19 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
+     }
+ }
+ 
++// Recursively disable UITextFields to prevent iOS 15+ keyboard input on spinner
++- (void)disableTextFieldsInView:(UIView *)view {
++    for (UIView *subview in view.subviews) {
++        if ([subview isKindOfClass:[UITextField class]]) {
++            ((UITextField *)subview).userInteractionEnabled = NO;
++        }
++        [self disableTextFieldsInView:subview];
++    }
++}
++
++- (void)layoutSubviews {
++    [super layoutSubviews];
++    [self disableTextFieldsInView:self];
++}
++
+ @end
