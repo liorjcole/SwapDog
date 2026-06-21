@@ -3557,14 +3557,22 @@ const MAX_PLAY_SESSIONS = 5;
                   </View>
                 )}
 
-                {/* Care details */}
+                {/* Care details — separated by thin line like Discover feed */}
                 {careDetails.trim().length > 0 && (
-                  <View style={{ marginTop: 10, borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 8 }}>
-                    <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 20 }} numberOfLines={6}>
-                      {careDetails}
+                  <View style={{ marginTop: 10 }}>
+                    <View style={{ height: 8 }} />
+                    <View style={{ height: 0.5, backgroundColor: colors.border }} />
+                    <View style={{ height: 8 }} />
+                    <Text style={{ fontSize: 17, color: colors.textSecondary, fontStyle: 'italic' }} numberOfLines={3}>
+                      "{careDetails}"
                     </Text>
                   </View>
                 )}
+
+                {/* See Full Details button (matches Discover feed) */}
+                <View style={{ marginTop: 10, borderWidth: 1.5, borderColor: '#FF2D55', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16, alignSelf: 'flex-start' }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#FF2D55' }}>See Full Details</Text>
+                </View>
               </View>
             </View>
 
