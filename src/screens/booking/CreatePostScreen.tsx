@@ -119,6 +119,8 @@ const MAX_WALK_SESSIONS = 5;
 const MAX_PLAY_SESSIONS = 5;
   const addPlaySession = () => {
     if (playSessions.length >= MAX_PLAY_SESSIONS) return;
+    // Auto-collapse all existing play sessions
+    setCollapsedPlay(new Set(playSessions.map((_, i) => i)));
     setPlaySessions(prev => [...prev, makeDefaultPlaySession()]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
@@ -244,6 +246,8 @@ const MAX_PLAY_SESSIONS = 5;
 
   const addFeedingSlot = () => {
     const d = new Date(); d.setHours(12, 0, 0, 0);
+    // Auto-collapse all existing feeding slots
+    setCollapsedFeedings(new Set(feedingSlots.map((_, i) => i)));
     setFeedingSlots(prev => [...prev, { time: d, repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds] }]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
@@ -262,6 +266,8 @@ const MAX_PLAY_SESSIONS = 5;
   };
   const addMedicationSlot = () => {
     const d = new Date(); d.setHours(8, 0, 0, 0);
+    // Auto-collapse all existing medication slots
+    setCollapsedMeds(new Set(medicationSlots.map((_, i) => i)));
     setMedicationSlots(prev => [...prev, { time: d, extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds] }]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
@@ -304,7 +310,10 @@ const MAX_PLAY_SESSIONS = 5;
   const [walkSessions, setWalkSessions] = useState<WalkSession[]>([makeDefaultWalkSession()]);
   const addWalkSession = () => {
     if (walkSessions.length >= MAX_WALK_SESSIONS) return;
+    // Auto-collapse all existing walk sessions
+    setCollapsedWalks(new Set(walkSessions.map((_, i) => i)));
     setWalkSessions(prev => [...prev, makeDefaultWalkSession()]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   const removeWalkSession = (idx: number) => {
     setWalkSessions(prev => prev.filter((_: WalkSession, i: number) => i !== idx));
