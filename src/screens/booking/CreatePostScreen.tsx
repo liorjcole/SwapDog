@@ -723,7 +723,7 @@ const MAX_PLAY_SESSIONS = 5;
     if (!primaryCareType && addOnCareTypes.size === 0) {
       Alert.alert('Required', 'Please select at least one type of care.'); return;
     }
-    if (primaryCareType === 'overnight' && !overnightLocation) {
+    if ((primaryCareType === 'overnight' || primaryCareType === 'daySitting') && !overnightLocation) {
       Alert.alert('Required', 'Please select where the stay will be.'); return;
     }
     // Build the full requested care datetime
@@ -828,7 +828,7 @@ const MAX_PLAY_SESSIONS = 5;
         : {};
 
       // Care-type-specific optional fields
-      const careTypeFields: Record<string, unknown> = { careType: primaryCareType, addOnCareTypes: Array.from(addOnCareTypes), overnightLocation: primaryCareType === 'overnight' ? overnightLocation : null };
+      const careTypeFields: Record<string, unknown> = { careType: primaryCareType, addOnCareTypes: Array.from(addOnCareTypes), overnightLocation: (primaryCareType === 'overnight' || primaryCareType === 'daySitting') ? overnightLocation : null };
       if (offerPoints) {
         careTypeFields.pointsOffered = parseInt(pointsOffered, 10);
       }
@@ -1078,8 +1078,8 @@ const MAX_PLAY_SESSIONS = 5;
             })}
           </View>
 
-          {/* ── Overnight Location (radio buttons, right under overnight card) ── */}
-          {primaryCareType === 'overnight' && (
+          {/* ── Location preference (radio buttons, under overnight or day sitting card) ── */}
+          {(primaryCareType === 'overnight' || primaryCareType === 'daySitting') && (
             <View style={{ marginTop: 12, gap: 8 }}>
               {([
                 { value: 'my_home' as const, label: 'My home' },
@@ -1120,7 +1120,7 @@ const MAX_PLAY_SESSIONS = 5;
 
           {/* Add-ons — tap to toggle */}
           <Text style={[styles.careTypeHint, { color: colors.textSecondary, marginTop: 16, marginBottom: 8 }]}>
-            Anything else? (optional)
+            Anything else?
           </Text>
           <View style={styles.careTypeGrid}>
             {ADDON_CARE_OPTIONS.map(({ type, icon, label }) => {
