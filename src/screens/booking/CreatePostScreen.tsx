@@ -2721,9 +2721,11 @@ const MAX_PLAY_SESSIONS = 5;
                             minimumDate={getMinEndDate(pSession.startDate, pSession.endDate || new Date())}
                           />
                         )}
-                        <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
-                          {pSession.startDate ? formatTime12(pSession.startDate) : '—'} → {pSession.endDate ? formatTime12(pSession.endDate) : '—'}  •  {getPlayDurationText(pSession)}
-                        </Text>
+                        {(pSession.startDate || pSession.endDate) && (
+                          <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
+                            {pSession.startDate ? formatTime12(pSession.startDate) : '—'} → {pSession.endDate ? formatTime12(pSession.endDate) : '—'}  •  {getPlayDurationText(pSession)}
+                          </Text>
+                        )}
                       </>
                     ) : (
                       <>
