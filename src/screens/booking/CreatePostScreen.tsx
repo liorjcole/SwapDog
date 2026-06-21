@@ -1273,9 +1273,19 @@ const MAX_PLAY_SESSIONS = 5;
         ...careTypeFields,
         status: 'open' as const };
 
-      const cleanData = Object.fromEntries(
-        Object.entries(postData).filter(([, v]) => v !== undefined)
-      );
+      // Deep-strip undefined values at every level (Firestore rejects undefined anywhere)
+      const deepClean = (obj: unknown): unknown => {
+        if (Array.isArray(obj)) return obj.map(deepClean);
+        if (obj !== null && typeof obj === 'object' && !(obj instanceof Date)) {
+          return Object.fromEntries(
+            Object.entries(obj as Record<string, unknown>)
+              .filter(([, v]) => v !== undefined)
+              .map(([k, v]) => [k, deepClean(v)])
+          );
+        }
+        return obj;
+      };
+      const cleanData = deepClean(postData) as Record<string, unknown>;
 
       await createPost(cleanData as unknown as Parameters<typeof createPost>[0]);
 
