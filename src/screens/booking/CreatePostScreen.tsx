@@ -1441,7 +1441,7 @@ const MAX_PLAY_SESSIONS = 5;
                 {/* ── Services collapsible header ── */}
                 {(addOnCareTypes.has('feeding') || addOnCareTypes.has('dogWalking') || addOnCareTypes.has('playtime') || addOnCareTypes.has('medication')) && (
                   <TouchableOpacity
-                    style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.xl }}
+                    style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.xl, position: 'relative' }}
                     onPress={() => {
                       setServicesCollapsed(prev => !prev);
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1453,8 +1453,9 @@ const MAX_PLAY_SESSIONS = 5;
                       <Text style={{ fontSize: 22, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.5 }}>Services</Text>
                       <Text style={{ fontSize: 18, color: colors.textSecondary, marginLeft: 8 }}>{servicesCollapsed ? '›' : '▾'}</Text>
                     </View>
-                    {servicesCollapsed ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', paddingRight: 4 }}>
+                    <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+                    {servicesCollapsed && (
+                      <View style={{ position: 'absolute', right: 0, flexDirection: 'row', alignItems: 'center', paddingRight: 4 }}>
                         {(() => {
                           const icons: string[] = [];
                           if (addOnCareTypes.has('feeding')) feedingSlots.forEach(() => icons.push('🍽️'));
@@ -1480,8 +1481,6 @@ const MAX_PLAY_SESSIONS = 5;
                           );
                         })()}
                       </View>
-                    ) : (
-                      <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
                     )}
                   </TouchableOpacity>
                 )}
