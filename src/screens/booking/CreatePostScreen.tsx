@@ -960,8 +960,10 @@ const MAX_PLAY_SESSIONS = 5;
       }
     }
 
-    const adjusted = Math.ceil(total * dogMultiplier);
-    return { total: adjusted, baseTotal: Math.ceil(total), breakdown, dogMultiplier, numDogs };
+    const adjustedRaw = total * dogMultiplier;
+    const adjusted = Math.round(adjustedRaw * 10) / 10; // round to 1 decimal
+    const surcharge = Math.round((adjustedRaw - total) * 10) / 10;
+    return { total: adjusted, baseTotal: Math.round(total * 10) / 10, breakdown, dogMultiplier, numDogs, surcharge };
   }, [primaryCareType, dayCount, daySittingMinutes, addOnCareTypes, walkSessions, feedingSlots, medicationSlots, playSessions, selectedDogs.length]);
 
   /** Format total duration as human-readable string */
@@ -2917,7 +2919,7 @@ const MAX_PLAY_SESSIONS = 5;
                           <Text style={[styles.guideRowLabel, { color: colors.text }]}>
                             +10% per additional pup ({recommendedPoints.numDogs} pups)
                           </Text>
-                          <Text style={[styles.guideRowValue, { color: colors.primary }]}>{recommendedPoints.total} pts</Text>
+                          <Text style={[styles.guideRowValue, { color: colors.primary }]}>+{recommendedPoints.surcharge} pt{recommendedPoints.surcharge !== 1 ? "s" : ""}</Text>
                         </View>
                       )}
 
