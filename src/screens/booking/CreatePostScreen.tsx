@@ -2267,8 +2267,12 @@ const MAX_PLAY_SESSIONS = 5;
                   {showPricingGuide && (
                     <>
                     {/* Cell 1: Your Breakdown + total + disclaimer */}
-                    <View style={[styles.pricingGuideBody, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                      <Text style={[styles.guideTitle, { color: colors.text }]}>Your Breakdown</Text>
+                    <View style={{ marginTop: 10, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, paddingVertical: 10, paddingHorizontal: 14 }}>
+                        <View style={{ width: 3, height: 20, backgroundColor: colors.primary, borderRadius: 2, marginRight: 10 }} />
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, letterSpacing: 0.3 }}>Your Breakdown</Text>
+                      </View>
+                      <View style={{ padding: 12, backgroundColor: colors.background }}>
                       {recommendedPoints.breakdown.map((item, i) => (
                         <View key={i} style={styles.guideRow}>
                           <Text style={[styles.guideRowLabel, { color: colors.text }]}>{item.label}</Text>
@@ -2295,16 +2299,21 @@ const MAX_PLAY_SESSIONS = 5;
                       <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 10, lineHeight: 17, fontStyle: 'italic' }}>
                         These suggestions don't factor in last-minute requests, holidays, or extra care details we may not be aware of — use your best judgment!
                       </Text>
+                      </View>
                     </View>
 
                     {/* Cell 2: Rate explanation + Suggested Rates chart */}
-                    <View style={[styles.pricingGuideBody, { backgroundColor: colors.background, borderColor: colors.border, marginTop: 10 }]}>
+                    <View style={{ marginTop: 10, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, paddingVertical: 10, paddingHorizontal: 14 }}>
+                        <View style={{ width: 3, height: 20, backgroundColor: colors.primary, borderRadius: 2, marginRight: 10 }} />
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, letterSpacing: 0.3 }}>Rate Guide</Text>
+                      </View>
+                      <View style={{ padding: 12, backgroundColor: colors.background }}>
                       <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 19 }}>
                         Rates vary for every job — a standalone feeding is 1 pt because the caretaker is traveling just for that visit, but we don\'t add points for a feeding on an overnight stay because the caretaker is already there and getting points for the day. That\'s why some services on the chart below are ranges!
                       </Text>
 
                       <View style={{ marginTop: 12 }}>
-                        <Text style={[styles.guideTitle, { color: colors.text, marginBottom: 6 }]}>Suggested Rates</Text>
                         {/* Fixed rates — no range */}
                         <View style={styles.guideRow}>
                           <Text style={{ fontSize: 14, color: colors.text }}>Overnight stay</Text>
@@ -2347,6 +2356,7 @@ const MAX_PLAY_SESSIONS = 5;
                           <Text style={{ fontSize: 14, color: colors.text }}>Extra dogs</Text>
                           <Text style={{ fontSize: 14, color: colors.textSecondary }}>+10% each</Text>
                         </View>
+                      </View>
                       </View>
                     </View>
                     </>
