@@ -30,10 +30,18 @@ export const pointsEventIcon: Record<PointsEventType, string> = {
   other: 'P',
 };
 
+/** Normalize legacy descriptions so old Firestore entries show current wording. */
+const normalizeDescription = (desc: string): string => {
+  if (desc.includes('Welcome bonus') || desc.includes('thanks for joining')) {
+    return 'Welcome to WatchDog!';
+  }
+  return desc;
+};
+
 const parseEntry = (id: string, data: Record<string, unknown>): PointsHistoryEntry => ({
   id,
   type: (data.type as PointsEventType) ?? 'other',
-  description: (data.description as string) ?? '',
+  description: normalizeDescription((data.description as string) ?? ''),
   points: (data.points as number) ?? 0,
   createdAt: toDate(data.createdAt as Parameters<typeof toDate>[0]),
   relatedPostId: data.relatedPostId as string | undefined,
