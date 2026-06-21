@@ -3478,7 +3478,7 @@ const MAX_PLAY_SESSIONS = 5;
               <Text style={styles.submitBtnText}>{submitting ? 'Posting...' : 'Post Request 🐾'}</Text>
             </TouchableOpacity>
 
-            <View style={{ height: 250 }} />
+            <View style={{ height: 60 }} />
 
       </ScrollView>
       <ConfettiCelebration
