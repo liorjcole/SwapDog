@@ -589,6 +589,10 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     );
   };
 
+  // Inline compensation editing (hooks must be before any early returns)
+  const [editingComp, setEditingComp] = useState(false);
+  const [editCompValue, setEditCompValue] = useState('');
+
   // ── Loading / Not Found ────────────────────────────────────────────────────
 
   if (loading) return <LoadingSpinner />;
@@ -605,10 +609,6 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   // Owner can edit compensation only when no active (non-declined) respondents exist
   const hasActiveRespondents = respondents.some(r => !r.counterStatus || r.counterStatus !== 'declined');
   const canEditComp = isOwner && post.status === 'open' && !hasActiveRespondents;
-
-  // Inline compensation editing
-  const [editingComp, setEditingComp] = useState(false);
-  const [editCompValue, setEditCompValue] = useState('');
 
   const startEditingComp = () => {
     if (!canEditComp) return;
