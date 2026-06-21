@@ -9,10 +9,10 @@
  * - Feeding: single date + feeding time + flat amount for whole job
  * - Dog walking: no calendar + duration pill selector + flat amount for whole job
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, Platform, Switch, Image, ActivityIndicator } from 'react-native';
+  Alert, Platform, Switch, Image, ActivityIndicator, Animated, Dimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Calendar, DateData } from 'react-native-calendars';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -61,6 +61,69 @@ type Props = {
 const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { scrollRef: kbScrollRef, onScroll: kbOnScroll, refFor, scrollToInput } = useKeyboardScroll();
+
+  // ── Validation pulse animation ──
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const [pulsingSection, setPulsingSection] = useState<string | null>(null);
+
+  const scrollAndPulse = useCallback((sectionKey: string) => {
+    const view = viewRefs.current[sectionKey];
+    if (!view) return;
+    // Scroll to center the section
+    view.measureInWindow((_x: number, winY: number, _w: number, h: number) => {
+      if (winY === undefined) return;
+      const screenHeight = Dimensions.get('window').height;
+      const centerOffset = winY - (screenHeight / 2) + (h / 2);
+      kbScrollRef.current?.scrollTo({
+        y: scrollY.current + centerOffset,
+        animated: true,
+      });
+    });
+    // Trigger pulse + glow after scroll completes
+    setTimeout(() => {
+      setPulsingSection(sectionKey);
+      pulseAnim.setValue(1);
+      glowAnim.setValue(0);
+      Animated.sequence([
+        // Pulse 1
+        Animated.parallel([
+          Animated.sequence([
+            Animated.timing(pulseAnim, { toValue: 1.02, duration: 200, useNativeDriver: true }),
+            Animated.timing(pulseAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+          ]),
+          Animated.sequence([
+            Animated.timing(glowAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
+            Animated.timing(glowAnim, { toValue: 0, duration: 200, useNativeDriver: false }),
+          ]),
+        ]),
+        // Pulse 2
+        Animated.parallel([
+          Animated.sequence([
+            Animated.timing(pulseAnim, { toValue: 1.02, duration: 200, useNativeDriver: true }),
+            Animated.timing(pulseAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+          ]),
+          Animated.sequence([
+            Animated.timing(glowAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
+            Animated.timing(glowAnim, { toValue: 0, duration: 200, useNativeDriver: false }),
+          ]),
+        ]),
+      ]).start(() => setPulsingSection(null));
+    }, 500);
+  }, []);
+
+  const viewRefs = useRef<Record<string, View | null>>({});
+  const scrollY = useRef(0);
+  const validationRefFor = useCallback(
+    (key: string) => (node: View | null) => { viewRefs.current[key] = node; },
+    [],
+  );
+
+  const showValidationAlert = useCallback((title: string, msg: string, sectionKey: string) => {
+    Alert.alert(title, msg, [
+      { text: 'OK', onPress: () => scrollAndPulse(sectionKey) },
+    ]);
+  }, [scrollAndPulse]);
   const { user, userProfile } = useAuthContext();
   const { getDogsByOwner } = useDogs();
   const { createPost } = useSwaps();
@@ -719,13 +782,13 @@ const MAX_PLAY_SESSIONS = 5;
 
   const validateAndSubmit = async () => {
     if (selectedDogs.length === 0) {
-      Alert.alert('Required', 'Please select at least one dog'); return;
+      showValidationAlert('Required', 'Please select at least one dog', 'dogs'); return;
     }
     if (!primaryCareType && addOnCareTypes.size === 0) {
-      Alert.alert('Required', 'Please select at least one type of care.'); return;
+      showValidationAlert('Required', 'Please select at least one type of care.', 'careType'); return;
     }
     if ((primaryCareType === 'overnight' || primaryCareType === 'daySitting') && !overnightLocation) {
-      Alert.alert('Required', 'Please select where the stay will be.'); return;
+      showValidationAlert('Required', 'Please select where the stay will be.', 'careType'); return;
     }
     // Build the full requested care datetime
     const now = new Date();
@@ -750,12 +813,12 @@ const MAX_PLAY_SESSIONS = 5;
 
     // Block if date/time has already passed
     if (careStart < now) {
-      Alert.alert('Date has passed', "The date and time you selected has already passed. Please choose a future date.");
+      showValidationAlert('Date has passed', "The date and time you selected has already passed. Please choose a future date.", 'dates');
       return;
     }
 
     if (careType === 'overnight' && endDate <= startDate) {
-      Alert.alert('Invalid dates', 'End date must be after start date.'); return;
+      showValidationAlert('Invalid dates', 'End date must be after start date.', 'dates'); return;
     }
 
     // 24-hour warning (non-blocking — uses a Promise to wait for user choice)
@@ -774,29 +837,29 @@ const MAX_PLAY_SESSIONS = 5;
       if (!proceed) return;
     }
     if (careDetails.trim().length < MIN_CARE_DETAILS) {
-      Alert.alert('Care Details Required', `Please provide at least ${MIN_CARE_DETAILS} characters`);
+      showValidationAlert('Care Details Required', `Please provide at least ${MIN_CARE_DETAILS} characters`, 'careDetails');
       return;
     }
     if (!offerPoints && !offerMoney) {
-      Alert.alert('Required', 'Select at least one compensation type (points or money).');
+      showValidationAlert('Required', 'Select at least one compensation type (points or money).', 'compensation');
       return;
     }
     if (offerMoney) {
       const amt = parseFloat(paymentAmount);
       if (!amt || amt <= 0) {
-        Alert.alert('Invalid Payment', 'Please enter a valid dollar amount'); return;
+        showValidationAlert('Invalid Payment', 'Please enter a valid dollar amount', 'compensation'); return;
       }
       if (careType === 'daySitting' && (!daySittingMinutes || daySittingMinutes <= 0)) {
-        Alert.alert('Invalid Times', 'End time must be after start time'); return;
+        showValidationAlert('Invalid Times', 'End time must be after start time', 'dates'); return;
       }
     } else {
       const pts = parseInt(pointsOffered, 10);
       if (isNaN(pts) || pts < 1) {
-        Alert.alert('Points Required', 'Please enter how many points this job is worth'); return;
+        showValidationAlert('Points Required', 'Please enter how many points this job is worth', 'compensation'); return;
       }
       const balance = userProfile?.points ?? 0;
       if (pts > balance) {
-        Alert.alert("Can't Post", "You're offering more points than you currently have. Please lower your offer or earn more points first.");
+        showValidationAlert("Can't Post", "You're offering more points than you currently have. Please lower your offer or earn more points first.", 'compensation');
         return;
       }
     }
@@ -949,7 +1012,7 @@ const MAX_PLAY_SESSIONS = 5;
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
         ref={kbScrollRef}
-        onScroll={kbOnScroll}
+        onScroll={(e) => { kbOnScroll(e); scrollY.current = e.nativeEvent.contentOffset.y; }}
         scrollEventThrottle={16}
         automaticallyAdjustKeyboardInsets={true}
         style={[styles.container, { backgroundColor: colors.background }]}
@@ -964,7 +1027,7 @@ const MAX_PLAY_SESSIONS = 5;
         </Text>
 
         {/* ── Section 1: Select Your Dog(s) ── */}
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+        <Animated.View ref={validationRefFor('dogs')} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'dogs' ? pulseAnim : 1 }] }, pulsingSection === 'dogs' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             🐶 {myDogs.length > 1 ? 'Select Your Dog(s)' : 'Your Dog'}
           </Text>
@@ -1036,10 +1099,10 @@ const MAX_PLAY_SESSIONS = 5;
 
             </>
           )}
-        </View>
+        </Animated.View>
 
         {/* ── Section 2: Type of Care ── */}
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+        <Animated.View ref={validationRefFor('careType')} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'careType' ? pulseAnim : 1 }] }, pulsingSection === 'careType' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>🐾 Type of Care</Text>
 
           {/* Primary — must pick one */}
@@ -1155,13 +1218,13 @@ const MAX_PLAY_SESSIONS = 5;
               );
             })}
           </View>
-        </View>
+        </Animated.View>
 
         {/* ── Dynamic Sections ── */}
 
         {/* ── Date/Time section (always shows when any care type selected) ── */}
         {(primaryCareType !== null || addOnCareTypes.size > 0) && (
-              <View style={[styles.section, { backgroundColor: colors.surface }]}>
+              <Animated.View ref={validationRefFor('dates')} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'dates' ? pulseAnim : 1 }] }, pulsingSection === 'dates' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
                   📅 {careType === 'overnight' ? 'Dates & Times' : careType === 'daySitting' ? 'Date & Time' : 'Date'}
                 </Text>
@@ -1363,7 +1426,7 @@ const MAX_PLAY_SESSIONS = 5;
                   </View>
                 )}
 
-              </View>
+              </Animated.View>
             )}
 
 
@@ -2078,7 +2141,7 @@ const MAX_PLAY_SESSIONS = 5;
 
         {/* ── Care Details ── */}
         {(primaryCareType !== null || addOnCareTypes.size > 0) && (
-        <View ref={refFor('careDetails')} style={[styles.section, { backgroundColor: colors.surface }]}>
+        <Animated.View ref={(node: View | null) => { refFor('careDetails')(node); validationRefFor('careDetails')(node); }} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'careDetails' ? pulseAnim : 1 }] }, pulsingSection === 'careDetails' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>📋 Care Details</Text>
               <Text style={[styles.careHint, { color: colors.textSecondary }]}>
                 Any info caretakers should know — behavioral notes, how to access your home, where the pup's food / leash is, etc.
@@ -2147,11 +2210,11 @@ const MAX_PLAY_SESSIONS = 5;
               <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 8 }}>
                 Add photos (food location, leash, key spot, etc.)
               </Text>
-            </View>
+            </Animated.View>
         )}
 
         {/* ── Compensation ── */}
-            <View style={[styles.section, { backgroundColor: colors.surface }]}>
+            <Animated.View ref={validationRefFor('compensation')} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'compensation' ? pulseAnim : 1 }] }, pulsingSection === 'compensation' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Compensation</Text>
 
               {/* Recommended points — only when points toggle is ON */}
@@ -2389,7 +2452,7 @@ const MAX_PLAY_SESSIONS = 5;
 
                 </>
               )}
-            </View>
+            </Animated.View>
 
             {/* ── Submit ── */}
             <TouchableOpacity
