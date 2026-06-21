@@ -2169,9 +2169,11 @@ const MAX_PLAY_SESSIONS = 5;
                       />
                     )}
 
-                    <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
-                      {wsStartTime} → {wsEndTime}  •  {wsDurText}
-                    </Text>
+                    {ws.startDate && ws.endDate && (
+                      <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
+                        {wsStartTime} → {wsEndTime}  •  {wsDurText}
+                      </Text>
+                    )}
 
 
                     {/* ── Specific Instructions ── */}
