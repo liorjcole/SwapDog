@@ -2201,7 +2201,7 @@ const MAX_PLAY_SESSIONS = 5;
                       {/* Explanation */}
                       <View style={{ borderTopWidth: 0.5, borderTopColor: colors.border, marginTop: 12, paddingTop: 12 }}>
                         <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 19 }}>
-                          Rates vary based on the nature of the job. A standalone feeding is 1 pt because the caretaker travels just for that visit — but during an overnight stay, feeding is included since they are already there.
+                          Rates vary for every job — a standalone feeding is 1 pt because the caretaker is traveling just for that visit, but we don\'t add points for a feeding on an overnight stay because the caretaker is already there and getting points for the day. That\'s why some services on the chart below are ranges!
                         </Text>
                       </View>
 
