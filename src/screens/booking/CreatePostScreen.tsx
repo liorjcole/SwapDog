@@ -1294,9 +1294,9 @@ const MAX_PLAY_SESSIONS = 5;
         showValidationAlert('Invalid Times', 'End time must be after start time', 'dates'); return;
       }
     } else {
-      const pts = parseInt(pointsOffered, 10);
-      if (isNaN(pts) || pts < 1) {
-        showValidationAlert('Points Required', 'Please enter how many points this job is worth', 'compensation'); return;
+      const pts = parseFloat(pointsOffered);
+      if (isNaN(pts) || pts < 0.1) {
+        showValidationAlert('Points Required', 'Please enter at least 0.1 points', 'compensation'); return;
       }
       const balance = userProfile?.points ?? 0;
       if (pts > balance) {
@@ -1492,7 +1492,7 @@ const MAX_PLAY_SESSIONS = 5;
       // Care-type-specific optional fields
       const careTypeFields: Record<string, unknown> = { careType: primaryCareType, addOnCareTypes: Array.from(addOnCareTypes), overnightLocation: (primaryCareType === 'overnight' || primaryCareType === 'daySitting') ? overnightLocation : null, careAddress: careAddress.trim() || undefined, sitterTransport: overnightLocation === 'sitters_home' ? sitterTransport : undefined };
       if (offerPoints) {
-        careTypeFields.pointsOffered = parseInt(pointsOffered, 10);
+        careTypeFields.pointsOffered = parseFloat(pointsOffered);
       }
       if (addOnCareTypes.has('dogWalking')) {
         careTypeFields.walkSessions = walkSessions.map(ws => ({
@@ -1588,7 +1588,7 @@ const MAX_PLAY_SESSIONS = 5;
         careDetails: careDetails.trim(),
         carePhotos: uploadedCarePhotos.length > 0 ? uploadedCarePhotos : undefined,
         compensationType: (offerPoints && offerMoney ? 'either' : offerMoney ? 'payment' : 'points') as CompensationType,
-        pointsCost: offerPoints ? parseInt(pointsOffered, 10) : 0,
+        pointsCost: offerPoints ? parseFloat(pointsOffered) : 0,
         ...paymentFields,
         ...careTypeFields,
         status: 'open' as const };
