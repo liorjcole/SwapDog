@@ -9,7 +9,7 @@
  * - Feeding: single date + feeding time + flat amount for whole job
  * - Dog walking: no calendar + duration pill selector + flat amount for whole job
  */
-import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
   Alert, Platform, Switch, Image, ActivityIndicator, Animated, Dimensions, Modal, KeyboardAvoidingView, LayoutAnimation, UIManager } from 'react-native';
@@ -848,6 +848,17 @@ const MAX_PLAY_SESSIONS = 5;
     });
     return unsubscribe;
   }, [navigation, hasAnyProgress]);
+
+  // Disable swipe-to-dismiss gesture when user has progress.
+  // iOS modal swipe completes visually before beforeRemove fires,
+  // so e.preventDefault() can't bring the modal back. Disabling
+  // the gesture forces the user through the back button which
+  // properly shows the alert before any animation starts.
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      gestureEnabled: !hasAnyProgress(),
+    });
+  });
 
   // ── Sync per-section dogIds when top-level dog selection changes ──
   useEffect(() => {
