@@ -833,6 +833,14 @@ const MAX_PLAY_SESSIONS = 5;
     setAddressSuggestions([]);
   };
 
+  const removeSavedAddress = async (addr: string) => {
+    const updated = savedAddresses.filter(a => a !== addr);
+    setSavedAddresses(updated);
+    await AsyncStorage.setItem('saved_addresses', JSON.stringify(updated));
+    // If the removed address was selected, clear it
+    if (careAddress === addr) setCareAddress('');
+  };
+
   useEffect(() => {
     if (!user) return;
     getDogsByOwner(user.uid).then((dogs) => {
@@ -3359,7 +3367,14 @@ const MAX_PLAY_SESSIONS = 5;
                   >
                     <Text style={{ fontSize: 14, marginRight: 8 }}>🏠</Text>
                     <Text style={{ fontSize: 15, color: colors.text, flex: 1 }}>{addr}</Text>
-                    {careAddress === addr && <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '700' }}>✓</Text>}
+                    {careAddress === addr && <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '700', marginRight: 10 }}>✓</Text>}
+                    <TouchableOpacity
+                      onPress={(e) => { e.stopPropagation(); removeSavedAddress(addr); }}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={{ padding: 4 }}
+                    >
+                      <Text style={{ fontSize: 18, color: colors.textSecondary, fontWeight: '300' }}>−</Text>
+                    </TouchableOpacity>
                   </TouchableOpacity>
                 ))}
               </View>
