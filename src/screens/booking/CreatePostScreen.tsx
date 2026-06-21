@@ -451,6 +451,7 @@ const MAX_PLAY_SESSIONS = 5;
   };
   const [collapsedMeds, setCollapsedMeds] = useState<Set<number>>(new Set());
   const [servicesCollapsed, setServicesCollapsed] = useState(false);
+  const [careDetailsCollapsed, setCareDetailsCollapsed] = useState(true);
   const [compensationCollapsed, setCompensationCollapsed] = useState(false);
 
   const [walkSessions, setWalkSessions] = useState<WalkSession[]>([makeDefaultWalkSession()]);
@@ -1009,6 +1010,7 @@ const MAX_PLAY_SESSIONS = 5;
       return;
     }
     if (careDetails.trim().length < MIN_CARE_DETAILS) {
+      setCareDetailsCollapsed(false);
       showValidationAlert('Care Details Required', `Please provide at least ${MIN_CARE_DETAILS} characters`, 'careDetails');
       return;
     }
@@ -2626,10 +2628,27 @@ const MAX_PLAY_SESSIONS = 5;
         </>
                 )}
 
-        {/* ── Care Details ── */}
+        {/* ── Care Details collapsible header ── */}
         {(primaryCareType !== null || addOnCareTypes.size > 0) && (
+          <>
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.md }}
+            onPress={() => {
+              setCareDetailsCollapsed(prev => !prev);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 }}>
+              <Text style={{ fontSize: 22, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.5 }}>📋 Overall Care Details</Text>
+              <Text style={{ fontSize: 18, color: colors.textSecondary, marginLeft: 8 }}>{careDetailsCollapsed ? '›' : '▾'}</Text>
+            </View>
+            <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+          </TouchableOpacity>
+
+          {!careDetailsCollapsed && (
         <Animated.View ref={(node: View | null) => { refFor('careDetails')(node); validationRefFor('careDetails')(node); }} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'careDetails' ? pulseAnim : 1 }] }, pulsingSection === 'careDetails' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>📋 Overall Care Details</Text>
               <Text style={[styles.careHint, { color: colors.textSecondary }]}>
                 Any other info the caretaker should know — behavioral notes, how to access your home, etc.
               </Text>
@@ -2698,6 +2717,8 @@ const MAX_PLAY_SESSIONS = 5;
                 Add photos (food location, leash, key spot, etc.)
               </Text>
             </Animated.View>
+          )}
+          </>
         )}
 
         {/* ── Compensation collapsible header ── */}
