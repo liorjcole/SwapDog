@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View,
   Text,
@@ -7,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
+  Share,
   ListRenderItemInfo,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -87,6 +89,25 @@ const PointsHistoryScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
+  const [showInvite, setShowInvite] = useState(false);
+  const referralCode = userProfile?.referralCode ?? '';
+
+  const handleInviteShare = async () => {
+    if (!referralCode) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await Share.share({
+        message:
+          '🐾 Join me on WatchDog — neighbors helping neighbors with pet sitting, walking & more!\n\n' +
+          'Use my referral code: ' + referralCode + '\n\n' +
+          'Sign up here: https://joinwatchdog.com',
+        title: 'Join WatchDog',
+      });
+    } catch {
+      // user dismissed share sheet
+    }
+  };
+
   const ListHeader = () => (
     <View style={[styles.totalCard, { backgroundColor: colors.surface, ...shadow.sm }]}>
       <Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Total Points</Text>
@@ -100,10 +121,18 @@ const PointsHistoryScreen: React.FC<Props> = ({ navigation }) => {
       </Text>
       <TouchableOpacity
         style={{ backgroundColor: '#FF2D55', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24, marginTop: 16 }}
-        onPress={() => navigation.getParent()?.navigate('DiscoverTab')}
+        onPress={() => setShowInvite(!showInvite)}
       >
         <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '600' }}>Earn More</Text>
       </TouchableOpacity>
+      {showInvite && (
+        <TouchableOpacity
+          style={{ backgroundColor: colors.surface, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24, marginTop: 10, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          onPress={handleInviteShare}
+        >
+          <Text style={{ fontSize: 17, fontWeight: '600', color: colors.textSecondary }}>🔗 Invite a Friend</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
