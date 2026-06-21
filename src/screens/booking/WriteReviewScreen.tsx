@@ -20,8 +20,13 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
   const { user } = useAuthContext();
   const { createReview } = useReviews();
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState('');
+  const isLateCancellation = route.params?.lateCancellation === true;
+  const [rating, setRating] = useState(isLateCancellation ? 1 : 0);
+  const [comment, setComment] = useState(
+    isLateCancellation
+      ? 'Caretaker canceled less than 24 hours before the scheduled care.'
+      : ''
+  );
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
@@ -56,7 +61,17 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
         automaticallyAdjustKeyboardInsets={true} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={[styles.title, { color: colors.text }]}>{route.params?.reviewRole === 'sitter' ? 'Rate the Pet Sitter' : route.params?.reviewRole === 'owner' ? 'Rate the Pet Owner' : 'How was your experience?'}</Text>
+      {isLateCancellation && (
+        <View style={{ backgroundColor: '#FF2D5520', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#FF2D5540' }}>
+          <Text style={{ color: '#FF2D55', fontSize: 15, fontWeight: '700', textAlign: 'center', marginBottom: 4 }}>
+            ⚠️ Late Cancellation
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: 'center' }}>
+            This caretaker canceled less than 24 hours before the scheduled care. A 1-star rating has been suggested — you can change it if you'd like.
+          </Text>
+        </View>
+      )}
+      <Text style={[styles.title, { color: colors.text }]}>{route.params?.reviewRole === 'sitter' ? 'Rate the Pet Sitter' : route.params?.reviewRole === 'owner' ? 'Rate the Pet Owner' : isLateCancellation ? 'Rate the Caretaker' : 'How was your experience?'}</Text>
       <Text style={[styles.sub, { color: colors.textSecondary }]}>Your review helps the community</Text>
       <View style={styles.ratingContainer} accessibilityRole="adjustable" accessibilityLabel={`Selected rating: ${rating} of 5 stars`}>
         <StarRating rating={rating} onRate={setRating} size={40} />

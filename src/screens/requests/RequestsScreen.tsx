@@ -39,6 +39,8 @@ import { usePointsHistory } from '../../hooks/usePointsHistory';
 import { useReviews } from '../../hooks/useReviews';
 import { SwapPost } from '../../models/types';
 import { spacing, borderRadius, shadow } from '../../config/theme';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import EmptyStateView from '../../components/common/EmptyStateView';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import {
@@ -210,9 +212,9 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         getMyPosts(user.uid),
         getAcceptedPosts(user.uid),
       ]);
-      const nonCancelled = mine.filter((p: any) => p.status !== 'cancelled');
-      const active = nonCancelled.filter((p: SwapPost) => !isPostExpired(p) && p.status !== 'completed');
-      const archived = nonCancelled.filter((p: SwapPost) => isPostExpired(p) || p.status === 'completed');
+      const nonCancelled = mine.filter((p: any) => p.status !== 'cancelled' || (p as any).lateCancelled);
+      const active = nonCancelled.filter((p: SwapPost) => !isPostExpired(p) && p.status !== 'completed' && p.status !== 'cancelled');
+      const archived = nonCancelled.filter((p: SwapPost) => isPostExpired(p) || p.status === 'completed' || (p.status === 'cancelled' && (p as any).lateCancelled));
       // Sort active: claimed on top
       active.sort((a: any, b: any) => {
         const aIsClaimed = a.status === 'claimed' || a.status === 'reschedulePending' ? 0 : 1;
@@ -229,7 +231,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
       setArchivedPosts(archived);
 
       // Check review status for completed posts
-      const completedPosts = archived.filter((p) => p.status === 'completed');
+      const completedPosts = archived.filter((p) => p.status === 'completed' || (p.status === 'cancelled' && (p as any).lateCancelled));
       if (user && completedPosts.length > 0) {
         const reviewed = new Set<string>();
         await Promise.all(
@@ -450,11 +452,18 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         accessibilityRole="button"
         accessibilityLabel={`Archived post for ${(item.dogNames && item.dogNames.length > 0) ? item.dogNames.join(' & ') : item.dogName}`}
       >
-        {/* Completed label */}
+        {/* Status label */}
         {isCompleted && (
           <View style={{ backgroundColor: '#0984E320', paddingVertical: 5, paddingHorizontal: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12, alignItems: 'center', marginTop: -spacing.md, marginHorizontal: -spacing.md }}>
             <Text style={{ color: '#0984E3', fontSize: 14, fontWeight: '700', letterSpacing: 0.5 }}>
               COMPLETED
+            </Text>
+          </View>
+        )}
+        {!isCompleted && item.status === 'cancelled' && (item as any).lateCancelled && (
+          <View style={{ backgroundColor: '#FF2D5520', paddingVertical: 5, paddingHorizontal: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12, alignItems: 'center', marginTop: -spacing.md, marginHorizontal: -spacing.md }}>
+            <Text style={{ color: '#FF2D55', fontSize: 14, fontWeight: '700', letterSpacing: 0.5 }}>
+              LATE CANCELLED
             </Text>
           </View>
         )}
@@ -494,13 +503,27 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Review button for completed posts */}
-        {isCompleted && (
+        {/* Review button for completed OR late-cancelled posts */}
+        {(isCompleted || (item.status === 'cancelled' && (item as any).lateCancelled)) && (
           <View style={{ marginTop: 8 }}>
             {isReviewed ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8 }}>
                 <Text style={{ color: '#00B894', fontSize: 16, fontWeight: '600' }}>✓ Reviewed</Text>
               </View>
+            ) : (item.status === 'cancelled' && (item as any).lateCancelled) ? (
+              <TouchableOpacity
+                style={{ backgroundColor: '#FF2D55', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
+                onPress={() => navigation.navigate('WriteReview', {
+                  swapRequestId: item.id,
+                  revieweeId: (item as any).acceptedSitterId ?? '',
+                  reviewRole: 'owner',
+                  lateCancellation: true,
+                })}
+                accessibilityLabel="Review late cancellation"
+                accessibilityRole="button"
+              >
+                <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>⚠️ Review Late Cancellation</Text>
+              </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 style={{ backgroundColor: '#0984E3', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
@@ -750,6 +773,9 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                 });
 
                 await cancelPost(post.id);
+                // Mark post as late-cancelled so the sitter gets review prompts
+                updateDoc(doc(db, 'swapPosts', post.id), { lateCancelled: true, lateCancelledBy: 'owner', updatedAt: serverTimestamp() })
+                  .catch(() => { /* non-fatal */ });
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                 fetchPosts();
               } catch (err) {
