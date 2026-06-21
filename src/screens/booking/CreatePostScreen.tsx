@@ -1938,7 +1938,7 @@ const MAX_PLAY_SESSIONS = 5;
                       <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
                         {feedingSlots.length > 1 ? `Feeding ${idx + 1} Time` : 'Feeding Time'}
                       </Text>
-                      <Text style={[styles.timePickerValue, { color: slot.time ? colors.text : colors.textSecondary }]}>{slot.time ? formatTime12(slot.time) : 'No time selected'}</Text>
+                      <Text style={[styles.timePickerValue, { color: slot.time ? colors.text : colors.textSecondary }]}>{slot.time ? formatTime12(slot.time) : 'Select time!'}</Text>
                     </TouchableOpacity>
                     {slot.showPicker && (
                       <DateTimePicker
@@ -2039,8 +2039,8 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('dogWalking') && (
               <>
                 {walkSessions.map((ws, wIdx) => {
-                  const wsStartTime = ws.startDate ? formatTime12(ws.startDate) : 'No time selected';
-                  const wsEndTime = ws.endDate ? formatTime12(ws.endDate) : 'No time selected';
+                  const wsStartTime = ws.startDate ? formatTime12(ws.startDate) : 'Select time!';
+                  const wsEndTime = ws.endDate ? formatTime12(ws.endDate) : 'Select time!';
                   const wsStartMins = ws.startDate ? ws.startDate.getHours() * 60 + ws.startDate.getMinutes() : 0;
                   const wsEndMins = ws.endDate ? ws.endDate.getHours() * 60 + ws.endDate.getMinutes() : 0;
                   const wsDurMins = (ws.startDate && ws.endDate && wsEndMins > wsStartMins) ? wsEndMins - wsStartMins : 0;
@@ -2360,7 +2360,7 @@ const MAX_PLAY_SESSIONS = 5;
                             activeOpacity={0.7}
                           >
                             <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
-                            <Text style={[styles.timePickerValue, { color: pSession.startDate ? colors.text : colors.textSecondary }]}>{pSession.startDate ? formatTime12(pSession.startDate) : 'No time selected'}</Text>
+                            <Text style={[styles.timePickerValue, { color: pSession.startDate ? colors.text : colors.textSecondary }]}>{pSession.startDate ? formatTime12(pSession.startDate) : 'Select time!'}</Text>
                           </TouchableOpacity>
                           <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
                           <TouchableOpacity
@@ -2372,7 +2372,7 @@ const MAX_PLAY_SESSIONS = 5;
                             activeOpacity={0.7}
                           >
                             <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>End Time</Text>
-                            <Text style={[styles.timePickerValue, { color: pSession.endDate ? colors.text : colors.textSecondary }]}>{pSession.endDate ? formatTime12(pSession.endDate) : 'No time selected'}</Text>
+                            <Text style={[styles.timePickerValue, { color: pSession.endDate ? colors.text : colors.textSecondary }]}>{pSession.endDate ? formatTime12(pSession.endDate) : 'Select time!'}</Text>
                           </TouchableOpacity>
                         </View>
                         {pSession.showStart && (
@@ -2604,7 +2604,7 @@ const MAX_PLAY_SESSIONS = 5;
                       <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
                         {medicationSlots.length > 1 ? `Medication ${idx + 1} Time` : 'Medication Time'}
                       </Text>
-                      <Text style={[styles.feedingTimePreview, { color: slot.time ? colors.text : colors.textSecondary }]}>{slot.time ? formatTime12(slot.time) : 'No time selected'}</Text>
+                      <Text style={[styles.feedingTimePreview, { color: slot.time ? colors.text : colors.textSecondary }]}>{slot.time ? formatTime12(slot.time) : 'Select time!'}</Text>
                     </TouchableOpacity>
                     {slot.showPicker && (
                       <DateTimePicker
