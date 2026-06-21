@@ -74,6 +74,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   // Care type
   const [primaryCareType, setPrimaryCareType] = useState<'overnight' | 'daySitting' | null>(null);
   const [addOnCareTypes, setAddOnCareTypes] = useState<Set<CareType>>(new Set());
+  const [overnightLocation, setOvernightLocation] = useState<'my_home' | 'sitters_home' | 'no_preference' | null>(null);
   // Playtime — multi-session support (max 5 sessions)
   interface PlaySession {
     flexible: boolean;
@@ -767,7 +768,7 @@ const MAX_PLAY_SESSIONS = 5;
         : {};
 
       // Care-type-specific optional fields
-      const careTypeFields: Record<string, unknown> = { careType: primaryCareType, addOnCareTypes: Array.from(addOnCareTypes) };
+      const careTypeFields: Record<string, unknown> = { careType: primaryCareType, addOnCareTypes: Array.from(addOnCareTypes), overnightLocation: primaryCareType === 'overnight' ? overnightLocation : null };
       if (offerPoints) {
         careTypeFields.pointsOffered = parseInt(pointsOffered, 10);
       }
@@ -1263,6 +1264,47 @@ const MAX_PLAY_SESSIONS = 5;
 
               </View>
             )}
+
+
+        {/* ── Overnight Location Preference ── */}
+        {primaryCareType === 'overnight' && (
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>📍 Where will the stay be?</Text>
+            <View style={{ gap: 10, marginTop: 4 }}>
+              {([
+                { value: 'my_home' as const, label: 'My home', icon: '🏠' },
+                { value: 'sitters_home' as const, label: "Sitter's home", icon: '🏡' },
+                { value: 'no_preference' as const, label: 'No preference', icon: '🤷' },
+              ]).map((option) => {
+                const selected = overnightLocation === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.locationOption,
+                      { borderColor: selected ? colors.primary : colors.border,
+                        backgroundColor: selected ? colors.primary + '10' : colors.background,
+                        borderWidth: selected ? 2 : 1 },
+                    ]}
+                    onPress={() => {
+                      setOvernightLocation(option.value);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontSize: 22 }}>{option.icon}</Text>
+                    <Text style={[styles.locationOptionText, { color: colors.text, fontWeight: selected ? '700' : '500' }]}>
+                      {option.label}
+                    </Text>
+                    {selected && (
+                      <Text style={{ fontSize: 18, color: colors.primary, marginLeft: 'auto' }}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
 
                 {/* ── Feeding Time (add-on) ── */}
             {addOnCareTypes.has('feeding') && (
@@ -2514,6 +2556,16 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderStyle: 'dashed' as const,
     alignItems: 'center',
+  },
+  locationOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: borderRadius.md,
+    gap: 12,
+  },
+  locationOptionText: {
+    fontSize: 17,
   },
   addSessionBtn: {
     borderWidth: 1.5,

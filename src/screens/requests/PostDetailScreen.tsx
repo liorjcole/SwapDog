@@ -995,6 +995,13 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             </Text>
           )}
 
+
+          {/* Overnight location preference */}
+          {post.careType === 'overnight' && (post as any).overnightLocation && (
+            <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 16, marginTop: 4 }]}>
+              📍  {(post as any).overnightLocation === 'my_home' ? "Owner's home" : (post as any).overnightLocation === 'sitters_home' ? "Sitter's home" : 'No preference'}
+            </Text>
+          )}
           {/* ── Add-on care breakdown ── */}
           {post.addOnCareTypes && post.addOnCareTypes.length > 0 && (
             <View style={{ marginTop: 12, borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 12 }}>
