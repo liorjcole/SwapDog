@@ -29,6 +29,7 @@ import * as Location from 'expo-location';
 import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { setPendingHighlightPost } from '../../utils/highlightStore';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { useDogs } from '../../hooks/useDogs';
 import { useSwaps } from '../../hooks/useSwaps';

@@ -29,6 +29,8 @@ import * as Haptics from 'expo-haptics';
 import { DiscoverStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useFocusEffect } from '@react-navigation/native';
+import { consumePendingHighlightPost } from '../../utils/highlightStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AvatarImage from '../../components/common/AvatarImage';
 import { smartDate, isSameDay } from '../../utils/dateHelpers';
@@ -890,26 +892,33 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
     [navigation],
   );
 
-  // ── Highlight newly created post: refresh, scroll to it + pulse ──
-  useEffect(() => {
-    const hpId = route.params?.highlightPostId;
-    if (!hpId) return;
+  // ── Highlight newly created post ──
+  // Uses a module-level store instead of route params because params
+  // don't reliably propagate through nested tab→stack navigators
+  // when the Discover screen is already mounted.
+  const pendingHighlightRef = useRef<string | null>(null);
 
-    // Refresh posts so the new one appears in the feed
-    const doHighlight = async () => {
-      await fetchAreaPosts();
-    };
-    void doHighlight();
-  }, [route.params?.highlightPostId]);
+  // Check for pending highlight every time this screen gets focus
+  useFocusEffect(
+    useCallback(() => {
+      const hpId = consumePendingHighlightPost();
+      if (!hpId) return;
+      pendingHighlightRef.current = hpId;
+      // Refresh posts so the newly created one appears
+      void fetchAreaPosts();
+    }, [])
+  );
 
-  // Once feedData updates and contains the highlighted post, scroll + pulse
+  // Once feedData updates and contains the post, scroll + pulse
   useEffect(() => {
-    const hpId = route.params?.highlightPostId;
+    const hpId = pendingHighlightRef.current;
     if (!hpId || feedData.length === 0) return;
 
     const idx = feedData.findIndex(item => item.kind === 'post' && item.id === hpId);
     if (idx === -1) return;
 
+    // Found it — clear the pending ref and start the animation
+    pendingHighlightRef.current = null;
     setHighlightPostId(hpId);
 
     // Wait for FlatList to be ready, then scroll
@@ -919,8 +928,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
 
     // After scroll settles, pulse 2 times with white glow
     setTimeout(() => {
-      const pulseSequence = Animated.sequence([
-        // Pulse 1
+      Animated.sequence([
         Animated.parallel([
           Animated.timing(pulseAnim, { toValue: 1.04, duration: 300, useNativeDriver: false }),
           Animated.timing(glowAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
@@ -929,7 +937,6 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
           Animated.timing(pulseAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
           Animated.timing(glowAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
         ]),
-        // Pulse 2
         Animated.parallel([
           Animated.timing(pulseAnim, { toValue: 1.04, duration: 300, useNativeDriver: false }),
           Animated.timing(glowAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
@@ -938,14 +945,11 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
           Animated.timing(pulseAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
           Animated.timing(glowAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
         ]),
-      ]);
-      pulseSequence.start(() => {
+      ]).start(() => {
         setHighlightPostId(null);
-        // Clear the route param so it doesn't re-trigger
-        navigation.setParams({ highlightPostId: undefined });
       });
     }, 1200);
-  }, [route.params?.highlightPostId, feedData]);
+  }, [feedData]);
 
   const renderFeedItem: ListRenderItem<FeedItem> = useCallback(
     ({ item }) => {
