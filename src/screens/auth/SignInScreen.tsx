@@ -115,46 +115,16 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
     try {
-      // Verify account exists in Firestore FIRST.
-      // Firebase Email Enumeration Protection silently succeeds for non-existent
-      // emails — sendPasswordResetEmail resolves OK but sends nothing.
+      // Send reset email directly — no Firestore lookup needed.
+      // Firestore rules require auth, but the user isn't signed in on this screen.
+      // Firebase silently succeeds for non-existent emails (Email Enumeration
+      // Protection), which is fine — we don't want to leak whether an account exists.
       const lowerEmail = trimmed.toLowerCase();
-      const usersQuery = query(
-        collection(db, 'users'),
-        where('email', '==', lowerEmail)
-      );
-      let snap = await getDocs(usersQuery);
-      if (snap.empty && lowerEmail !== trimmed) {
-        const retryQuery = query(
-          collection(db, 'users'),
-          where('email', '==', trimmed)
-        );
-        snap = await getDocs(retryQuery);
-      }
-      if (snap.empty) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert(
-          'No account found',
-          "We don't have an account with that email. Check for typos or create a new account.",
-          [
-            {
-              text: 'Create Account',
-              onPress: () => navigation.navigate('SignUp', { email: trimmed }),
-            },
-            { text: 'OK', style: 'cancel' },
-          ],
-        );
-        return;
-      }
-
-      // Account confirmed in Firestore — now send the reset email.
-      // Use the email stored in Firestore (exact case) for best deliverability.
-      const storedEmail = snap.docs[0].data().email as string;
-      await sendPasswordResetEmail(auth, storedEmail);
+      await sendPasswordResetEmail(auth, lowerEmail);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
         'Reset link sent!',
-        `We sent a password reset link to ${storedEmail}.\n\nCheck your inbox (and spam/junk folder). Open the link to set a new password, then come back and sign in.`,
+        `If an account exists for ${lowerEmail}, we sent a password reset link.\n\nCheck your inbox (and spam/junk folder). Open the link to set a new password, then come back and sign in.`,
       );
     } catch (error: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
