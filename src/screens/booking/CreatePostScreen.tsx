@@ -1439,11 +1439,9 @@ const MAX_PLAY_SESSIONS = 5;
 
               {/* Dropoff selected — info note */}
               {sitterTransport === 'dropoff' && (
-                <View style={{ backgroundColor: colors.background, borderRadius: 10, padding: 14, marginTop: 4 }}>
-                  <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
-                    Once a caretaker is confirmed, you can message them directly to coordinate their address and handoff details. 💬
-                  </Text>
-                </View>
+                <Text style={{ fontSize: 15, color: colors.textSecondary, fontStyle: 'italic', marginTop: 8, lineHeight: 21 }}>
+                  Once a caretaker is confirmed, you can message them directly to coordinate their address and handoff details. 💬
+                </Text>
               )}
             </View>
           )}
