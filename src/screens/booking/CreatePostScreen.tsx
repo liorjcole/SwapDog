@@ -2230,6 +2230,11 @@ const MAX_PLAY_SESSIONS = 5;
             </Animated.View>
         )}
 
+        {/* Divider between Care Details and Compensation */}
+        <View style={{ paddingVertical: spacing.xl, alignItems: 'center' }}>
+          <View style={{ width: '100%', height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+        </View>
+
         {/* ── Compensation ── */}
             <Animated.View ref={validationRefFor('compensation')} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'compensation' ? pulseAnim : 1 }] }, pulsingSection === 'compensation' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Compensation</Text>
