@@ -1381,8 +1381,8 @@ const MAX_PLAY_SESSIONS = 5;
                             activeOpacity={0.7}
                           >
                             <View style={{ alignItems: 'center' }}>
-                            <Text style={{ fontSize: 15, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.primary }}>
-                              {slot.repeatSchedule ? '✅ ' + formatRepeatLabel(slot.repeatSchedule) : '📅 Repeat this?'}
+                            <Text style={{ fontSize: 15, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.textSecondary }}>
+                              {slot.repeatSchedule ? '✓ ' + formatRepeatLabel(slot.repeatSchedule) : 'Repeat this?'}
                             </Text>
                               {slot.repeatSchedule && formatRepeatSubLabel(slot.repeatSchedule) && (
                                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1 }}>
@@ -1512,8 +1512,8 @@ const MAX_PLAY_SESSIONS = 5;
                             activeOpacity={0.7}
                           >
                             <View style={{ alignItems: 'center' }}>
-                            <Text style={{ fontSize: 15, fontWeight: '600', color: ws.repeatSchedule ? '#34C759' : colors.primary }}>
-                              {ws.repeatSchedule ? '✅ ' + formatRepeatLabel(ws.repeatSchedule) : '📅 Repeat this?'}
+                            <Text style={{ fontSize: 15, fontWeight: '600', color: ws.repeatSchedule ? '#34C759' : colors.textSecondary }}>
+                              {ws.repeatSchedule ? '✓ ' + formatRepeatLabel(ws.repeatSchedule) : 'Repeat this?'}
                             </Text>
                               {ws.repeatSchedule && formatRepeatSubLabel(ws.repeatSchedule) && (
                                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1 }}>
@@ -1664,8 +1664,8 @@ const MAX_PLAY_SESSIONS = 5;
                             activeOpacity={0.7}
                           >
                             <View style={{ alignItems: 'center' }}>
-                            <Text style={{ fontSize: 15, fontWeight: '600', color: pSession.repeatSchedule ? '#34C759' : colors.primary }}>
-                              {pSession.repeatSchedule ? '✅ ' + formatRepeatLabel(pSession.repeatSchedule) : '📅 Repeat this?'}
+                            <Text style={{ fontSize: 15, fontWeight: '600', color: pSession.repeatSchedule ? '#34C759' : colors.textSecondary }}>
+                              {pSession.repeatSchedule ? '✓ ' + formatRepeatLabel(pSession.repeatSchedule) : 'Repeat this?'}
                             </Text>
                               {pSession.repeatSchedule && formatRepeatSubLabel(pSession.repeatSchedule) && (
                                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1 }}>
@@ -1875,8 +1875,8 @@ const MAX_PLAY_SESSIONS = 5;
                             activeOpacity={0.7}
                           >
                             <View style={{ alignItems: 'center' }}>
-                            <Text style={{ fontSize: 15, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.primary }}>
-                              {slot.repeatSchedule ? '✅ ' + formatRepeatLabel(slot.repeatSchedule) : '📅 Repeat this?'}
+                            <Text style={{ fontSize: 15, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.textSecondary }}>
+                              {slot.repeatSchedule ? '✓ ' + formatRepeatLabel(slot.repeatSchedule) : 'Repeat this?'}
                             </Text>
                               {slot.repeatSchedule && formatRepeatSubLabel(slot.repeatSchedule) && (
                                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1 }}>
