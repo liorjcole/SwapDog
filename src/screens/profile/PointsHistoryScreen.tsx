@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
 import {
   View,
@@ -10,6 +10,8 @@ import {
   TouchableOpacity,
   Share,
   ListRenderItemInfo,
+  Animated,
+  Easing,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ProfileStackParamList } from '../../navigation/types';
@@ -91,6 +93,21 @@ const PointsHistoryScreen: React.FC<Props> = ({ navigation }) => {
 
   const [showInvite, setShowInvite] = useState(false);
   const referralCode = userProfile?.referralCode ?? '';
+  const bounceAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (showInvite) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(bounceAnim, { toValue: -8, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(bounceAnim, { toValue: 0, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      bounceAnim.stopAnimation();
+      bounceAnim.setValue(0);
+    }
+  }, [showInvite]);
 
   const handleInviteShare = async () => {
     if (!referralCode) return;
@@ -126,12 +143,14 @@ const PointsHistoryScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '600' }}>Earn More</Text>
       </TouchableOpacity>
       {showInvite && (
-        <TouchableOpacity
-          style={{ backgroundColor: colors.surface, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24, marginTop: 10, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-          onPress={handleInviteShare}
-        >
-          <Text style={{ fontSize: 17, fontWeight: '600', color: colors.textSecondary }}>🔗 Invite a Friend</Text>
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ translateY: bounceAnim }] }}>
+          <TouchableOpacity
+            style={{ backgroundColor: colors.surface, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24, marginTop: 10, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+            onPress={handleInviteShare}
+          >
+            <Text style={{ fontSize: 17, fontWeight: '600', color: colors.textSecondary }}>🔗 Invite a Friend (and earn 3 points!)</Text>
+          </TouchableOpacity>
+        </Animated.View>
       )}
     </View>
   );
