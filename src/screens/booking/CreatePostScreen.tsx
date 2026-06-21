@@ -912,6 +912,36 @@ const MAX_PLAY_SESSIONS = 5;
   );
 
 
+  // ── Back-navigation guard: warn if form has any progress ──
+  const hasAnyProgress = useCallback((): boolean => {
+    if (selectedDogIds.size > 0) return true;
+    if (primaryCareType !== null) return true;
+    if (addOnCareTypes.size > 0) return true;
+    if (startDateSelected || endDateSelected) return true;
+    if (careDetails.trim().length > 0) return true;
+    if (careAddress.trim().length > 0) return true;
+    if (pointsOffered !== '' && pointsOffered !== '0') return true;
+    if (paymentAmount !== '' && paymentAmount !== '0') return true;
+    return false;
+  }, [selectedDogIds, primaryCareType, addOnCareTypes, startDateSelected, endDateSelected, careDetails, careAddress, pointsOffered, paymentAmount]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e: { data: { action: any }; preventDefault: () => void }) => {
+      if (!hasAnyProgress() || postSucceededRef.current) return;
+
+      e.preventDefault();
+      Alert.alert(
+        'Discard Post?',
+        "You've started creating a post. If you go back now, all your progress will be lost.",
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+        ]
+      );
+    });
+    return unsubscribe;
+  }, [navigation, hasAnyProgress]);
+
   // ── Sync per-section dogIds when top-level dog selection changes ──
   useEffect(() => {
     const ids = Array.from(selectedDogIds);
