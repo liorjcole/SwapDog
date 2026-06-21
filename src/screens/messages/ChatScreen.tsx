@@ -499,6 +499,16 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
             helpAccepted={item.type === 'help_request' && item.metadata?.postId ? acceptedPostIds.has(item.metadata.postId) : false}
             onRemoveRequest={item.type === 'help_request' && item.senderId === user?.uid && !acceptedPostIds.has(item.metadata?.postId ?? '') ? handleRemoveRequest : undefined}
             removingRequest={removingMessageId === item.id}
+            onUnsend={
+              item.senderId === user?.uid &&
+              item.createdAt &&
+              (Date.now() - item.createdAt.getTime()) < 60_000
+                ? () => {
+                    deleteMessage(conversationId, item.id);
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  }
+                : undefined
+            }
           />
           );
         }}

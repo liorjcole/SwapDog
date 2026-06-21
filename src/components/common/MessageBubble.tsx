@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Dimensions, Alert } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
 import { spacing, borderRadius } from '../../config/theme';
 
@@ -21,14 +22,35 @@ interface Props {
   onRemoveRequest?: () => void;
   /** Whether this help request removal is in progress */
   removingRequest?: boolean;
+  /** Callback when user long-presses to unsend (only available within 1 min) */
+  onUnsend?: () => void;
 }
 
-const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL, onReviewReschedule, onAcceptHelp, helpAccepted, onRemoveRequest, removingRequest }) => {
+const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL, onReviewReschedule, onAcceptHelp, helpAccepted, onRemoveRequest, removingRequest, onUnsend }) => {
   const { colors } = useTheme();
   const timeStr = createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+  const handleLongPress = () => {
+    if (!onUnsend) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      'Unsend Message',
+      'This message will be removed for everyone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Unsend', style: 'destructive', onPress: onUnsend },
+      ],
+    );
+  };
+
   return (
-    <View style={[styles.container, isMe ? styles.meContainer : styles.themContainer]}>
+    <TouchableOpacity
+      style={[styles.container, isMe ? styles.meContainer : styles.themContainer]}
+      activeOpacity={onUnsend ? 0.7 : 1}
+      onLongPress={onUnsend ? handleLongPress : undefined}
+      delayLongPress={400}
+      disabled={!onUnsend}
+    >
       <View
         style={[
           styles.bubble,
@@ -84,7 +106,7 @@ const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL,
           {timeStr}
         </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
