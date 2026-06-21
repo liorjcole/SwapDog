@@ -12,8 +12,12 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, Platform, Switch, Image, ActivityIndicator, Animated, Dimensions, Modal, KeyboardAvoidingView } from 'react-native';
+  Alert, Platform, Switch, Image, ActivityIndicator, Animated, Dimensions, Modal, KeyboardAvoidingView, LayoutAnimation, UIManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Calendar, DateData } from 'react-native-calendars';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -223,18 +227,19 @@ const MAX_PLAY_SESSIONS = 5;
           Alert.alert('Duplicate Time', `You already have a playtime starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
           return prev;
         }
-        return [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+        return animatedSort(prev, updated, index, (a, b) => timeToMins(a.startDate) - timeToMins(b.startDate), collapsedPlay, setCollapsedPlay);
       }
       if (updates.endDate) {
-        // Overlap check: runs when end time is set
-        const sorted = [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
-        for (let i = 1; i < sorted.length; i++) {
-          if (timeToMins(sorted[i].startDate) < timeToMins(sorted[i - 1].endDate)) {
-            Alert.alert('Playtime Overlap', `This playtime can${"'"}t start before the previous one ends (${formatTimeShort(sorted[i - 1].endDate)}). Please adjust the time.`);
+        // Check for overlaps first before animating
+        const tentative = [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+        for (let i = 1; i < tentative.length; i++) {
+          if (timeToMins(tentative[i].startDate) < timeToMins(tentative[i - 1].endDate)) {
+            Alert.alert('Playtime Overlap', `This playtime can${"'"}t start before the previous one ends (${formatTimeShort(tentative[i - 1].endDate)}). Please adjust the time.`);
             return prev;
           }
         }
-        return sorted;
+        // No overlap — animate the reorder
+        return animatedSort(prev, updated, index, (a, b) => timeToMins(a.startDate) - timeToMins(b.startDate), collapsedPlay, setCollapsedPlay);
       }
       return updated;
     });
@@ -353,8 +358,8 @@ const MAX_PLAY_SESSIONS = 5;
           Alert.alert('Duplicate Time', `You already have a feeding at ${formatTimeShort(newTime)}. Please pick a different time.`);
           return prev;
         }
-        // Auto-sort by time earliest → latest
-        return [...updated].sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+        // Auto-sort by time earliest → latest (animated)
+        return animatedSort(prev, updated, index, (a, b) => timeToMins(a.time) - timeToMins(b.time), collapsedFeedings, setCollapsedFeedings);
       }
       return updated;
     });
@@ -477,23 +482,57 @@ const MAX_PLAY_SESSIONS = 5;
           Alert.alert('Duplicate Time', `You already have a walk starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
           return prev;
         }
-        return [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+        return animatedSort(prev, updated, idx, (a, b) => timeToMins(a.startDate) - timeToMins(b.startDate), collapsedWalks, setCollapsedWalks);
       }
       if (updates.endDate) {
-        // Overlap check: runs when end time is set
-        const sorted = [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
-        for (let i = 1; i < sorted.length; i++) {
-          if (timeToMins(sorted[i].startDate) < timeToMins(sorted[i - 1].endDate)) {
-            Alert.alert('Walk Overlap', `This walk can${"'"}t start before the previous walk ends (${formatTimeShort(sorted[i - 1].endDate)}). Please adjust the time.`);
+        // Check for overlaps first before animating
+        const tentative = [...updated].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+        for (let i = 1; i < tentative.length; i++) {
+          if (timeToMins(tentative[i].startDate) < timeToMins(tentative[i - 1].endDate)) {
+            Alert.alert('Walk Overlap', `This walk can${"'"}t start before the previous walk ends (${formatTimeShort(tentative[i - 1].endDate)}). Please adjust the time.`);
             return prev;
           }
         }
-        return sorted;
+        // No overlap — animate the reorder
+        return animatedSort(prev, updated, idx, (a, b) => timeToMins(a.startDate) - timeToMins(b.startDate), collapsedWalks, setCollapsedWalks);
       }
       return updated;
     });
   };
 
+
+  // ── Animated reorder helper ──
+  const animatedSort = <T,>(
+    prev: T[],
+    updated: T[],
+    editedIndex: number,
+    sortFn: (a: T, b: T) => number,
+    collapsedSet: Set<number>,
+    setCollapsed: (s: Set<number>) => void,
+  ): T[] => {
+    const sorted = [...updated].sort(sortFn);
+    // Check if order actually changed
+    const orderChanged = sorted.some((item, i) => updated[i] !== item);
+    if (orderChanged) {
+      LayoutAnimation.configureNext(
+        LayoutAnimation.create(500, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity)
+      );
+    }
+    // Remap collapsed state to follow items to their new positions
+    const newCollapsed = new Set<number>();
+    sorted.forEach((item, newIdx) => {
+      const oldIdx = prev.indexOf(item);
+      if (oldIdx === -1) {
+        // This is the edited item (new object from spread) — keep expanded
+        return;
+      }
+      if (collapsedSet.has(oldIdx)) {
+        newCollapsed.add(newIdx);
+      }
+    });
+    setCollapsed(newCollapsed);
+    return sorted;
+  };
 
   // ── Time helpers: duplicate check, auto-sort ──
   const timeToMins = (d: Date) => d.getHours() * 60 + d.getMinutes();
