@@ -22,7 +22,6 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { Calendar, DateData } from 'react-native-calendars';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
-import ReAnimated, { Layout } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import CharCountHint from '../../components/common/CharCountHint';
@@ -520,9 +519,16 @@ const MAX_PLAY_SESSIONS = 5;
     // Check if order actually changed
     const orderChanged = sorted.some((item, i) => updated[i] !== item);
     if (orderChanged) {
+      // Configure LayoutAnimation BEFORE React commits the state change.
+      // With stable keys (slot.id), React detects position changes and
+      // LayoutAnimation animates the actual sliding movement.
+      LayoutAnimation.configureNext({
+        duration: 4000,  // 4s test value — will reduce for production
+        update: { type: LayoutAnimation.Types.easeInEaseOut },
+        create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+        delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+      });
       setIsReorderAnimating(true);
-      // Reanimated Layout handles the sliding animation via stable keys.
-      // Touch-block for the animation duration:
       setTimeout(() => setIsReorderAnimating(false), 4100);
     }
     // Remap collapsed state to follow items to their new positions
@@ -1886,7 +1892,7 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('feeding') && (
               <>
                 {feedingSlots.map((slot, idx) => (
-                  <ReAnimated.View key={slot.id} layout={Layout.duration(4000)} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === feedingSlots.length - 1 ? 0 : spacing.md }, idx === feedingSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                  <View key={slot.id} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === feedingSlots.length - 1 ? 0 : spacing.md }, idx === feedingSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedFeedings.has(idx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2038,7 +2044,7 @@ const MAX_PLAY_SESSIONS = 5;
 
                     </>
                     )}
-                  </ReAnimated.View>
+                  </View>
                 ))}
 
                 {/* Add another feeding — outside cards */}
@@ -2073,7 +2079,7 @@ const MAX_PLAY_SESSIONS = 5;
                     ? `${Math.floor(wsDurMins / 60)}h ${wsDurMins % 60 > 0 ? `${wsDurMins % 60}m` : ''} walk`.trim()
                     : `${wsDurMins}m walk`;
                   return (
-                  <ReAnimated.View key={ws.id} layout={Layout.duration(4000)} style={[styles.section, { backgroundColor: colors.surface, marginBottom: wIdx === walkSessions.length - 1 ? 0 : spacing.md }, wIdx === walkSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                  <View key={ws.id} style={[styles.section, { backgroundColor: colors.surface, marginBottom: wIdx === walkSessions.length - 1 ? 0 : spacing.md }, wIdx === walkSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedWalks.has(wIdx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2254,7 +2260,7 @@ const MAX_PLAY_SESSIONS = 5;
 
                     </>
                     )}
-                  </ReAnimated.View>
+                  </View>
                   );
                 })}
 
@@ -2283,7 +2289,7 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('playtime') && (
               <>
                 {playSessions.map((pSession, pIdx) => (
-                  <ReAnimated.View key={pSession.id} layout={Layout.duration(4000)} style={[styles.section, { backgroundColor: colors.surface, marginBottom: pIdx === playSessions.length - 1 ? 0 : spacing.md }, pIdx === playSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                  <View key={pSession.id} style={[styles.section, { backgroundColor: colors.surface, marginBottom: pIdx === playSessions.length - 1 ? 0 : spacing.md }, pIdx === playSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedPlay.has(pIdx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2521,7 +2527,7 @@ const MAX_PLAY_SESSIONS = 5;
 
                     </>
                     )}
-                  </ReAnimated.View>
+                  </View>
                 ))}
 
                 {/* Add another playtime — outside cards */}
@@ -2550,7 +2556,7 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('medication') && (
               <>
                 {medicationSlots.map((slot, idx) => (
-                  <ReAnimated.View key={slot.id} layout={Layout.duration(4000)} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === medicationSlots.length - 1 ? 0 : spacing.md }, idx === medicationSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                  <View key={slot.id} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === medicationSlots.length - 1 ? 0 : spacing.md }, idx === medicationSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedMeds.has(idx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2742,7 +2748,7 @@ const MAX_PLAY_SESSIONS = 5;
 
                     </>
                     )}
-                  </ReAnimated.View>
+                  </View>
                 ))}
 
                 {/* Add another medication — outside cards */}
