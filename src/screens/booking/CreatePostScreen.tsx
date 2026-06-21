@@ -365,8 +365,8 @@ const MAX_PLAY_SESSIONS = 5;
   const confirmUnselectAddOn = (type: CareType) => {
     if (addOnCareTypes.has(type) && hasFilledData(type)) {
       Alert.alert(
-        'Remove this service?',
-        'You\'ve already added details for this service. Unselecting it will clear all the info you entered.',
+        'Remove this?',
+        'You\'ve already added details here. Unselecting will clear everything you entered.',
         [
           { text: 'Keep It', style: 'cancel' },
           { text: 'Remove', style: 'destructive', onPress: () => toggleAddOn(type) },
@@ -378,18 +378,7 @@ const MAX_PLAY_SESSIONS = 5;
   };
 
   const confirmUnselectPrimary = (type: 'overnight' | 'daySitting') => {
-    if (primaryCareType === type && hasFilledData(type)) {
-      Alert.alert(
-        'Remove this service?',
-        'You\'ve already filled in dates and details for this service. Unselecting it will clear everything you entered.',
-        [
-          { text: 'Keep It', style: 'cancel' },
-          { text: 'Remove', style: 'destructive', onPress: () => setPrimaryCareType(null) },
-        ]
-      );
-    } else {
-      setPrimaryCareType(prev => prev === type ? null : type);
-    }
+    setPrimaryCareType(prev => prev === type ? null : type);
   };
 
 
