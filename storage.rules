@@ -18,6 +18,15 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');
     }
 
+    // Care detail photos — poster can write; any authenticated user can read
+    match /care-photos/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
     // User profile photos — any authenticated user can read; only that user can write
     match /users/{userId}/{allPaths=**} {
       allow read: if request.auth != null;
