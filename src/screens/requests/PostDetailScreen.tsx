@@ -34,6 +34,7 @@ import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { onPostAccepted } from '../../services/ReviewPromptService';
 import { useTheme } from '../../contexts/ThemeContext';
+import AvatarImage from '../../components/common/AvatarImage';
 import ConfettiCelebration, { CelebrationItem } from '../../components/common/ConfettiCelebration';
 import { smartDate, isSameDay as isSameDayUtil } from '../../utils/dateHelpers';
 import { useSwaps } from '../../hooks/useSwaps';
@@ -912,13 +913,12 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                     accessibilityLabel={`View ${r.userName}'s profile`}
                     style={styles.helperAvatarTouchable}
                   >
-                    {r.userPhotoURL ? (
-                      <Image source={{ uri: r.userPhotoURL }} style={styles.helperAvatar} />
-                    ) : (
-                      <View style={styles.helperAvatarPlaceholder}>
-                        <Text style={styles.helperAvatarEmoji}></Text>
-                      </View>
-                    )}
+                    <AvatarImage
+                      photoURL={r.userPhotoURL}
+                      displayName={r.userName}
+                      size={44}
+                      style={styles.helperAvatar}
+                    />
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -966,13 +966,12 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             accessibilityRole="button"
             style={styles.posterRow}
           >
-            {post.posterPhotoURL ? (
-              <Image source={{ uri: post.posterPhotoURL }} style={[styles.posterAvatar, { borderColor: colors.border }]} />
-            ) : (
-              <View style={[styles.posterAvatarPlaceholder, { backgroundColor: colors.primary + '22', borderColor: colors.border }]}>
-                <Text style={styles.posterAvatarEmoji}></Text>
-              </View>
-            )}
+            <AvatarImage
+              photoURL={post.posterPhotoURL}
+              displayName={post.posterName}
+              size={48}
+              style={[styles.posterAvatar, { borderColor: colors.border }]}
+            />
             <View style={styles.posterInfo}>
               <Text style={[styles.posterName, { color: colors.text }]}>{post.posterName}</Text>
               <Text style={[styles.postedAt, { color: colors.textSecondary }]}>

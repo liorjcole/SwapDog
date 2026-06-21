@@ -11,6 +11,7 @@ import * as Haptics from 'expo-haptics';
 import { MessagesStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import AvatarImage from '../../components/common/AvatarImage';
 import { useMessaging } from '../../hooks/useMessaging';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useFavorites } from '../../hooks/useFavorites';
@@ -381,12 +382,17 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           accessibilityLabel={`View ${otherUserName}'s profile`}
           accessibilityRole="button"
         >
-          {otherUserPhoto ? (
-            <Image source={{ uri: otherUserPhoto }} style={styles.headerAvatar} />
-          ) : (
+          {isSystem ? (
             <View style={[styles.headerAvatarPlaceholder, { backgroundColor: colors.primary + '22' }]}>
-              <Text style={{ fontSize: 34 }}>{isSystem ? '🐾' : '👤'}</Text>
+              <Text style={{ fontSize: 34 }}>🐾</Text>
             </View>
+          ) : (
+            <AvatarImage
+              photoURL={otherUserPhoto}
+              displayName={otherUserName}
+              size={72}
+              style={styles.headerAvatar}
+            />
           )}
           <Text style={[styles.headerTitle, { color: colors.text, textDecorationLine: isSystem ? 'none' : 'underline' }]} numberOfLines={1}>
             {otherUserName}

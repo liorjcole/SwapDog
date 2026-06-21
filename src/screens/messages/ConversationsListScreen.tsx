@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { MessagesStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import AvatarImage from '../../components/common/AvatarImage';
 import { useMessaging } from '../../hooks/useMessaging';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useBlocking } from '../../hooks/useBlocking';
@@ -137,12 +138,13 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
           <View style={[styles.convAvatar, { backgroundColor: colors.primary + '22' }]}>
             <Text style={styles.convAvatarEmoji}>🐾</Text>
           </View>
-        ) : otherPhoto ? (
-          <Image source={{ uri: otherPhoto }} style={styles.convAvatar} />
         ) : (
-          <View style={[styles.convAvatar, { backgroundColor: colors.primary + '22' }]}>
-            <Text style={styles.convAvatarInitial}>{otherLabel.charAt(0).toUpperCase()}</Text>
-          </View>
+          <AvatarImage
+            photoURL={otherPhoto}
+            displayName={otherLabel}
+            size={44}
+            style={{ marginRight: 12 }}
+          />
         )}
         <View style={styles.info}>
           <Text style={[styles.otherName, { color: colors.primary }]} numberOfLines={1}>
