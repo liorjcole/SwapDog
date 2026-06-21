@@ -243,16 +243,7 @@ const MAX_PLAY_SESSIONS = 5;
           Alert.alert('Duplicate Time', `You already have a playtime starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
           return prev;
         }
-        // Smart clamp: try AM/PM flip on start first, then push end
-        const session = updated[index];
-        const clamped = smartClampStart(newStart, session.endDate);
-        if (clamped.startTime !== newStart) {
-          const flippedStart = clamped.startTime;
-          updated = updated.map((s, i) => i === index ? { ...s, startDate: flippedStart } : s);
-        } else if (clamped.endTime) {
-          const pushedEnd = clamped.endTime;
-          updated = updated.map((s, i) => i === index ? { ...s, endDate: pushedEnd } : s);
-        }
+        // Native picker maximumDate prevents start > end, no JS clamping needed
         shouldSort = true;
       }
       if (updates.endDate) {
@@ -512,16 +503,7 @@ const MAX_PLAY_SESSIONS = 5;
           Alert.alert('Duplicate Time', `You already have a walk starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
           return prev;
         }
-        // Smart clamp: try AM/PM flip on start first, then push end
-        const session = updated[idx];
-        const clamped = smartClampStart(newStart, session.endDate);
-        if (clamped.startTime !== newStart) {
-          const flippedStart = clamped.startTime;
-          updated = updated.map((s: WalkSession, i: number) => i === idx ? { ...s, startDate: flippedStart } : s);
-        } else if (clamped.endTime) {
-          const pushedEnd = clamped.endTime;
-          updated = updated.map((s: WalkSession, i: number) => i === idx ? { ...s, endDate: pushedEnd } : s);
-        }
+        // Native picker maximumDate prevents start > end, no JS clamping needed
         shouldSort = true;
       }
       if (updates.endDate) {
@@ -610,57 +592,25 @@ const MAX_PLAY_SESSIONS = 5;
    *   animate=false → value is valid or was AM/PM-flipped (set immediately)
    *   animate=true  → clamped to start+1 (caller should delay-set for smooth scroll)
    */
-  const smartClampEnd = (start: Date | null, end: Date): { time: Date; animate: boolean } => {
-    if (!start) return { time: end, animate: false };
-    const startMins = start.getHours() * 60 + start.getMinutes();
-    const endMins = end.getHours() * 60 + end.getMinutes();
-    if (endMins > startMins) return { time: end, animate: false };
-
-    // Strategy 1: try AM↔PM flip on the end time
-    const flippedHour = (end.getHours() + 12) % 24;
-    const flippedMins = flippedHour * 60 + end.getMinutes();
-    if (flippedMins > startMins) {
-      const flipped = new Date(end);
-      flipped.setHours(flippedHour, end.getMinutes(), 0, 0);
-      return { time: flipped, animate: false }; // spinner animates AM/PM wheel naturally
-    }
-
-    // Strategy 2: flip didn't help — clamp to start + 1 minute
-    const clamped = new Date(end);
-    const newMins = startMins + 1;
-    clamped.setHours(Math.floor(newMins / 60) % 24, newMins % 60, 0, 0);
-    return { time: clamped, animate: true };
+  // Time constraint helpers for native iOS picker boundaries.
+  // iOS UIDatePicker.setDate uses animated:NO in the RN bridge,
+  // so programmatic value changes ALWAYS jump (never animate).
+  // Instead, we use minimumDate/maximumDate to make the spinner
+  // wheels physically stop at the boundary — the user simply
+  // cannot scroll past the limit. No correction needed.
+  const getMinEndDate = (startDate: Date | null, endValueOrFallback: Date): Date | undefined => {
+    if (!startDate) return undefined;
+    const d = new Date(endValueOrFallback);
+    d.setHours(startDate.getHours(), startDate.getMinutes() + 1, 0, 0);
+    return d;
   };
-
-  /**
-   * Smart start-time clamping (when start moves past end):
-   * 1. Try AM/PM flip on start first (PM→AM to get before end)
-   * 2. If flip doesn't help, push end to start+1 minute
-   */
-  const smartClampStart = (start: Date, end: Date | null): { startTime: Date; endTime?: Date } => {
-    if (!end) return { startTime: start };
-    const startMins = start.getHours() * 60 + start.getMinutes();
-    const endMins = end.getHours() * 60 + end.getMinutes();
-    if (startMins < endMins) return { startTime: start };
-
-    // Strategy 1: try AM↔PM flip on start
-    const flippedHour = (start.getHours() + 12) % 24;
-    const flippedMins = flippedHour * 60 + start.getMinutes();
-    if (flippedMins < endMins) {
-      const flipped = new Date(start);
-      flipped.setHours(flippedHour, start.getMinutes(), 0, 0);
-      return { startTime: flipped };
-    }
-
-    // Strategy 2: push end to start + 1 minute
-    const pushedEnd = new Date(end);
-    const newMins = startMins + 1;
-    pushedEnd.setHours(Math.floor(newMins / 60) % 24, newMins % 60, 0, 0);
-    return { startTime: start, endTime: pushedEnd };
+  const getMaxStartDate = (endDate: Date | null, startValueOrFallback: Date): Date | undefined => {
+    if (!endDate) return undefined;
+    const d = new Date(startValueOrFallback);
+    const totalMins = endDate.getHours() * 60 + endDate.getMinutes() - 1;
+    d.setHours(Math.floor(totalMins / 60), totalMins % 60, 0, 0);
+    return d;
   };
-
-  // Ref for animation delay timers
-  const clampAnimTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
 
   // ── Service-level photo picker ──
@@ -1899,13 +1849,9 @@ const MAX_PLAY_SESSIONS = 5;
                         display="spinner"
                         themeVariant="dark"
                         accentColor="#FF2D55"
+                        maximumDate={getMaxStartDate(endTimeDate, startTimeDate)}
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (!d) return;
-                          const result = smartClampStart(d, endTimeDate);
-                          setStartTimeDate(result.startTime);
-                          if (result.endTime) {
-                            setEndTimeDate(result.endTime);
-                          }
+                          if (d) setStartTimeDate(d);
                         }}
                         style={{ height: 150 }}
                       />
@@ -1917,17 +1863,9 @@ const MAX_PLAY_SESSIONS = 5;
                         display="spinner"
                         themeVariant="dark"
                         accentColor="#FF2D55"
+                        minimumDate={getMinEndDate(startTimeDate, endTimeDate)}
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (!d) return;
-                          const result = smartClampEnd(startTimeDate, d);
-                          if (!result.animate) {
-                            setEndTimeDate(result.time);
-                          } else {
-                            if (clampAnimTimerRef.current['daySitEnd']) clearTimeout(clampAnimTimerRef.current['daySitEnd']);
-                            clampAnimTimerRef.current['daySitEnd'] = setTimeout(() => {
-                              setEndTimeDate(result.time);
-                            }, 300);
-                          }
+                          if (d) setEndTimeDate(d);
                         }}
                         style={{ height: 150 }}
                       />
@@ -2299,6 +2237,7 @@ const MAX_PLAY_SESSIONS = 5;
                         display="spinner"
                         themeVariant="dark"
                         accentColor="#FF2D55"
+                        maximumDate={getMaxStartDate(ws.endDate, ws.startDate || new Date())}
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
                           if (d) updateWalkSession(wIdx, { startDate: d });
                         }}
@@ -2312,18 +2251,9 @@ const MAX_PLAY_SESSIONS = 5;
                         display="spinner"
                         themeVariant="dark"
                         accentColor="#FF2D55"
+                        minimumDate={getMinEndDate(ws.startDate, ws.endDate || new Date())}
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
-                          if (!d) return;
-                          const result = smartClampEnd(ws.startDate, d);
-                          if (!result.animate) {
-                            updateWalkSession(wIdx, { endDate: result.time });
-                          } else {
-                            // Brief pause so user sees their position, then animate to corrected
-                            if (clampAnimTimerRef.current['walkEnd' + wIdx]) clearTimeout(clampAnimTimerRef.current['walkEnd' + wIdx]);
-                            clampAnimTimerRef.current['walkEnd' + wIdx] = setTimeout(() => {
-                              updateWalkSession(wIdx, { endDate: result.time });
-                            }, 300);
-                          }
+                          if (d) updateWalkSession(wIdx, { endDate: d });
                         }}
                         style={{ height: 150 }}
                       />
@@ -2549,6 +2479,7 @@ const MAX_PLAY_SESSIONS = 5;
                             display="spinner"
                             themeVariant="dark"
                             accentColor="#FF2D55"
+                            maximumDate={getMaxStartDate(pSession.endDate, pSession.startDate || new Date())}
                             onChange={(_: DateTimePickerEvent, d?: Date) => {
                               if (d) updatePlaySession(pIdx, { startDate: d });
                             }}
@@ -2562,17 +2493,9 @@ const MAX_PLAY_SESSIONS = 5;
                             display="spinner"
                             themeVariant="dark"
                             accentColor="#FF2D55"
+                            minimumDate={getMinEndDate(pSession.startDate, pSession.endDate || new Date())}
                             onChange={(_: DateTimePickerEvent, d?: Date) => {
-                              if (!d) return;
-                              const result = smartClampEnd(pSession.startDate, d);
-                              if (!result.animate) {
-                                updatePlaySession(pIdx, { endDate: result.time });
-                              } else {
-                                if (clampAnimTimerRef.current['playEnd' + pIdx]) clearTimeout(clampAnimTimerRef.current['playEnd' + pIdx]);
-                                clampAnimTimerRef.current['playEnd' + pIdx] = setTimeout(() => {
-                                  updatePlaySession(pIdx, { endDate: result.time });
-                                }, 300);
-                              }
+                              if (d) updatePlaySession(pIdx, { endDate: d });
                             }}
                             style={{ height: 150 }}
                           />
