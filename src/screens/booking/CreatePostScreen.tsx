@@ -2088,6 +2088,7 @@ const MAX_PLAY_SESSIONS = 5;
               />
               <CharCountHint current={careDetails.trim().length} min={MIN_CARE_DETAILS} />
 
+              <View style={{ height: 16 }} />
               {/* ── Care Photos ── */}
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carePhotoRow}>
                 {carePhotos.map((uri, idx) => (
@@ -2135,7 +2136,7 @@ const MAX_PLAY_SESSIONS = 5;
                   <Text style={{ fontSize: 16, color: colors.textSecondary, lineHeight: 22 }}>
                     Suggested{' '}
                     <Text
-                      style={{ fontWeight: '700', color: colors.primary, textDecorationLine: 'underline' }}
+                      style={{ fontWeight: '700', color: colors.text, textDecorationLine: 'underline' }}
                       onPress={() => setPointsOffered(String(recommendedPoints.total))}
                     >
                       {recommendedPoints.total} points
@@ -2259,10 +2260,12 @@ const MAX_PLAY_SESSIONS = 5;
               {/* Points input */}
               {offerPoints && (
                 <>
+                  <View style={{ height: 16 }} />
+                  <View style={{ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, marginBottom: 16 }} />
                   <Text style={[styles.pointsInputLabel, { color: colors.text }]}>
                     How many points is this job worth?
                   </Text>
-                  <View style={{ height: 12 }} />
+                  <View style={{ height: 8 }} />
                   <View ref={refFor('points')} style={styles.pointsInputRow}>
                     <TextInput
                       style={[styles.pointsInput, { borderColor: '#FFFFFF', backgroundColor: colors.background, color: colors.text }]}
