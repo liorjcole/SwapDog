@@ -2076,9 +2076,6 @@ const MAX_PLAY_SESSIONS = 5;
               <CharCountHint current={careDetails.trim().length} min={MIN_CARE_DETAILS} />
 
               {/* ── Care Photos ── */}
-              <Text style={[styles.carePhotoLabel, { color: colors.textSecondary }]}>
-                Add photos to help your sitter (food location, leash, key spot, etc.)
-              </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carePhotoRow}>
                 {carePhotos.map((uri, idx) => (
                   <View key={idx} style={styles.carePhotoThumb}>
@@ -2104,12 +2101,14 @@ const MAX_PLAY_SESSIONS = 5;
                     ) : (
                       <>
                         <Ionicons name="camera-outline" size={24} color={colors.textSecondary} />
-                        <Text style={[styles.carePhotoAddText, { color: colors.textSecondary }]}>Add</Text>
                       </>
                     )}
                   </TouchableOpacity>
                 )}
               </ScrollView>
+              <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 8 }}>
+                Add photos (food location, leash, key spot, etc.)
+              </Text>
             </View>
         )}
 
@@ -2120,8 +2119,15 @@ const MAX_PLAY_SESSIONS = 5;
               {/* Recommended points — only when points toggle is ON */}
               {offerPoints && recommendedPoints.total > 0 && (
                 <View style={styles.recBox}>
-                  <Text style={{ fontSize: 16, color: colors.textSecondary, lineHeight: 20 }}>
-                    Suggested <Text style={{ fontWeight: '700', color: colors.primary }}>{recommendedPoints.total} points</Text> based on the care you've selected… but it's up to you!
+                  <Text style={{ fontSize: 16, color: colors.textSecondary, lineHeight: 22 }}>
+                    Suggested{' '}
+                    <Text
+                      style={{ fontWeight: '700', color: colors.primary, textDecorationLine: 'underline' }}
+                      onPress={() => setPointsOffered(String(recommendedPoints.total))}
+                    >
+                      {recommendedPoints.total} points
+                    </Text>
+                    {' '}based on the care you've selected… but it's up to you!
                   </Text>
 
                   {/* Expandable pricing guide */}
