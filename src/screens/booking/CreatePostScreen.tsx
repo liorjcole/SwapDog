@@ -3177,12 +3177,16 @@ const MAX_PLAY_SESSIONS = 5;
         queue={celebrationQueue}
         onDismissAll={() => {
           setCelebrationQueue([]);
-          // Navigate to Discover tab with the new post ID to highlight
-          const parent = navigation.getParent<any>();
-          if (parent) {
-            parent.navigate('DiscoverTab', { screen: 'Discover', params: { highlightPostId: newPostIdRef.current } });
-          } else {
-            navigation.goBack();
+          // 1. Capture tab navigator BEFORE popping (ref stays valid)
+          const tabNav = navigation.getParent<any>();
+          // 2. Pop CreatePost off whichever stack we're in (Requests or Discover)
+          //    This prevents stacking — without it, CreatePost stays in the stack
+          //    and shows a back arrow when the user returns to that tab.
+          navigation.goBack();
+          // 3. Switch to DiscoverTab and navigate to root Discover screen
+          //    Since Discover is the stack root, no back button appears.
+          if (tabNav) {
+            tabNav.navigate('DiscoverTab', { screen: 'Discover', params: { highlightPostId: newPostIdRef.current } });
           }
         }}
       />
