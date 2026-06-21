@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Keyboard, Platform, InputAccessoryView, TextInput, findNodeHandle, UIManager } from 'react-native';
+import { Keyboard, Platform, View } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 interface Props {
@@ -10,23 +10,17 @@ interface Props {
 }
 
 /**
- * iOS spinner DateTimePicker wrapper that prevents snap-back.
+ * iOS spinner DateTimePicker wrapper that prevents snap-back and
+ * completely suppresses keyboard input.
  *
- * Problem: The spinner fires onChange on EVERY scroll tick. If the parent
- * state update triggers a re-render before the next tick, the controlled
- * `value` prop resets the spinner to the old position — "snap-back".
- *
- * Solution: This component keeps its OWN local state that updates
- * immediately (so the spinner never snaps back) and debounces the
- * callback to the parent (so the parent doesn't re-render on every tick).
- * React.memo prevents parent re-renders from resetting the local state.
- *
- * On mount, the picker immediately commits its initial value so the user
- * doesn't have to scroll if the shown time is already what they want.
- *
- * Keyboard suppression: iOS 15+ lets users tap the selected spinner row
- * to type a time via keyboard. We aggressively suppress this using both
- * keyboardWillShow and keyboardDidShow listeners, plus a periodic check.
+ * Snap-back fix: Local state + debounced parent callback.
+ * Keyboard fix: On iOS 15+, tapping the highlighted spinner row opens
+ * a numeric keyboard. We suppress it with:
+ *   - onTouchStart on wrapper: schedules staggered Keyboard.dismiss()
+ *     calls AFTER the native UIDatePicker activates the keyboard
+ *   - keyboardWillShow + keyboardDidShow listeners as backup
+ * The keyboard may flash for ~50ms but is immediately dismissed.
+ * Scroll gestures are not affected.
  */
 const DebouncedTimePicker: React.FC<Props> = React.memo(({
   value,
@@ -38,20 +32,22 @@ const DebouncedTimePicker: React.FC<Props> = React.memo(({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isScrollingRef = useRef(false);
   const mountedRef = useRef(true);
+  const dismissTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // On mount, immediately commit the initial value.
   const onTimeChangeRef = useRef(onTimeChange);
   onTimeChangeRef.current = onTimeChange;
+
   useEffect(() => {
     onTimeChangeRef.current(value);
     mountedRef.current = true;
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+      dismissTimers.current.forEach(t => clearTimeout(t));
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Aggressively suppress keyboard input on the iOS spinner.
-  // iOS 15+ opens a numeric keyboard when the user taps the selected row.
-  // We use multiple layers of suppression to ensure scroll-only interaction.
+  // Keyboard suppression listeners
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
 
@@ -59,18 +55,28 @@ const DebouncedTimePicker: React.FC<Props> = React.memo(({
       if (mountedRef.current) Keyboard.dismiss();
     };
 
-    // Layer 1: Catch keyboard before it appears
     const sub1 = Keyboard.addListener('keyboardWillShow', dismiss);
-    // Layer 2: If it slips through, dismiss immediately after it appears
     const sub2 = Keyboard.addListener('keyboardDidShow', dismiss);
-    // Layer 3: Periodic check as a safety net (every 300ms)
-    const interval = setInterval(dismiss, 300);
 
     return () => {
       sub1.remove();
       sub2.remove();
-      clearInterval(interval);
     };
+  }, []);
+
+  // Schedule staggered dismissals after any touch on the picker
+  const handleTouchStart = useCallback(() => {
+    if (Platform.OS !== 'ios') return;
+    // Clear any pending dismiss timers
+    dismissTimers.current.forEach(t => clearTimeout(t));
+    dismissTimers.current = [];
+    // Schedule dismissals after the native tap handler activates keyboard
+    [50, 100, 200, 350, 500].forEach(ms => {
+      const t = setTimeout(() => {
+        if (mountedRef.current) Keyboard.dismiss();
+      }, ms);
+      dismissTimers.current.push(t);
+    });
   }, []);
 
   // Sync from parent ONLY when not actively scrolling
@@ -83,7 +89,7 @@ const DebouncedTimePicker: React.FC<Props> = React.memo(({
   const handleChange = useCallback((_: DateTimePickerEvent, d?: Date) => {
     if (!d) return;
     isScrollingRef.current = true;
-    setLocalValue(d); // immediate — picker won't snap back
+    setLocalValue(d);
 
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
@@ -93,17 +99,19 @@ const DebouncedTimePicker: React.FC<Props> = React.memo(({
   }, [onTimeChange]);
 
   return (
-    <DateTimePicker
-      value={localValue}
-      mode="time"
-      display="spinner"
-      themeVariant="dark"
-      accentColor="#FF2D55"
-      {...(maximumDate ? { maximumDate } : {})}
-      {...(minimumDate ? { minimumDate } : {})}
-      onChange={handleChange}
-      style={{ height: 200 }}
-    />
+    <View onTouchStart={handleTouchStart}>
+      <DateTimePicker
+        value={localValue}
+        mode="time"
+        display="spinner"
+        themeVariant="dark"
+        accentColor="#FF2D55"
+        {...(maximumDate ? { maximumDate } : {})}
+        {...(minimumDate ? { minimumDate } : {})}
+        onChange={handleChange}
+        style={{ height: 200 }}
+      />
+    </View>
   );
 });
 
