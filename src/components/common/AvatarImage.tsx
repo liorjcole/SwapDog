@@ -18,7 +18,7 @@ const BG_COLORS = ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','
 
 const AvatarImage: React.FC<AvatarImageProps> = ({ photoURL, displayName, size, style, emojiSize, onPress }) => {
   const [failed, setFailed] = useState(false);
-  const hasURL = !!photoURL && photoURL.length > 0 && !failed;
+  const hasURL = !!photoURL && photoURL.length > 0 && !failed && !photoURL.startsWith('file://');
   const bgColor = BG_COLORS[(displayName?.length ?? 0) % BG_COLORS.length];
   const emoji = emojiSize ?? Math.round(size * 0.55);
 

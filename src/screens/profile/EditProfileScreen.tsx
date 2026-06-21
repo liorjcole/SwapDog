@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { uploadPhotoToStorage } from '../../utils/uploadHelper';
 import * as Haptics from 'expo-haptics';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -45,7 +46,19 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
     if (!user) return;
     setLoading(true);
     try {
-      await updateUser(user.uid, { displayName: displayName.trim(), bio: bio.trim(), instagramHandle: cleanIgHandle(instagramHandle) || '', photoURL });
+      // If user picked a new photo (local URI), upload to Firebase Storage first
+      let finalPhotoURL = photoURL;
+      if (photoURL && photoURL.startsWith('file://')) {
+        const uploaded = await uploadPhotoToStorage(photoURL, `users/${user.uid}/profile`);
+        if (!uploaded) {
+          Alert.alert('Error', 'Failed to upload photo.');
+          setLoading(false);
+          return;
+        }
+        finalPhotoURL = uploaded;
+        setPhotoURL(uploaded);
+      }
+      await updateUser(user.uid, { displayName: displayName.trim(), bio: bio.trim(), instagramHandle: cleanIgHandle(instagramHandle) || '', photoURL: finalPhotoURL });
       await refreshUserProfile();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       navigation.goBack();
