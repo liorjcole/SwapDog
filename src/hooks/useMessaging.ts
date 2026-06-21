@@ -1,6 +1,7 @@
 import {
   collection,
   addDoc,
+  getDoc,
   getDocs,
   onSnapshot,
   query,
@@ -233,6 +234,67 @@ const WELCOME_TEXT =
   "pet sitting request or save them up!\n\n" +
   'If you ever need help or have questions, reach out to us at david@joinwatchdog.com.\n\n' +
   'Happy watching! 🐕';
+
+/**
+ * Send a system message to a user from the WatchDog Team account.
+ * Finds (or creates) the swapdog-team conversation with the user
+ * and adds the message. Bumps unreadCounts so the user sees it.
+ */
+export const sendSystemMessageToUser = async (
+  userId: string,
+  text: string,
+): Promise<void> => {
+  // Find existing WatchDog Team conversation
+  const q = query(
+    collection(db, 'conversations'),
+    where('participantIds', 'array-contains', userId),
+  );
+  const snap = await getDocs(q);
+  let convId: string | null = null;
+  for (const d of snap.docs) {
+    const participants = (d.data().participantIds as string[]) ?? [];
+    if (participants.includes(SYSTEM_SENDER_ID)) {
+      convId = d.id;
+      break;
+    }
+  }
+
+  // Create one if it doesn't exist
+  if (!convId) {
+    const ref = await addDoc(collection(db, 'conversations'), {
+      participantIds: [userId, SYSTEM_SENDER_ID],
+      swapRequestId: null,
+      unreadCounts: { [userId]: 1 },
+      lastMessage: text.slice(0, 100),
+      lastMessageAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    convId = ref.id;
+  } else {
+    // Bump unread count and update last message
+    const convRef = doc(db, 'conversations', convId);
+    const convSnap = await getDoc(convRef);
+    const currentUnread = convSnap.exists()
+      ? ((convSnap.data().unreadCounts as Record<string, number>)?.[userId] ?? 0)
+      : 0;
+    await updateDoc(convRef, {
+      [`unreadCounts.${userId}`]: currentUnread + 1,
+      lastMessage: text.slice(0, 100),
+      lastMessageAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  // Add the message
+  await addDoc(collection(db, 'conversations', convId, 'messages'), {
+    conversationId: convId,
+    senderId: SYSTEM_SENDER_ID,
+    text,
+    read: false,
+    createdAt: serverTimestamp(),
+  });
+};
 
 /**
  * Creates a welcome conversation from WatchDog Team the first time a user

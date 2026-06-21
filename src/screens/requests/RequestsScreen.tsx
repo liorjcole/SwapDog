@@ -30,6 +30,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useMessaging } from '../../hooks/useMessaging';
+import { sendSystemMessageToUser } from '../../hooks/useMessaging';
 import { useTheme } from '../../contexts/ThemeContext';
 import { smartDate, isSameDay } from '../../utils/dateHelpers';
 import { useSwaps } from '../../hooks/useSwaps';
@@ -648,7 +649,39 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         'Canceling less than 24 hours before the scheduled care puts the owner in a very difficult position to find a replacement and will likely result in a negative review, which hurts your account overall.\n\nIf we notice a pattern of late cancellations, your account may be at risk for suspension.',
         [
           { text: 'Keep Commitment', style: 'cancel' },
-          { text: 'Cancel Anyway', style: 'destructive', onPress: doCancel },
+          {
+            text: 'Cancel Anyway',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await cancelPost(post.id);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          
+                // Compensate the owner: 2 points + WatchDog system message
+                const ownerId = post.posterId;
+                const sitterName = user?.displayName ?? 'Your caretaker';
+          
+                await addPoints(ownerId, 2);
+                await recordEntry(ownerId, {
+                  type: 'bonus',
+                  description: 'Late cancellation compensation from WatchDog',
+                  points: 2,
+                  relatedPostId: post.id,
+                });
+          
+                const dogName = post.dogName ?? 'your dog';
+                await sendSystemMessageToUser(
+                  ownerId,
+                  `We see that ${sitterName} canceled their commitment to care for ${dogName} less than 24 hours in advance. We\'re sorry for the inconvenience.\n\nWe\'ve added 2 points to your account to help compensate. We\'ve also noted this on their account \u2014 if this becomes a pattern, their account will be at risk for suspension.\n\nWe hope this helps, and thank you for being part of the WatchDog community! \uD83D\uDC3E`,
+                );
+          
+                fetchPosts();
+              } catch (err) {
+                console.warn('[RequestsScreen] Sitter late cancel failed:', err);
+                Alert.alert('Oops', 'Failed to cancel. Please try again.');
+              }
+            },
+          },
         ],
       );
     } else if (isLateCancel && isOwner && post.claimedBy) {
