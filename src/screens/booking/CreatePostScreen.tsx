@@ -2243,7 +2243,7 @@ const MAX_PLAY_SESSIONS = 5;
         )}
 
         {/* Divider between Care Details and Compensation */}
-        <View style={{ paddingVertical: spacing.xl, alignItems: 'center' }}>
+        <View style={{ paddingBottom: spacing.xl, alignItems: 'center' }}>
           <View style={{ width: '100%', height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
         </View>
 
