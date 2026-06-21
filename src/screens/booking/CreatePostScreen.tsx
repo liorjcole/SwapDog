@@ -12,7 +12,7 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, Platform, Switch, Image, ActivityIndicator, Animated, Dimensions, Modal, KeyboardAvoidingView, LayoutAnimation, UIManager } from 'react-native';
+  Alert, Platform, Switch, Image, ActivityIndicator, Animated, Dimensions, Modal, KeyboardAvoidingView, LayoutAnimation, UIManager, LayoutChangeEvent, Easing } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -72,7 +72,22 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const [pulsingSection, setPulsingSection] = useState<string | null>(null);
-  const [isReorderAnimating, setIsReorderAnimating] = useState(false);
+  // FLIP animation refs (First-Last-Invert-Play technique for cell reorder)
+  // LayoutAnimation doesn't animate reordered children inside ScrollView —
+  // it can't detect that a view "moved" during reconciliation. Instead, we:
+  //   1. Track cell heights with onLayout
+  //   2. Calculate old/new positions from ordering + heights
+  //   3. Set translateY = (oldPos - newPos) so cells visually stay at old spot
+  //   4. Animate translateY → 0 (cell glides to new position, native driver, 60fps)
+  const cellHeightsRef = useRef<Record<string, number>>({});
+  const cellAnimYRef = useRef<Record<string, Animated.Value>>({});
+
+  const getCellAnimY = (id: string): Animated.Value => {
+    if (!cellAnimYRef.current[id]) {
+      cellAnimYRef.current[id] = new Animated.Value(0);
+    }
+    return cellAnimYRef.current[id];
+  };
   const newPostIdRef = useRef<string | null>(null);
   const cellIdCounter = useRef(0);
   const nextCellId = () => `cell-${++cellIdCounter.current}`;
@@ -526,16 +541,11 @@ const MAX_PLAY_SESSIONS = 5;
 
 
   // ── Delayed animated sort ──
-  // LayoutAnimation.configureNext() must be called OUTSIDE setState updaters.
-  // Calling it inside a setState updater doesn't work — React has already
-  // started processing the state transition and the native layout system
-  // doesn't pick up the config for cell position changes.
-  //
-  // Two-phase approach:
-  //   Phase 1 (immediate): update the field value, check duplicates, return unsorted
-  //   Phase 2 (delayed):   read latest state from ref, sort, call LayoutAnimation
-  //                         BEFORE setState, then set sorted state
-  //
+  // FLIP reorder animation (First-Last-Invert-Play).
+  // LayoutAnimation can't animate reordered ScrollView children — the native
+  // layout system doesn't detect "this view moved to a new position."
+  // Instead we calculate position deltas from cell heights, set translateY
+  // to the delta (cell visually stays at old position), then animate to 0.
   const scheduleReorderSort = <T extends { id: string }>(
     key: string,
     stateRef: React.MutableRefObject<T[]>,
@@ -544,13 +554,42 @@ const MAX_PLAY_SESSIONS = 5;
     collapsedSet: Set<number>,
     setCollapsed: (s: Set<number>) => void,
   ) => {
-    // Debounce: cancel any pending sort for this category
     if (sortTimersRef.current[key]) clearTimeout(sortTimersRef.current[key]);
     sortTimersRef.current[key] = setTimeout(() => {
       const current = stateRef.current;
       const sorted = [...current].sort(sortFn);
       const orderChanged = sorted.some((item, i) => current[i] !== item);
       if (!orderChanged) return;
+
+      // FIRST: calculate old Y positions from current order + measured heights
+      const gap = 16; // spacing.md
+      const oldOrder = current.map(item => item.id);
+      const newOrder = sorted.map(item => item.id);
+
+      const oldPositions: Record<string, number> = {};
+      let cumY = 0;
+      for (const id of oldOrder) {
+        oldPositions[id] = cumY;
+        cumY += (cellHeightsRef.current[id] ?? 80) + gap;
+      }
+
+      // LAST: calculate new Y positions from sorted order + same heights
+      const newPositions: Record<string, number> = {};
+      cumY = 0;
+      for (const id of newOrder) {
+        newPositions[id] = cumY;
+        cumY += (cellHeightsRef.current[id] ?? 80) + gap;
+      }
+
+      // INVERT: set translateY = (oldPos - newPos) so cells visually stay put
+      const toAnimate: string[] = [];
+      for (const id of newOrder) {
+        const delta = (oldPositions[id] ?? 0) - (newPositions[id] ?? 0);
+        if (delta !== 0) {
+          getCellAnimY(id).setValue(delta);
+          toAnimate.push(id);
+        }
+      }
 
       // Remap collapsed state to follow items to their new positions
       const newCollapsed = new Set<number>();
@@ -561,16 +600,22 @@ const MAX_PLAY_SESSIONS = 5;
         }
       });
 
-      // ★ THE KEY FIX: LayoutAnimation called BEFORE setState, OUTSIDE any updater
-      LayoutAnimation.configureNext({
-        duration: 4000,  // 4s test value — will reduce for production
-        update: { type: LayoutAnimation.Types.easeInEaseOut },
-      });
+      // Update state — cells jump in layout but translateY holds them visually
       setCollapsed(newCollapsed);
-      setIsReorderAnimating(true);
       setState(sorted);
-      setTimeout(() => setIsReorderAnimating(false), 4100);
-    }, 350); // 350ms debounce — waits for spinner to settle
+
+      // PLAY: animate translateY → 0 (cells glide to natural position)
+      if (toAnimate.length > 0) {
+        Animated.parallel(
+          toAnimate.map(id => Animated.timing(getCellAnimY(id), {
+            toValue: 0,
+            duration: 350,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }))
+        ).start();
+      }
+    }, 350);
   };
 
   // Keep refs in sync with state (needed to read latest state inside setTimeout)
@@ -1954,7 +1999,7 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('feeding') && (
               <>
                 {feedingSlots.map((slot, idx) => (
-                  <View key={slot.id} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === feedingSlots.length - 1 ? 0 : spacing.md }, idx === feedingSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                  <Animated.View key={slot.id} onLayout={(e: LayoutChangeEvent) => { cellHeightsRef.current[slot.id] = e.nativeEvent.layout.height; }} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === feedingSlots.length - 1 ? 0 : spacing.md, transform: [{ translateY: getCellAnimY(slot.id) }] }, idx === feedingSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedFeedings.has(idx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2106,7 +2151,7 @@ const MAX_PLAY_SESSIONS = 5;
 
                     </>
                     )}
-                  </View>
+                  </Animated.View>
                 ))}
 
                 {/* Add another feeding — outside cards */}
@@ -2141,7 +2186,7 @@ const MAX_PLAY_SESSIONS = 5;
                     ? `${Math.floor(wsDurMins / 60)}h ${wsDurMins % 60 > 0 ? `${wsDurMins % 60}m` : ''} walk`.trim()
                     : `${wsDurMins}m walk`;
                   return (
-                  <View key={ws.id} style={[styles.section, { backgroundColor: colors.surface, marginBottom: wIdx === walkSessions.length - 1 ? 0 : spacing.md }, wIdx === walkSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                  <Animated.View key={ws.id} onLayout={(e: LayoutChangeEvent) => { cellHeightsRef.current[ws.id] = e.nativeEvent.layout.height; }} style={[styles.section, { backgroundColor: colors.surface, marginBottom: wIdx === walkSessions.length - 1 ? 0 : spacing.md, transform: [{ translateY: getCellAnimY(ws.id) }] }, wIdx === walkSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedWalks.has(wIdx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2324,7 +2369,7 @@ const MAX_PLAY_SESSIONS = 5;
 
                     </>
                     )}
-                  </View>
+                  </Animated.View>
                   );
                 })}
 
@@ -2353,7 +2398,7 @@ const MAX_PLAY_SESSIONS = 5;
             {addOnCareTypes.has('playtime') && (
               <>
                 {playSessions.map((pSession, pIdx) => (
-                  <View key={pSession.id} style={[styles.section, { backgroundColor: colors.surface, marginBottom: pIdx === playSessions.length - 1 ? 0 : spacing.md }, pIdx === playSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                  <Animated.View key={pSession.id} onLayout={(e: LayoutChangeEvent) => { cellHeightsRef.current[pSession.id] = e.nativeEvent.layout.height; }} style={[styles.section, { backgroundColor: colors.surface, marginBottom: pIdx === playSessions.length - 1 ? 0 : spacing.md, transform: [{ translateY: getCellAnimY(pSession.id) }] }, pIdx === playSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: collapsedPlay.has(pIdx) ? 0 : 10 }}>
                       <TouchableOpacity
@@ -2593,7 +2638,7 @@ const MAX_PLAY_SESSIONS = 5;
 
                     </>
                     )}
-                  </View>
+                  </Animated.View>
                 ))}
 
                 {/* Add another playtime — outside cards */}
