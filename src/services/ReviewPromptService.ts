@@ -1,4 +1,3 @@
-import * as StoreReview from 'expo-store-review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Linking, Platform } from 'react-native';
 
@@ -44,13 +43,36 @@ async function saveState(state: ReviewState): Promise<void> {
 }
 
 /**
+ * Try native review dialog, fall back to App Store link.
+ * expo-store-review is a native module — may not be available
+ * in dev builds that were compiled without it.
+ */
+async function openReview(): Promise<void> {
+  try {
+    const StoreReview = require('expo-store-review');
+    const canUseNative = await StoreReview.isAvailableAsync();
+    if (canUseNative) {
+      await StoreReview.requestReview();
+      return;
+    }
+  } catch {
+    // Native module not available (old dev build) — fall through to link
+  }
+  if (Platform.OS === 'ios') {
+    Linking.openURL(
+      "https://apps.apple.com/app/id" + APP_STORE_ID + "?action=write-review"
+    );
+  }
+}
+
+/**
  * Show a two-step prompt: first ask "Enjoying WatchDog?" —
  * if yes, open the native App Store review dialog.
  */
 function showReviewPrompt(): void {
   Alert.alert(
     'Enjoying WatchDog? 🐾',
-    'We\'d love to hear from you! Would you like to leave a review?',
+    "We'd love to hear from you! Would you like to leave a review?",
     [
       { text: 'Not Now', style: 'cancel' },
       {
@@ -59,15 +81,7 @@ function showReviewPrompt(): void {
           const state = await getState();
           state.hasReviewed = true;
           await saveState(state);
-
-          const canUseNative = await StoreReview.isAvailableAsync();
-          if (canUseNative) {
-            await StoreReview.requestReview();
-          } else if (Platform.OS === 'ios') {
-            Linking.openURL(
-              `https://apps.apple.com/app/id${APP_STORE_ID}?action=write-review`
-            );
-          }
+          await openReview();
         },
       },
     ]
