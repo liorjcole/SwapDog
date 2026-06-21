@@ -539,13 +539,7 @@ const MAX_PLAY_SESSIONS = 5;
 
   // ── Service-level photo picker ──
   const MAX_SERVICE_PHOTOS = 3;
-  const pickServicePhoto = async (type: 'feeding' | 'walk' | 'play' | 'medication', index: number) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-    });
-    if (result.canceled || !result.assets?.[0]?.uri) return;
-    const uri = result.assets[0].uri;
+  const addServicePhotoUri = (type: 'feeding' | 'walk' | 'play' | 'medication', index: number, uri: string) => {
     if (type === 'feeding') {
       setFeedingSlots(prev => prev.map((s, i) => i === index ? { ...s, photos: [...s.photos, uri].slice(0, MAX_SERVICE_PHOTOS) } : s));
     } else if (type === 'walk') {
@@ -555,6 +549,34 @@ const MAX_PLAY_SESSIONS = 5;
     } else if (type === 'medication') {
       setMedicationSlots(prev => prev.map((s, i) => i === index ? { ...s, photos: [...s.photos, uri].slice(0, MAX_SERVICE_PHOTOS) } : s));
     }
+  };
+
+  const pickServicePhotoFromLibrary = async (type: 'feeding' | 'walk' | 'play' | 'medication', index: number) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+    addServicePhotoUri(type, index, result.assets[0].uri);
+  };
+
+  const takeServicePhoto = async (type: 'feeding' | 'walk' | 'play' | 'medication', index: number) => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Camera Access', 'Please allow camera access in Settings to take photos.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+    addServicePhotoUri(type, index, result.assets[0].uri);
+  };
+
+  const pickServicePhoto = (type: 'feeding' | 'walk' | 'play' | 'medication', index: number) => {
+    Alert.alert('Add Photo', 'Choose how to add a photo', [
+      { text: 'Camera', onPress: () => takeServicePhoto(type, index) },
+      { text: 'Photo Library', onPress: () => pickServicePhotoFromLibrary(type, index) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
   const removeServicePhoto = (type: 'feeding' | 'walk' | 'play' | 'medication', slotIndex: number, photoIndex: number) => {
     if (type === 'feeding') {
