@@ -1208,11 +1208,15 @@ const MAX_PLAY_SESSIONS = 5;
         keyboardShouldPersistTaps="handled"
       >
         <Text style={[styles.pageTitle, { color: colors.text }]} accessibilityRole="header">
-          Create Post 📋
+          Create Post
         </Text>
-        <Text style={[styles.pageSubtitle, { color: colors.textSecondary }]}>
-          Your post will be visible to WatchDog members in your area.
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md }}>
+          <Text style={{ fontSize: 16 }}>🐾</Text>
+          <Text style={[styles.pageSubtitle, { color: colors.textSecondary, marginBottom: 0, marginHorizontal: 10, textAlign: 'center' }]}>
+            Your post will be visible to SwapDog members in your area.
+          </Text>
+          <Text style={{ fontSize: 16 }}>🐾</Text>
+        </View>
 
         {/* ── Section 1: Select Your Dog(s) ── */}
         <Animated.View ref={validationRefFor('dogs')} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'dogs' ? pulseAnim : 1 }] }, pulsingSection === 'dogs' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
