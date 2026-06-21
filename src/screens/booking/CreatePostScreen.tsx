@@ -148,6 +148,9 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     durationMins: number;
     repeatSchedule: RepeatSchedule | null;
     dogIds: string[];
+    instructions: string;
+    photos: string[];
+    showInstructions: boolean;
   }
   const makeDefaultPlaySession = (): PlaySession => ({
     flexible: false,
@@ -158,6 +161,9 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
     durationMins: 60,
     repeatSchedule: null,
     dogIds: [],
+    instructions: '',
+    photos: [],
+    showInstructions: false,
   });
   const [playSessions, setPlaySessions] = useState<PlaySession[]>([makeDefaultPlaySession()]);
   interface WalkSession {
@@ -167,6 +173,9 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   showEnd: boolean;
   dogIds: string[];
   repeatSchedule: RepeatSchedule | null;
+  instructions: string;
+  photos: string[];
+  showInstructions: boolean;
 }
 
 const makeDefaultWalkSession = (): WalkSession => ({
@@ -176,6 +185,9 @@ const makeDefaultWalkSession = (): WalkSession => ({
   showEnd: false,
   dogIds: [],
   repeatSchedule: null,
+  instructions: '',
+  photos: [],
+  showInstructions: false,
 });
 
 const MAX_WALK_SESSIONS = 5;
@@ -319,8 +331,8 @@ const MAX_PLAY_SESSIONS = 5;
   const [showStartTime, setShowStartTime] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
   // Feeding slots — Date objects for native spinner
-  const [feedingSlots, setFeedingSlots] = useState<{ time: Date; repeatSchedule: RepeatSchedule | null; showPicker: boolean; dogIds: string[] }[]>([
-    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), repeatSchedule: null, showPicker: false, dogIds: [] },
+  const [feedingSlots, setFeedingSlots] = useState<{ time: Date; repeatSchedule: RepeatSchedule | null; showPicker: boolean; dogIds: string[]; instructions: string; photos: string[]; showInstructions: boolean }[]>([
+    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), repeatSchedule: null, showPicker: false, dogIds: [], instructions: '', photos: [], showInstructions: false },
   ]);
 
   const updateFeedingSlot = (index: number, field: string, value: unknown) => {
@@ -349,14 +361,14 @@ const MAX_PLAY_SESSIONS = 5;
     const d = new Date(); d.setHours(12, 0, 0, 0);
     // Auto-collapse all existing feeding slots
     setCollapsedFeedings(new Set(feedingSlots.map((_, i) => i)));
-    setFeedingSlots(prev => [...prev, { time: d, repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds] }]);
+    setFeedingSlots(prev => [...prev, { time: d, repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], instructions: '', photos: [], showInstructions: false }]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   // Walk sessions array (multi-walk support)
   // Medication slots
-  const [medicationSlots, setMedicationSlots] = useState<{ time: Date; extraTimes: { time: Date; showPicker: boolean }[]; details: string; repeatSchedule: RepeatSchedule | null; showPicker: boolean; dogIds: string[] }[]>([
-    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds] },
+  const [medicationSlots, setMedicationSlots] = useState<{ time: Date; extraTimes: { time: Date; showPicker: boolean }[]; details: string; repeatSchedule: RepeatSchedule | null; showPicker: boolean; dogIds: string[]; photos: string[] }[]>([
+    { time: (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })(), extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], photos: [] },
   ]);
   const updateMedicationSlot = (index: number, field: string, value: unknown) => {
     setMedicationSlots(prev => prev.map((slot, i) => {
@@ -383,7 +395,7 @@ const MAX_PLAY_SESSIONS = 5;
     const d = new Date(); d.setHours(8, 0, 0, 0);
     // Auto-collapse all existing medication slots
     setCollapsedMeds(new Set(medicationSlots.map((_, i) => i)));
-    setMedicationSlots(prev => [...prev, { time: d, extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds] }]);
+    setMedicationSlots(prev => [...prev, { time: d, extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [...selectedDogIds], photos: [] }]);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   const addMedExtraTime = (slotIdx: number) => {
@@ -479,6 +491,38 @@ const MAX_PLAY_SESSIONS = 5;
   const timeToMins = (d: Date) => d.getHours() * 60 + d.getMinutes();
   const isSameTime = (a: Date, b: Date) => timeToMins(a) === timeToMins(b);
   const formatTimeShort = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+
+  // ── Service-level photo picker ──
+  const MAX_SERVICE_PHOTOS = 3;
+  const pickServicePhoto = async (type: 'feeding' | 'walk' | 'play' | 'medication', index: number) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+    const uri = result.assets[0].uri;
+    if (type === 'feeding') {
+      setFeedingSlots(prev => prev.map((s, i) => i === index ? { ...s, photos: [...s.photos, uri].slice(0, MAX_SERVICE_PHOTOS) } : s));
+    } else if (type === 'walk') {
+      setWalkSessions(prev => prev.map((s, i) => i === index ? { ...s, photos: [...s.photos, uri].slice(0, MAX_SERVICE_PHOTOS) } : s));
+    } else if (type === 'play') {
+      setPlaySessions(prev => prev.map((s, i) => i === index ? { ...s, photos: [...s.photos, uri].slice(0, MAX_SERVICE_PHOTOS) } : s));
+    } else if (type === 'medication') {
+      setMedicationSlots(prev => prev.map((s, i) => i === index ? { ...s, photos: [...s.photos, uri].slice(0, MAX_SERVICE_PHOTOS) } : s));
+    }
+  };
+  const removeServicePhoto = (type: 'feeding' | 'walk' | 'play' | 'medication', slotIndex: number, photoIndex: number) => {
+    if (type === 'feeding') {
+      setFeedingSlots(prev => prev.map((s, i) => i === slotIndex ? { ...s, photos: s.photos.filter((_, j) => j !== photoIndex) } : s));
+    } else if (type === 'walk') {
+      setWalkSessions(prev => prev.map((s, i) => i === slotIndex ? { ...s, photos: s.photos.filter((_, j) => j !== photoIndex) } : s));
+    } else if (type === 'play') {
+      setPlaySessions(prev => prev.map((s, i) => i === slotIndex ? { ...s, photos: s.photos.filter((_, j) => j !== photoIndex) } : s));
+    } else if (type === 'medication') {
+      setMedicationSlots(prev => prev.map((s, i) => i === slotIndex ? { ...s, photos: s.photos.filter((_, j) => j !== photoIndex) } : s));
+    }
+  };
 
   // Care details
   const [careDetails, setCareDetails] = useState('');
@@ -1016,6 +1060,8 @@ const MAX_PLAY_SESSIONS = 5;
           })(),
           dogIds: ws.dogIds,
           repeatSchedule: primaryCareType === 'overnight' && ws.repeatSchedule ? ws.repeatSchedule : null,
+          instructions: ws.instructions.trim() || undefined,
+          photos: ws.photos.length > 0 ? ws.photos : undefined,
         }));
         careTypeFields.walkDurationMins = walkDurationMins;
       }
@@ -1024,6 +1070,8 @@ const MAX_PLAY_SESSIONS = 5;
           time: formatTime12(s.time),
           repeatSchedule: primaryCareType === 'overnight' && s.repeatSchedule ? s.repeatSchedule : null,
           dogIds: s.dogIds,
+          instructions: s.instructions.trim() || undefined,
+          photos: s.photos.length > 0 ? s.photos : undefined,
         }));
       }
       if (primaryCareType === 'overnight' || primaryCareType === 'daySitting') {
@@ -1037,6 +1085,7 @@ const MAX_PLAY_SESSIONS = 5;
           details: s.details.trim(),
           repeatSchedule: primaryCareType === 'overnight' && s.repeatSchedule ? s.repeatSchedule : null,
           dogIds: s.dogIds,
+          photos: s.photos.length > 0 ? s.photos : undefined,
         }));
       }
 
@@ -1049,6 +1098,8 @@ const MAX_PLAY_SESSIONS = 5;
           durationMins: s.flexible ? s.durationMins : getPlayDurationMins(s),
           repeatSchedule: primaryCareType === 'overnight' && s.repeatSchedule ? s.repeatSchedule : null,
           dogIds: s.dogIds,
+          instructions: s.instructions.trim() || undefined,
+          photos: s.photos.length > 0 ? s.photos : undefined,
         }));
       }
 
@@ -1692,6 +1743,62 @@ const MAX_PLAY_SESSIONS = 5;
                     )}
 
 
+                    {/* ── Specific Instructions ── */}
+                    <TouchableOpacity
+                      onPress={() => updateFeedingSlot(idx, 'showInstructions', !slot.showInstructions)}
+                      activeOpacity={0.7}
+                      style={{ alignSelf: 'stretch', paddingVertical: 12 }}
+                    >
+                      <Text style={{ color: '#fff', textAlign: 'center', fontSize: 14, fontWeight: '500' }}>
+                        {slot.showInstructions ? 'Hide instructions ▲' : 'Have specific instructions? ▼'}
+                      </Text>
+                    </TouchableOpacity>
+                    {slot.showInstructions && (
+                      <>
+                        <TextInput
+                          style={[styles.careInput, {
+                            backgroundColor: colors.background,
+                            borderColor: colors.border,
+                            color: colors.text,
+                            minHeight: 70,
+                            marginTop: 4,
+                          }]}
+                          placeholder="Add specific instructions for this feeding..."
+                          placeholderTextColor={colors.textSecondary}
+                          value={slot.instructions}
+                          onChangeText={(text) => updateFeedingSlot(idx, 'instructions', text)}
+                          multiline
+                          inputAccessoryViewID={DONE_ACCESSORY_ID}
+                          numberOfLines={3}
+                          textAlignVertical="top"
+                          returnKeyType="done"
+                          blurOnSubmit={true}
+                        />
+                        {/* Photos */}
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                          {slot.photos.map((uri, pIdx) => (
+                            <View key={pIdx} style={{ position: 'relative' }}>
+                              <Image source={{ uri }} style={{ width: 70, height: 70, borderRadius: 10 }} />
+                              <TouchableOpacity
+                                onPress={() => removeServicePhoto('feeding', idx, pIdx)}
+                                style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#FF3B30', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>✕</Text>
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                          {slot.photos.length < MAX_SERVICE_PHOTOS && (
+                            <TouchableOpacity
+                              onPress={() => pickServicePhoto('feeding', idx)}
+                              style={{ width: 70, height: 70, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <Text style={{ fontSize: 24, color: colors.textSecondary }}>📷</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </>
+                    )}
+
                     </>
                     )}
                   </View>
@@ -1849,6 +1956,62 @@ const MAX_PLAY_SESSIONS = 5;
                       {wsStartTime} → {wsEndTime}  •  {wsDurText}
                     </Text>
 
+
+                    {/* ── Specific Instructions ── */}
+                    <TouchableOpacity
+                      onPress={() => updateWalkSession(wIdx, { showInstructions: !ws.showInstructions })}
+                      activeOpacity={0.7}
+                      style={{ alignSelf: 'stretch', paddingVertical: 12 }}
+                    >
+                      <Text style={{ color: '#fff', textAlign: 'center', fontSize: 14, fontWeight: '500' }}>
+                        {ws.showInstructions ? 'Hide instructions ▲' : 'Have specific instructions? ▼'}
+                      </Text>
+                    </TouchableOpacity>
+                    {ws.showInstructions && (
+                      <>
+                        <TextInput
+                          style={[styles.careInput, {
+                            backgroundColor: colors.background,
+                            borderColor: colors.border,
+                            color: colors.text,
+                            minHeight: 70,
+                            marginTop: 4,
+                          }]}
+                          placeholder="Add specific instructions for this walk..."
+                          placeholderTextColor={colors.textSecondary}
+                          value={ws.instructions}
+                          onChangeText={(text) => updateWalkSession(wIdx, { instructions: text })}
+                          multiline
+                          inputAccessoryViewID={DONE_ACCESSORY_ID}
+                          numberOfLines={3}
+                          textAlignVertical="top"
+                          returnKeyType="done"
+                          blurOnSubmit={true}
+                        />
+                        {/* Photos */}
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                          {ws.photos.map((uri: string, pIdx: number) => (
+                            <View key={pIdx} style={{ position: 'relative' }}>
+                              <Image source={{ uri }} style={{ width: 70, height: 70, borderRadius: 10 }} />
+                              <TouchableOpacity
+                                onPress={() => removeServicePhoto('walk', wIdx, pIdx)}
+                                style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#FF3B30', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>✕</Text>
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                          {ws.photos.length < MAX_SERVICE_PHOTOS && (
+                            <TouchableOpacity
+                              onPress={() => pickServicePhoto('walk', wIdx)}
+                              style={{ width: 70, height: 70, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <Text style={{ fontSize: 24, color: colors.textSecondary }}>📷</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </>
+                    )}
 
                     </>
                     )}
@@ -2061,6 +2224,62 @@ const MAX_PLAY_SESSIONS = 5;
                     )}
 
 
+                    {/* ── Specific Instructions ── */}
+                    <TouchableOpacity
+                      onPress={() => updatePlaySession(pIdx, { showInstructions: !pSession.showInstructions })}
+                      activeOpacity={0.7}
+                      style={{ alignSelf: 'stretch', paddingVertical: 12 }}
+                    >
+                      <Text style={{ color: '#fff', textAlign: 'center', fontSize: 14, fontWeight: '500' }}>
+                        {pSession.showInstructions ? 'Hide instructions ▲' : 'Have specific instructions? ▼'}
+                      </Text>
+                    </TouchableOpacity>
+                    {pSession.showInstructions && (
+                      <>
+                        <TextInput
+                          style={[styles.careInput, {
+                            backgroundColor: colors.background,
+                            borderColor: colors.border,
+                            color: colors.text,
+                            minHeight: 70,
+                            marginTop: 4,
+                          }]}
+                          placeholder="Add specific instructions for this playtime..."
+                          placeholderTextColor={colors.textSecondary}
+                          value={pSession.instructions}
+                          onChangeText={(text) => updatePlaySession(pIdx, { instructions: text })}
+                          multiline
+                          inputAccessoryViewID={DONE_ACCESSORY_ID}
+                          numberOfLines={3}
+                          textAlignVertical="top"
+                          returnKeyType="done"
+                          blurOnSubmit={true}
+                        />
+                        {/* Photos */}
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                          {pSession.photos.map((uri: string, pPhotoIdx: number) => (
+                            <View key={pPhotoIdx} style={{ position: 'relative' }}>
+                              <Image source={{ uri }} style={{ width: 70, height: 70, borderRadius: 10 }} />
+                              <TouchableOpacity
+                                onPress={() => removeServicePhoto('play', pIdx, pPhotoIdx)}
+                                style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#FF3B30', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>✕</Text>
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                          {pSession.photos.length < MAX_SERVICE_PHOTOS && (
+                            <TouchableOpacity
+                              onPress={() => pickServicePhoto('play', pIdx)}
+                              style={{ width: 70, height: 70, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <Text style={{ fontSize: 24, color: colors.textSecondary }}>📷</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </>
+                    )}
+
                     </>
                     )}
                   </View>
@@ -2259,6 +2478,28 @@ const MAX_PLAY_SESSIONS = 5;
                       blurOnSubmit={true}
                     />
 
+                    {/* Medication Photos */}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                      {slot.photos.map((uri: string, pIdx: number) => (
+                        <View key={pIdx} style={{ position: 'relative' }}>
+                          <Image source={{ uri }} style={{ width: 70, height: 70, borderRadius: 10 }} />
+                          <TouchableOpacity
+                            onPress={() => removeServicePhoto('medication', idx, pIdx)}
+                            style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#FF3B30', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>✕</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                      {slot.photos.length < MAX_SERVICE_PHOTOS && (
+                        <TouchableOpacity
+                          onPress={() => pickServicePhoto('medication', idx)}
+                          style={{ width: 70, height: 70, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <Text style={{ fontSize: 24, color: colors.textSecondary }}>📷</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
 
                     </>
                     )}
