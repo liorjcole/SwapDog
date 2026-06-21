@@ -12,11 +12,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, Platform, Switch, Image } from 'react-native';
+  Alert, Platform, Switch, Image, ActivityIndicator } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Calendar, DateData } from 'react-native-calendars';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import CharCountHint from '../../components/common/CharCountHint';
 import * as Location from 'expo-location';
@@ -28,6 +29,7 @@ import { useDogs } from '../../hooks/useDogs';
 import { useSwaps } from '../../hooks/useSwaps';
 import { Dog, CompensationType, CareType } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
+import { uploadPhotoToStorage } from '../../utils/uploadHelper';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ConfettiCelebration, { CelebrationItem } from '../../components/common/ConfettiCelebration';
 import Chip from '../../components/common/Chip';
@@ -230,6 +232,46 @@ const MAX_PLAY_SESSIONS = 5;
 
   // Care details
   const [careDetails, setCareDetails] = useState('');
+  const [carePhotos, setCarePhotos] = useState<string[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // ── Care Photo Picker ──
+  const MAX_CARE_PHOTOS = 5;
+
+  const addCarePhoto = () => {
+    Alert.alert('Add Photo', 'Choose how to add a photo', [
+      { text: 'Camera', onPress: takePhotoForCare },
+      { text: 'Photo Library', onPress: pickPhotoForCare },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const pickPhotoForCare = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      setCarePhotos(prev => [...prev, result.assets[0].uri]);
+    }
+  };
+
+  const takePhotoForCare = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Camera Access', 'Please allow camera access in Settings to take photos.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+    if (!result.canceled && result.assets?.[0]) {
+      setCarePhotos(prev => [...prev, result.assets[0].uri]);
+    }
+  };
+
+  const removeCarePhoto = (index: number) => {
+    setCarePhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
   // Format a Date to "h:mm AM/PM"
   const formatTime12 = (d: Date): string => {
     let h = d.getHours();
@@ -697,6 +739,22 @@ const MAX_PLAY_SESSIONS = 5;
       const effectiveStart = startDate;
       const effectiveEnd = primaryCareType === 'overnight' ? endDate : startDate;
 
+      // Upload care photos to Firebase Storage
+      let uploadedCarePhotos: string[] = [];
+      if (carePhotos.length > 0) {
+        setUploadingPhoto(true);
+        try {
+          uploadedCarePhotos = await Promise.all(
+            carePhotos.map(async (uri, idx) => {
+              const path = `care-photos/${user.uid}/${Date.now()}_${idx}.jpg`;
+              return uploadPhotoToStorage(uri, path);
+            })
+          );
+        } finally {
+          setUploadingPhoto(false);
+        }
+      }
+
       // Strip undefined values before Firestore write
       const postData = {
         posterId: user.uid,
@@ -714,6 +772,7 @@ const MAX_PLAY_SESSIONS = 5;
         startDate: effectiveStart,
         endDate: effectiveEnd,
         careDetails: careDetails.trim(),
+        carePhotos: uploadedCarePhotos.length > 0 ? uploadedCarePhotos : undefined,
         compensationType: (offerPoints && offerMoney ? 'either' : offerMoney ? 'payment' : 'points') as CompensationType,
         pointsCost: offerPoints ? parseInt(pointsOffered, 10) : 0,
         ...paymentFields,
@@ -1785,6 +1844,42 @@ const MAX_PLAY_SESSIONS = 5;
                 onFocus={() => scrollToInput('careDetails')}
               />
               <CharCountHint current={careDetails.trim().length} min={MIN_CARE_DETAILS} />
+
+              {/* ── Care Photos ── */}
+              <Text style={[styles.carePhotoLabel, { color: colors.textSecondary }]}>
+                Add photos to help your sitter (food location, leash, key spot, etc.)
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carePhotoRow}>
+                {carePhotos.map((uri, idx) => (
+                  <View key={idx} style={styles.carePhotoThumb}>
+                    <Image source={{ uri }} style={styles.carePhotoImg} />
+                    <TouchableOpacity
+                      style={styles.carePhotoRemove}
+                      onPress={() => removeCarePhoto(idx)}
+                      accessibilityLabel={`Remove photo ${idx + 1}`}
+                    >
+                      <Ionicons name="close-circle" size={22} color="#FF2D55" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {carePhotos.length < MAX_CARE_PHOTOS && (
+                  <TouchableOpacity
+                    style={[styles.carePhotoAdd, { borderColor: colors.border, backgroundColor: colors.background }]}
+                    onPress={addCarePhoto}
+                    accessibilityLabel="Add care photo"
+                    accessibilityRole="button"
+                  >
+                    {uploadingPhoto ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <>
+                        <Ionicons name="camera-outline" size={24} color={colors.textSecondary} />
+                        <Text style={[styles.carePhotoAddText, { color: colors.textSecondary }]}>Add</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
             </View>
         )}
 
@@ -2216,6 +2311,16 @@ const styles = StyleSheet.create({
 
   // Care details
   careHint: { fontSize: 13, fontStyle: 'italic', lineHeight: 18, marginBottom: spacing.sm },
+  carePhotoLabel: { fontSize: 13, marginTop: 12, marginBottom: 8 },
+  carePhotoRow: { flexDirection: 'row', marginBottom: 4 },
+  carePhotoThumb: { width: 80, height: 80, borderRadius: 10, marginRight: 10, position: 'relative' },
+  carePhotoImg: { width: 80, height: 80, borderRadius: 10 },
+  carePhotoRemove: { position: 'absolute', top: -6, right: -6, backgroundColor: '#fff', borderRadius: 11 },
+  carePhotoAdd: {
+    width: 80, height: 80, borderRadius: 10, borderWidth: 1.5, borderStyle: 'dashed',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  carePhotoAddText: { fontSize: 11, marginTop: 2 },
   careInput: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, fontSize: 14, minHeight: 120, lineHeight: 20 },
 
 

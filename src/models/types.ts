@@ -148,6 +148,8 @@ export interface SwapPost {
   endDate: Date;
   /** Free-text description of what the sitter needs to know */
   careDetails: string;
+  /** Photos attached to care details (Firebase Storage URLs) */
+  carePhotos?: string[];
 
   // Compensation
   compensationType: CompensationType;

@@ -279,6 +279,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
   // "I Can Help" modal state (for points posts)
   const [helpModalVisible, setHelpModalVisible] = useState(false);
+  const [carePhotoPreview, setCarePhotoPreview] = useState<string | null>(null);
 
   const postId = route.params?.postId;
 
@@ -1086,6 +1087,19 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           {post.careDetails ? (
             <Text style={[styles.careDetails, { color: colors.text, marginTop: 8 }]}>{post.careDetails}</Text>
           ) : null}
+          {post.carePhotos && post.carePhotos.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
+              {post.carePhotos.map((url, idx) => (
+                <TouchableOpacity key={idx} onPress={() => setCarePhotoPreview(url)} activeOpacity={0.8}>
+                  <Image
+                    source={{ uri: url }}
+                    style={{ width: 90, height: 90, borderRadius: 10, marginRight: 10 }}
+                    accessibilityLabel={"Care photo " + (idx + 1)}
+                  />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
         </View>
 
         {/* ── Compensation (LAST before helpers) ── */}
@@ -1176,6 +1190,23 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      {/* Care photo full-screen preview */}
+      <Modal visible={!!carePhotoPreview} transparent animationType="fade" onRequestClose={() => setCarePhotoPreview(null)}>
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' }}
+          activeOpacity={1}
+          onPress={() => setCarePhotoPreview(null)}
+        >
+          {carePhotoPreview && (
+            <Image
+              source={{ uri: carePhotoPreview }}
+              style={{ width: Dimensions.get('window').width - 40, height: Dimensions.get('window').width - 40, borderRadius: 12 }}
+              resizeMode="contain"
+            />
+          )}
+        </TouchableOpacity>
+      </Modal>
     </>
   );
 };

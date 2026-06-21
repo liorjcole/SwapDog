@@ -63,6 +63,7 @@ const parsePost = (id: string, data: Record<string, unknown>): SwapPost => ({
   startDate: toDate(data.startDate as Parameters<typeof toDate>[0]),
   endDate: toDate(data.endDate as Parameters<typeof toDate>[0]),
   careDetails: data.careDetails as string,
+  carePhotos: data.carePhotos as string[] | undefined,
   compensationType: (data.compensationType as SwapPost['compensationType']) ?? 'points',
   pointsCost: (data.pointsCost as number) ?? 1,
   paymentAmount: data.paymentAmount as number | undefined,
