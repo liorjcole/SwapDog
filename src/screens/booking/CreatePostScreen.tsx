@@ -3176,9 +3176,7 @@ const MAX_PLAY_SESSIONS = 5;
                   </TouchableOpacity>
                 )}
               </ScrollView>
-              <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 8 }}>
-                Add photos (food location, leash, key spot, etc.)
-              </Text>
+
             </Animated.View>
           )}
           </>
