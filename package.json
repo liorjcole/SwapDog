@@ -29,6 +29,7 @@
     "expo-secure-store": "~15.0.8",
     "expo-sms": "~14.0.8",
     "expo-status-bar": "~3.0.9",
+    "expo-store-review": "~9.0.9",
     "expo-superwall": "^1.0.0",
     "firebase": "^12.13.0",
     "react": "19.1.0",

@@ -32,6 +32,7 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { db } from '../../config/firebase';
 import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
+import { onPostAccepted } from '../../services/ReviewPromptService';
 import { useTheme } from '../../contexts/ThemeContext';
 import ConfettiCelebration, { CelebrationItem } from '../../components/common/ConfettiCelebration';
 import { smartDate, isSameDay as isSameDayUtil } from '../../utils/dateHelpers';
@@ -464,6 +465,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             setIsJustApproved(true);
             setCelebrationQueue([{ title: 'Booking Confirmed!', subtitle: helperName + ' is now your sitter for ' + (post.dogNames && post.dogNames.length > 1 ? post.dogNames.join(' & ') : post.dogName) + '!', emoji: '🐶' }]);
             setPost((prev) => prev ? { ...prev, status: 'claimed', claimedBy: helperId } : prev);
+            void onPostAccepted();
             try {
               const hasPermission = await requestNotificationPermissions();
               if (hasPermission) {

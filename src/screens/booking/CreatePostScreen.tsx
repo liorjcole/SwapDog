@@ -30,6 +30,7 @@ import { useSwaps } from '../../hooks/useSwaps';
 import { Dog, CompensationType, CareType, RepeatSchedule, formatRepeatLabel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { uploadPhotoToStorage } from '../../utils/uploadHelper';
+import { onPostCreated } from '../../services/ReviewPromptService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import RepeatScheduleModal from '../../components/common/RepeatScheduleModal';
 import ConfettiCelebration, { CelebrationItem } from '../../components/common/ConfettiCelebration';
@@ -836,6 +837,7 @@ const MAX_PLAY_SESSIONS = 5;
         subtitle: 'Your request is now visible to people in your area.',
         emoji: '🐾',
       }]);
+      void onPostCreated();
     } catch (error: unknown) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Failed to post request');
     } finally {
