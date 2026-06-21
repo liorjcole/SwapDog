@@ -976,13 +976,13 @@ const MAX_PLAY_SESSIONS = 5;
     if (hasOvernight) {
       const pts = 6 * dayCount;
       total += pts;
-      breakdown.push({ label: 'Overnight', rateLine: '6 points per night', detailLine: '(' + dayCount + ' night' + (dayCount > 1 ? 's' : '') + ' total)', pts });
+      breakdown.push({ label: 'Overnight', rateLine: '6 points per night', detailLine: dayCount + ' night' + (dayCount > 1 ? 's' : '') + ' total', pts });
     }
     if (hasDaySitting && daySittingMinutes && daySittingMinutes > 0) {
       const hrs = daySittingMinutes / 60;
       const pts = Math.round(hrs * 10) / 10;
       total += pts;
-      breakdown.push({ label: 'Day sitting', rateLine: '1 point per hour', detailLine: '(' + hrs.toFixed(1) + ' hour' + (hrs !== 1 ? 's' : '') + ' total)', pts });
+      breakdown.push({ label: 'Day sitting', rateLine: '1 point per hour', detailLine: hrs.toFixed(1) + ' hour' + (hrs !== 1 ? 's' : '') + ' total', pts });
     }
 
     // ── Walk: 0.5/hr with overnight/day sitting, 1/hr standalone ──
@@ -1004,7 +1004,7 @@ const MAX_PLAY_SESSIONS = 5;
       if (walkPts > 0) {
         total += walkPts;
         const lbl = totalHrs === 1 ? '1 hr' : totalHrs.toFixed(1) + ' hrs';
-        breakdown.push({ label: 'Walk', rateLine: rate + ' point' + (rate !== 1 ? 's' : '') + ' per hour', detailLine: '(' + totalHrs.toFixed(1).replace(/\.0$/, '') + ' hour' + (totalHrs !== 1 ? 's' : '') + ' total)', pts: walkPts });
+        breakdown.push({ label: 'Walk', rateLine: rate + ' point' + (rate !== 1 ? 's' : '') + ' per hour', detailLine: totalHrs.toFixed(1).replace(/\.0$/, '') + ' hour' + (totalHrs !== 1 ? 's' : '') + ' total', pts: walkPts });
       }
     }
 
@@ -1024,7 +1024,7 @@ const MAX_PLAY_SESSIONS = 5;
       if (playPts > 0) {
         total += playPts;
         const lbl = totalHrs === 1 ? '1 hr' : totalHrs.toFixed(1) + ' hrs';
-        breakdown.push({ label: 'Playtime', rateLine: rate + ' point' + (rate !== 1 ? 's' : '') + ' per hour', detailLine: '(' + totalHrs.toFixed(1).replace(/\.0$/, '') + ' hour' + (totalHrs !== 1 ? 's' : '') + ' total)', pts: playPts });
+        breakdown.push({ label: 'Playtime', rateLine: rate + ' point' + (rate !== 1 ? 's' : '') + ' per hour', detailLine: totalHrs.toFixed(1).replace(/\.0$/, '') + ' hour' + (totalHrs !== 1 ? 's' : '') + ' total', pts: playPts });
       }
     }
 
@@ -1033,20 +1033,20 @@ const MAX_PLAY_SESSIONS = 5;
       // Included in overnight/day sitting — 0 extra pts (not shown)
     } else if (hasWalkOrPlay) {
       // Add-on to walk/play: +0.5 each
-      if (hasFeeding) { total += 0.5; breakdown.push({ label: 'Feeding', rateLine: '0.5 points', detailLine: '(add-on)', pts: 0.5 }); }
-      if (hasMeds) { total += 0.5; breakdown.push({ label: 'Medication', rateLine: '0.5 points', detailLine: '(add-on)', pts: 0.5 }); }
+      if (hasFeeding) { total += 0.5; breakdown.push({ label: 'Feeding', rateLine: '0.5 points', detailLine: 'add-on', pts: 0.5 }); }
+      if (hasMeds) { total += 0.5; breakdown.push({ label: 'Medication', rateLine: '0.5 points', detailLine: 'add-on', pts: 0.5 }); }
     } else {
       // Standalone feeding/meds only
       if (hasFeeding && hasMeds) {
         total += 1.5;
-        breakdown.push({ label: 'Feeding', rateLine: '1 point', detailLine: '(standalone visit)', pts: 1 });
-        breakdown.push({ label: 'Medication', rateLine: '0.5 points', detailLine: '(standalone visit)', pts: 0.5 });
+        breakdown.push({ label: 'Feeding', rateLine: '1 point', detailLine: 'standalone visit', pts: 1 });
+        breakdown.push({ label: 'Medication', rateLine: '0.5 points', detailLine: 'standalone visit', pts: 0.5 });
       } else if (hasFeeding) {
         total += 1;
-        breakdown.push({ label: 'Feeding', rateLine: '1 point', detailLine: '(standalone visit)', pts: 1 });
+        breakdown.push({ label: 'Feeding', rateLine: '1 point', detailLine: 'standalone visit', pts: 1 });
       } else if (hasMeds) {
         total += 1;
-        breakdown.push({ label: 'Medication', rateLine: '1 point', detailLine: '(standalone visit)', pts: 1 });
+        breakdown.push({ label: 'Medication', rateLine: '1 point', detailLine: 'standalone visit', pts: 1 });
       }
     }
 
@@ -3154,9 +3154,10 @@ const MAX_PLAY_SESSIONS = 5;
                       {recommendedPoints.breakdown.map((item, i) => (
                         <View key={i} style={{ paddingVertical: 6, borderBottomWidth: i < recommendedPoints.breakdown.length - 1 ? 0.5 : 0, borderBottomColor: colors.border }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{item.label}: {item.rateLine}</Text>
+                            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{item.label}:</Text>
                             <Text style={[styles.guideRowValue, { color: colors.primary }]}>{item.pts} {item.pts === 1 ? 'point' : 'points'}</Text>
                           </View>
+                          <Text style={{ fontSize: 15, fontWeight: '400', color: colors.text, marginTop: 2 }}>{item.rateLine}</Text>
                           <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '400', marginTop: 2 }}>{item.detailLine}</Text>
                         </View>
                       ))}
