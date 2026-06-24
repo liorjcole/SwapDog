@@ -42,7 +42,8 @@
           }
         }
       ],
-      "./plugins/withIAPCapability"
+      "./plugins/withIAPCapability",
+      "expo-asset"
     ],
     "extra": {
       "eas": {

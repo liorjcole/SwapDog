@@ -1,44 +1,140 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import {
+  FlatList,
+  ListRenderItemInfo,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/types';
-import { useTheme } from '../../contexts/ThemeContext';
-import { spacing } from '../../config/theme';
+import AnimatedSlide, { SLIDE_BACKGROUND } from '../../components/auth/AnimatedSlide';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Splash'>;
 };
 
-const SplashScreen: React.FC<Props> = ({ navigation }) => {
-  const { colors } = useTheme();
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.8)).current;
+type Slide = {
+  key: string;
+  // A bundled .html asset module reference.
+  source: number;
+};
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, friction: 6, useNativeDriver: true }),
-    ]).start();
-    const timer = setTimeout(() => navigation.replace('SignIn'), 2000);
-    return () => clearTimeout(timer);
-  }, [navigation, opacity, scale]);
+// The swipeable landing carousel. Adding slide 2 & 3 is a drop-in: place
+// slideN.html in assets/signin-animations and append one entry here — no other
+// changes are needed.
+const SLIDES: Slide[] = [
+  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html') },
+];
+
+const SplashScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const [activeIndex, setActiveIndex] = useState(0);
+  const listRef = useRef<FlatList<Slide>>(null);
+
+  const onMomentumScrollEnd = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const offsetX = event?.nativeEvent?.contentOffset?.x ?? 0;
+      const next = width > 0 ? Math.round(offsetX / width) : 0;
+      setActiveIndex(next);
+    },
+    [width],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<Slide>) => (
+      <View style={{ width }}>
+        <AnimatedSlide source={item.source} />
+      </View>
+    ),
+    [width],
+  );
+
+  const bottomPad = Math.max(insets?.bottom ?? 0, 24);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.primary }]} accessibilityRole="none">
-      <Animated.View style={{ opacity, transform: [{ scale }] }}>
-        <Text style={styles.emoji} accessibilityElementsHidden>🐾</Text>
-        <Text style={styles.title} accessibilityLabel="WatchDog">WatchDog</Text>
-        <Text style={styles.subtitle}>Peer-to-peer dog sitting exchange</Text>
-      </Animated.View>
+    <View style={styles.container}>
+      <FlatList
+        ref={listRef}
+        data={SLIDES}
+        keyExtractor={(item) => item.key}
+        renderItem={renderItem}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        bounces={false}
+        onMomentumScrollEnd={onMomentumScrollEnd}
+        scrollEnabled={SLIDES.length > 1}
+      />
+
+      <View style={[styles.overlay, { paddingBottom: bottomPad + 16 }]} pointerEvents="box-none">
+        {SLIDES.length > 1 && (
+          <View style={styles.dots}>
+            {SLIDES.map((slide, index) => (
+              <View
+                key={slide.key}
+                style={[styles.dot, index === activeIndex ? styles.dotActive : styles.dotInactive]}
+              />
+            ))}
+          </View>
+        )}
+
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={[styles.button, styles.buttonOutline]}
+            activeOpacity={0.85}
+            onPress={() => navigation?.navigate('SignIn')}
+            accessibilityRole="button"
+            accessibilityLabel="Sign In"
+          >
+            <Text style={styles.buttonText}>Sign In</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, styles.buttonSolid]}
+            activeOpacity={0.85}
+            onPress={() => navigation?.navigate('SignUp', {})}
+            accessibilityRole="button"
+            accessibilityLabel="Sign Up"
+          >
+            <Text style={styles.buttonText}>Sign Up</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emoji: { fontSize: 66, textAlign: 'center', marginBottom: spacing.sm },
-  title: { fontSize: 42, fontWeight: '800', color: '#fff', textAlign: 'center' },
-  subtitle: { fontSize: 18, color: 'rgba(255,255,255,0.85)', textAlign: 'center', marginTop: spacing.sm },
+  container: { flex: 1, backgroundColor: SLIDE_BACKGROUND },
+  overlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  dots: { flexDirection: 'row', marginBottom: 20 },
+  dot: { width: 8, height: 8, borderRadius: 4, marginHorizontal: 4 },
+  dotActive: { backgroundColor: '#FFFFFF' },
+  dotInactive: { backgroundColor: 'rgba(255,255,255,0.4)' },
+  buttonRow: { flexDirection: 'row', width: '100%', gap: 12 },
+  button: {
+    flex: 1,
+    height: 54,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonSolid: { backgroundColor: 'rgba(255,255,255,0.18)' },
+  buttonOutline: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.9)' },
+  buttonText: { fontSize: 18, fontWeight: '600', color: '#FFFFFF' },
 });
 
 export default SplashScreen;
