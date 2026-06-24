@@ -110,6 +110,9 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
   );
 };
 
+// Matches the `height` in styles.button below — used to compute the nudge offset.
+const BUTTON_HEIGHT = 54;
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: SLIDE_BACKGROUND },
   overlay: {
@@ -124,10 +127,12 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4, marginHorizontal: 4 },
   dotActive: { backgroundColor: '#FFFFFF' },
   dotInactive: { backgroundColor: 'rgba(255,255,255,0.4)' },
-  buttonRow: { flexDirection: 'row', width: '100%', gap: 12 },
+  // marginBottom lifts the row by half the button height so it sits higher
+  // without changing its horizontal layout or the safe-area padding below.
+  buttonRow: { flexDirection: 'row', width: '100%', gap: 12, marginBottom: BUTTON_HEIGHT / 2 },
   button: {
     flex: 1,
-    height: 54,
+    height: BUTTON_HEIGHT,
     borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
