@@ -43,6 +43,7 @@
         }
       ],
       "./plugins/withIAPCapability",
+    "./plugins/withDevNoPush",
       "expo-asset"
     ],
     "extra": {
