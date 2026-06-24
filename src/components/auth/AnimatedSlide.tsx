@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
 import { Asset } from 'expo-asset';
 import { WebView } from 'react-native-webview';
@@ -22,6 +22,34 @@ const FIT_TO_WIDTH_CSS = `
   true;
 `;
 
+// Freeze all CSS animations at their current frame. Injected via
+// injectJavaScript() on touchstart. Creates a singleton <style> so repeated
+// calls are idempotent and never pile up DOM nodes.
+const PAUSE_ANIMATIONS_JS = `
+(function(){
+  var el=document.getElementById('rn-pause-style');
+  if(!el){
+    el=document.createElement('style');
+    el.id='rn-pause-style';
+    document.head.appendChild(el);
+  }
+  el.innerHTML='*,*::before,*::after{animation-play-state:paused!important;}';
+  el.disabled=false;
+})();
+true;
+`;
+
+// Re-enable animations from exactly where they paused (CSS resumes mid-frame,
+// not from frame 0). The setInterval loop inside each slide HTML is left
+// untouched — a brief hold won't meaningfully collide with the 29.5 s restart.
+const RESUME_ANIMATIONS_JS = `
+(function(){
+  var el=document.getElementById('rn-pause-style');
+  if(el){el.disabled=true;}
+})();
+true;
+`;
+
 type Props = {
   /** A bundled .html asset module, e.g. require('../../../assets/signin-animations/slide1.html'). */
   source: number;
@@ -33,9 +61,16 @@ type Props = {
  * The asset is resolved through expo-asset so it works in both the dev client
  * and release builds. Nullable asset state is guarded — a missing localUri
  * falls back to a plain red View rather than crashing.
+ *
+ * Press-and-hold pauses the animation in place; releasing resumes it.
+ * The WebView has pointerEvents="none" so the parent FlatList retains horizontal
+ * swipe control. Pause/resume is driven by injectJavaScript() called from the
+ * container View's onTouchStart/End, which fires because touches pass through
+ * the pointerEvents="none" WebView to this container.
  */
 const AnimatedSlide: React.FC<Props> = ({ source, style }) => {
   const [uri, setUri] = useState<string | null>(null);
+  const webViewRef = useRef<WebView>(null);
 
   useEffect(() => {
     let active = true;
@@ -55,13 +90,31 @@ const AnimatedSlide: React.FC<Props> = ({ source, style }) => {
     };
   }, [source]);
 
+  // Pause all CSS animations at their current frame.
+  const pauseAnimation = useCallback(() => {
+    webViewRef.current?.injectJavaScript(PAUSE_ANIMATIONS_JS);
+  }, []);
+
+  // Resume animations from where they paused.
+  const resumeAnimation = useCallback(() => {
+    webViewRef.current?.injectJavaScript(RESUME_ANIMATIONS_JS);
+  }, []);
+
   if (!uri) {
     return <View style={[styles.fill, styles.fallback, style]} />;
   }
 
   return (
-    <View style={[styles.fill, styles.fallback, style]}>
+    // onTouchStart/End fire here because the WebView child has pointerEvents="none"
+    // — touches fall through to this container, which drives pause/resume.
+    <View
+      style={[styles.fill, styles.fallback, style]}
+      onTouchStart={pauseAnimation}
+      onTouchEnd={resumeAnimation}
+      onTouchCancel={resumeAnimation}
+    >
       <WebView
+        ref={webViewRef}
         source={{ uri }}
         style={styles.webview}
         originWhitelist={['*']}
@@ -86,4 +139,3 @@ const styles = StyleSheet.create({
 });
 
 export default AnimatedSlide;
-
