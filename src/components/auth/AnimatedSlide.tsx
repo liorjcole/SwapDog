@@ -8,7 +8,6 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Asset } from 'expo-asset';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
@@ -32,9 +31,11 @@ const DARKEN_MAX_ALPHA = 0.55;
 const NOTE_FADE_MS = 1000; // "Press for 2x" note soft-fades out over ~1s.
 const DARKEN_IN_MS = 220;
 const DARKEN_OUT_MS = 180;
-// "Press for 2x speed" note (Group 85 export) intrinsic size, for aspect ratio.
-const NOTE_ASPECT = 957 / 638;
-const NOTE_WIDTH = 138;
+// Note placement — from interactive placement tool (screen fractions).
+const NOTE_WIDTH_FRAC  = 0.211;       // × window width (~83pt at 393w)
+const NOTE_TOP_FRAC    = 0.325;       // × window height
+const NOTE_RIGHT_FRAC  = -0.025;      // × window width (negative: hangs ~10pt off right edge)
+const NOTE_ASPECT      = 957 / 638;   // image natural aspect (w/h ≈ 1.5)
 
 const pressFor2xNote = require('../../../assets/signin-animations/press-for-2x.png');
 
@@ -314,8 +315,7 @@ type Props = {
 const AnimatedSlide: React.FC<Props> = ({ source, loopMs, style }) => {
   const [uri, setUri] = useState<string | null>(null);
   const webViewRef = useRef<WebView>(null);
-  const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
 
   // Which hold (if any) is active, so release knows what to revert.
   const holdMode = useRef<HoldMode>('idle');
@@ -399,9 +399,11 @@ const AnimatedSlide: React.FC<Props> = ({ source, loopMs, style }) => {
   if (!uri) {
     return <View style={[styles.fill, styles.fallback, style]} />;
   }
-
+  const noteWidth  = NOTE_WIDTH_FRAC * width;
+  const noteHeight = noteWidth / NOTE_ASPECT;
+  const noteTop    = NOTE_TOP_FRAC * height;
+  const noteRight  = NOTE_RIGHT_FRAC * width;
   const darkenWidth = Math.max(0, width * DARKEN_WIDTH_FRACTION);
-  const noteTop = (insets?.top ?? 0) + 12;
 
   return (
     // onTouchStart/End fire here because the WebView and overlay children all
@@ -448,9 +450,9 @@ const AnimatedSlide: React.FC<Props> = ({ source, loopMs, style }) => {
       {/* "Press for 2x speed" note: visible at rest, soft-fades out on 2x-hold. */}
       <Animated.View
         pointerEvents="none"
-        style={[styles.note, { top: noteTop, opacity: noteOpacity }]}
+        style={[styles.note, { top: noteTop, right: noteRight, opacity: noteOpacity }]}
       >
-        <Image source={pressFor2xNote} style={styles.noteImage} resizeMode="contain" />
+        <Image source={pressFor2xNote} style={{ width: noteWidth, height: noteHeight }} resizeMode="contain" />
       </Animated.View>
     </View>
   );
@@ -461,8 +463,7 @@ const styles = StyleSheet.create({
   fallback: { backgroundColor: SLIDE_BACKGROUND },
   webview: { flex: 1, backgroundColor: SLIDE_BACKGROUND },
   darken: { position: 'absolute', top: 0, bottom: 0, right: 0 },
-  note: { position: 'absolute', right: 16 },
-  noteImage: { width: NOTE_WIDTH, height: NOTE_WIDTH / NOTE_ASPECT },
+  note: { position: 'absolute' },
 });
 
 export default AnimatedSlide;
