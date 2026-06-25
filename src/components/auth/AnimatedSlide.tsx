@@ -133,6 +133,8 @@ const AnimatedSlide: React.FC<Props> = ({ source, style }) => {
           showsHorizontalScrollIndicator={false}
           scalesPageToFit
           automaticallyAdjustContentInsets={false}
+          allowsInlineMediaPlayback
+          mediaPlaybackRequiresUserAction={false}
           injectedJavaScriptBeforeContentLoaded={FIT_TO_WIDTH_CSS}
         />
       </View>
