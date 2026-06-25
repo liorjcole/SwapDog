@@ -63,10 +63,15 @@ type Props = {
  * falls back to a plain red View rather than crashing.
  *
  * Press-and-hold pauses the animation in place; releasing resumes it.
- * The WebView has pointerEvents="none" so the parent FlatList retains horizontal
- * swipe control. Pause/resume is driven by injectJavaScript() called from the
- * container View's onTouchStart/End, which fires because touches pass through
- * the pointerEvents="none" WebView to this container.
+ * The WebView is wrapped in a <View pointerEvents="none"> so the parent FlatList
+ * retains horizontal swipe control. On iOS, setting pointerEvents="none" as a
+ * prop on react-native-webview does NOT reliably disable the underlying
+ * WKWebView's pan gesture recognizers, so they steal the horizontal swipe and
+ * the pager can never reach slide 2. A plain RN View with pointerEvents="none"
+ * returns nil from hitTest, excluding the whole WebView subtree from touch
+ * delivery — the pan then reaches the FlatList scroll view. Pause/resume is
+ * driven by injectJavaScript() from the container View's onTouchStart/End,
+ * which still fire as direct touch handlers (they never claim the responder).
  */
 const AnimatedSlide: React.FC<Props> = ({ source, style }) => {
   const [uri, setUri] = useState<string | null>(null);
@@ -113,21 +118,24 @@ const AnimatedSlide: React.FC<Props> = ({ source, style }) => {
       onTouchEnd={resumeAnimation}
       onTouchCancel={resumeAnimation}
     >
-      <WebView
-        ref={webViewRef}
-        source={{ uri }}
-        style={styles.webview}
-        originWhitelist={['*']}
-        scrollEnabled={false}
-        bounces={false}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
-        scalesPageToFit
-        automaticallyAdjustContentInsets={false}
-        injectedJavaScriptBeforeContentLoaded={FIT_TO_WIDTH_CSS}
-        // Swipes must reach the parent pager, not the WebView.
-        pointerEvents="none"
-      />
+      {/* pointerEvents="none" on this wrapping View — not on the WebView prop —
+          reliably excludes WKWebView's gesture recognizers from touch delivery
+          so the parent horizontal FlatList owns the swipe. */}
+      <View style={styles.fill} pointerEvents="none">
+        <WebView
+          ref={webViewRef}
+          source={{ uri }}
+          style={styles.webview}
+          originWhitelist={['*']}
+          scrollEnabled={false}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          scalesPageToFit
+          automaticallyAdjustContentInsets={false}
+          injectedJavaScriptBeforeContentLoaded={FIT_TO_WIDTH_CSS}
+        />
+      </View>
     </View>
   );
 };
