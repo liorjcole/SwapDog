@@ -31,6 +31,7 @@ type Slide = {
 const SLIDES: Slide[] = [
   { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html') },
   { key: 'slide2', source: require('../../../assets/signin-animations/slide2.html') },
+  { key: 'slide3', source: require('../../../assets/signin-animations/slide3.html') },
 ];
 
 const SplashScreen: React.FC<Props> = ({ navigation }) => {
