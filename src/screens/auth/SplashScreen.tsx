@@ -23,15 +23,19 @@ type Slide = {
   key: string;
   // A bundled .html asset module reference.
   source: number;
+  // Loop duration (ms), drives the per-slide progress ring. Matches each
+  // slide's internal loop: slide 1 restarts every 29.5s, slide 2 loops every
+  // 10s, slide 3 every 14s.
+  loopMs: number;
 };
 
 // The swipeable landing carousel. Adding slide 2 & 3 is a drop-in: place
 // slideN.html in assets/signin-animations and append one entry here — no other
 // changes are needed.
 const SLIDES: Slide[] = [
-  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html') },
-  { key: 'slide2', source: require('../../../assets/signin-animations/slide2.html') },
-  { key: 'slide3', source: require('../../../assets/signin-animations/slide3.html') },
+  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html'), loopMs: 29500 },
+  { key: 'slide2', source: require('../../../assets/signin-animations/slide2.html'), loopMs: 10000 },
+  { key: 'slide3', source: require('../../../assets/signin-animations/slide3.html'), loopMs: 14000 },
 ];
 
 const SplashScreen: React.FC<Props> = ({ navigation }) => {
@@ -52,7 +56,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<Slide>) => (
       <View style={{ width }}>
-        <AnimatedSlide source={item.source} />
+        <AnimatedSlide source={item.source} loopMs={item.loopMs} />
       </View>
     ),
     [width],
