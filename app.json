@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ari.SwapDog",
-      "buildNumber": "31",
+      "buildNumber": "32",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -43,7 +43,7 @@
         }
       ],
       "./plugins/withIAPCapability",
-    "./plugins/withDevNoPush",
+      "./plugins/withDevNoPush",
       "expo-asset"
     ],
     "extra": {
