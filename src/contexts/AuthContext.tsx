@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../config/firebase';
 import { User } from '../models/types';
@@ -59,11 +59,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
+        if (!data) return null;
+
+        // Self-heal legacy broken photos: older onboarding saved a raw local
+        // file:// URI that is unreadable from any other device. The original
+        // image is unrecoverable server-side, so clear it (best-effort) and
+        // treat it as empty locally so AvatarImage shows the clean fallback
+        // instead of attempting a dead load. Only ever touch the signed-in
+        // user's OWN doc — this function is only called with the current uid.
+        let photoURL: string = data.photoURL ?? '';
+        if (photoURL && !photoURL.startsWith('http')) {
+          photoURL = '';
+          try {
+            await updateDoc(docRef, { photoURL: '' });
+          } catch {
+            // Non-fatal: a later open will retry the cleanup.
+          }
+        }
+
         return {
           id: docSnap.id,
           email: data.email,
           displayName: data.displayName,
-          photoURL: data.photoURL,
+          photoURL,
           bio: data.bio,
           location: data.location,
           locationName: data.locationName,

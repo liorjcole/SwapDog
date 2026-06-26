@@ -53,3 +53,21 @@ export async function uploadPhotoToStorage(
   console.log('[uploadHelper] Download URL:', downloadURL);
   return downloadURL;
 }
+
+/**
+ * Defense-in-depth guard: never let a local (file://) URI get persisted.
+ *
+ * If `uri` is already a remote http(s) URL it is returned unchanged. Otherwise
+ * it is treated as a local picker URI and uploaded to Storage first, returning
+ * the resulting https download URL. Empty/falsy input passes through untouched.
+ *
+ * Use this for every profile-photo save path so a raw file:// URI can never
+ * reach Firestore (the original root cause of disappearing profile photos).
+ */
+export async function ensureRemotePhotoURL(
+  uri: string,
+  storagePath: string,
+): Promise<string> {
+  if (!uri || /^https?:\/\//.test(uri)) return uri;
+  return uploadPhotoToStorage(uri, storagePath);
+}

@@ -12,6 +12,7 @@ import { db } from '../../config/firebase';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
+import { ensureRemotePhotoURL } from '../../utils/uploadHelper';
 import { validateReferralCode, redeemReferralCode } from '../../hooks/useReferrals';
 import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
 
@@ -107,12 +108,31 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         await redeemReferralCode(trimmedCode, user.uid);
       }
 
+      // Upload the picked photo to Storage before persisting — never write a
+      // local file:// URI to Firestore (it's unreadable from other devices and
+      // is the root cause of disappearing profile photos).
+      let finalPhotoURL = photoURL;
+      if (photoURL && !photoURL.startsWith('http')) {
+        try {
+          finalPhotoURL = await ensureRemotePhotoURL(photoURL, `users/${user.uid}/profile`);
+        } catch (uploadError: unknown) {
+          Alert.alert(
+            'Upload failed',
+            uploadError instanceof Error
+              ? uploadError.message
+              : 'Could not upload your profile photo. Please try again.'
+          );
+          setLoading(false);
+          return;
+        }
+      }
+
       await setDoc(doc(db, 'users', user.uid), {
         email: user.email,
         displayName: displayName.trim(),
         bio: bio.trim(),
         instagramHandle: cleanIgHandle(instagramHandle) || '',
-        photoURL,
+        photoURL: finalPhotoURL,
         isOnboarded: false,
         ...(referredBy ? { referredBy } : {}),
         updatedAt: serverTimestamp(),

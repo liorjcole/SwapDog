@@ -16,6 +16,7 @@ google-services.json
 # One-time cleanup scripts (sensitive — contain Firebase config, not for CI)
 scripts/
 !scripts/patch-datetimepicker.js
+!scripts/backfill-clear-local-photourls.js
 
 # Firebase Cloud Functions build output
 functions/lib/
