@@ -217,6 +217,40 @@ const RELEASE_2X_JS = `
 true;
 `;
 
+// Play-through engine — restart from t=0 and play. Used when a slide becomes
+// the active one so its content always plays from the beginning. Also resets
+// the controller's virtual clock (now=0, speed=1, unpaused) and clears any
+// leftover 2x playbackRate so the progress ring restarts in lock-step with the
+// scene. Fully guarded so a missing API degrades to a no-op.
+const RESTART_JS = `
+(function(){
+  try{
+    if(window.__rnHold){ window.__rnHold.now=0; window.__rnHold.paused=false; window.__rnHold.speed=1; }
+    if(document.getAnimations){
+      document.getAnimations().forEach(function(a){try{a.playbackRate=1;a.currentTime=0;a.play();}catch(e){}});
+    }
+    document.querySelectorAll('video').forEach(function(v){try{v.playbackRate=1;v.currentTime=0;v.play();}catch(e){}});
+  }catch(e){}
+})();
+true;
+`;
+
+// Play-through engine — seek to t=0 and freeze. Used when a slide leaves the
+// viewport so it does not burn through its loop off-screen. Freezes the
+// controller (paused=true, now=0) so the ring is parked at the start too.
+const FREEZE_JS = `
+(function(){
+  try{
+    if(window.__rnHold){ window.__rnHold.now=0; window.__rnHold.paused=true; window.__rnHold.speed=1; }
+    if(document.getAnimations){
+      document.getAnimations().forEach(function(a){try{a.pause();a.currentTime=0;}catch(e){}});
+    }
+    document.querySelectorAll('video').forEach(function(v){try{v.pause();v.currentTime=0;}catch(e){}});
+  }catch(e){}
+})();
+true;
+`;
+
 // Builds the progress-ring injection for a slide. The ring is an SVG arc
 // appended into the slide's 540×1173 scene root, so it lives in canvas coords
 // and scales with the scene automatically. The controller's virtual clock
@@ -308,18 +342,31 @@ type Props = {
   source: number;
   /** Loop duration (ms) used to drive the progress ring for this slide. */
   loopMs: number;
+  /** True when this is the slide currently on screen (play-through engine). */
+  isActive: boolean;
+  /** Fired when a touch begins so the parent can freeze its auto-advance countdown. */
+  onHoldStart: () => void;
+  /** Fired when the touch ends/cancels so the parent can resume the countdown. */
+  onHoldEnd: () => void;
   style?: ViewStyle;
 };
 
 /**
  * Renders a single self-contained HTML animation full-bleed inside a WebView,
- * with three interactions layered on top via the RN touch layer:
+ * combining the carousel play-through engine with three layered interactions.
  *
+ * Play-through engine (owned with the parent SplashScreen):
+ *  - becoming active  → restart every animation (and the video) from t=0,
+ *  - leaving the view → seek to t=0 and freeze (no off-screen loop burn),
+ *  - the parent auto-advances once each slide has played its loop once.
+ *
+ * Layered interactions (driven from the RN touch layer into the WebView):
  *  - Progress ring (SVG, injected on onLoadEnd) around the numbered badge that
- *    fills over the slide's loop and resets.
+ *    fills over the slide's loop and resets, on a speed/pause-aware clock.
  *  - Hold-for-2x on the rightmost strip: the whole scene (incl. slide 3's
- *    video and the ring) plays at 2x while held.
- *  - Press anywhere else pauses; releasing resumes.
+ *    video and the ring) plays faster while held; release reverts to 1x.
+ *  - Press anywhere else pauses; releasing resumes. Either hold also calls
+ *    onHoldStart/onHoldEnd so the parent freezes/resumes its auto-advance.
  *
  * The asset is resolved through expo-asset so it works in both the dev client
  * and release builds. A missing localUri falls back to a plain red View.
@@ -334,8 +381,16 @@ type Props = {
  * (direct touch handlers that never claim the responder) and driven into the
  * WebView via injectJavaScript() — never via DOM touch targets.
  */
-const AnimatedSlide: React.FC<Props> = ({ source, loopMs, style }) => {
+const AnimatedSlide: React.FC<Props> = ({
+  source,
+  loopMs,
+  isActive,
+  onHoldStart,
+  onHoldEnd,
+  style,
+}) => {
   const [uri, setUri] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const webViewRef = useRef<WebView>(null);
   const { width, height } = useWindowDimensions();
 
@@ -367,6 +422,17 @@ const AnimatedSlide: React.FC<Props> = ({ source, loopMs, style }) => {
     webViewRef.current?.injectJavaScript(js);
   }, []);
 
+  // Play-through engine: restart from t=0 when this slide becomes active,
+  // freeze at t=0 when it leaves the viewport. Both reset the controller's
+  // virtual clock so the ring stays in lock-step. Waits for the document to be
+  // ready (loaded) so the injected script can actually reach the animations.
+  useEffect(() => {
+    if (!loaded) {
+      return;
+    }
+    inject(isActive ? RESTART_JS : FREEZE_JS);
+  }, [isActive, loaded, inject]);
+
   // Fade the press-state affordances. active=true → note out, darken in.
   const animateAffordances = useCallback(
     (active: boolean) => {
@@ -385,9 +451,11 @@ const AnimatedSlide: React.FC<Props> = ({ source, loopMs, style }) => {
   );
 
   // Decide pause vs. 2x by touch x-position. Direct handler — must not claim
-  // the responder, so the FlatList keeps owning horizontal swipes.
+  // the responder, so the FlatList keeps owning horizontal swipes. Any touch
+  // also freezes the parent's auto-advance countdown via onHoldStart.
   const onTouchStart = useCallback(
     (event: GestureResponderEvent) => {
+      onHoldStart();
       const x = event?.nativeEvent?.locationX;
       const inRightStrip =
         typeof x === 'number' && width > 0 && x >= width * (1 - RIGHT_STRIP_FRACTION);
@@ -400,10 +468,11 @@ const AnimatedSlide: React.FC<Props> = ({ source, loopMs, style }) => {
         inject(PAUSE_ANIMATIONS_JS);
       }
     },
-    [width, inject, animateAffordances],
+    [width, inject, animateAffordances, onHoldStart],
   );
 
   const onTouchEnd = useCallback(() => {
+    onHoldEnd();
     const mode = holdMode.current;
     holdMode.current = 'idle';
     if (mode === 'hold2x') {
@@ -412,10 +481,11 @@ const AnimatedSlide: React.FC<Props> = ({ source, loopMs, style }) => {
     } else if (mode === 'pause') {
       inject(RESUME_ANIMATIONS_JS);
     }
-  }, [inject, animateAffordances]);
+  }, [inject, animateAffordances, onHoldEnd]);
 
   const onLoadEnd = useCallback(() => {
     inject(buildRingInjectionJS(loopMs));
+    setLoaded(true);
   }, [inject, loopMs]);
 
   if (!uri) {

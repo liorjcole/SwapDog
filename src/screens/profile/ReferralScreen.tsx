@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Share,
   ActivityIndicator,
   Clipboard,
 } from 'react-native';
@@ -16,12 +15,11 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { spacing, borderRadius, shadow } from '../../config/theme';
 import { ensureReferralCode } from '../../hooks/useReferrals';
+import { shareReferral } from '../../utils/shareReferral';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'Referral'>;
 };
-
-const APP_LINK = 'https://joinwatchdog.com';
 
 const ReferralScreen: React.FC<Props> = ({ navigation: _navigation }) => {
   const { colors } = useTheme();
@@ -55,18 +53,7 @@ const ReferralScreen: React.FC<Props> = ({ navigation: _navigation }) => {
 
   const handleShare = async () => {
     if (!referralCode) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try {
-      await Share.share({
-        message:
-          `🐾 Join me on WatchDog — neighbors helping neighbors with pet sitting, walking & more!\n\n` +
-          `Use my referral code: ${referralCode}\n\n` +
-          `Sign up here: ${APP_LINK}`,
-        title: 'Join WatchDog',
-      });
-    } catch {
-      // user dismissed share sheet — ignore
-    }
+    await shareReferral(referralCode);
   };
 
   return (
