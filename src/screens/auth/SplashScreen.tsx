@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/types';
-import AnimatedSlide, { SLIDE_BACKGROUND } from '../../components/auth/AnimatedSlide';
+import AnimatedSlide, { HOLD_SPEED, SLIDE_BACKGROUND } from '../../components/auth/AnimatedSlide';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Splash'>;
@@ -42,20 +42,26 @@ const SLIDES: Slide[] = [
   { key: 'slide3', source: require('../../../assets/signin-animations/slide3.html'), durationMs: 14000 },
 ];
 
-// A setTimeout that survives pause/resume without losing elapsed time and
+// A setTimeout that survives speed changes without losing elapsed time and
 // restarts cleanly whenever `resetKey` changes (i.e. a new slide is shown).
-// Keeps the auto-advance countdown in lock-step with the held animation.
-function usePausableTimeout(
+// `rate` is a playback multiplier (1 = normal, HOLD_SPEED while held): the
+// countdown banks content-time = realElapsed × rate so it stays in lock-step
+// with the WebView animation + progress ring as the slide fast-forwards.
+function useRateTimeout(
   durationMs: number,
   onElapsed: () => void,
   resetKey: unknown,
-  paused: boolean,
+  rate: number,
 ) {
   const onElapsedRef = useRef(onElapsed);
   onElapsedRef.current = onElapsed;
 
+  // Content-ms left to play, independent of the current rate.
   const remainingRef = useRef(durationMs);
   const startedAtRef = useRef<number | null>(null);
+  // The rate that was in effect during the segment now ending — used to bank
+  // how much content-time that segment consumed.
+  const rateRef = useRef(rate);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keyRef = useRef(resetKey);
 
@@ -74,37 +80,42 @@ function usePausableTimeout(
       startedAtRef.current = null;
     }
 
-    if (paused) {
-      // Bank the time already spent so resume continues from here.
-      if (startedAtRef.current != null) {
-        remainingRef.current -= Date.now() - startedAtRef.current;
-        startedAtRef.current = null;
-      }
+    // Bank the content-time consumed by the segment that just ended.
+    if (startedAtRef.current != null) {
+      remainingRef.current -= (Date.now() - startedAtRef.current) * rateRef.current;
+      startedAtRef.current = null;
+    }
+    rateRef.current = rate;
+
+    // rate <= 0 would pause; the carousel never uses 0 (hold = fast-forward),
+    // but guard so a stray value freezes cleanly instead of dividing by zero.
+    if (rate <= 0) {
       clear();
       return clear;
     }
 
     startedAtRef.current = Date.now();
+    const realDelay = Math.max(0, remainingRef.current) / rate;
     clear();
     timeoutRef.current = setTimeout(() => {
       onElapsedRef.current();
-    }, Math.max(0, remainingRef.current));
+    }, realDelay);
 
     return clear;
-  }, [resetKey, paused, durationMs]);
+  }, [resetKey, rate, durationMs]);
 }
 
 const SplashScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const [holding, setHolding] = useState(false);
   const listRef = useRef<FlatList<Slide>>(null);
 
-  // A freshly shown slide always starts playing from the top — never inherit a
-  // stale hold state from the slide we just left.
+  // A freshly shown slide always starts playing from the top at 1x — never
+  // inherit a stale hold state from the slide we just left.
   useEffect(() => {
-    setPaused(false);
+    setHolding(false);
   }, [activeIndex]);
 
   // Auto-advance once the active slide has played its full loop. Driven off the
@@ -116,21 +127,28 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     setActiveIndex(next);
   }, [activeIndex]);
 
-  usePausableTimeout(SLIDES[activeIndex]?.durationMs ?? 0, advance, activeIndex, paused);
+  // Holding fast-forwards the countdown at the same multiplier the WebView uses
+  // for the animation + ring, so they all reach the advance point together.
+  useRateTimeout(
+    SLIDES[activeIndex]?.durationMs ?? 0,
+    advance,
+    activeIndex,
+    holding ? HOLD_SPEED : 1,
+  );
 
   const onMomentumScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const offsetX = event?.nativeEvent?.contentOffset?.x ?? 0;
       const next = width > 0 ? Math.round(offsetX / width) : 0;
       // Manual swipe: realign the active slide (which resets its auto-advance
-      // timer and restarts the landed-on slide's animation from the top).
+      // timer + ring and restarts the landed-on slide's animation from the top).
       setActiveIndex(next);
     },
     [width],
   );
 
-  const handleHoldStart = useCallback(() => setPaused(true), []);
-  const handleHoldEnd = useCallback(() => setPaused(false), []);
+  const handleHoldStart = useCallback(() => setHolding(true), []);
+  const handleHoldEnd = useCallback(() => setHolding(false), []);
 
   const getItemLayout = useCallback(
     (_data: ArrayLike<Slide> | null | undefined, index: number) => ({
@@ -147,13 +165,14 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         <AnimatedSlide
           source={item.source}
           isActive={index === activeIndex}
-          paused={paused && index === activeIndex}
+          holding={holding && index === activeIndex}
+          loopMs={item.durationMs}
           onHoldStart={handleHoldStart}
           onHoldEnd={handleHoldEnd}
         />
       </View>
     ),
-    [width, activeIndex, paused, handleHoldStart, handleHoldEnd],
+    [width, activeIndex, holding, handleHoldStart, handleHoldEnd],
   );
 
   const bottomPad = Math.max(insets?.bottom ?? 0, 24);
@@ -165,7 +184,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         data={SLIDES}
         keyExtractor={(item) => item.key}
         renderItem={renderItem}
-        extraData={`${activeIndex}-${paused}`}
+        extraData={`${activeIndex}-${holding}`}
         getItemLayout={getItemLayout}
         horizontal
         pagingEnabled
