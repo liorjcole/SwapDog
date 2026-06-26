@@ -261,29 +261,10 @@ const MAX_PLAY_SESSIONS = 5;
     setPlaySessions(prev => {
       let updated = prev.map((s, i) => i === index ? { ...s, ...updates } : s);
       if (updates.startDate) {
-        const newStart = updates.startDate;
-        const currentEnd = updated[index].endDate;
-        // Only check duplicates when both start and end times are filled
-        if (currentEnd) {
-          const isDuplicate = prev.some((s, i) => i !== index && isSameTime(s.startDate, newStart));
-          if (isDuplicate) {
-            Alert.alert('Duplicate Time', `You already have a playtime starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
-            return prev;
-          }
-        }
         // Native picker maximumDate prevents start > end, no JS clamping needed
         shouldSort = true;
       }
       if (updates.endDate) {
-        const currentStart = updated[index].startDate;
-        // Only check duplicates when both start and end times are filled
-        if (currentStart) {
-          const isDuplicate = prev.some((s, i) => i !== index && s.startDate && isSameTime(s.startDate, currentStart));
-          if (isDuplicate) {
-            Alert.alert('Duplicate Time', `You already have a playtime starting at ${formatTimeShort(currentStart)}. Please pick a different time.`);
-            return prev;
-          }
-        }
         shouldSort = true;
       }
       return updated;
@@ -443,14 +424,6 @@ const MAX_PLAY_SESSIONS = 5;
     // Phase 1: update value immediately (no sort)
     setFeedingSlots(prev => {
       const updated = prev.map((slot, i) => i === index ? { ...slot, [field]: value } : slot);
-      if (field === 'time') {
-        const newTime = value as Date;
-        const isDuplicate = prev.some((slot, i) => i !== index && isSameTime(slot.time, newTime));
-        if (isDuplicate) {
-          Alert.alert('Duplicate Time', `You already have a feeding at ${formatTimeShort(newTime)}. Please pick a different time.`);
-          return prev;
-        }
-      }
       return updated;
     });
 
@@ -478,11 +451,6 @@ const MAX_PLAY_SESSIONS = 5;
       if (i !== index) return slot;
       if (field === 'time') {
         const newTime = value as Date;
-        // Duplicate check against extra times in this slot
-        if (slot.extraTimes.some(et => isSameTime(et.time, newTime))) {
-          Alert.alert('Duplicate Time', `You already have medication at ${formatTimeShort(newTime)}. Please pick a different time.`);
-          return slot;
-        }
         // After updating primary time, re-sort all times: rebuild so primary is always earliest
         const allExtra = [...slot.extraTimes].sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
         return { ...slot, time: newTime, extraTimes: allExtra };
@@ -518,12 +486,6 @@ const MAX_PLAY_SESSIONS = 5;
   const updateMedExtraTime = (slotIdx: number, timeIdx: number, newTime: Date) => {
     setMedicationSlots(prev => prev.map((slot, i) => {
       if (i !== slotIdx) return slot;
-      // Duplicate check: compare against primary time and all other extra times
-      const allTimes = [slot.time, ...slot.extraTimes.filter((_, j) => j !== timeIdx).map(et => et.time)];
-      if (allTimes.some(t => isSameTime(t, newTime))) {
-        Alert.alert('Duplicate Time', `You already have medication at ${formatTimeShort(newTime)}. Please pick a different time.`);
-        return slot;
-      }
       const updated = slot.extraTimes.map((et, j) => j === timeIdx ? { ...et, time: newTime } : et);
       // Auto-sort extra times earliest → latest
       const sorted = [...updated].sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
@@ -567,29 +529,10 @@ const MAX_PLAY_SESSIONS = 5;
     setWalkSessions(prev => {
       let updated = prev.map((s: WalkSession, i: number) => i === idx ? { ...s, ...updates } : s);
       if (updates.startDate) {
-        const newStart = updates.startDate;
-        const currentEnd = updated[idx].endDate;
-        // Only check duplicates when both start and end times are filled
-        if (currentEnd) {
-          const isDuplicate = prev.some((s, i) => i !== idx && isSameTime(s.startDate, newStart));
-          if (isDuplicate) {
-            Alert.alert('Duplicate Time', `You already have a walk starting at ${formatTimeShort(newStart)}. Please pick a different time.`);
-            return prev;
-          }
-        }
         // Native picker maximumDate prevents start > end, no JS clamping needed
         shouldSort = true;
       }
       if (updates.endDate) {
-        const currentStart = updated[idx].startDate;
-        // Only check duplicates when both start and end times are filled
-        if (currentStart) {
-          const isDuplicate = prev.some((s, i) => i !== idx && s.startDate && isSameTime(s.startDate, currentStart));
-          if (isDuplicate) {
-            Alert.alert('Duplicate Time', `You already have a walk starting at ${formatTimeShort(currentStart)}. Please pick a different time.`);
-            return prev;
-          }
-        }
         shouldSort = true;
       }
       return updated;
@@ -1400,6 +1343,86 @@ const MAX_PLAY_SESSIONS = 5;
         }
       }
     }
+    // ── Duplicate-time guard (deferred to submit) ────────────────────────────
+    // Formerly at-add-time (Alert + return prev). Moved here so users can
+    // freely edit times during entry; Post is blocked if any duplicate exists.
+    if (addOnCareTypes.has('feeding') && feedingSlots.length > 1) {
+      for (let i = 0; i < feedingSlots.length; i++) {
+        for (let j = i + 1; j < feedingSlots.length; j++) {
+          if (isSameTime(feedingSlots[i].time, feedingSlots[j].time)) {
+            showValidationAlert(
+              'Duplicate Time',
+              `You already have a feeding at ${formatTimeShort(feedingSlots[i].time)}. Please pick a different time.`,
+              'feeding-' + i
+            );
+            return;
+          }
+        }
+      }
+    }
+    if (addOnCareTypes.has('dogWalking') && walkSessions.length > 1) {
+      for (let i = 0; i < walkSessions.length; i++) {
+        if (walkSessions[i].flexible || !walkSessions[i].startDate) continue;
+        for (let j = i + 1; j < walkSessions.length; j++) {
+          if (walkSessions[j].flexible || !walkSessions[j].startDate) continue;
+          if (isSameTime(walkSessions[i].startDate, walkSessions[j].startDate)) {
+            showValidationAlert(
+              'Duplicate Time',
+              `You already have a walk starting at ${formatTimeShort(walkSessions[i].startDate)}. Please pick a different time.`,
+              'walk-' + i
+            );
+            return;
+          }
+        }
+      }
+    }
+    if (addOnCareTypes.has('playtime') && playSessions.length > 1) {
+      for (let i = 0; i < playSessions.length; i++) {
+        if (playSessions[i].flexible || !playSessions[i].startDate) continue;
+        for (let j = i + 1; j < playSessions.length; j++) {
+          if (playSessions[j].flexible || !playSessions[j].startDate) continue;
+          if (isSameTime(playSessions[i].startDate, playSessions[j].startDate)) {
+            showValidationAlert(
+              'Duplicate Time',
+              `You already have a playtime starting at ${formatTimeShort(playSessions[i].startDate)}. Please pick a different time.`,
+              'play-' + i
+            );
+            return;
+          }
+        }
+      }
+    }
+    if (addOnCareTypes.has('medication')) {
+      for (let i = 0; i < medicationSlots.length; i++) {
+        const mslot = medicationSlots[i];
+        if (!mslot.time) continue;
+        // Primary dose vs each extra dose (intra-slot)
+        for (const extra of mslot.extraTimes) {
+          if (isSameTime(mslot.time, extra.time)) {
+            showValidationAlert(
+              'Duplicate Time',
+              `You already have medication at ${formatTimeShort(mslot.time)}. Please pick a different time.`,
+              'med-' + i
+            );
+            return;
+          }
+        }
+        // Extra doses vs each other (intra-slot)
+        for (let p = 0; p < mslot.extraTimes.length; p++) {
+          for (let q = p + 1; q < mslot.extraTimes.length; q++) {
+            if (isSameTime(mslot.extraTimes[p].time, mslot.extraTimes[q].time)) {
+              showValidationAlert(
+                'Duplicate Time',
+                `You already have medication at ${formatTimeShort(mslot.extraTimes[p].time)}. Please pick a different time.`,
+                'med-' + i
+              );
+              return;
+            }
+          }
+        }
+      }
+    }
+    // ── End duplicate-time guard ─────────────────────────────────────────────
     if (!offerPoints && !offerMoney) {
       showValidationAlert('Required', 'Select at least one compensation type (points or money).', 'compensation');
       return;
