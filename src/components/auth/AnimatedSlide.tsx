@@ -33,7 +33,7 @@ const DARKEN_IN_MS = 220;
 const DARKEN_OUT_MS = 180;
 // Applied playback rate while the user holds the right strip. The on-screen
 // label intentionally still reads "2x" — do NOT "fix" this mismatch.
-const HOLD_SPEED = 4;
+const HOLD_SPEED = 3;
 // Note placement — from interactive placement tool (screen fractions).
 const NOTE_WIDTH_FRAC  = 0.211;       // × window width (~83pt at 393w)
 const NOTE_TOP_FRAC    = 0.325;       // × window height
