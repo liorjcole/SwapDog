@@ -235,7 +235,7 @@ export interface SwapPost {
   /** Add-on care types selected (e.g. ['feeding', 'dogWalking', 'playtime']) */
   addOnCareTypes?: string[];
   /** Walk sessions with times and dog assignments */
-  walkSessions?: { startTime: string; endTime: string; durationMins: number; dogIds: string[]; repeatDaily: boolean }[];
+  walkSessions?: { flexible?: boolean; startTime: string | null; endTime: string | null; durationMins: number; dogIds: string[]; repeatDaily: boolean }[];
   /** Walk total duration in minutes (sum of all sessions) */
   walkDurationMins?: number;
   /** Feeding slots with times and dog assignments */
