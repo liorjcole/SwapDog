@@ -16,6 +16,8 @@ import { useMessaging } from '../hooks/useMessaging';
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, addDoc, getDocs, getDoc, deleteField } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { smartDate, isSameDay } from '../utils/dateHelpers';
+import { shareReferral } from '../utils/shareReferral';
+import { ensureReferralCode } from '../hooks/useReferrals';
 import RescheduleReviewModal from '../components/common/RescheduleReviewModal';
 import InsufficientPointsModal from '../components/common/InsufficientPointsModal';
 import ConfettiCelebration, { CelebrationItem } from '../components/common/ConfettiCelebration';
@@ -256,10 +258,15 @@ const MainTabNavigator: React.FC = () => {
             subtitle: fromName + ' joined WatchDog using your referral code!',
             emoji: '🐾',
             actionLabel: 'Invite more friends?',
-            onAction: () => {
-              tabNavigation.dispatch(
-                CommonActions.navigate('ProfileTab', { screen: 'Referral' })
-              );
+            onAction: async () => {
+              try {
+                const existing = typeof data?.referralCode === 'string' ? data.referralCode : '';
+                const code = existing || (user ? await ensureReferralCode(user.uid) : '');
+                if (!code) return;
+                await shareReferral(code);
+              } catch (err) {
+                console.error('[ReferralReward] Invite share failed:', err);
+              }
             },
           },
         ]);
