@@ -80,7 +80,7 @@ function run(slidePath, durationMs) {
   return r;
 }
 
-const SLIDES = [['slide1.html', 25600], ['slide2.html', 10000], ['slide3.html', 8058]];
+const SLIDES = [['slide1.html', 22000], ['slide2.html', 10000], ['slide3.html', 8058]];
 let ok = true;
 for (const [name, ms] of SLIDES) {
   console.log('==', name, '==');

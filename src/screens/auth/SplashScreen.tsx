@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
+  Image,
   ListRenderItemInfo,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -34,11 +35,11 @@ type Slide = {
 // and append one entry here — no host changes needed. durationMs MUST equal the
 // slide's window.__slide.durationMs: it is the single-play length the contract
 // loops on, and it drives both auto-advance and the progress ring.
-//   slide1: 25600ms (single play-through: scene-two 11.6s delay + 14.0s).
+//   slide1: 22000ms (single play-through: 22s master scene cycle).
 //   slide2: 10000ms (10s CSS timeline).
 //   slide3: 8058ms (MP4 video duration; timescale 1000, units 8058).
 const SLIDES: Slide[] = [
-  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html'), durationMs: 25600 },
+  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html'), durationMs: 22000 },
   { key: 'slide2', source: require('../../../assets/signin-animations/slide2.html'), durationMs: 10000 },
   { key: 'slide3', source: require('../../../assets/signin-animations/slide3.html'), durationMs: 8058 },
 ];
@@ -247,6 +248,18 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.buttonText}>Sign Up</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Permanent WatchDog wordmark: the bottom-most element of the fixed
+            overlay, identical across every slide. pointerEvents="none" keeps it
+            out of the touch path so paging / hold-for-2x / pause stay intact. */}
+        <Image
+          source={require('../../../assets/watchdog-wordmark.png')}
+          style={styles.wordmark}
+          resizeMode="contain"
+          pointerEvents="none"
+          accessibilityRole="image"
+          accessibilityLabel="WatchDog"
+        />
       </View>
     </View>
   );
@@ -283,6 +296,9 @@ const styles = StyleSheet.create({
   buttonSolid: { backgroundColor: 'rgba(255,255,255,0.18)' },
   buttonOutline: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.9)' },
   buttonText: { fontSize: 18, fontWeight: '600', color: '#FFFFFF' },
+  // Centered wordmark below the buttons. aspectRatio matches the source PNG
+  // (934x270) so height tracks width with no distortion.
+  wordmark: { width: 160, aspectRatio: 934 / 270, alignSelf: 'center' },
 });
 
 export default SplashScreen;
