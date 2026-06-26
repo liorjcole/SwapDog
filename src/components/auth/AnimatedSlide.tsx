@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   GestureResponderEvent,
-  Image,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -33,16 +32,8 @@ const DARKEN_WIDTH_FRACTION = 0.4;
 // Darkest alpha at the far-right edge of the darken gradient.
 const DARKEN_MAX_ALPHA = 0.55;
 // Fade timings for the press-state affordances.
-const NOTE_FADE_MS = 1000; // "Press for 2x" note soft-fades out over ~1s.
 const DARKEN_IN_MS = 220;
 const DARKEN_OUT_MS = 180;
-// Note placement — from interactive placement tool (screen fractions).
-const NOTE_WIDTH_FRAC = 0.211; // × window width (~83pt at 393w)
-const NOTE_TOP_FRAC = 0.325; // × window height
-const NOTE_RIGHT_FRAC = -0.025; // × window width (negative: hangs ~10pt off right edge)
-const NOTE_ASPECT = 957 / 638; // image natural aspect (w/h ≈ 1.5)
-
-const pressFor2xNote = require('../../../assets/signin-animations/press-for-2x.png');
 
 // Press interaction mode for the active slide, derived from where the user
 // pressed: 'fast' = rightmost-strip fast-forward, 'pause' = pause-elsewhere,
@@ -215,8 +206,9 @@ type Props = {
  *  - Region-aware press: the rightmost strip fast-forwards the whole scene
  *    (incl. slide 3's video and the ring) at HOLD_SPEED; a press elsewhere
  *    pauses it in place; release resumes at 1x.
- *  - The "Press for 2x" note + right-edge darken gradient cue the fast-forward
- *    affordance (shown only while fast-forwarding, not while paused).
+ *  - Right-edge darken gradient cues the fast-forward affordance (fades in
+ *    while fast-forwarding, not while paused). The "Press for 2x" note lives in
+ *    SplashScreen's fixed overlay so it stays put while slides page.
  *
  * Playback is driven entirely through the slide's window.__slide contract (the
  * Web Animations API under the hood), so there is no red "reload flash" when a
@@ -247,10 +239,9 @@ const AnimatedSlide: React.FC<Props> = ({
   const [uri, setUri] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const webViewRef = useRef<WebView>(null);
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
 
-  // Note fades out (1 → 0) while held; darken fades in (0 → 1).
-  const noteOpacity = useRef(new Animated.Value(1)).current;
+  // Darken gradient fades in (0 → 1) while fast-forwarding.
   const darkenOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -304,30 +295,21 @@ const AnimatedSlide: React.FC<Props> = ({
     inject(holdMode === 'fast' ? HOLD_JS : holdMode === 'pause' ? PAUSE_JS : RELEASE_JS);
   }, [holdMode, loaded, isActive, inject]);
 
-  // Fade the press-state affordances in step with the fast-forward only — a
-  // pause-elsewhere press leaves the note/darken untouched (matches the cue).
+  // Fade the darken gradient in step with fast-forward only — a pause-elsewhere
+  // press leaves it untouched (matches the cue).
   useEffect(() => {
     const fast = holdMode === 'fast' && isActive;
-    Animated.timing(noteOpacity, {
-      toValue: fast ? 0 : 1,
-      duration: NOTE_FADE_MS,
-      useNativeDriver: true,
-    }).start();
     Animated.timing(darkenOpacity, {
       toValue: fast ? 1 : 0,
       duration: fast ? DARKEN_IN_MS : DARKEN_OUT_MS,
       useNativeDriver: true,
     }).start();
-  }, [holdMode, isActive, noteOpacity, darkenOpacity]);
+  }, [holdMode, isActive, darkenOpacity]);
 
   if (!uri) {
     return <View style={[styles.fill, styles.fallback, style]} />;
   }
 
-  const noteWidth = NOTE_WIDTH_FRAC * width;
-  const noteHeight = noteWidth / NOTE_ASPECT;
-  const noteTop = NOTE_TOP_FRAC * height;
-  const noteRight = NOTE_RIGHT_FRAC * width;
   const darkenWidth = Math.max(0, width * DARKEN_WIDTH_FRACTION);
 
   return (
@@ -377,14 +359,6 @@ const AnimatedSlide: React.FC<Props> = ({
           style={styles.fill}
         />
       </Animated.View>
-
-      {/* "Press for 2x speed" note: visible at rest, soft-fades out while fast-forwarding. */}
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.note, { top: noteTop, right: noteRight, opacity: noteOpacity }]}
-      >
-        <Image source={pressFor2xNote} style={{ width: noteWidth, height: noteHeight }} resizeMode="contain" />
-      </Animated.View>
     </View>
   );
 };
@@ -394,7 +368,6 @@ const styles = StyleSheet.create({
   fallback: { backgroundColor: SLIDE_BACKGROUND },
   webview: { flex: 1, backgroundColor: SLIDE_BACKGROUND },
   darken: { position: 'absolute', top: 0, bottom: 0, right: 0 },
-  note: { position: 'absolute' },
 });
 
 export default AnimatedSlide;
