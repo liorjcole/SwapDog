@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  GestureResponderEvent,
   Image,
   StyleSheet,
   useWindowDimensions,
@@ -24,6 +25,9 @@ export const SLIDE_BACKGROUND = '#F23A53';
 // NOT "fix" this mismatch. Exported so the parent's auto-advance countdown can
 // run at the same multiplier and stay in lock-step with the accelerated scene.
 export const HOLD_SPEED = 3;
+// Rightmost fraction of the slide width that triggers fast-forward on press.
+// A press anywhere to the LEFT of this strip pauses instead. Tunable.
+const RIGHT_STRIP_PCT = 0.15;
 // Right-edge darken gradient spans this fraction of the slide width.
 const DARKEN_WIDTH_FRACTION = 0.4;
 // Darkest alpha at the far-right edge of the darken gradient.
@@ -67,7 +71,8 @@ const BEFORE_CONTENT_JS = `
   if (window.__rnHold) { return; }
   var hold = {
     active: false, // true only while this slide is the one on screen
-    speed: 1,      // 1 = normal, ${HOLD_SPEED} = press-and-hold fast-forward
+    paused: false, // true while a press OUTSIDE the right strip holds it paused
+    speed: 1,      // 1 = normal, ${HOLD_SPEED} = right-strip fast-forward
     now: 0,        // virtual clock (ms): advances by speed * realDelta when active
     last: null,
     timers: [],
@@ -109,14 +114,14 @@ const BEFORE_CONTENT_JS = `
     hold.last = ts;
     if (dt < 0) { dt = 0; }
     if (dt > 250) { dt = 250; } // clamp background/tab-switch jumps
-    var eff = hold.active ? hold.speed : 0; // frozen off-screen
+    var eff = (hold.active && !hold.paused) ? hold.speed : 0; // frozen off-screen or paused
     hold.now += dt * eff;
 
     // Persistently re-assert playbackRate on every rAF frame while holding.
     // CSSAnimation objects re-instantiated on a loop restart default back to
     // playbackRate 1; catching them within the same frame eliminates any 1x
     // blip and keeps the ring (virtual-clock driven) locked to the scene.
-    if (hold.active && hold.speed !== 1) {
+    if (hold.active && !hold.paused && hold.speed !== 1) {
       try {
         var anims = document.getAnimations();
         for (var ak = 0; ak < anims.length; ak++) {
@@ -154,14 +159,16 @@ const BEFORE_CONTENT_JS = `
 true;
 `;
 
-// Slide becomes the one on screen: hard-restart it from t=0. The previous
-// implementation rewound the virtual clock + ring but a returned-to slide could
-// still show a frozen mid/end frame because WKWebView does not reliably rewind a
+// Slide becomes the one on screen: hard-restart it from t=0 AND reset the
+// virtual clock so the ring fills from empty again. The previous implementation
+// only rewound the virtual clock + ring, but a returned-to slide could still
+// show a frozen mid/end frame because WKWebView does not reliably rewind a
 // finished/paused CSSAnimation through currentTime=0 alone. So we additionally
 // force every keyframe back to frame 0 via the none -> reflow -> restore trick,
-// clear any paused play-state, re-arm the slide's in-file loop clock (so LOOP_MS
-// counts from now), reset slide 3's <video>, and only then normalize the Web
-// Animations timeline. Fully guarded so a missing API on an old WebView no-ops.
+// clear any lingering pause-elsewhere play-state from a previous visit, re-arm
+// the slide's in-file loop clock (so LOOP_MS counts from now), reset slide 3's
+// <video>, and only then normalize the Web Animations timeline. Fully guarded
+// so a missing API on an old WebView is a no-op.
 const ACTIVATE_JS = `
 (function () {
   var hold = window.__rnHold;
@@ -190,6 +197,10 @@ const ACTIVATE_JS = `
 
   // 3. Normalize the Web Animations timeline and slide 3's video to t=0.
   try {
+    var ps = document.getElementById('rn-pause-style');
+    if (ps) { ps.disabled = true; }
+  } catch (e) {}
+  try {
     if (document.getAnimations) {
       document.getAnimations().forEach(function (a) {
         try { a.playbackRate = 1; a.currentTime = 0; a.play(); } catch (e) {}
@@ -200,7 +211,12 @@ const ACTIVATE_JS = `
     });
   } catch (e) {}
 
-  if (hold && hold.ring) { try { hold.ring(0); } catch (e) {} }
+  // Clear any pause-elsewhere state left from a previous visit (the clock's
+  // active/speed/now were already reset above) and paint the ring at empty.
+  if (hold) {
+    hold.paused = false;
+    if (hold.ring) { try { hold.ring(0); } catch (e) {} }
+  }
 })();
 true;
 `;
@@ -222,6 +238,7 @@ const FREEZE_JS = `
   var hold = window.__rnHold;
   if (hold) {
     hold.active = false;
+    hold.paused = false;
     hold.speed = 1;
     hold.now = 0;
     if (hold.ring) { try { hold.ring(0); } catch (e) {} }
@@ -242,13 +259,38 @@ const HOLD_JS = `
 true;
 `;
 
-// Release: revert everything to normal speed.
+// Release / idle: revert to normal 1x playback from EITHER mode — clear the
+// fast-forward speed and any pause (re-enable the paused CSS animations and
+// resume slide 3's video).
 const RELEASE_JS = `
 (function () {
-  if (window.__rnHold) { window.__rnHold.speed = 1; }
+  var hold = window.__rnHold;
+  if (hold) { hold.speed = 1; hold.paused = false; }
   try { document.getAnimations().forEach(function (a) { a.playbackRate = 1; }); } catch (e) {}
+  var ps = document.getElementById('rn-pause-style');
+  if (ps) { ps.disabled = true; }
   var v = document.getElementById('bowls');
-  if (v) { try { v.playbackRate = 1; } catch (e) {} }
+  if (v) { try { v.playbackRate = 1; v.muted = true; var p = v.play(); if (p && p.catch) { p.catch(function () {}); } } catch (e) {} }
+})();
+true;
+`;
+
+// Press OUTSIDE the right strip: pause the scene in place. Freezes CSS via an
+// idempotent id-guarded <style> (animation-play-state:paused), flags the
+// controller so the virtual clock + ring freeze, and pauses slide 3's video.
+const PAUSE_JS = `
+(function () {
+  if (window.__rnHold) { window.__rnHold.paused = true; }
+  var el = document.getElementById('rn-pause-style');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'rn-pause-style';
+    (document.head || document.documentElement).appendChild(el);
+  }
+  el.innerHTML = '*,*::before,*::after{animation-play-state:paused!important;}';
+  el.disabled = false;
+  var v = document.getElementById('bowls');
+  if (v) { try { v.pause(); } catch (e) {} }
 })();
 true;
 `;
@@ -256,10 +298,10 @@ true;
 // Builds the progress-ring injection for a slide. The ring is an SVG arc
 // appended into the slide's 540×1173 scene root, so it lives in canvas coords
 // and scales with the scene automatically. The controller's virtual clock
-// drives the countdown: it starts full and empties over loopMs — the same
-// per-slide duration that governs auto-advance — so it reaches empty exactly as
-// the slide advances. Speed-aware for free (the clock runs at ${HOLD_SPEED}x
-// while held). Idempotent via the rn-ring-arc id; retried until the
+// drives the fill: it starts empty and grows 0°→360° over loopMs — the same
+// per-slide duration that governs auto-advance — then resets and repeats.
+// Speed-aware for free (the clock runs at ${HOLD_SPEED}x while held, frozen
+// while paused). Idempotent via the rn-ring-arc id; retried until the
 // bundler-unpacked scene root exists.
 function buildRingInjectionJS(loopMs: number): string {
   return `
@@ -309,17 +351,17 @@ function buildRingInjectionJS(loopMs: number): string {
     }
     var CIRC = 2 * Math.PI * R;
     circle.setAttribute('stroke-dasharray', CIRC);
-    circle.setAttribute('stroke-dashoffset', 0);
+    circle.setAttribute('stroke-dashoffset', CIRC); // start empty (fill grows)
 
     var hold = window.__rnHold;
     if (hold) {
       hold.ring = function (now) {
-        // Countdown: full at now=0, empty at now>=LOOP_MS. dashoffset grows
-        // from 0 (whole circle drawn) to CIRC (nothing drawn).
-        var p = LOOP_MS > 0 ? now / LOOP_MS : 0;
+        // Fill: empty at now=0, full at now=LOOP_MS, then resets and repeats.
+        // dashoffset shrinks from CIRC (nothing drawn) to 0 (whole circle drawn).
+        var p = LOOP_MS > 0 ? (now % LOOP_MS) / LOOP_MS : 0;
         if (p < 0) { p = 0; }
         if (p > 1) { p = 1; }
-        circle.setAttribute('stroke-dashoffset', CIRC * p);
+        circle.setAttribute('stroke-dashoffset', CIRC * (1 - p));
       };
       hold.ring(hold.now);
     }
@@ -342,18 +384,26 @@ true;
 `;
 }
 
+/**
+ * Which hold the active slide is under:
+ *  - 'idle'  — no touch; play normally at 1x.
+ *  - 'fast'  — held on the right-edge strip; fast-forward at HOLD_SPEED.
+ *  - 'pause' — held anywhere else; freeze the scene in place.
+ */
+export type HoldMode = 'idle' | 'fast' | 'pause';
+
 type Props = {
   /** A bundled .html asset module, e.g. require('../../../assets/signin-animations/slide1.html'). */
   source: number;
   /** True when this is the slide currently on screen. */
   isActive: boolean;
-  /** True while the active slide is held down (press-and-hold fast-forward). */
-  holding: boolean;
+  /** The hold the active slide is under — drives the injected speed/pause JS. */
+  holdMode: HoldMode;
   /** Loop duration (ms) — the slide's auto-advance duration — drives the ring. */
   loopMs: number;
-  /** Fired when a touch begins so the parent can fast-forward + speed auto-advance. */
-  onHoldStart: () => void;
-  /** Fired when the touch ends/cancels so the parent can return to 1x. */
+  /** Fired on touch-down with the region-derived mode so the parent matches its auto-advance rate. */
+  onHoldStart: (mode: Exclude<HoldMode, 'idle'>) => void;
+  /** Fired when the touch ends/cancels so the parent can return to idle/1x. */
   onHoldEnd: () => void;
   style?: ViewStyle;
 };
@@ -363,10 +413,12 @@ type Props = {
  * with three interactions layered on top via the RN touch layer:
  *
  *  - Progress ring (SVG, injected on onLoadEnd) around the numbered badge that
- *    counts down over the slide's duration and reaches empty as it advances.
- *  - Press-and-hold = fast-forward: the whole scene (incl. slide 3's video and
- *    the ring) plays at HOLD_SPEED while held; release returns to 1x.
- *  - The "Press for 2x" note + right-edge darken gradient cue the affordance.
+ *    fills empty→full over the slide's duration, then resets and repeats.
+ *  - Region-aware hold: pressing the right-edge strip fast-forwards the whole
+ *    scene (incl. slide 3's video and the ring) at HOLD_SPEED; pressing
+ *    anywhere else pauses it in place. Release returns to 1x.
+ *  - The "Press for 2x" note + right-edge darken gradient cue the fast-forward
+ *    affordance and fade only during a right-strip hold.
  *
  * Playback is driven through the Web Animations API and a virtual-clock
  * controller (window.__rnHold) rather than reloading the WebView, so there is
@@ -388,7 +440,7 @@ type Props = {
 const AnimatedSlide: React.FC<Props> = ({
   source,
   isActive,
-  holding,
+  holdMode,
   loopMs,
   onHoldStart,
   onHoldEnd,
@@ -435,17 +487,25 @@ const AnimatedSlide: React.FC<Props> = ({
     inject(isActive ? ACTIVATE_JS : FREEZE_JS);
   }, [isActive, loaded, inject]);
 
-  // Press-and-hold fast-forward only applies to the slide currently on screen.
+  // Drive the injected speed/pause JS from the region-derived hold mode. Only
+  // the slide currently on screen reacts.
   useEffect(() => {
     if (!loaded || !isActive) {
       return;
     }
-    inject(holding ? HOLD_JS : RELEASE_JS);
-  }, [holding, loaded, isActive, inject]);
+    if (holdMode === 'fast') {
+      inject(HOLD_JS);
+    } else if (holdMode === 'pause') {
+      inject(PAUSE_JS);
+    } else {
+      inject(RELEASE_JS);
+    }
+  }, [holdMode, loaded, isActive, inject]);
 
-  // Fade the press-state affordances in step with the hold.
+  // Fade the press-state affordances ONLY during a right-strip fast-forward
+  // hold — a pause press (anywhere else) leaves the note/darken untouched.
   useEffect(() => {
-    const active = holding && isActive;
+    const active = holdMode === 'fast' && isActive;
     Animated.timing(noteOpacity, {
       toValue: active ? 0 : 1,
       duration: NOTE_FADE_MS,
@@ -456,7 +516,20 @@ const AnimatedSlide: React.FC<Props> = ({
       duration: active ? DARKEN_IN_MS : DARKEN_OUT_MS,
       useNativeDriver: true,
     }).start();
-  }, [holding, isActive, noteOpacity, darkenOpacity]);
+  }, [holdMode, isActive, noteOpacity, darkenOpacity]);
+
+  // Decide fast-forward vs. pause from the touch x-position, then report the
+  // mode up so the parent matches its auto-advance rate. Direct handler — never
+  // claims the responder, so the FlatList keeps owning horizontal swipes.
+  const handleTouchStart = useCallback(
+    (event: GestureResponderEvent) => {
+      const x = event?.nativeEvent?.locationX;
+      const inRightStrip =
+        typeof x === 'number' && width > 0 && x >= width * (1 - RIGHT_STRIP_PCT);
+      onHoldStart(inRightStrip ? 'fast' : 'pause');
+    },
+    [width, onHoldStart],
+  );
 
   if (!uri) {
     return <View style={[styles.fill, styles.fallback, style]} />;
@@ -473,7 +546,7 @@ const AnimatedSlide: React.FC<Props> = ({
     // have pointerEvents="none" — touches fall through to this container.
     <View
       style={[styles.fill, styles.fallback, style]}
-      onTouchStart={onHoldStart}
+      onTouchStart={handleTouchStart}
       onTouchEnd={onHoldEnd}
       onTouchCancel={onHoldEnd}
     >

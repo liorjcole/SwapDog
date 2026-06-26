@@ -13,7 +13,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/types';
-import AnimatedSlide, { HOLD_SPEED, SLIDE_BACKGROUND } from '../../components/auth/AnimatedSlide';
+import AnimatedSlide, {
+  HoldMode,
+  HOLD_SPEED,
+  SLIDE_BACKGROUND,
+} from '../../components/auth/AnimatedSlide';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Splash'>;
@@ -109,13 +113,13 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
-  const [holding, setHolding] = useState(false);
+  const [holdMode, setHoldMode] = useState<HoldMode>('idle');
   const listRef = useRef<FlatList<Slide>>(null);
 
   // A freshly shown slide always starts playing from the top at 1x — never
   // inherit a stale hold state from the slide we just left.
   useEffect(() => {
-    setHolding(false);
+    setHoldMode('idle');
   }, [activeIndex]);
 
   // Auto-advance once the active slide has played its full loop. Driven off the
@@ -127,13 +131,15 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     setActiveIndex(next);
   }, [activeIndex]);
 
-  // Holding fast-forwards the countdown at the same multiplier the WebView uses
-  // for the animation + ring, so they all reach the advance point together.
+  // Match the countdown to the hold: a right-strip fast-forward runs it at
+  // HOLD_SPEED (lock-step with the WebView animation + ring); a pause press
+  // freezes it (rate 0 → useRateTimeout banks elapsed and clears); idle = 1x.
+  const rate = holdMode === 'fast' ? HOLD_SPEED : holdMode === 'pause' ? 0 : 1;
   useRateTimeout(
     SLIDES[activeIndex]?.durationMs ?? 0,
     advance,
     activeIndex,
-    holding ? HOLD_SPEED : 1,
+    rate,
   );
 
   const onMomentumScrollEnd = useCallback(
@@ -147,8 +153,11 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     [width],
   );
 
-  const handleHoldStart = useCallback(() => setHolding(true), []);
-  const handleHoldEnd = useCallback(() => setHolding(false), []);
+  const handleHoldStart = useCallback(
+    (mode: Exclude<HoldMode, 'idle'>) => setHoldMode(mode),
+    [],
+  );
+  const handleHoldEnd = useCallback(() => setHoldMode('idle'), []);
 
   const getItemLayout = useCallback(
     (_data: ArrayLike<Slide> | null | undefined, index: number) => ({
@@ -165,14 +174,14 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         <AnimatedSlide
           source={item.source}
           isActive={index === activeIndex}
-          holding={holding && index === activeIndex}
+          holdMode={index === activeIndex ? holdMode : 'idle'}
           loopMs={item.durationMs}
           onHoldStart={handleHoldStart}
           onHoldEnd={handleHoldEnd}
         />
       </View>
     ),
-    [width, activeIndex, holding, handleHoldStart, handleHoldEnd],
+    [width, activeIndex, holdMode, handleHoldStart, handleHoldEnd],
   );
 
   const bottomPad = Math.max(insets?.bottom ?? 0, 24);
@@ -184,7 +193,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         data={SLIDES}
         keyExtractor={(item) => item.key}
         renderItem={renderItem}
-        extraData={`${activeIndex}-${holding}`}
+        extraData={`${activeIndex}-${holdMode}`}
         getItemLayout={getItemLayout}
         horizontal
         pagingEnabled
