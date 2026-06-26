@@ -196,10 +196,12 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [playSessions, setPlaySessions] = useState<PlaySession[]>([makeDefaultPlaySession()]);
   interface WalkSession {
   id: string;
+  flexible: boolean;
   startDate: Date;
   endDate: Date;
   showStart: boolean;
   showEnd: boolean;
+  durationMins: number | null;
   dogIds: string[];
   repeatSchedule: RepeatSchedule | null;
   instructions: string;
@@ -209,10 +211,12 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
 
 const makeDefaultWalkSession = (): WalkSession => ({
   id: nextCellId(),
+  flexible: false,
   startDate: null as unknown as Date,
   endDate: null as unknown as Date,
   showStart: false,
   showEnd: false,
+  durationMins: null,
   dogIds: [],
   repeatSchedule: null,
   instructions: '',
@@ -349,7 +353,7 @@ const MAX_PLAY_SESSIONS = 5;
       return feedingSlots.some(s => s.time || s.instructions.trim() || s.photos.length > 0 || s.repeatSchedule);
     }
     if (type === 'dogWalking') {
-      return walkSessions.some(s => s.startDate || s.endDate || (s.instructions && s.instructions.trim()) || s.photos.length > 0 || s.repeatSchedule);
+      return walkSessions.some(s => s.startDate || s.endDate || (s.instructions && s.instructions.trim()) || s.photos.length > 0 || s.repeatSchedule || s.flexible);
     }
     if (type === 'playtime') {
       return playSessions.some(s => s.startDate || s.endDate || (s.instructions && s.instructions.trim()) || s.photos.length > 0 || s.repeatSchedule || s.flexible);
@@ -1263,13 +1267,15 @@ const MAX_PLAY_SESSIONS = 5;
     }
     if (addOnCareTypes.has('dogWalking')) {
       for (let i = 0; i < walkSessions.length; i++) {
-        if (!walkSessions[i].startDate) {
-          showValidationAlert('Start Time Required', `Please set a start time for ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'}.`, 'walk-' + i);
-          return;
-        }
-        if (!walkSessions[i].endDate) {
-          showValidationAlert('End Time Required', `Please set an end time for ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'}.`, 'walk-' + i);
-          return;
+        if (!walkSessions[i].flexible) {
+          if (!walkSessions[i].startDate) {
+            showValidationAlert('Start Time Required', `Please set a start time for ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'}.`, 'walk-' + i);
+            return;
+          }
+          if (!walkSessions[i].endDate) {
+            showValidationAlert('End Time Required', `Please set an end time for ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'}.`, 'walk-' + i);
+            return;
+          }
         }
         if (primaryCareType === 'overnight' && !walkSessions[i].repeatSchedule) {
           showValidationAlert('Select Days Required', `Please select which days ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'} should occur during the stay.`, 'walk-' + i);
@@ -1334,7 +1340,7 @@ const MAX_PLAY_SESSIONS = 5;
 
     // Check for overlapping walk sessions
     if (addOnCareTypes.has('dogWalking') && walkSessions.length > 1) {
-      const sorted = [...walkSessions].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+      const sorted = walkSessions.filter(s => !s.flexible && s.startDate && s.endDate).sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
       for (let i = 1; i < sorted.length; i++) {
         if (sorted[i].startDate && sorted[i - 1].endDate && timeToMins(sorted[i].startDate) < timeToMins(sorted[i - 1].endDate)) {
           const origIdx = walkSessions.findIndex(w => w.id === sorted[i].id);
@@ -1522,9 +1528,10 @@ const MAX_PLAY_SESSIONS = 5;
       }
       if (addOnCareTypes.has('dogWalking')) {
         careTypeFields.walkSessions = walkSessions.map(ws => ({
-          startTime: ws.startDate ? formatTime12(ws.startDate) : '',
-          endTime: ws.endDate ? formatTime12(ws.endDate) : '',
-          durationMins: (() => {
+          flexible: ws.flexible,
+          startTime: ws.flexible ? null : (ws.startDate ? formatTime12(ws.startDate) : ''),
+          endTime: ws.flexible ? null : (ws.endDate ? formatTime12(ws.endDate) : ''),
+          durationMins: ws.flexible ? (ws.durationMins ?? 0) : (() => {
             if (!ws.startDate || !ws.endDate) return 0;
             let s = ws.startDate.getHours() * 60 + ws.startDate.getMinutes();
             let e = ws.endDate.getHours() * 60 + ws.endDate.getMinutes();
@@ -2520,6 +2527,28 @@ const MAX_PLAY_SESSIONS = 5;
                       }}
                     />
 
+                    {/* Flexible hours toggle */}
+                    <TouchableOpacity
+                      style={[
+                        styles.dailyToggle,
+                        { borderColor: ws.flexible ? colors.primary : colors.border,
+                          backgroundColor: ws.flexible ? colors.primary + '15' : colors.background,
+                          marginBottom: 12 },
+                      ]}
+                      onPress={() => updateWalkSession(wIdx, { flexible: !ws.flexible })}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={{ fontSize: 17 }}>{ws.flexible ? '⏱️' : '🕐'}</Text>
+                      <Text style={[
+                        styles.dailyToggleText,
+                        { color: ws.flexible ? colors.primary : colors.textSecondary },
+                      ]}>
+                        {ws.flexible ? 'Flexible hours — any time of day' : 'Are walk hours flexible?'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    {!ws.flexible ? (
+                      <>
                     <View style={styles.timeRow}>
                       <TouchableOpacity
                         style={[styles.timePickerButton, { borderColor: ws.showStart ? colors.primary : colors.border }]}
@@ -2558,6 +2587,36 @@ const MAX_PLAY_SESSIONS = 5;
                       <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
                         {wsStartTime} → {wsEndTime}  •  {wsDurText}
                       </Text>
+                    )}
+                      </>
+                    ) : (
+                      <>
+                        {/* Flexible mode: duration pills */}
+                        <Text style={[styles.fieldHint, { color: colors.textSecondary, marginBottom: 8 }]}>
+                          How long should this walk be?
+                        </Text>
+                        <View style={styles.durationRow}>
+                          {[15, 30, 60, 90, 120].map((mins) => (
+                            <TouchableOpacity
+                              key={mins}
+                              style={[
+                                styles.durationPill,
+                                { borderColor: colors.border, backgroundColor: colors.background },
+                                ws.durationMins === mins && { backgroundColor: colors.primary, borderColor: colors.primary },
+                              ]}
+                              onPress={() => updateWalkSession(wIdx, { durationMins: mins })}
+                            >
+                              <Text style={[
+                                styles.durationPillText,
+                                { color: colors.text },
+                                ws.durationMins === mins && { color: '#fff', fontWeight: '700' },
+                              ]}>
+                                {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </>
                     )}
 
 
@@ -3586,9 +3645,9 @@ const MAX_PLAY_SESSIONS = 5;
                 {addOnCareTypes.has('dogWalking') && (
                   <View style={{ marginTop: 6 }}>
                     <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>🐕 Walk × {walkSessions.length}</Text>
-                    {walkSessions.filter(ws => ws.startDate || ws.endDate).map((ws, i) => (
+                    {walkSessions.filter(ws => ws.startDate || ws.endDate || ws.flexible).map((ws, i) => (
                       <Text key={i} style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
-                        {ws.startDate ? formatTime12(ws.startDate) : '?'} – {ws.endDate ? formatTime12(ws.endDate) : '?'}
+                        {ws.flexible ? 'Flexible hours' : `${ws.startDate ? formatTime12(ws.startDate) : '?'} – ${ws.endDate ? formatTime12(ws.endDate) : '?'}`}
                       </Text>
                     ))}
                   </View>

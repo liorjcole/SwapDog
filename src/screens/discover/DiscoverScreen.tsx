@@ -319,7 +319,9 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
                   : `${ws.durationMins}m`;
                 return (
                   <Text key={i} style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
-                    {ws.startTime} – {ws.endTime}  ({durLabel}){ws.repeatDaily ? '  ·  repeat daily' : ''}
+                    {ws.flexible
+                      ? `Flexible · ${durLabel}`
+                      : `${ws.startTime} – ${ws.endTime}  (${durLabel})`}{ws.repeatDaily ? '  ·  repeat daily' : ''}
                     {ws.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                       ? `  ·  ${resolveDogNames(ws.dogIds, post)}`
                       : ''}
