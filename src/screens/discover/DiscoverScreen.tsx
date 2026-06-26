@@ -466,7 +466,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
     if (q.trim().length < 2) { setSuggestions([]); return; }
     setFetching(true);
     void fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=5&countrycodes=us`,
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=5&countrycodes=us,ca`,
       { headers: { 'Accept-Language': 'en', 'User-Agent': 'SwapDogApp/1.0' } },
     )
       .then((r) => {
