@@ -116,6 +116,25 @@ const BEFORE_CONTENT_JS = `
     var eff = hold.paused ? 0 : hold.speed;
     hold.now += dt * eff;
 
+    // Persistently re-assert playbackRate on every rAF frame while the user
+    // is holding at speed. CSSAnimation objects re-instantiated on a loop
+    // restart default to playbackRate 1; catching them within the same frame
+    // eliminates any visible 1x blip and keeps the ring (virtual-clock driven)
+    // locked to the scene across loop boundaries. Guard: only when speed is
+    // active; skip animations already at the target rate; null-check video.
+    if (!hold.paused && hold.speed !== 1) {
+      try {
+        var anims = document.getAnimations();
+        for (var ak = 0; ak < anims.length; ak++) {
+          if (anims[ak].playbackRate !== hold.speed) { anims[ak].playbackRate = hold.speed; }
+        }
+      } catch (e) {}
+      try {
+        var bvid = document.getElementById('bowls');
+        if (bvid && bvid.playbackRate !== hold.speed) { bvid.playbackRate = hold.speed; }
+      } catch (e) {}
+    }
+
     if (eff > 0 && hold.timers.length) {
       var due = [];
       for (var i = 0; i < hold.timers.length; i++) {
