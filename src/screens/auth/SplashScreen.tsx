@@ -34,11 +34,11 @@ type Slide = {
 // and append one entry here — no host changes needed. durationMs MUST equal the
 // slide's window.__slide.durationMs: it is the single-play length the contract
 // loops on, and it drives both auto-advance and the progress ring.
-//   slide1: 25600ms (single play-through: scene-two 11.6s delay + 14.0s).
+//   slide1: 22000ms (single play-through: 22s master scene cycle).
 //   slide2: 10000ms (10s CSS timeline).
 //   slide3: 8058ms (MP4 video duration; timescale 1000, units 8058).
 const SLIDES: Slide[] = [
-  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html'), durationMs: 25600 },
+  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html'), durationMs: 22000 },
   { key: 'slide2', source: require('../../../assets/signin-animations/slide2.html'), durationMs: 10000 },
   { key: 'slide3', source: require('../../../assets/signin-animations/slide3.html'), durationMs: 8058 },
 ];
