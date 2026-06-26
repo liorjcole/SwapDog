@@ -1967,7 +1967,7 @@ const MAX_PLAY_SESSIONS = 5;
 
           {/* Add-ons — tap to toggle */}
           <Text style={[styles.careTypeHint, { color: colors.textSecondary, marginTop: 16, marginBottom: 8 }]}>
-            Any specifics?
+            Need specifics?
           </Text>
           <View style={styles.careTypeGrid}>
             {ADDON_CARE_OPTIONS.map(({ type, icon, label }) => {
