@@ -33,11 +33,11 @@ type Slide = {
 // changes are needed. durationMs is the real loop duration measured from each
 // slide's source: slide1 reads `var LOOP_MS` from the HTML; slide2 uses 10s
 // CSS infinite animations; slide3 duration is the MP4 mvhd box duration.
-//   slide1: LOOP_MS = 30700ms (declared in slide HTML).
+//   slide1: LOOP_MS = 25600ms (declared in slide HTML).
 //   slide2: 10s CSS animations → 10000ms.
 //   slide3: MP4 video duration → 8058ms (timescale 1000, units 8058).
 const SLIDES: Slide[] = [
-  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html'), durationMs: 30700 }, // LOOP_MS = 30700 (measured from slide HTML)
+  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html'), durationMs: 25600 }, // LOOP_MS = 25600 (single play-through: scene-two 11.6s delay + 14.0s)
   { key: 'slide2', source: require('../../../assets/signin-animations/slide2.html'), durationMs: 10000 }, // 10s CSS animations (confirmed)
   { key: 'slide3', source: require('../../../assets/signin-animations/slide3.html'), durationMs: 8058 },  // MP4 mvhd duration: 8058ms
 ];
