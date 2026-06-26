@@ -24,7 +24,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
 import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -35,6 +34,7 @@ import { useSwaps } from '../../hooks/useSwaps';
 import { Dog, CompensationType, CareType, RepeatSchedule, SwapPost, formatRepeatLabel, formatRepeatSubLabel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { uploadPhotoToStorage } from '../../utils/uploadHelper';
+import { resolveActiveLocation } from '../../utils/resolveActiveLocation';
 import { onPostCreated } from '../../services/ReviewPromptService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import RepeatScheduleModal from '../../components/common/RepeatScheduleModal';
@@ -1584,14 +1584,11 @@ const MAX_PLAY_SESSIONS = 5;
 
     setSubmitting(true);
     try {
-      let posterLocation: { latitude: number; longitude: number } | undefined;
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          posterLocation = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
-        }
-      } catch { /* optional */ }
+      // Stamp the post with the user's ACTIVE location (the "Change Location"
+      // override, then onboarding location, then device GPS) — not raw device GPS.
+      const resolvedLocation = await resolveActiveLocation(userProfile);
+      const posterLocation = resolvedLocation?.coords;
+      const posterLocationName = resolvedLocation?.label;
 
       const primaryDog = selectedDogs[0];
       const dogIds = selectedDogs.map((d) => d.id);
@@ -1695,6 +1692,7 @@ const MAX_PLAY_SESSIONS = 5;
         posterName: userProfile?.displayName ?? user.displayName ?? 'WatchDog User',
         posterPhotoURL: userProfile?.photoURL ?? user.photoURL ?? undefined,
         posterLocation,
+        posterLocationName,
         dogId: primaryDog.id,
         dogName: primaryDog.name,
         dogBreed: primaryDog.breed,
