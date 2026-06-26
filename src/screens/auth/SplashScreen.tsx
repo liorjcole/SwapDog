@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
+  Image,
   ListRenderItemInfo,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -247,6 +248,18 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.buttonText}>Sign Up</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Permanent WatchDog wordmark: the bottom-most element of the fixed
+            overlay, identical across every slide. pointerEvents="none" keeps it
+            out of the touch path so paging / hold-for-2x / pause stay intact. */}
+        <Image
+          source={require('../../../assets/watchdog-wordmark.png')}
+          style={styles.wordmark}
+          resizeMode="contain"
+          pointerEvents="none"
+          accessibilityRole="image"
+          accessibilityLabel="WatchDog"
+        />
       </View>
     </View>
   );
@@ -283,6 +296,9 @@ const styles = StyleSheet.create({
   buttonSolid: { backgroundColor: 'rgba(255,255,255,0.18)' },
   buttonOutline: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.9)' },
   buttonText: { fontSize: 18, fontWeight: '600', color: '#FFFFFF' },
+  // Centered wordmark below the buttons. aspectRatio matches the source PNG
+  // (934x270) so height tracks width with no distortion.
+  wordmark: { width: 160, aspectRatio: 934 / 270, alignSelf: 'center' },
 });
 
 export default SplashScreen;
