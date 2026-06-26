@@ -48,7 +48,7 @@ const pressFor2xNote = require('../../../assets/signin-animations/press-for-2x.p
 //     the viewport width edge-to-edge (layout only — keyframes untouched).
 //  2. Install a single speed-aware controller (window.__rnHold) plus a virtual
 //     timer clock. setInterval is wrapped so slide-driven loops (slide 1's
-//     29.5s restart, slide 3's video re-play poll) advance on the controller's
+//     25.6s restart, slide 3's video re-play poll) advance on the controller's
 //     virtual clock: while a slide is held they fire 3x as fast, while the
 //     slide is off-screen they freeze. setTimeout is left native so the
 //     bundler's async scene-unpack chains are never throttled. The same virtual
@@ -154,11 +154,41 @@ const BEFORE_CONTENT_JS = `
 true;
 `;
 
-// Slide becomes the one on screen: restart every animation (and the video) from
-// t=0 at normal speed and reset + start the virtual clock so the ring counts
-// down from full. Fully guarded so a missing API on an old WebView is a no-op.
+// Slide becomes the one on screen: hard-restart it from t=0. The previous
+// implementation rewound the virtual clock + ring but a returned-to slide could
+// still show a frozen mid/end frame because WKWebView does not reliably rewind a
+// finished/paused CSSAnimation through currentTime=0 alone. So we additionally
+// force every keyframe back to frame 0 via the none -> reflow -> restore trick,
+// clear any paused play-state, re-arm the slide's in-file loop clock (so LOOP_MS
+// counts from now), reset slide 3's <video>, and only then normalize the Web
+// Animations timeline. Fully guarded so a missing API on an old WebView no-ops.
 const ACTIVATE_JS = `
 (function () {
+  var hold = window.__rnHold;
+  // Reset the virtual clock first so any loop re-armed below counts from 0.
+  if (hold) { hold.active = true; hold.speed = 1; hold.now = 0; }
+
+  // 1. Hard-rewind every CSS animation to frame 0 and clear any paused
+  //    play-state left over from an off-screen freeze, so the active slide can
+  //    never resume stuck on a mid/end frame. Scoped to the 540x1173 scene
+  //    root (slide 1 tags it; slides 2/3 fall back to <body>).
+  try {
+    var sceneRoot = document.querySelector('[data-screen-label]') || document.body;
+    if (sceneRoot) {
+      var els = sceneRoot.querySelectorAll('*');
+      for (var i = 0; i < els.length; i++) {
+        els[i].style.animationName = 'none';
+        els[i].style.animationPlayState = 'running';
+      }
+      void sceneRoot.offsetHeight; // force reflow so the removal commits
+      for (var k = 0; k < els.length; k++) { els[k].style.animationName = ''; }
+    }
+  } catch (e) {}
+
+  // 2. Re-arm slide 1's in-file restart so its LOOP_MS baseline is now (= 0).
+  try { if (typeof window.__slide1Reset === 'function') { window.__slide1Reset(); } } catch (e) {}
+
+  // 3. Normalize the Web Animations timeline and slide 3's video to t=0.
   try {
     if (document.getAnimations) {
       document.getAnimations().forEach(function (a) {
@@ -169,13 +199,8 @@ const ACTIVATE_JS = `
       try { v.playbackRate = 1; v.currentTime = 0; v.muted = true; var p = v.play(); if (p && p.catch) { p.catch(function () {}); } } catch (e) {}
     });
   } catch (e) {}
-  var hold = window.__rnHold;
-  if (hold) {
-    hold.active = true;
-    hold.speed = 1;
-    hold.now = 0;
-    if (hold.ring) { try { hold.ring(0); } catch (e) {} }
-  }
+
+  if (hold && hold.ring) { try { hold.ring(0); } catch (e) {} }
 })();
 true;
 `;
