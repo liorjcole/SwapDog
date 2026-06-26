@@ -13,11 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/types';
-import AnimatedSlide, {
-  HoldMode,
-  HOLD_SPEED,
-  SLIDE_BACKGROUND,
-} from '../../components/auth/AnimatedSlide';
+import AnimatedSlide, { HOLD_SPEED, SLIDE_BACKGROUND } from '../../components/auth/AnimatedSlide';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Splash'>;
@@ -32,18 +28,19 @@ type Slide = {
   durationMs: number;
 };
 
-// The swipeable landing carousel. Adding slide 2 & 3 is a drop-in: place
-// slideN.html in assets/signin-animations and append one entry here — no other
-// changes are needed. durationMs is the real loop duration measured from each
-// slide's source: slide1 reads `var LOOP_MS` from the HTML; slide2 uses 10s
-// CSS infinite animations; slide3 duration is the MP4 mvhd box duration.
-//   slide1: LOOP_MS = 25600ms (declared in slide HTML).
-//   slide2: 10s CSS animations → 10000ms.
-//   slide3: MP4 video duration → 8058ms (timescale 1000, units 8058).
+// The swipeable landing carousel. Adding a 4th slide is a drop-in: author one
+// contract-compliant slideN.html (window.__slide with a matching durationMs;
+// see assets/signin-animations/README.md), place it in assets/signin-animations
+// and append one entry here — no host changes needed. durationMs MUST equal the
+// slide's window.__slide.durationMs: it is the single-play length the contract
+// loops on, and it drives both auto-advance and the progress ring.
+//   slide1: 25600ms (single play-through: scene-two 11.6s delay + 14.0s).
+//   slide2: 10000ms (10s CSS timeline).
+//   slide3: 8058ms (MP4 video duration; timescale 1000, units 8058).
 const SLIDES: Slide[] = [
-  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html'), durationMs: 25600 }, // LOOP_MS = 25600 (single play-through: scene-two 11.6s delay + 14.0s)
-  { key: 'slide2', source: require('../../../assets/signin-animations/slide2.html'), durationMs: 10000 }, // 10s CSS animations (confirmed)
-  { key: 'slide3', source: require('../../../assets/signin-animations/slide3.html'), durationMs: 8058 },  // MP4 mvhd duration: 8058ms
+  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html'), durationMs: 25600 },
+  { key: 'slide2', source: require('../../../assets/signin-animations/slide2.html'), durationMs: 10000 },
+  { key: 'slide3', source: require('../../../assets/signin-animations/slide3.html'), durationMs: 8058 },
 ];
 
 // A setTimeout that survives speed changes without losing elapsed time and
@@ -113,13 +110,13 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
-  const [holdMode, setHoldMode] = useState<HoldMode>('idle');
+  const [holding, setHolding] = useState(false);
   const listRef = useRef<FlatList<Slide>>(null);
 
   // A freshly shown slide always starts playing from the top at 1x — never
   // inherit a stale hold state from the slide we just left.
   useEffect(() => {
-    setHoldMode('idle');
+    setHolding(false);
   }, [activeIndex]);
 
   // Auto-advance once the active slide has played its full loop. Driven off the
@@ -131,15 +128,13 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     setActiveIndex(next);
   }, [activeIndex]);
 
-  // Match the countdown to the hold: a right-strip fast-forward runs it at
-  // HOLD_SPEED (lock-step with the WebView animation + ring); a pause press
-  // freezes it (rate 0 → useRateTimeout banks elapsed and clears); idle = 1x.
-  const rate = holdMode === 'fast' ? HOLD_SPEED : holdMode === 'pause' ? 0 : 1;
+  // Holding fast-forwards the countdown at the same multiplier the WebView uses
+  // for the animation + ring, so they all reach the advance point together.
   useRateTimeout(
     SLIDES[activeIndex]?.durationMs ?? 0,
     advance,
     activeIndex,
-    rate,
+    holding ? HOLD_SPEED : 1,
   );
 
   const onMomentumScrollEnd = useCallback(
@@ -153,11 +148,8 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     [width],
   );
 
-  const handleHoldStart = useCallback(
-    (mode: Exclude<HoldMode, 'idle'>) => setHoldMode(mode),
-    [],
-  );
-  const handleHoldEnd = useCallback(() => setHoldMode('idle'), []);
+  const handleHoldStart = useCallback(() => setHolding(true), []);
+  const handleHoldEnd = useCallback(() => setHolding(false), []);
 
   const getItemLayout = useCallback(
     (_data: ArrayLike<Slide> | null | undefined, index: number) => ({
@@ -169,19 +161,29 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   const renderItem = useCallback(
-    ({ item, index }: ListRenderItemInfo<Slide>) => (
-      <View style={{ width }}>
-        <AnimatedSlide
-          source={item.source}
-          isActive={index === activeIndex}
-          holdMode={index === activeIndex ? holdMode : 'idle'}
-          loopMs={item.durationMs}
-          onHoldStart={handleHoldStart}
-          onHoldEnd={handleHoldEnd}
-        />
-      </View>
-    ),
-    [width, activeIndex, holdMode, handleHoldStart, handleHoldEnd],
+    ({ item, index }: ListRenderItemInfo<Slide>) => {
+      // Windowing: only the active slide and its immediate neighbours mount a
+      // live WebView. Off-window slides render a plain red placeholder so the
+      // heavy WebViews are bounded (paired with the FlatList window props).
+      const mounted = Math.abs(index - activeIndex) <= 1;
+      return (
+        <View style={{ width }}>
+          {mounted ? (
+            <AnimatedSlide
+              source={item.source}
+              isActive={index === activeIndex}
+              holding={holding && index === activeIndex}
+              loopMs={item.durationMs}
+              onHoldStart={handleHoldStart}
+              onHoldEnd={handleHoldEnd}
+            />
+          ) : (
+            <View style={styles.placeholder} />
+          )}
+        </View>
+      );
+    },
+    [width, activeIndex, holding, handleHoldStart, handleHoldEnd],
   );
 
   const bottomPad = Math.max(insets?.bottom ?? 0, 24);
@@ -193,7 +195,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         data={SLIDES}
         keyExtractor={(item) => item.key}
         renderItem={renderItem}
-        extraData={`${activeIndex}-${holdMode}`}
+        extraData={`${activeIndex}-${holding}`}
         getItemLayout={getItemLayout}
         horizontal
         pagingEnabled
@@ -201,6 +203,13 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         bounces={false}
         onMomentumScrollEnd={onMomentumScrollEnd}
         scrollEnabled={SLIDES.length > 1}
+        // Mount discipline: keep at most the active slide ± 1 live so three
+        // heavy WebViews never co-exist and WKWebView stays within its
+        // per-content-process memory budget on-device.
+        initialNumToRender={1}
+        maxToRenderPerBatch={2}
+        windowSize={3}
+        removeClippedSubviews
       />
 
       <View style={[styles.overlay, { paddingBottom: bottomPad + 16 }]} pointerEvents="box-none">
@@ -254,6 +263,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dots: { flexDirection: 'row', marginBottom: 20 },
+  placeholder: { flex: 1, backgroundColor: SLIDE_BACKGROUND },
   dot: { width: 8, height: 8, borderRadius: 4, marginHorizontal: 4 },
   dotActive: { backgroundColor: '#FFFFFF' },
   dotInactive: { backgroundColor: 'rgba(255,255,255,0.4)' },

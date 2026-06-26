@@ -147,7 +147,7 @@
 </style>
 </head>
 <body>
-<div data-screen-label="Post request + Discover (merged)" style="position:relative;width:540px;height:1173px;margin:0 auto;overflow:hidden;background:#F23A53;font-family:-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<div data-slide-root data-screen-label="Post request + Discover (merged)" style="position:relative;width:540px;height:1173px;margin:0 auto;overflow:hidden;background:#F23A53;font-family:-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif;">
   
   <div style="position:absolute;left:0;top:0;width:540px;height:1173px;opacity:1;z-index:2;animation:sceneAOut 14.6s linear forwards;">
 
@@ -236,43 +236,7 @@
 
   </div>
 </div>
-<script>
-(function(){
-  // True single play-through length: scene two starts at its 11.6s animation-
-  // delay and runs 14.0s, finishing at 25.6s (scene one's plane exits ~14.0s
-  // and is revealed as scene A fades, so the two scenes form one continuous
-  // sequence with no internal loop and no dead gap). Keep this in lock-step
-  // with slide1's loopMs in SplashScreen.tsx.
-  var LOOP_MS = 25600;
-  var root = document.querySelector('[data-screen-label="Post request + Discover (merged)"]');
-  if(!root) return;
-  var timer = null;
-  // Hard-rewind every CSS animation inside root to frame 0 via the
-  // none -> reflow -> restore trick (new CSSAnimation instances from t=0).
-  function restart(){
-    var els = root.querySelectorAll('*');
-    els.forEach(function(el){
-      el.style.animationName = 'none';
-      el.style.animationPlayState = 'running';
-    });
-    void root.offsetWidth; // force reflow so the removal is committed
-    els.forEach(function(el){
-      el.style.animationName = '';
-    });
-  }
-  // (Re)arm the single-period loop. setInterval is virtualized by the RN
-  // controller (window.__rnHold), so its baseline is the virtual clock's
-  // current value — re-arming after a reset makes LOOP_MS count from now.
-  function arm(){
-    if(timer){ window.clearInterval(timer); }
-    timer = window.setInterval(restart, LOOP_MS);
-  }
-  // Exposed so the RN side can hard-restart slide 1 from t=0 on (re)activation:
-  // rewind the keyframes AND reset the loop-clock baseline together.
-  window.__slide1Reset = function(){ restart(); arm(); };
-  arm();
-})();
-</script>
+
 <template id="__bundler_thumbnail">
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 56">
   <rect width="80" height="56" fill="#F23A53"/>
@@ -281,5 +245,83 @@
   <circle cx="40" cy="42" r="3" fill="rgba(255,255,255,0.5)"/>
 </svg>
 </template>
+<script>
+/* SwapDog sign-in slide contract. Single timing authority for this slide.
+   The host (src/components/auth/AnimatedSlide.tsx) drives ONLY window.__slide.
+   See assets/signin-animations/README.md for the contract spec. */
+(function () {
+  var DURATION = 25600;
+  var clock = 0, rate = 1, running = false, last = null, frameCb = null;
+
+  function anims() {
+    try { return document.getAnimations ? document.getAnimations() : []; }
+    catch (e) { return []; }
+  }
+  function video() { return document.getElementById('bowls'); }
+  function eachAnim(fn) {
+    var a = anims();
+    for (var i = 0; i < a.length; i++) { try { fn(a[i]); } catch (e) {} }
+  }
+  function applyRate(r) {
+    eachAnim(function (a) { a.playbackRate = r; });
+    var v = video(); if (v) { try { v.playbackRate = r; } catch (e) {} }
+  }
+  function playVideo() {
+    var v = video();
+    if (v) { try { var p = v.play(); if (p && p.catch) { p.catch(function () {}); } } catch (e) {} }
+  }
+  function rewind() {
+    eachAnim(function (a) { a.currentTime = 0; a.play(); });
+    var v = video(); if (v) { try { v.currentTime = 0; } catch (e) {} }
+    playVideo();
+  }
+
+  window.__slide = {
+    durationMs: DURATION,
+    play: function () {
+      running = true; last = null;
+      applyRate(rate);
+      eachAnim(function (a) { a.play(); });
+      playVideo();
+    },
+    pause: function () {
+      running = false;
+      eachAnim(function (a) { a.pause(); });
+      var v = video(); if (v) { try { v.pause(); } catch (e) {} }
+    },
+    seek: function (ms) {
+      clock = ms > 0 ? ms : 0;
+      eachAnim(function (a) { a.currentTime = clock; });
+      var v = video();
+      if (v) {
+        try {
+          var d = v.duration;
+          v.currentTime = (d && isFinite(d) && d > 0) ? ((clock / 1000) % d) : 0;
+        } catch (e) {}
+      }
+      if (frameCb) { try { frameCb(clock); } catch (e) {} }
+    },
+    setRate: function (m) { rate = m > 0 ? m : 1; applyRate(rate); },
+    onFrame: function (cb) { frameCb = cb; }
+  };
+
+  function tick(ts) {
+    if (last === null) { last = ts; }
+    var dt = ts - last; last = ts;
+    if (dt < 0) { dt = 0; }
+    if (dt > 250) { dt = 250; }
+    if (running) {
+      clock += dt * rate;
+      if (clock >= DURATION) { clock -= DURATION; rewind(); }
+      if (frameCb) { try { frameCb(clock); } catch (e) {} }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  window.__slide.seek(0);
+  window.__slide.pause();
+})();
+</script>
 </body>
 </html>
