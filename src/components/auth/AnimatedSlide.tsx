@@ -31,6 +31,9 @@ const DARKEN_MAX_ALPHA = 0.55;
 const NOTE_FADE_MS = 1000; // "Press for 2x" note soft-fades out over ~1s.
 const DARKEN_IN_MS = 220;
 const DARKEN_OUT_MS = 180;
+// Applied playback rate while the user holds the right strip. The on-screen
+// label intentionally still reads "2x" — do NOT "fix" this mismatch.
+const HOLD_SPEED = 4;
 // Note placement — from interactive placement tool (screen fractions).
 const NOTE_WIDTH_FRAC  = 0.211;       // × window width (~83pt at 393w)
 const NOTE_TOP_FRAC    = 0.325;       // × window height
@@ -65,7 +68,7 @@ const BEFORE_CONTENT_JS = `
   // Idempotent: never re-install the controller on the same document.
   if (window.__rnHold) { return; }
   var hold = {
-    speed: 1,      // 1 = normal, 2 = hold-for-2x
+    speed: 1,      // 1 = normal, HOLD_SPEED = hold-for-fast-forward
     paused: false, // true while a pause-hold is active
     now: 0,        // virtual clock (ms): advances by speed * realDelta
     last: null,
@@ -176,10 +179,10 @@ true;
 // animations via the Web Animations API, and slide 3's video.
 const HOLD_2X_JS = `
 (function () {
-  if (window.__rnHold) { window.__rnHold.speed = 2; window.__rnHold.paused = false; }
-  try { document.getAnimations().forEach(function (a) { a.playbackRate = 2; }); } catch (e) {}
+  if (window.__rnHold) { window.__rnHold.speed = ${HOLD_SPEED}; window.__rnHold.paused = false; }
+  try { document.getAnimations().forEach(function (a) { a.playbackRate = ${HOLD_SPEED}; }); } catch (e) {}
   var v = document.getElementById('bowls');
-  if (v) { try { v.playbackRate = 2; } catch (e) {} }
+  if (v) { try { v.playbackRate = ${HOLD_SPEED}; } catch (e) {} }
 })();
 true;
 `;
