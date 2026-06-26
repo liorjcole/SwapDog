@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Dimensions, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
+import ButtonConfettiBurst from './ButtonConfettiBurst';
 import { spacing, borderRadius } from '../../config/theme';
 
 interface Props {
@@ -28,6 +29,9 @@ interface Props {
 
 const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL, onReviewReschedule, onAcceptHelp, helpAccepted, onRemoveRequest, removingRequest, onUnsend }) => {
   const { colors } = useTheme();
+  // Confetti burst state: burstKey remounts the overlay to replay; showBurst gates rendering.
+  const [burstKey, setBurstKey] = useState(0);
+  const [showBurst, setShowBurst] = useState(false);
   const timeStr = createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const handleLongPress = () => {
@@ -81,15 +85,32 @@ const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL,
           </TouchableOpacity>
         )}
         {type === 'help_request' && !isMe && (
-          helpAccepted ? (
-            <View style={styles.acceptedBadge}>
-              <Text style={styles.acceptedBadgeText}>✅ Accepted</Text>
-            </View>
-          ) : onAcceptHelp ? (
-            <TouchableOpacity onPress={onAcceptHelp} style={styles.acceptBtn}>
-              <Text style={styles.acceptBtnText}>Accept</Text>
-            </TouchableOpacity>
-          ) : null
+          // Relatively-positioned container so the absoluteFill burst overlay
+          // anchors here and stays visible through the button → badge swap.
+          <View style={styles.acceptActionContainer}>
+            {helpAccepted ? (
+              <View style={styles.acceptedBadge}>
+                <Text style={styles.acceptedBadgeText}>✅ Accepted</Text>
+              </View>
+            ) : onAcceptHelp ? (
+              <TouchableOpacity
+                onPress={() => {
+                  setBurstKey((k) => k + 1);
+                  setShowBurst(true);
+                  onAcceptHelp?.();
+                }}
+                style={styles.acceptBtn}
+              >
+                <Text style={styles.acceptBtnText}>Accept</Text>
+              </TouchableOpacity>
+            ) : null}
+            {showBurst ? (
+              <ButtonConfettiBurst
+                key={burstKey}
+                onDone={() => setShowBurst(false)}
+              />
+            ) : null}
+          </View>
         )}
         {type === 'help_request' && isMe && onRemoveRequest && (
           <TouchableOpacity
@@ -130,6 +151,7 @@ const styles = StyleSheet.create({
   time: { fontSize: 12, marginTop: 2, alignSelf: 'flex-end' },
   reviewLink: { marginTop: 6, paddingVertical: 4 },
   reviewLinkText: { color: '#0984E3', fontSize: 16, fontWeight: '600', textDecorationLine: 'underline' },
+  acceptActionContainer: { position: 'relative', overflow: 'visible' },
   acceptBtn: { marginTop: 8, backgroundColor: '#00B894', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 8, alignItems: 'center' },
   acceptBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   acceptedBadge: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 16, borderRadius: 8, backgroundColor: 'rgba(0,184,148,0.15)', alignItems: 'center' },
