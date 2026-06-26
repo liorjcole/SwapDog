@@ -981,8 +981,6 @@ const styles = StyleSheet.create({
   interestBadgeText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   respondedBadge: { backgroundColor: '#0984E320', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start', marginTop: 6 },
   respondedBadgeText: { color: '#0984E3', fontSize: 13, fontWeight: '700' },
-  takenBadge: { backgroundColor: '#4CAF5025', borderRadius: 99, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start' as const, marginBottom: 6 },
-  takenBadgeText: { color: '#2E7D32', fontSize: 14, fontWeight: '600' },
   detailsBtn: { marginTop: spacing.sm, borderWidth: 1.5, borderColor: '#FF2D55', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16, alignSelf: 'flex-start' },
   detailsBtnText: { fontSize: 15, fontWeight: '700', color: '#FF2D55' },
 

@@ -37,22 +37,15 @@ export interface PostCardProps {
   isHighlighted?: boolean;
   pulseScale?: Animated.Value;
   glowOpacity?: Animated.Value;
-  /** When true, render claimed/completed posts with the neutral "no sitter yet" styling
-   *  (no green background, border, or "Sitter Found" badge). Used by the reuse list so
-   *  every row looks uniform regardless of the post's real status. Discover leaves this unset. */
-  forceUnclaimedStyle?: boolean;
 }
 
-const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, isFavorited, isHighlighted, pulseScale, glowOpacity, forceUnclaimedStyle }) => {
+const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, isFavorited, isHighlighted, pulseScale, glowOpacity }) => {
   const handlePostPress = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress(post.id);
   }, [onPress, post.id]);
   const { colors } = useTheme();
   const isOwnPost = !!(currentUserId && post.posterId === currentUserId);
-  // Green "sitter found" treatment applies only to non-open posts, and only when the
-  // caller hasn't forced the neutral styling (reuse list passes forceUnclaimedStyle).
-  const showClaimedStyle = post.status !== 'open' && !forceUnclaimedStyle;
   const startStr = smartDate(post.startDate);
   const endStr = smartDate(post.endDate, { includeYear: true });
 
@@ -61,7 +54,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
   return (
     <Animated.View style={isHighlighted && pulseScale && glowOpacity ? { transform: [{ scale: pulseScale }], shadowColor: '#FFFFFF', shadowOpacity: glowOpacity as unknown as number, shadowRadius: 20, shadowOffset: { width: 0, height: 0 }, elevation: 10 } : undefined}>
     <TouchableOpacity
-      style={[styles.postCard, { backgroundColor: showClaimedStyle ? '#E8F5E9' : isOwnPost ? '#1A0A10' : colors.surface, ...shadow.sm, ...(isFavorited && !isOwnPost ? { borderWidth: 2, borderColor: '#FFD700' } : {}), ...(isOwnPost ? { borderWidth: 1.5, borderColor: RED + '80' } : {}), ...(showClaimedStyle && !isOwnPost ? { borderLeftWidth: 4, borderLeftColor: '#4CAF50' } : {}) }]}
+      style={[styles.postCard, { backgroundColor: isOwnPost ? '#1A0A10' : colors.surface, ...shadow.sm, ...(isFavorited && !isOwnPost ? { borderWidth: 2, borderColor: '#FFD700' } : {}), ...(isOwnPost ? { borderWidth: 1.5, borderColor: RED + '80' } : {}) }]}
       onPress={handlePostPress}
       accessibilityRole="button"
       accessibilityLabel={`Post for ${post.dogName}`}
@@ -224,12 +217,6 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
 
         </View>
 
-        {showClaimedStyle && (
-          <View style={styles.takenBadge}>
-            <Text style={styles.takenBadgeText}>Sitter Found</Text>
-          </View>
-        )}
-
         {post.status === 'open' && currentUserId && (post.respondedBy ?? []).some(r => r.userId === currentUserId) && (
           <View style={styles.respondedBadge}>
             <Text style={styles.respondedBadgeText}>Messaged ✓</Text>
@@ -258,8 +245,6 @@ const styles = StyleSheet.create({
   dogLine: { fontSize: 16, fontWeight: '600', marginBottom: spacing.xs },
   respondedBadge: { backgroundColor: '#0984E320', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start', marginTop: 6 },
   respondedBadgeText: { color: '#0984E3', fontSize: 13, fontWeight: '700' },
-  takenBadge: { backgroundColor: '#4CAF5025', borderRadius: 99, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start' as const, marginBottom: 6 },
-  takenBadgeText: { color: '#2E7D32', fontSize: 14, fontWeight: '600' },
   detailsBtn: { marginTop: spacing.sm, borderWidth: 1.5, borderColor: '#FF2D55', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16, alignSelf: 'flex-start' },
   detailsBtnText: { fontSize: 15, fontWeight: '700', color: '#FF2D55' },
 });
