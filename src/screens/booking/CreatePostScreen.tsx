@@ -3992,6 +3992,13 @@ const MAX_PLAY_SESSIONS = 5;
                             </View>
                           )}
                         </View>
+                        {/* Expand affordance — right when collapsed, down when expanded */}
+                        <Ionicons
+                          name={expanded ? 'chevron-down' : 'chevron-forward'}
+                          size={20}
+                          color={colors.textSecondary}
+                          style={{ marginLeft: 10 }}
+                        />
                         {/* Remove control — mirrors the address minus-icon exactly */}
                         <TouchableOpacity
                           onPress={(e) => { e.stopPropagation(); handleRemoveFromReuse(post); }}
