@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/types';
-import AnimatedSlide, { HOLD_SPEED, SLIDE_BACKGROUND } from '../../components/auth/AnimatedSlide';
+import AnimatedSlide, { HOLD_SPEED, SLIDE_BACKGROUND, HoldMode } from '../../components/auth/AnimatedSlide';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Splash'>;
@@ -45,9 +45,10 @@ const SLIDES: Slide[] = [
 
 // A setTimeout that survives speed changes without losing elapsed time and
 // restarts cleanly whenever `resetKey` changes (i.e. a new slide is shown).
-// `rate` is a playback multiplier (1 = normal, HOLD_SPEED while held): the
-// countdown banks content-time = realElapsed × rate so it stays in lock-step
-// with the WebView animation + progress ring as the slide fast-forwards.
+// `rate` is a playback multiplier (1 = normal, HOLD_SPEED while fast-forwarding,
+// 0 while paused): the countdown banks content-time = realElapsed × rate so it
+// stays in lock-step with the WebView animation + progress ring as the slide
+// fast-forwards, and freezes (no time consumed) while paused.
 function useRateTimeout(
   durationMs: number,
   onElapsed: () => void,
@@ -88,8 +89,8 @@ function useRateTimeout(
     }
     rateRef.current = rate;
 
-    // rate <= 0 would pause; the carousel never uses 0 (hold = fast-forward),
-    // but guard so a stray value freezes cleanly instead of dividing by zero.
+    // rate <= 0 pauses (press-elsewhere): freeze the countdown in place with the
+    // banked remaining time and consume no content-time until the rate rises.
     if (rate <= 0) {
       clear();
       return clear;
@@ -110,13 +111,13 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
-  const [holding, setHolding] = useState(false);
+  const [holdMode, setHoldMode] = useState<HoldMode>('idle');
   const listRef = useRef<FlatList<Slide>>(null);
 
   // A freshly shown slide always starts playing from the top at 1x — never
-  // inherit a stale hold state from the slide we just left.
+  // inherit a stale press state from the slide we just left.
   useEffect(() => {
-    setHolding(false);
+    setHoldMode('idle');
   }, [activeIndex]);
 
   // Auto-advance once the active slide has played its full loop. Driven off the
@@ -128,13 +129,15 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     setActiveIndex(next);
   }, [activeIndex]);
 
-  // Holding fast-forwards the countdown at the same multiplier the WebView uses
-  // for the animation + ring, so they all reach the advance point together.
+  // The press region maps to the auto-advance rate so the countdown stays in
+  // lock-step with the WebView animation + ring: fast-forward → HOLD_SPEED,
+  // pause-elsewhere → 0 (frozen), idle → 1x.
+  const rate = holdMode === 'fast' ? HOLD_SPEED : holdMode === 'pause' ? 0 : 1;
   useRateTimeout(
     SLIDES[activeIndex]?.durationMs ?? 0,
     advance,
     activeIndex,
-    holding ? HOLD_SPEED : 1,
+    rate,
   );
 
   const onMomentumScrollEnd = useCallback(
@@ -148,8 +151,8 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     [width],
   );
 
-  const handleHoldStart = useCallback(() => setHolding(true), []);
-  const handleHoldEnd = useCallback(() => setHolding(false), []);
+  const handleHoldStart = useCallback((mode: HoldMode) => setHoldMode(mode), []);
+  const handleHoldEnd = useCallback(() => setHoldMode('idle'), []);
 
   const getItemLayout = useCallback(
     (_data: ArrayLike<Slide> | null | undefined, index: number) => ({
@@ -172,7 +175,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
             <AnimatedSlide
               source={item.source}
               isActive={index === activeIndex}
-              holding={holding && index === activeIndex}
+              holdMode={index === activeIndex ? holdMode : 'idle'}
               loopMs={item.durationMs}
               onHoldStart={handleHoldStart}
               onHoldEnd={handleHoldEnd}
@@ -183,7 +186,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       );
     },
-    [width, activeIndex, holding, handleHoldStart, handleHoldEnd],
+    [width, activeIndex, holdMode, handleHoldStart, handleHoldEnd],
   );
 
   const bottomPad = Math.max(insets?.bottom ?? 0, 24);
@@ -195,7 +198,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         data={SLIDES}
         keyExtractor={(item) => item.key}
         renderItem={renderItem}
-        extraData={`${activeIndex}-${holding}`}
+        extraData={`${activeIndex}-${holdMode}`}
         getItemLayout={getItemLayout}
         horizontal
         pagingEnabled

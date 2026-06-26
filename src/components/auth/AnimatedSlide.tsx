@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  GestureResponderEvent,
   Image,
   StyleSheet,
   useWindowDimensions,
@@ -24,6 +25,9 @@ export const SLIDE_BACKGROUND = '#F23A53';
 // NOT "fix" this mismatch. Exported so the parent's auto-advance countdown can
 // run at the same multiplier and stay in lock-step with the accelerated scene.
 export const HOLD_SPEED = 3;
+// A press on the rightmost strip (this fraction of slide width) fast-forwards;
+// a press anywhere to its left pauses the scene in place. Tunable.
+const RIGHT_STRIP_PCT = 0.15;
 // Right-edge darken gradient spans this fraction of the slide width.
 const DARKEN_WIDTH_FRACTION = 0.4;
 // Darkest alpha at the far-right edge of the darken gradient.
@@ -39,6 +43,11 @@ const NOTE_RIGHT_FRAC = -0.025; // × window width (negative: hangs ~10pt off ri
 const NOTE_ASPECT = 957 / 638; // image natural aspect (w/h ≈ 1.5)
 
 const pressFor2xNote = require('../../../assets/signin-animations/press-for-2x.png');
+
+// Press interaction mode for the active slide, derived from where the user
+// pressed: 'fast' = rightmost-strip fast-forward, 'pause' = pause-elsewhere,
+// 'idle' = not pressed. Mapped to the slide contract in the host below.
+export type HoldMode = 'idle' | 'fast' | 'pause';
 
 // ---------------------------------------------------------------------------
 // Slide contract (window.__slide)
@@ -87,7 +96,8 @@ const DEACTIVATE_JS = `
 true;
 `;
 
-// Press-and-hold = fast-forward the whole timeline (animations + video + ring).
+// Rightmost-strip press = fast-forward the whole timeline (animations + video +
+// ring) at HOLD_SPEED via the contract's single clock.
 const HOLD_JS = `
 (function () {
   if (window.__slide) { window.__slide.setRate(${HOLD_SPEED}); }
@@ -95,10 +105,20 @@ const HOLD_JS = `
 true;
 `;
 
-// Release: back to normal speed.
+// Press-elsewhere = pause the scene in place (freezes animations, video, and the
+// ring together): the contract's pause() halts its master clock, so onFrame stops.
+const PAUSE_JS = `
+(function () {
+  if (window.__slide) { window.__slide.pause(); }
+})();
+true;
+`;
+
+// Release: resume normal-speed playback from the current position. Covers both
+// release-from-fast (rate back to 1) and release-from-pause (clock resumes).
 const RELEASE_JS = `
 (function () {
-  if (window.__slide) { window.__slide.setRate(1); }
+  if (window.__slide) { window.__slide.setRate(1); window.__slide.play(); }
 })();
 true;
 `;
@@ -106,10 +126,10 @@ true;
 // Builds the progress-ring injection for a slide. The ring is an SVG arc
 // appended into the slide's 540×1173 scene root (every slide tags it with
 // data-slide-root), so it lives in canvas coords and scales with the scene.
-// It subscribes to window.__slide.onFrame(currentMs) and empties over durationMs
-// — the same per-slide duration that governs auto-advance — reaching empty
-// exactly as the slide advances. Speed-aware for free: onFrame already reports
-// the contract's clock, which runs at ${HOLD_SPEED}x while held.
+// It subscribes to window.__slide.onFrame(currentMs) and fills empty→full over
+// durationMs — the same per-slide duration that governs auto-advance — reaching
+// full exactly as the slide advances. Speed-aware for free: onFrame already
+// reports the contract's clock, which runs at ${HOLD_SPEED}x while held.
 function buildRingInjectionJS(durationMs: number): string {
   return `
 (function () {
@@ -145,14 +165,14 @@ function buildRingInjectionJS(durationMs: number): string {
     }
     var CIRC = 2 * Math.PI * R;
     circle.setAttribute('stroke-dasharray', CIRC);
-    circle.setAttribute('stroke-dashoffset', 0);
+    circle.setAttribute('stroke-dashoffset', CIRC);
     window.__slide.onFrame(function (now) {
-      // Countdown: full at now=0, empty at now>=DURATION. dashoffset grows from
-      // 0 (whole circle drawn) to CIRC (nothing drawn).
+      // Fill empty→full: empty at now=0, full at now>=DURATION. dashoffset
+      // shrinks from CIRC (nothing drawn) to 0 (whole circle drawn).
       var p = DURATION > 0 ? now / DURATION : 0;
       if (p < 0) { p = 0; }
       if (p > 1) { p = 1; }
-      circle.setAttribute('stroke-dashoffset', CIRC * p);
+      circle.setAttribute('stroke-dashoffset', CIRC * (1 - p));
     });
     return true;
   }
@@ -175,12 +195,12 @@ type Props = {
   source: number;
   /** True when this is the slide currently on screen. */
   isActive: boolean;
-  /** True while the active slide is held down (press-and-hold fast-forward). */
-  holding: boolean;
+  /** Active press mode for this slide: 'fast' (rightmost strip), 'pause' (elsewhere), or 'idle'. */
+  holdMode: HoldMode;
   /** Loop duration (ms) — the slide's auto-advance duration — drives the ring. */
   loopMs: number;
-  /** Fired when a touch begins so the parent can fast-forward + speed auto-advance. */
-  onHoldStart: () => void;
+  /** Fired when a touch begins, with the region-derived mode, so the parent can speed/pause auto-advance. */
+  onHoldStart: (mode: HoldMode) => void;
   /** Fired when the touch ends/cancels so the parent can return to 1x. */
   onHoldEnd: () => void;
   style?: ViewStyle;
@@ -191,15 +211,18 @@ type Props = {
  * with three interactions layered on top via the RN touch layer:
  *
  *  - Progress ring (SVG, injected on onLoadEnd) around the numbered badge that
- *    counts down over the slide's duration and reaches empty as it advances.
- *  - Press-and-hold = fast-forward: the whole scene (incl. slide 3's video and
- *    the ring) plays at HOLD_SPEED while held; release returns to 1x.
- *  - The "Press for 2x" note + right-edge darken gradient cue the affordance.
+ *    fills empty→full over the slide's duration and reaches full as it advances.
+ *  - Region-aware press: the rightmost strip fast-forwards the whole scene
+ *    (incl. slide 3's video and the ring) at HOLD_SPEED; a press elsewhere
+ *    pauses it in place; release resumes at 1x.
+ *  - The "Press for 2x" note + right-edge darken gradient cue the fast-forward
+ *    affordance (shown only while fast-forwarding, not while paused).
  *
  * Playback is driven entirely through the slide's window.__slide contract (the
  * Web Animations API under the hood), so there is no red "reload flash" when a
  * slide is (re)activated: activate → seek(0)+play, deactivate → pause+seek(0),
- * hold → setRate. Because the parent FlatList only mounts the active slide and
+ * fast → setRate, pause → pause(), release → setRate(1)+play(). Because the
+ * parent FlatList only mounts the active slide and
  * its immediate neighbours, three heavy WebViews never co-exist.
  *
  * The WebView is wrapped in a <View pointerEvents="none"> so the parent
@@ -215,7 +238,7 @@ type Props = {
 const AnimatedSlide: React.FC<Props> = ({
   source,
   isActive,
-  holding,
+  holdMode,
   loopMs,
   onHoldStart,
   onHoldEnd,
@@ -252,6 +275,16 @@ const AnimatedSlide: React.FC<Props> = ({
     webViewRef.current?.injectJavaScript(js);
   }, []);
 
+  // Region-aware press: the rightmost strip fast-forwards, anywhere else pauses.
+  const handleTouchStart = useCallback(
+    (e: GestureResponderEvent) => {
+      const x = e?.nativeEvent?.locationX ?? 0;
+      const mode: HoldMode = x >= width * (1 - RIGHT_STRIP_PCT) ? 'fast' : 'pause';
+      onHoldStart(mode);
+    },
+    [onHoldStart, width],
+  );
+
   // Restart from the beginning when this slide becomes active; freeze at t=0
   // when it leaves the viewport. Waits for the document to be ready so the
   // injected script can actually reach the contract.
@@ -262,28 +295,30 @@ const AnimatedSlide: React.FC<Props> = ({
     inject(isActive ? ACTIVATE_JS : DEACTIVATE_JS);
   }, [isActive, loaded, inject]);
 
-  // Press-and-hold fast-forward only applies to the slide currently on screen.
+  // Region-aware press only applies to the slide currently on screen: the
+  // rightmost strip fast-forwards, a press elsewhere pauses, release resumes.
   useEffect(() => {
     if (!loaded || !isActive) {
       return;
     }
-    inject(holding ? HOLD_JS : RELEASE_JS);
-  }, [holding, loaded, isActive, inject]);
+    inject(holdMode === 'fast' ? HOLD_JS : holdMode === 'pause' ? PAUSE_JS : RELEASE_JS);
+  }, [holdMode, loaded, isActive, inject]);
 
-  // Fade the press-state affordances in step with the hold.
+  // Fade the press-state affordances in step with the fast-forward only — a
+  // pause-elsewhere press leaves the note/darken untouched (matches the cue).
   useEffect(() => {
-    const active = holding && isActive;
+    const fast = holdMode === 'fast' && isActive;
     Animated.timing(noteOpacity, {
-      toValue: active ? 0 : 1,
+      toValue: fast ? 0 : 1,
       duration: NOTE_FADE_MS,
       useNativeDriver: true,
     }).start();
     Animated.timing(darkenOpacity, {
-      toValue: active ? 1 : 0,
-      duration: active ? DARKEN_IN_MS : DARKEN_OUT_MS,
+      toValue: fast ? 1 : 0,
+      duration: fast ? DARKEN_IN_MS : DARKEN_OUT_MS,
       useNativeDriver: true,
     }).start();
-  }, [holding, isActive, noteOpacity, darkenOpacity]);
+  }, [holdMode, isActive, noteOpacity, darkenOpacity]);
 
   if (!uri) {
     return <View style={[styles.fill, styles.fallback, style]} />;
@@ -300,7 +335,7 @@ const AnimatedSlide: React.FC<Props> = ({
     // have pointerEvents="none" — touches fall through to this container.
     <View
       style={[styles.fill, styles.fallback, style]}
-      onTouchStart={onHoldStart}
+      onTouchStart={handleTouchStart}
       onTouchEnd={onHoldEnd}
       onTouchCancel={onHoldEnd}
     >
@@ -329,7 +364,7 @@ const AnimatedSlide: React.FC<Props> = ({
         />
       </View>
 
-      {/* Right-edge darken gradient: hidden at rest, fades in while holding.
+      {/* Right-edge darken gradient: hidden at rest, fades in while fast-forwarding.
           Darkest at the far-right edge → transparent toward center. */}
       <Animated.View
         pointerEvents="none"
@@ -343,7 +378,7 @@ const AnimatedSlide: React.FC<Props> = ({
         />
       </Animated.View>
 
-      {/* "Press for 2x speed" note: visible at rest, soft-fades out while held. */}
+      {/* "Press for 2x speed" note: visible at rest, soft-fades out while fast-forwarding. */}
       <Animated.View
         pointerEvents="none"
         style={[styles.note, { top: noteTop, right: noteRight, opacity: noteOpacity }]}
