@@ -333,9 +333,10 @@ const styles = StyleSheet.create({
   buttonSolid: { backgroundColor: 'rgba(255,255,255,0.18)' },
   buttonOutline: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.9)' },
   buttonText: { fontSize: 18, fontWeight: '600', color: '#FFFFFF' },
-  // Centered wordmark below the buttons. aspectRatio matches the source PNG
-  // (934x270) so height tracks width with no distortion.
-  wordmark: { width: 160, aspectRatio: 934 / 270, alignSelf: 'center' },
+  // Centered wordmark below the buttons. Explicit width+height (160×46) to
+  // prevent RN/Yoga from falling back to the PNG's intrinsic 934px width.
+  // Dimensions preserve the 934:270 aspect ratio: round(160×270/934) = 46.
+  wordmark: { width: 160, height: 46, alignSelf: 'center' },
 });
 
 export default SplashScreen;
