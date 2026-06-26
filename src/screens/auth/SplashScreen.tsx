@@ -34,16 +34,16 @@ type Slide = {
 
 // The swipeable landing carousel. Adding slide 2 & 3 is a drop-in: place
 // slideN.html in assets/signin-animations and append one entry here — no other
-// changes are needed. durationMs values are derived from each file's keyframes:
-//   slide1: scene-A is a one-shot that fades out at 14.6s, then the part-two
-//           reveal (animation-delay 14.6s) runs its first 14s cycle → ~28.6s;
-//           rounded up to 29.5s so part two settles before we advance.
-//   slide2: every keyframe is a 10s infinite loop, no delays → 10s.
-//   slide3: every keyframe is a 14s infinite loop (incl. the embedded video).
+// changes are needed. durationMs is the real loop duration measured from each
+// slide's source: slide1 reads `var LOOP_MS` from the HTML; slide2 uses 10s
+// CSS infinite animations; slide3 duration is the MP4 mvhd box duration.
+//   slide1: LOOP_MS = 25600ms (declared in slide HTML).
+//   slide2: 10s CSS animations → 10000ms.
+//   slide3: MP4 video duration → 8058ms (timescale 1000, units 8058).
 const SLIDES: Slide[] = [
-  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html'), durationMs: 29500 },
-  { key: 'slide2', source: require('../../../assets/signin-animations/slide2.html'), durationMs: 10000 },
-  { key: 'slide3', source: require('../../../assets/signin-animations/slide3.html'), durationMs: 14000 },
+  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html'), durationMs: 25600 }, // LOOP_MS = 25600 (single play-through: scene-two 11.6s delay + 14.0s)
+  { key: 'slide2', source: require('../../../assets/signin-animations/slide2.html'), durationMs: 10000 }, // 10s CSS animations (confirmed)
+  { key: 'slide3', source: require('../../../assets/signin-animations/slide3.html'), durationMs: 8058 },  // MP4 mvhd duration: 8058ms
 ];
 
 // A setTimeout that survives speed changes without losing elapsed time and

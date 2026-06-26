@@ -32,7 +32,7 @@ import { setPendingHighlightPost } from '../../utils/highlightStore';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { useDogs } from '../../hooks/useDogs';
 import { useSwaps } from '../../hooks/useSwaps';
-import { Dog, CompensationType, CareType, RepeatSchedule, formatRepeatLabel, formatRepeatSubLabel } from '../../models/types';
+import { Dog, CompensationType, CareType, RepeatSchedule, SwapPost, formatRepeatLabel, formatRepeatSubLabel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { uploadPhotoToStorage } from '../../utils/uploadHelper';
 import { onPostCreated } from '../../services/ReviewPromptService';
@@ -43,6 +43,7 @@ import ConfettiCelebration, { CelebrationItem } from '../../components/common/Co
 import Chip from '../../components/common/Chip';
 import { formatDogAge } from '../../utils/formatDogAge';
 import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
+import PostCard from '../../components/common/PostCard';
 
 const RED = '#FF2D55';
 
@@ -58,6 +59,16 @@ const ADDON_CARE_OPTIONS: { type: CareType; icon: string; label: string }[] = [
   { type: 'playtime', icon: '🎾', label: 'Playtime' },
   { type: 'medication', icon: '💊', label: 'Medication' },
 ];
+
+// Human labels for the "Reuse a past request" collapsed-row care-type chips.
+const REUSE_CARE_LABELS: Record<string, string> = {
+  overnight: 'Overnight stay',
+  daySitting: 'Daytime sitting',
+  feeding: 'Feeding',
+  dogWalking: 'Walking',
+  playtime: 'Playtime',
+  medication: 'Medication',
+};
 
 type Props = {
   navigation: NativeStackNavigationProp<RequestsStackParamList, 'Requests'>;
@@ -144,9 +155,9 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
       { text: 'OK', onPress: () => scrollAndPulse(sectionKey) },
     ]);
   }, [scrollAndPulse]);
-  const { user, userProfile } = useAuthContext();
+  const { user, userProfile, refreshUserProfile } = useAuthContext();
   const { getDogsByOwner } = useDogs();
-  const { createPost } = useSwaps();
+  const { createPost, getMyPosts, hidePostFromReuse } = useSwaps();
 
   const [myDogs, setMyDogs] = useState<Dog[]>([]);
   const [selectedDogIds, setSelectedDogIds] = useState<Set<string>>(new Set());
@@ -162,6 +173,11 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [careAddress, setCareAddress] = useState('');
   const [savedAddresses, setSavedAddresses] = useState<string[]>([]);
+  // Reuse a past request modal state
+  const [showReuseModal, setShowReuseModal] = useState(false);
+  const [reusePosts, setReusePosts] = useState<SwapPost[]>([]);
+  const [reuseLoading, setReuseLoading] = useState(false);
+  const [expandedReusePostId, setExpandedReusePostId] = useState<string | null>(null);
   // Sitter's home: pickup or dropoff
   const [sitterTransport, setSitterTransport] = useState<'pickup' | 'dropoff' | null>(null);
   // Playtime — multi-session support (max 5 sessions)
@@ -196,10 +212,12 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [playSessions, setPlaySessions] = useState<PlaySession[]>([makeDefaultPlaySession()]);
   interface WalkSession {
   id: string;
+  flexible: boolean;
   startDate: Date;
   endDate: Date;
   showStart: boolean;
   showEnd: boolean;
+  durationMins: number | null;
   dogIds: string[];
   repeatSchedule: RepeatSchedule | null;
   instructions: string;
@@ -209,10 +227,12 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
 
 const makeDefaultWalkSession = (): WalkSession => ({
   id: nextCellId(),
+  flexible: false,
   startDate: null as unknown as Date,
   endDate: null as unknown as Date,
   showStart: false,
   showEnd: false,
+  durationMins: null,
   dogIds: [],
   repeatSchedule: null,
   instructions: '',
@@ -349,7 +369,7 @@ const MAX_PLAY_SESSIONS = 5;
       return feedingSlots.some(s => s.time || s.instructions.trim() || s.photos.length > 0 || s.repeatSchedule);
     }
     if (type === 'dogWalking') {
-      return walkSessions.some(s => s.startDate || s.endDate || (s.instructions && s.instructions.trim()) || s.photos.length > 0 || s.repeatSchedule);
+      return walkSessions.some(s => s.startDate || s.endDate || (s.instructions && s.instructions.trim()) || s.photos.length > 0 || s.repeatSchedule || s.flexible);
     }
     if (type === 'playtime') {
       return playSessions.some(s => s.startDate || s.endDate || (s.instructions && s.instructions.trim()) || s.photos.length > 0 || s.repeatSchedule || s.flexible);
@@ -790,7 +810,7 @@ const MAX_PLAY_SESSIONS = 5;
     if (q.trim().length < 2) { setAddressSuggestions([]); return; }
     setAddressFetching(true);
     void fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=5&countrycodes=us`,
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=5&countrycodes=us,ca`,
       { headers: { 'Accept-Language': 'en', 'User-Agent': 'SwapDogApp/1.0' } },
     )
       .then((r) => {
@@ -827,6 +847,77 @@ const MAX_PLAY_SESSIONS = 5;
     // If the removed address was selected, clear it
     if (careAddress === addr) setCareAddress('');
   };
+
+  // ── Reuse a past request ──
+  // Open the bottom sheet and load the user's past posts (newest-first, all statuses).
+  const openReuseModal = useCallback(async () => {
+    if (!user) return;
+    setShowReuseModal(true);
+    setExpandedReusePostId(null);
+    setReuseLoading(true);
+    try {
+      const posts = await getMyPosts(user.uid);
+      setReusePosts(posts);
+    } catch {
+      setReusePosts([]);
+    } finally {
+      setReuseLoading(false);
+    }
+  }, [user, getMyPosts]);
+
+  // Seed the form from a past post. Only the reusable core — dogs, care types,
+  // notes, address, compensation. Dates/times and per-session arrays are left
+  // for the user to re-pick (they are time-specific).
+  const prefillFromPost = (post: SwapPost) => {
+    setSelectedDogIds(new Set(post.dogIds?.filter(id => myDogs.some(d => d.id === id)) ?? []));
+    setPrimaryCareType((post.careType === 'overnight' || post.careType === 'daySitting') ? post.careType : null);
+    setAddOnCareTypes(new Set((post.addOnCareTypes ?? []).filter(t => ['feeding', 'dogWalking', 'playtime', 'medication'].includes(t)) as CareType[]));
+    setCareDetails(post.careDetails ?? '');
+    setCareAddress(post.careAddress ?? '');
+    if (post.compensationType === 'points' || post.compensationType === 'either') {
+      setOfferPoints(true);
+      setPointsOffered(String(post.pointsOffered ?? post.pointsCost ?? ''));
+    }
+    if (post.compensationType === 'payment' || post.compensationType === 'either') {
+      setOfferMoney(true);
+      setPaymentAmount(String(post.paymentAmount ?? ''));
+    }
+    setShowReuseModal(false);
+  };
+
+  // Permanently hide a past post from the reuse list (per-user, persisted on the
+  // user doc). Does NOT delete the post — it stays in Discover / My Posts.
+  const handleRemoveFromReuse = (post: SwapPost) => {
+    Alert.alert(
+      'Remove from reuse list?',
+      "You won't see this request here again. Your original post isn't affected.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            if (!user) return;
+            // Remove locally for immediate feedback.
+            setReusePosts(prev => prev.filter(p => p.id !== post.id));
+            if (expandedReusePostId === post.id) setExpandedReusePostId(null);
+            try {
+              await hidePostFromReuse(user.uid, post.id);
+              await refreshUserProfile();
+            } catch {
+              // Local filter already applied; the user doc write can be retried later.
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Past posts minus the ones the user permanently hid from the reuse list.
+  const visibleReusePosts = useMemo(
+    () => reusePosts.filter(p => !(userProfile?.hiddenReusePostIds ?? []).includes(p.id)),
+    [reusePosts, userProfile?.hiddenReusePostIds]
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -1263,13 +1354,15 @@ const MAX_PLAY_SESSIONS = 5;
     }
     if (addOnCareTypes.has('dogWalking')) {
       for (let i = 0; i < walkSessions.length; i++) {
-        if (!walkSessions[i].startDate) {
-          showValidationAlert('Start Time Required', `Please set a start time for ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'}.`, 'walk-' + i);
-          return;
-        }
-        if (!walkSessions[i].endDate) {
-          showValidationAlert('End Time Required', `Please set an end time for ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'}.`, 'walk-' + i);
-          return;
+        if (!walkSessions[i].flexible) {
+          if (!walkSessions[i].startDate) {
+            showValidationAlert('Start Time Required', `Please set a start time for ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'}.`, 'walk-' + i);
+            return;
+          }
+          if (!walkSessions[i].endDate) {
+            showValidationAlert('End Time Required', `Please set an end time for ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'}.`, 'walk-' + i);
+            return;
+          }
         }
         if (primaryCareType === 'overnight' && !walkSessions[i].repeatSchedule) {
           showValidationAlert('Select Days Required', `Please select which days ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'} should occur during the stay.`, 'walk-' + i);
@@ -1334,7 +1427,7 @@ const MAX_PLAY_SESSIONS = 5;
 
     // Check for overlapping walk sessions
     if (addOnCareTypes.has('dogWalking') && walkSessions.length > 1) {
-      const sorted = [...walkSessions].sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
+      const sorted = walkSessions.filter(s => !s.flexible && s.startDate && s.endDate).sort((a, b) => timeToMins(a.startDate) - timeToMins(b.startDate));
       for (let i = 1; i < sorted.length; i++) {
         if (sorted[i].startDate && sorted[i - 1].endDate && timeToMins(sorted[i].startDate) < timeToMins(sorted[i - 1].endDate)) {
           const origIdx = walkSessions.findIndex(w => w.id === sorted[i].id);
@@ -1522,9 +1615,10 @@ const MAX_PLAY_SESSIONS = 5;
       }
       if (addOnCareTypes.has('dogWalking')) {
         careTypeFields.walkSessions = walkSessions.map(ws => ({
-          startTime: ws.startDate ? formatTime12(ws.startDate) : '',
-          endTime: ws.endDate ? formatTime12(ws.endDate) : '',
-          durationMins: (() => {
+          flexible: ws.flexible,
+          startTime: ws.flexible ? null : (ws.startDate ? formatTime12(ws.startDate) : ''),
+          endTime: ws.flexible ? null : (ws.endDate ? formatTime12(ws.endDate) : ''),
+          durationMins: ws.flexible ? (ws.durationMins ?? 0) : (() => {
             if (!ws.startDate || !ws.endDate) return 0;
             let s = ws.startDate.getHours() * 60 + ws.startDate.getMinutes();
             let e = ws.endDate.getHours() * 60 + ws.endDate.getMinutes();
@@ -1718,6 +1812,18 @@ const MAX_PLAY_SESSIONS = 5;
           </Text>
           <Text style={{ fontSize: 16 }}>🐾</Text>
         </View>
+
+        {/* Reuse a past request — opens a bottom sheet of the user's prior posts */}
+        <TouchableOpacity
+          onPress={openReuseModal}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ alignSelf: 'center', marginTop: -spacing.lg, marginBottom: spacing.lg, paddingVertical: 8, paddingHorizontal: 12 }}
+        >
+          <Text style={{ textAlign: 'center', textDecorationLine: 'underline', fontSize: 15, color: colors.textSecondary }}>
+            Reuse a past request
+          </Text>
+        </TouchableOpacity>
 
         {/* ── Section 1: Select Your Dog(s) ── */}
         <Animated.View ref={validationRefFor('dogs')} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'dogs' ? pulseAnim : 1 }] }, pulsingSection === 'dogs' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
@@ -2520,6 +2626,28 @@ const MAX_PLAY_SESSIONS = 5;
                       }}
                     />
 
+                    {/* Flexible hours toggle */}
+                    <TouchableOpacity
+                      style={[
+                        styles.dailyToggle,
+                        { borderColor: ws.flexible ? colors.primary : colors.border,
+                          backgroundColor: ws.flexible ? colors.primary + '15' : colors.background,
+                          marginBottom: 12 },
+                      ]}
+                      onPress={() => updateWalkSession(wIdx, { flexible: !ws.flexible })}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={{ fontSize: 17 }}>{ws.flexible ? '⏱️' : '🕐'}</Text>
+                      <Text style={[
+                        styles.dailyToggleText,
+                        { color: ws.flexible ? colors.primary : colors.textSecondary },
+                      ]}>
+                        {ws.flexible ? 'Flexible hours — any time of day' : 'Are walk hours flexible?'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    {!ws.flexible ? (
+                      <>
                     <View style={styles.timeRow}>
                       <TouchableOpacity
                         style={[styles.timePickerButton, { borderColor: ws.showStart ? colors.primary : colors.border }]}
@@ -2558,6 +2686,36 @@ const MAX_PLAY_SESSIONS = 5;
                       <Text style={[styles.feedingTimePreview, { color: colors.primary, marginTop: 8 }]}>
                         {wsStartTime} → {wsEndTime}  •  {wsDurText}
                       </Text>
+                    )}
+                      </>
+                    ) : (
+                      <>
+                        {/* Flexible mode: duration pills */}
+                        <Text style={[styles.fieldHint, { color: colors.textSecondary, marginBottom: 8 }]}>
+                          How long should this walk be?
+                        </Text>
+                        <View style={styles.durationRow}>
+                          {[15, 30, 60, 90, 120].map((mins) => (
+                            <TouchableOpacity
+                              key={mins}
+                              style={[
+                                styles.durationPill,
+                                { borderColor: colors.border, backgroundColor: colors.background },
+                                ws.durationMins === mins && { backgroundColor: colors.primary, borderColor: colors.primary },
+                              ]}
+                              onPress={() => updateWalkSession(wIdx, { durationMins: mins })}
+                            >
+                              <Text style={[
+                                styles.durationPillText,
+                                { color: colors.text },
+                                ws.durationMins === mins && { color: '#fff', fontWeight: '700' },
+                              ]}>
+                                {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </>
                     )}
 
 
@@ -3586,9 +3744,9 @@ const MAX_PLAY_SESSIONS = 5;
                 {addOnCareTypes.has('dogWalking') && (
                   <View style={{ marginTop: 6 }}>
                     <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>🐕 Walk × {walkSessions.length}</Text>
-                    {walkSessions.filter(ws => ws.startDate || ws.endDate).map((ws, i) => (
+                    {walkSessions.filter(ws => ws.startDate || ws.endDate || ws.flexible).map((ws, i) => (
                       <Text key={i} style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
-                        {ws.startDate ? formatTime12(ws.startDate) : '?'} – {ws.endDate ? formatTime12(ws.endDate) : '?'}
+                        {ws.flexible ? 'Flexible hours' : `${ws.startDate ? formatTime12(ws.startDate) : '?'} – ${ws.endDate ? formatTime12(ws.endDate) : '?'}`}
                       </Text>
                     ))}
                   </View>
@@ -3784,6 +3942,95 @@ const MAX_PLAY_SESSIONS = 5;
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* ── Reuse a Past Request Modal ── */}
+      <Modal
+        visible={showReuseModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowReuseModal(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} activeOpacity={1} onPress={() => setShowReuseModal(false)} />
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 20, paddingHorizontal: 20, paddingBottom: 40, maxHeight: '80%' }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: 4 }}>Reuse a past request</Text>
+            <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginBottom: 16 }}>
+              Tap a request to preview it, then reuse its details for a new post.
+            </Text>
+
+            {reuseLoading ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <ActivityIndicator color={colors.primary} size="large" />
+              </View>
+            ) : visibleReusePosts.length === 0 ? (
+              <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center', paddingVertical: 32, paddingHorizontal: 12, lineHeight: 22 }}>
+                You're posting for the first time! Future requests will be reusable from here.
+              </Text>
+            ) : (
+              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                {visibleReusePosts.map((post) => {
+                  const expanded = expandedReusePostId === post.id;
+                  const dogLabel = post.dogNames?.length ? post.dogNames.join(' & ') : post.dogName;
+                  const careKeys = [post.careType, ...(post.addOnCareTypes ?? [])].filter((k): k is string => !!k);
+                  return (
+                    <View key={post.id} style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, marginBottom: 10, overflow: 'hidden' }}>
+                      {/* Collapsed row */}
+                      <TouchableOpacity
+                        onPress={() => setExpandedReusePostId(expanded ? null : post.id)}
+                        activeOpacity={0.7}
+                        style={{ flexDirection: 'row', alignItems: 'center', padding: 14 }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }} numberOfLines={1}>{dogLabel}</Text>
+                          {careKeys.length > 0 && (
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
+                              {careKeys.map((k, i) => (
+                                <View key={i} style={{ backgroundColor: colors.primary + '12', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginRight: 6, marginBottom: 4 }}>
+                                  <Text style={{ fontSize: 12, color: colors.textSecondary, fontWeight: '600' }}>{REUSE_CARE_LABELS[k] ?? k}</Text>
+                                </View>
+                              ))}
+                            </View>
+                          )}
+                        </View>
+                        {/* Expand affordance — right when collapsed, down when expanded */}
+                        <Ionicons
+                          name={expanded ? 'chevron-down' : 'chevron-forward'}
+                          size={20}
+                          color={colors.textSecondary}
+                          style={{ marginLeft: 10 }}
+                        />
+                        {/* Remove control — mirrors the address minus-icon exactly */}
+                        <TouchableOpacity
+                          onPress={(e) => { e.stopPropagation(); handleRemoveFromReuse(post); }}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255, 45, 85, 0.15)', alignItems: 'center', justifyContent: 'center', marginLeft: 10 }}
+                        >
+                          <Text style={{ fontSize: 16, color: '#FF2D55', fontWeight: '600', lineHeight: 18 }}>−</Text>
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+
+                      {/* Expanded detail — Discover-style PostCard + prefill CTA */}
+                      {expanded && (
+                        <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
+                          <TouchableOpacity
+                            onPress={() => prefillFromPost(post)}
+                            activeOpacity={0.85}
+                            style={{ backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginBottom: 12 }}
+                          >
+                            <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF' }}>Use these details</Text>
+                          </TouchableOpacity>
+                          <PostCard post={post} onPress={() => {}} currentUserId={undefined} isFavorited={false} />
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
     <KeyboardDoneBar />
 </View>
   );

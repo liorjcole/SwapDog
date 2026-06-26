@@ -232,7 +232,7 @@ const WELCOME_TEXT =
   "community of dog lovers who look out for each other's pups.\n\n" +
   "We've given you 5 points to get started — use them to post your first " +
   "pet sitting request or save them up!\n\n" +
-  'If you ever need help or have questions, reach out to us at david@joinwatchdog.com.\n\n' +
+  'If you ever need help or have questions, reach out to us at hi@joinwatchdog.com.\n\n' +
   'Happy watching! 🐕';
 
 /**

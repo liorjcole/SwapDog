@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../config/firebase';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Platform, KeyboardAvoidingView, Alert, Modal, Image, ActivityIndicator } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Platform, KeyboardAvoidingView, Alert, Modal, Image, ActivityIndicator, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -574,7 +574,13 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
           <View style={{ flex: 1, alignItems: 'center', paddingVertical: 20, paddingHorizontal: 16 }}>
             <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
               For support, email{' '}
-              <Text style={{ color: colors.primary, fontWeight: '600' }}>david@joinwatchdog.com</Text>
+              <Text
+                style={{ color: colors.primary, fontWeight: '600' }}
+                onPress={() => Linking.openURL('mailto:hi@joinwatchdog.com')}
+                accessibilityRole="link"
+              >
+                hi@joinwatchdog.com
+              </Text>
             </Text>
           </View>
         ) : (

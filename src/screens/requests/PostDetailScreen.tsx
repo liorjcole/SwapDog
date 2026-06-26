@@ -1130,7 +1130,9 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                     return (
                       <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
                         <Text style={{ fontSize: 15, color: colors.textSecondary }}>
-                          {ws.startTime} – {ws.endTime}  ({durLabel}){(ws as any).repeatSchedule ? '  ·  ' + formatRepeatLabel((ws as any).repeatSchedule) : (ws as any).repeatDaily ? '  ·  Repeat daily' : ''}
+                          {ws.flexible
+                            ? `Flexible · ${durLabel}`
+                            : `${ws.startTime} – ${ws.endTime}  (${durLabel})`}{(ws as any).repeatSchedule ? '  ·  ' + formatRepeatLabel((ws as any).repeatSchedule) : (ws as any).repeatDaily ? '  ·  Repeat daily' : ''}
                           {ws.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                             ? `  ·  ${resolveDogNames(ws.dogIds, post)}`
                             : ''}
