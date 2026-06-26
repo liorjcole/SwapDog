@@ -13,10 +13,14 @@ web-build/
 GoogleService-Info.plist
 google-services.json
 
-# One-time cleanup scripts (sensitive — contain Firebase config, not for CI)
-scripts/
+# One-time cleanup scripts (sensitive — contain Firebase config, not for CI).
+# Ignore scripts/ contents (scripts/* so specific files can be re-included).
+scripts/*
 !scripts/patch-datetimepicker.js
 !scripts/backfill-clear-local-photourls.js
+# Build-time CI checks (no secrets) — tracked despite the scripts/ ignore above.
+!scripts/validate-signin-slides.js
+!scripts/test-signin-contract.js
 
 # Firebase Cloud Functions build output
 functions/lib/
