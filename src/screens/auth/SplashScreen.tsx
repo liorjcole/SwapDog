@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   FlatList,
   Image,
   ListRenderItemInfo,
@@ -38,6 +39,15 @@ type Slide = {
 //   slide1: 22000ms (single play-through: 22s master scene cycle).
 //   slide2: 10000ms (10s CSS timeline).
 //   slide3: 8058ms (MP4 video duration; timescale 1000, units 8058).
+
+// "Press for 2x" note placement — screen fractions copied verbatim from AnimatedSlide.
+// The note now lives in the fixed overlay so it never pages with the slides.
+const NOTE_FADE_MS = 1000;
+const NOTE_WIDTH_FRAC = 0.211; // × window width (~83pt at 393w)
+const NOTE_TOP_FRAC = 0.325; // × window height
+const NOTE_RIGHT_FRAC = -0.025; // × window width (negative: hangs ~10pt off right edge)
+const NOTE_ASPECT = 957 / 638; // image natural aspect (w/h ≈ 1.5)
+
 const SLIDES: Slide[] = [
   { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html'), durationMs: 22000 },
   { key: 'slide2', source: require('../../../assets/signin-animations/slide2.html'), durationMs: 10000 },
@@ -110,16 +120,27 @@ function useRateTimeout(
 
 const SplashScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
   const [holdMode, setHoldMode] = useState<HoldMode>('idle');
   const listRef = useRef<FlatList<Slide>>(null);
+  // Opacity for the "Press for 2x" note: visible at rest, fades out on 2x-hold.
+  const noteOpacity = useRef(new Animated.Value(1)).current;
 
   // A freshly shown slide always starts playing from the top at 1x — never
   // inherit a stale press state from the slide we just left.
   useEffect(() => {
     setHoldMode('idle');
   }, [activeIndex]);
+
+  // Fade the note out while fast-forwarding; restore on release or slide change.
+  useEffect(() => {
+    Animated.timing(noteOpacity, {
+      toValue: holdMode === 'fast' ? 0 : 1,
+      duration: NOTE_FADE_MS,
+      useNativeDriver: true,
+    }).start();
+  }, [holdMode, noteOpacity]);
 
   // Auto-advance once the active slide has played its full loop. Driven off the
   // per-slide duration so timing matches each animation rather than a single
@@ -190,6 +211,12 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     [width, activeIndex, holdMode, handleHoldStart, handleHoldEnd],
   );
 
+  // Note dimensions — exact same fractions as the original AnimatedSlide placement.
+  const noteWidth = NOTE_WIDTH_FRAC * width;
+  const noteHeight = noteWidth / NOTE_ASPECT;
+  const noteTop = NOTE_TOP_FRAC * height;
+  const noteRight = NOTE_RIGHT_FRAC * width;
+
   const bottomPad = Math.max(insets?.bottom ?? 0, 24);
 
   return (
@@ -214,6 +241,16 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         maxToRenderPerBatch={2}
         windowSize={3}
         removeClippedSubviews
+      />
+
+      {/* "Press for 2x speed" note: single instance in the fixed overlay so it
+          never scrolls with slides. Fades out on 2x-hold, back in on release.
+          pointerEvents="none" keeps it entirely out of the touch path. */}
+      <Animated.Image
+        source={require('../../../assets/signin-animations/press-for-2x.png')}
+        style={{ position: 'absolute', top: noteTop, right: noteRight, width: noteWidth, height: noteHeight, opacity: noteOpacity }}
+        resizeMode="contain"
+        pointerEvents="none"
       />
 
       <View style={[styles.overlay, { paddingBottom: bottomPad + 16 }]} pointerEvents="box-none">
