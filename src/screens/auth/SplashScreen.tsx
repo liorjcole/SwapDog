@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   ListRenderItemInfo,
@@ -23,39 +23,137 @@ type Slide = {
   key: string;
   // A bundled .html asset module reference.
   source: number;
+  // Full-loop length of this slide's animation, measured from its HTML. The
+  // carousel auto-advances once this elapses so each slide plays through once.
+  durationMs: number;
 };
 
 // The swipeable landing carousel. Adding slide 2 & 3 is a drop-in: place
 // slideN.html in assets/signin-animations and append one entry here — no other
-// changes are needed.
+// changes are needed. durationMs values are derived from each file's keyframes:
+//   slide1: scene-A is a one-shot that fades out at 14.6s, then the part-two
+//           reveal (animation-delay 14.6s) runs its first 14s cycle → ~28.6s;
+//           rounded up to 29.5s so part two settles before we advance.
+//   slide2: every keyframe is a 10s infinite loop, no delays → 10s.
+//   slide3: every keyframe is a 14s infinite loop (incl. the embedded video).
 const SLIDES: Slide[] = [
-  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html') },
-  { key: 'slide2', source: require('../../../assets/signin-animations/slide2.html') },
-  { key: 'slide3', source: require('../../../assets/signin-animations/slide3.html') },
+  { key: 'slide1', source: require('../../../assets/signin-animations/slide1.html'), durationMs: 29500 },
+  { key: 'slide2', source: require('../../../assets/signin-animations/slide2.html'), durationMs: 10000 },
+  { key: 'slide3', source: require('../../../assets/signin-animations/slide3.html'), durationMs: 14000 },
 ];
+
+// A setTimeout that survives pause/resume without losing elapsed time and
+// restarts cleanly whenever `resetKey` changes (i.e. a new slide is shown).
+// Keeps the auto-advance countdown in lock-step with the held animation.
+function usePausableTimeout(
+  durationMs: number,
+  onElapsed: () => void,
+  resetKey: unknown,
+  paused: boolean,
+) {
+  const onElapsedRef = useRef(onElapsed);
+  onElapsedRef.current = onElapsed;
+
+  const remainingRef = useRef(durationMs);
+  const startedAtRef = useRef<number | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const keyRef = useRef(resetKey);
+
+  useEffect(() => {
+    const clear = () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+
+    // A new slide resets the countdown to its full duration.
+    if (keyRef.current !== resetKey) {
+      keyRef.current = resetKey;
+      remainingRef.current = durationMs;
+      startedAtRef.current = null;
+    }
+
+    if (paused) {
+      // Bank the time already spent so resume continues from here.
+      if (startedAtRef.current != null) {
+        remainingRef.current -= Date.now() - startedAtRef.current;
+        startedAtRef.current = null;
+      }
+      clear();
+      return clear;
+    }
+
+    startedAtRef.current = Date.now();
+    clear();
+    timeoutRef.current = setTimeout(() => {
+      onElapsedRef.current();
+    }, Math.max(0, remainingRef.current));
+
+    return clear;
+  }, [resetKey, paused, durationMs]);
+}
 
 const SplashScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
   const listRef = useRef<FlatList<Slide>>(null);
+
+  // A freshly shown slide always starts playing from the top — never inherit a
+  // stale hold state from the slide we just left.
+  useEffect(() => {
+    setPaused(false);
+  }, [activeIndex]);
+
+  // Auto-advance once the active slide has played its full loop. Driven off the
+  // per-slide duration so timing matches each animation rather than a single
+  // shared interval. Loops back to slide 1 after the last slide.
+  const advance = useCallback(() => {
+    const next = (activeIndex + 1) % SLIDES.length;
+    listRef.current?.scrollToIndex({ index: next, animated: true });
+    setActiveIndex(next);
+  }, [activeIndex]);
+
+  usePausableTimeout(SLIDES[activeIndex]?.durationMs ?? 0, advance, activeIndex, paused);
 
   const onMomentumScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const offsetX = event?.nativeEvent?.contentOffset?.x ?? 0;
       const next = width > 0 ? Math.round(offsetX / width) : 0;
+      // Manual swipe: realign the active slide (which resets its auto-advance
+      // timer and restarts the landed-on slide's animation from the top).
       setActiveIndex(next);
     },
     [width],
   );
 
+  const handleHoldStart = useCallback(() => setPaused(true), []);
+  const handleHoldEnd = useCallback(() => setPaused(false), []);
+
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<Slide> | null | undefined, index: number) => ({
+      length: width,
+      offset: width * index,
+      index,
+    }),
+    [width],
+  );
+
   const renderItem = useCallback(
-    ({ item }: ListRenderItemInfo<Slide>) => (
+    ({ item, index }: ListRenderItemInfo<Slide>) => (
       <View style={{ width }}>
-        <AnimatedSlide source={item.source} />
+        <AnimatedSlide
+          source={item.source}
+          isActive={index === activeIndex}
+          paused={paused && index === activeIndex}
+          onHoldStart={handleHoldStart}
+          onHoldEnd={handleHoldEnd}
+        />
       </View>
     ),
-    [width],
+    [width, activeIndex, paused, handleHoldStart, handleHoldEnd],
   );
 
   const bottomPad = Math.max(insets?.bottom ?? 0, 24);
@@ -67,6 +165,8 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         data={SLIDES}
         keyExtractor={(item) => item.key}
         renderItem={renderItem}
+        extraData={`${activeIndex}-${paused}`}
+        getItemLayout={getItemLayout}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
