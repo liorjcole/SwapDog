@@ -135,7 +135,7 @@ function overlapsDate(post: SwapPost, date: Date): boolean {
 const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user, userProfile } = useAuthContext();
-  const { getMyPosts, cancelPost, getAcceptedPosts, saveSitterReminderIds, isPostExpired } = useSwaps();
+  const { getMyPosts, cancelPost, getAcceptedPosts, saveSitterReminderIds, isPostExpired, isStartExpiredNoHelper } = useSwaps();
   const { hasReviewed } = useReviews();
   const { getOrCreateConversation } = useMessaging();
   const { deductPoints, addPoints } = usePoints();
@@ -213,8 +213,18 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         getAcceptedPosts(user.uid),
       ]);
       const nonCancelled = mine.filter((p: any) => p.status !== 'cancelled' || (p as any).lateCancelled);
-      const active = nonCancelled.filter((p: SwapPost) => !isPostExpired(p) && p.status !== 'completed' && p.status !== 'cancelled');
-      const archived = nonCancelled.filter((p: SwapPost) => isPostExpired(p) || p.status === 'completed' || (p.status === 'cancelled' && (p as any).lateCancelled));
+      const active = nonCancelled.filter((p: SwapPost) =>
+        !isPostExpired(p) &&
+        !isStartExpiredNoHelper(p) &&     // hide start-expired unclaimed posts from active
+        p.status !== 'completed' &&
+        p.status !== 'cancelled'
+      );
+      const archived = nonCancelled.filter((p: SwapPost) =>
+        isPostExpired(p) ||
+        isStartExpiredNoHelper(p) ||      // start-expired unclaimed → Archive
+        p.status === 'completed' ||
+        (p.status === 'cancelled' && (p as any).lateCancelled)
+      );
       // Sort active: claimed on top
       active.sort((a: any, b: any) => {
         const aIsClaimed = a.status === 'claimed' || a.status === 'reschedulePending' ? 0 : 1;
@@ -444,6 +454,13 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
     const endStr = smartDate(item.endDate, { includeYear: true });
     const isCompleted = item.status === 'completed';
     const isReviewed = reviewedPostIds.has(item.id);
+    // True when a post's start moment passed with no confirmed helper.
+    // Mutually exclusive with COMPLETED / LATE CANCELLED banners.
+    const isUnclaimedExpired =
+      !item.claimedBy &&
+      item.status !== 'completed' &&
+      !((item as any).lateCancelled) &&
+      (isStartExpiredNoHelper(item) || isPostExpired(item));
 
     return (
       <TouchableOpacity
@@ -534,6 +551,21 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>Leave Review</Text>
               </TouchableOpacity>
             )}
+          </View>
+        )}
+
+        {/* UNCLAIMED corner badge — mirrors the FAVORITE badge geometry in DiscoverScreen */}
+        {isUnclaimedExpired && (
+          <View style={{
+            position: 'absolute', top: -1, right: -1,
+            backgroundColor: '#78909C',
+            paddingHorizontal: 10, paddingVertical: 4,
+            borderBottomLeftRadius: 8, borderTopRightRadius: 10,
+            zIndex: 10,
+          }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 }}>
+              UNCLAIMED
+            </Text>
           </View>
         )}
       </TouchableOpacity>

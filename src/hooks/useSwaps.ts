@@ -202,6 +202,36 @@ export const useSwaps = () => {
     return now > end;
   };
 
+  /**
+   * Returns true when a post's start moment has passed with no confirmed helper.
+   * Used to hide unclaimed posts from Discover and move them to Archive in My Posts.
+   *
+   * - claimedBy set → helper confirmed, always false (keep post alive).
+   * - startTime present → cutoff = startDate@startTime + 60 s (1-minute grace).
+   * - startTime absent → cutoff = end-of-startDate day (23:59:59.999, so a
+   *   date-only post stays visible all day and expires only once the day is over).
+   */
+  const isStartExpiredNoHelper = (post: SwapPost): boolean => {
+    if (post.claimedBy) return false; // confirmed helper — keep the post alive
+    const now = new Date();
+    const start = new Date(post.startDate ?? new Date());
+    if (post.startTime) {
+      const match = post.startTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (match) {
+        let h = parseInt(match[1], 10);
+        const m = parseInt(match[2], 10);
+        if (match[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+        if (match[3].toUpperCase() === 'AM' && h === 12) h = 0;
+        start.setHours(h, m, 0, 0);
+      }
+      // 1-minute grace period after the posted start time
+      return now > new Date(start.getTime() + 60_000);
+    }
+    // Date-only post: expire after the start day is fully over
+    start.setHours(23, 59, 59, 999);
+    return now > start;
+  };
+
   const getAreaPosts = async (
     location?: { latitude: number; longitude: number },
     radiusMiles = 25
@@ -213,7 +243,12 @@ export const useSwaps = () => {
     const snap = await getDocs(q);
     const all = snap.docs
       .map((d) => parsePost(d.id, d.data() as Record<string, unknown>))
-      .filter((p) => p.status === 'open' && !isPostExpired(p) && !((p as any).pointsDisabled)); // exclude claimed/cancelled/expired/points-disabled
+      .filter((p) =>
+        p.status === 'open' &&
+        !isPostExpired(p) &&
+        !isStartExpiredNoHelper(p) &&   // exclude start-expired posts with no helper
+        !((p as any).pointsDisabled)
+      ); // exclude claimed/cancelled/expired/points-disabled
 
     if (!location) return all;
 
@@ -440,6 +475,7 @@ export const useSwaps = () => {
     createPost,
     getAreaPosts,
     isPostExpired,
+    isStartExpiredNoHelper,
     getMyPosts,
     hidePostFromReuse,
     claimPost,
