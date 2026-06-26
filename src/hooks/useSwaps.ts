@@ -51,6 +51,7 @@ const parsePost = (id: string, data: Record<string, unknown>): SwapPost => ({
   posterName: data.posterName as string,
   posterPhotoURL: data.posterPhotoURL as string | undefined,
   posterLocation: data.posterLocation as { latitude: number; longitude: number } | undefined,
+  posterLocationName: data.posterLocationName as string | undefined,
   dogId: data.dogId as string,
   dogName: data.dogName as string,
   dogBreed: data.dogBreed as string | undefined,

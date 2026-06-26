@@ -121,6 +121,11 @@ type Props = {
 
 type TabType = 'mine' | 'commitments';
 
+/** First comma-segment of a stored location label, trimmed. "" when absent/blank. */
+function cityFromLocationName(name?: string): string {
+  return (name?.split(',')[0] ?? '').trim();
+}
+
 // ── Date helpers ──────────────────────────────────────────────────────────────
 function overlapsDate(post: SwapPost, date: Date): boolean {
   const cell = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -441,9 +446,11 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           {compensationLabel(item)}
         </Text>
 
-
-
-
+        {cityFromLocationName(item.posterLocationName) !== '' && (
+          <Text style={[styles.postedInLabel, { color: colors.textSecondary }]}>
+            Posted in {cityFromLocationName(item.posterLocationName)}
+          </Text>
+        )}
       </TouchableOpacity>
     );
   };
@@ -567,6 +574,12 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
               UNCLAIMED
             </Text>
           </View>
+        )}
+
+        {cityFromLocationName(item.posterLocationName) !== '' && (
+          <Text style={[styles.postedInLabel, { color: colors.textSecondary }]}>
+            Posted in {cityFromLocationName(item.posterLocationName)}
+          </Text>
         )}
       </TouchableOpacity>
     );
@@ -1349,6 +1362,7 @@ const styles = StyleSheet.create({
   interestBadgeText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
   // Points — plain bold white text
   compPlainText: { fontSize: 16, fontWeight: '700', marginBottom: spacing.xs },
+  postedInLabel: { fontSize: 13, fontStyle: 'italic', textAlign: 'right', marginTop: spacing.xs },
   // Care type row (Wave 19B)
   careTypeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: spacing.xs },
   careTypeIcon: { fontSize: 16 },

@@ -182,6 +182,8 @@ export interface SwapPost {
   posterName: string;
   posterPhotoURL?: string;
   posterLocation?: GeoPoint;
+  /** Full location label at post-creation time, e.g. "Montreal, Quebec, Canada". Optional; legacy posts won't have it. */
+  posterLocationName?: string;
 
   // Dog info (denormalised for feed performance)
   // ── Single-dog fields (legacy / backward compat) ──
