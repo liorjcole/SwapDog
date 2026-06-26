@@ -240,6 +240,18 @@ export const useSwaps = () => {
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   };
 
+  /**
+   * Permanently hide a post from the user's "Reuse a past request" list.
+   * Writes the post id to users/{uid}.hiddenReusePostIds via arrayUnion.
+   * Hiding is permanent (never arrayRemove) and does NOT delete the post.
+   */
+  const hidePostFromReuse = async (userId: string, postId: string): Promise<void> => {
+    await updateDoc(doc(db, 'users', userId), {
+      hiddenReusePostIds: arrayUnion(postId),
+      updatedAt: serverTimestamp(),
+    });
+  };
+
   /** Mark a post as claimed by a sitter */
   const claimPost = async (postId: string, sitterId: string): Promise<void> => {
     await updateDoc(doc(db, 'swapPosts', postId), {
@@ -429,6 +441,7 @@ export const useSwaps = () => {
     getAreaPosts,
     isPostExpired,
     getMyPosts,
+    hidePostFromReuse,
     claimPost,
     cancelPost,
     addResponder,
