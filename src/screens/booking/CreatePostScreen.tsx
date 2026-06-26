@@ -794,7 +794,7 @@ const MAX_PLAY_SESSIONS = 5;
     if (q.trim().length < 2) { setAddressSuggestions([]); return; }
     setAddressFetching(true);
     void fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=5&countrycodes=us`,
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=5&countrycodes=us,ca`,
       { headers: { 'Accept-Language': 'en', 'User-Agent': 'SwapDogApp/1.0' } },
     )
       .then((r) => {
