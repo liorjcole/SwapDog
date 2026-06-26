@@ -6,7 +6,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
-import { uploadPhotoToStorage } from '../../utils/uploadHelper';
+import { uploadPhotoToStorage, ensureRemotePhotoURL } from '../../utils/uploadHelper';
 import * as ImagePicker from 'expo-image-picker';
 import { auth } from '../../config/firebase';
 import { ProfileStackParamList } from '../../navigation/types';
@@ -72,7 +72,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
       if (result.canceled || !result.assets?.[0]) return;
       const uri = result.assets[0].uri;
       if (!user) return;
-      const downloadURL = await uploadPhotoToStorage(uri, `users/${user.uid}/profile`);
+      const downloadURL = await ensureRemotePhotoURL(uri, `users/${user.uid}/profile`);
       if (!downloadURL) {
         Alert.alert('Error', 'Failed to upload photo.');
         return;
