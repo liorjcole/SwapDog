@@ -1,0 +1,37 @@
+name: validate-signin-slides
+
+# Fail the build if a sign-in carousel slide stops honouring the
+# window.__slide contract (see assets/signin-animations/README.md): wrong
+# design frame, missing contract, external network request, over budget, or an
+# `infinite` (non-single-play) animation. Zero-dependency Node check.
+on:
+  push:
+    paths:
+      - 'assets/signin-animations/**'
+      - 'src/components/auth/AnimatedSlide.tsx'
+      - 'src/screens/auth/SplashScreen.tsx'
+      - 'scripts/validate-signin-slides.js'
+      - 'scripts/test-signin-contract.js'
+      - '.github/workflows/validate-signin-slides.yml'
+  pull_request:
+    paths:
+      - 'assets/signin-animations/**'
+      - 'src/components/auth/AnimatedSlide.tsx'
+      - 'src/screens/auth/SplashScreen.tsx'
+      - 'scripts/validate-signin-slides.js'
+      - 'scripts/test-signin-contract.js'
+      - '.github/workflows/validate-signin-slides.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate sign-in slide contract
+        run: node scripts/validate-signin-slides.js
+      - name: Test sign-in slide contract timing logic
+        run: node scripts/test-signin-contract.js
+
