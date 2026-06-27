@@ -5,6 +5,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { smartDate, isSameDay } from '../../utils/dateHelpers';
 import { spacing, borderRadius, shadow } from '../../config/theme';
 import { SwapPost } from '../../models/types';
+import EventProgressBar from './EventProgressBar';
 
 const RED = '#FF2D55';
 
@@ -239,6 +240,12 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
             <Text style={[styles.detailsBtnText, isFavorited && !isOwnPost && { color: '#FFD700' }]}>See Full Details</Text>
           </View>
         )}
+
+        {/* ── In-Progress Time Bar ── */}
+        <EventProgressBar
+          post={post}
+          style={{ marginHorizontal: -spacing.md, marginBottom: -spacing.md }}
+        />
       </View>
     </TouchableOpacity>
     </Animated.View>

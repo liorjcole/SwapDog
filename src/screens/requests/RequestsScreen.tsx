@@ -41,6 +41,7 @@ import { db } from '../../config/firebase';
 import EmptyStateView from '../../components/common/EmptyStateView';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { cancelSwapReminders } from '../../services/ReminderService';
+import EventProgressBar from '../../components/common/EventProgressBar';
 
 const RED = '#FF2D55';
 const TEAL = '#2DD4BF';
@@ -426,6 +427,12 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
             Posted in {cityFromLocationName(item.posterLocationName)}
           </Text>
         )}
+
+        {/* ── In-Progress Time Bar ── */}
+        <EventProgressBar
+          post={item}
+          style={{ marginTop: spacing.sm, marginHorizontal: -spacing.md, marginBottom: -spacing.md }}
+        />
       </TouchableOpacity>
     );
   };
@@ -767,6 +774,12 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
               {isExpanded ? '⌄' : '›'}
             </Text>
           </View>
+
+          {/* ── In-Progress Time Bar ── */}
+          <EventProgressBar
+            post={post}
+            style={{ marginTop: spacing.sm, marginHorizontal: -spacing.md, marginBottom: -spacing.md }}
+          />
         </TouchableOpacity>
 
         {isExpanded && (
