@@ -31,7 +31,7 @@ import { setPendingHighlightPost } from '../../utils/highlightStore';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { useDogs } from '../../hooks/useDogs';
 import { useSwaps } from '../../hooks/useSwaps';
-import { Dog, CompensationType, CareType, RepeatSchedule, SwapPost, formatRepeatLabel, formatRepeatSubLabel } from '../../models/types';
+import { Dog, CompensationType, CareType, RepeatSchedule, SwapPost, PostTemplate, formatRepeatLabel, formatRepeatSubLabel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { ensureRemotePhotoURL } from '../../utils/uploadHelper';
 import { resolveActiveLocation } from '../../utils/resolveActiveLocation';
@@ -43,7 +43,6 @@ import ConfettiCelebration, { CelebrationItem } from '../../components/common/Co
 import Chip from '../../components/common/Chip';
 import { formatDogAge } from '../../utils/formatDogAge';
 import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
-import PostCard from '../../components/common/PostCard';
 
 const RED = '#FF2D55';
 
@@ -69,6 +68,153 @@ const REUSE_CARE_LABELS: Record<string, string> = {
   playtime: 'Playtime',
   medication: 'Medication',
 };
+
+// Human labels for a template's stay-location preference.
+const STAY_LOCATION_LABELS: Record<string, string> = {
+  my_home: 'At my home',
+  sitters_home: "At sitter's home",
+  no_preference: 'No location preference',
+};
+
+// Source shape that reuse-prefill consumes. Both SwapPost and PostTemplate
+// structurally satisfy it (all fields optional — prefill defaults every read).
+type PrefillSource = {
+  dogIds?: string[];
+  careType?: CareType;
+  addOnCareTypes?: string[];
+  careDetails?: string;
+  careAddress?: string;
+  compensationType?: CompensationType;
+  pointsOffered?: number;
+  pointsCost?: number;
+  paymentAmount?: number;
+  overnightLocation?: 'my_home' | 'sitters_home' | 'no_preference' | null;
+  sitterTransport?: 'pickup' | 'dropoff';
+  carePhotos?: string[];
+  feedingSlots?: SwapPost['feedingSlots'];
+  walkSessions?: SwapPost['walkSessions'];
+  playSessions?: SwapPost['playSessions'];
+  medicationSlots?: SwapPost['medicationSlots'];
+};
+
+// Stable client-side id for a saved template.
+const genTemplateId = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+// "Saved Jun 27" subtitle for a template row.
+const formatSavedDate = (ms: number): string =>
+  new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+// Compact compensation summary for the template detail view.
+const formatTemplateCompensation = (t: PostTemplate): string => {
+  const parts: string[] = [];
+  if (t.compensationType === 'points' || t.compensationType === 'either') {
+    const pts = t.pointsOffered ?? t.pointsCost;
+    if (pts != null) parts.push(`${pts} pts`);
+  }
+  if (t.compensationType === 'payment' || t.compensationType === 'either') {
+    if (t.paymentAmount != null) parts.push(`$${t.paymentAmount}`);
+  }
+  return parts.join(' or ');
+};
+
+// Join the time-of-day strings of fixed-time slots (feeding / medication).
+const formatSlotTimes = (slots?: { time?: string }[]): string =>
+  (slots ?? []).map(s => s?.time).filter((x): x is string => !!x).join(', ');
+
+// Summarise session windows (walk / play): "Flexible" or "start – end".
+const formatSessionTimes = (
+  sessions?: { flexible?: boolean; startTime?: string | null; endTime?: string | null }[],
+): string =>
+  (sessions ?? [])
+    .map(s => (s?.flexible ? 'Flexible' : [s?.startTime, s?.endTime].filter(Boolean).join(' – ')))
+    .filter(Boolean)
+    .join(', ');
+
+// Two-button confirm built on the same callback-Alert pattern used elsewhere
+// in this screen (the 24h warning). Resolves true on confirm, false on cancel.
+const confirmTwo = (
+  title: string,
+  message: string,
+  confirmLabel: string,
+  cancelLabel: string,
+): Promise<boolean> =>
+  new Promise<boolean>((resolve) => {
+    Alert.alert(title, message, [
+      { text: cancelLabel, style: 'cancel', onPress: () => resolve(false) },
+      { text: confirmLabel, onPress: () => resolve(true) },
+    ]);
+  });
+
+// Normalise one per-service slot into a fixed-key object so edit-detection is
+// order/whitespace stable. Handles every slot variant's fields.
+const normSlot = (s: Record<string, unknown>): Record<string, unknown> => ({
+  time: (s.time as string | undefined) ?? null,
+  startTime: (s.startTime as string | null | undefined) ?? null,
+  endTime: (s.endTime as string | null | undefined) ?? null,
+  flexible: (s.flexible as boolean | undefined) ?? false,
+  durationMins: (s.durationMins as number | undefined) ?? 0,
+  sessionNumber: (s.sessionNumber as number | undefined) ?? null,
+  dogIds: [...((s.dogIds as string[] | undefined) ?? [])].sort(),
+  repeatSchedule: (s.repeatSchedule as unknown) ?? null,
+  instructions: ((s.instructions as string | undefined) ?? '').trim(),
+  details: ((s.details as string | undefined) ?? '').trim(),
+  extraTimes: [...((s.extraTimes as string[] | undefined) ?? [])],
+  photos: [...((s.photos as string[] | undefined) ?? [])],
+});
+
+// Stable JSON serialisation of a template's reusable fields for edit-detection.
+// Excludes id/createdAt and ALL overall stay dates/times. Sorts order-independent
+// arrays; trims free text; coalesces undefined -> null.
+const normalizeTemplate = (t: Omit<PostTemplate, 'id' | 'createdAt'>): string => {
+  const sortIds = (a?: string[]) => [...(a ?? [])].sort();
+  const norm = {
+    dogIds: sortIds(t.dogIds),
+    careType: t.careType ?? null,
+    addOnCareTypes: sortIds(t.addOnCareTypes),
+    overnightLocation: t.overnightLocation ?? null,
+    sitterTransport: t.sitterTransport ?? null,
+    careAddress: (t.careAddress ?? '').trim(),
+    careDetails: (t.careDetails ?? '').trim(),
+    compensationType: t.compensationType ?? null,
+    pointsOffered: t.pointsOffered ?? t.pointsCost ?? null,
+    paymentAmount: t.paymentAmount ?? null,
+    carePhotos: [...(t.carePhotos ?? [])],
+    feedingSlots: (t.feedingSlots ?? []).map(s => normSlot(s as Record<string, unknown>)),
+    walkSessions: (t.walkSessions ?? []).map(s => normSlot(s as Record<string, unknown>)),
+    playSessions: (t.playSessions ?? []).map(s => normSlot(s as Record<string, unknown>)),
+    medicationSlots: (t.medicationSlots ?? []).map(s => normSlot(s as Record<string, unknown>)),
+  };
+  return JSON.stringify(norm);
+};
+
+// Derive a template blob from the SAME serialised shapes used to build the post
+// (careTypeFields + uploaded photos). Deliberately OMITS startTime/endTime and
+// never reads the overall stay dates.
+const buildTemplateFromForm = (
+  fields: Record<string, unknown>,
+  uploadedCarePhotos: string[],
+  dogIds: string[],
+  dogNames: string[],
+  careDetails: string,
+  compensation: { compensationType: CompensationType; pointsOffered?: number; paymentAmount?: number },
+): Omit<PostTemplate, 'id' | 'createdAt'> => ({
+  dogIds,
+  dogNames,
+  careType: (fields.careType as CareType | null) ?? undefined,
+  addOnCareTypes: (fields.addOnCareTypes as string[] | undefined) ?? [],
+  overnightLocation: (fields.overnightLocation as PostTemplate['overnightLocation']) ?? null,
+  sitterTransport: fields.sitterTransport as PostTemplate['sitterTransport'] | undefined,
+  careAddress: fields.careAddress as string | undefined,
+  careDetails: careDetails.trim() || undefined,
+  feedingSlots: fields.feedingSlots as PostTemplate['feedingSlots'],
+  walkSessions: fields.walkSessions as PostTemplate['walkSessions'],
+  playSessions: fields.playSessions as PostTemplate['playSessions'],
+  medicationSlots: fields.medicationSlots as PostTemplate['medicationSlots'],
+  carePhotos: uploadedCarePhotos.length > 0 ? uploadedCarePhotos : undefined,
+  compensationType: compensation.compensationType,
+  pointsOffered: compensation.pointsOffered,
+  paymentAmount: compensation.paymentAmount,
+});
 
 type Props = {
   navigation: NativeStackNavigationProp<RequestsStackParamList, 'Requests'>;
@@ -157,7 +303,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   }, [scrollAndPulse]);
   const { user, userProfile, refreshUserProfile } = useAuthContext();
   const { getDogsByOwner } = useDogs();
-  const { createPost, getMyPosts, hidePostFromReuse } = useSwaps();
+  const { createPost, addPostTemplate, updatePostTemplate, removePostTemplate } = useSwaps();
 
   const [myDogs, setMyDogs] = useState<Dog[]>([]);
   const [selectedDogIds, setSelectedDogIds] = useState<Set<string>>(new Set());
@@ -173,11 +319,13 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [careAddress, setCareAddress] = useState('');
   const [savedAddresses, setSavedAddresses] = useState<string[]>([]);
-  // Reuse a past request modal state
+  // Reuse a saved template modal state
   const [showReuseModal, setShowReuseModal] = useState(false);
-  const [reusePosts, setReusePosts] = useState<SwapPost[]>([]);
-  const [reuseLoading, setReuseLoading] = useState(false);
   const [expandedReusePostId, setExpandedReusePostId] = useState<string | null>(null);
+  // Source-template tracking — set when the form was prefilled from a saved
+  // template so submit can diff for the update/keep prompt.
+  const [sourceTemplateId, setSourceTemplateId] = useState<string | null>(null);
+  const [sourceTemplateSnapshot, setSourceTemplateSnapshot] = useState<string | null>(null);
   // Sitter's home: pickup or dropoff
   const [sitterTransport, setSitterTransport] = useState<'pickup' | 'dropoff' | null>(null);
   // Playtime — multi-session support (max 5 sessions)
@@ -791,22 +939,13 @@ const MAX_PLAY_SESSIONS = 5;
     if (careAddress === addr) setCareAddress('');
   };
 
-  // ── Reuse a past request ──
-  // Open the bottom sheet and load the user's past posts (newest-first, all statuses).
-  const openReuseModal = useCallback(async () => {
-    if (!user) return;
+  // ── Reuse a saved template ──
+  // Synchronous open — the list is already in memory on the user profile
+  // (userProfile.postTemplates), so there's nothing to fetch.
+  const openReuseModal = useCallback(() => {
     setShowReuseModal(true);
     setExpandedReusePostId(null);
-    setReuseLoading(true);
-    try {
-      const posts = await getMyPosts(user.uid);
-      setReusePosts(posts);
-    } catch {
-      setReusePosts([]);
-    } finally {
-      setReuseLoading(false);
-    }
-  }, [user, getMyPosts]);
+  }, []);
 
   // "8:05 PM" -> Date(today @ 20:05). Returns null for empty/invalid input.
   // Per-service times are stored as plain time-of-day strings (no date baked in),
@@ -829,7 +968,7 @@ const MAX_PLAY_SESSIONS = 5;
   // stay calendar window (startDate/endDate + start/end time-of-day), which the
   // user re-picks each time. Per-service times/settings/instructions/photos and
   // stay-location preference DO carry over.
-  const prefillFromPost = (post: SwapPost) => {
+  const prefillFromPost = (post: PrefillSource) => {
     setSelectedDogIds(new Set(post.dogIds?.filter(id => myDogs.some(d => d.id === id)) ?? []));
     setPrimaryCareType((post.careType === 'overnight' || post.careType === 'daySitting') ? post.careType : null);
     setAddOnCareTypes(new Set((post.addOnCareTypes ?? []).filter(t => ['feeding', 'dogWalking', 'playtime', 'medication'].includes(t)) as CareType[]));
@@ -914,27 +1053,32 @@ const MAX_PLAY_SESSIONS = 5;
     setShowReuseModal(false);
   };
 
-  // Permanently hide a past post from the reuse list (per-user, persisted on the
-  // user doc). Does NOT delete the post — it stays in Discover / My Posts.
-  const handleRemoveFromReuse = (post: SwapPost) => {
+  // Prefill from a saved template AND record its identity + a normalized
+  // snapshot, so submit can detect edits for the update/keep prompt.
+  const useTemplate = (t: PostTemplate) => {
+    prefillFromPost(t);
+    setSourceTemplateId(t.id);
+    setSourceTemplateSnapshot(normalizeTemplate(t));
+  };
+
+  // Delete a saved template from the user profile. Does NOT touch real posts.
+  const handleRemoveTemplate = (t: PostTemplate) => {
     Alert.alert(
-      'Remove from reuse list?',
-      "You won't see this request here again. Your original post isn't affected.",
+      'Delete saved template?',
+      "Delete this saved template? Your past posts aren't affected.",
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Remove',
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             if (!user) return;
-            // Remove locally for immediate feedback.
-            setReusePosts(prev => prev.filter(p => p.id !== post.id));
-            if (expandedReusePostId === post.id) setExpandedReusePostId(null);
+            if (expandedReusePostId === t.id) setExpandedReusePostId(null);
             try {
-              await hidePostFromReuse(user.uid, post.id);
+              await removePostTemplate(user.uid, userProfile?.postTemplates ?? [], t.id);
               await refreshUserProfile();
             } catch {
-              // Local filter already applied; the user doc write can be retried later.
+              // Best-effort; the user doc write can be retried later.
             }
           },
         },
@@ -942,10 +1086,10 @@ const MAX_PLAY_SESSIONS = 5;
     );
   };
 
-  // Past posts minus the ones the user permanently hid from the reuse list.
-  const visibleReusePosts = useMemo(
-    () => reusePosts.filter(p => !(userProfile?.hiddenReusePostIds ?? []).includes(p.id)),
-    [reusePosts, userProfile?.hiddenReusePostIds]
+  // Saved templates, newest-first by createdAt.
+  const templates = useMemo<PostTemplate[]>(
+    () => [...(userProfile?.postTemplates ?? [])].sort((a, b) => (b?.createdAt ?? 0) - (a?.createdAt ?? 0)),
+    [userProfile?.postTemplates]
   );
 
   useEffect(() => {
@@ -1800,6 +1944,47 @@ const MAX_PLAY_SESSIONS = 5;
         }
       }
 
+      // ── Saved-template prompt (opt-in) ──
+      // Build a template blob from the SAME serialized shapes used for the post
+      // (all photos are remote at this point). OMITS the overall stay window.
+      // The popup only gates WHICH action we queue; the Firestore template write
+      // happens AFTER the post is created so a failed post never orphans one.
+      const templateBlob = buildTemplateFromForm(
+        careTypeFields,
+        uploadedCarePhotos,
+        dogIds,
+        dogNames,
+        careDetails,
+        {
+          compensationType: (offerPoints && offerMoney ? 'either' : offerMoney ? 'payment' : 'points') as CompensationType,
+          pointsOffered: offerPoints ? parseFloat(pointsOffered) : undefined,
+          paymentAmount: offerMoney ? parseFloat(paymentAmount) : undefined,
+        },
+      );
+      let pendingTemplateAction: { kind: 'add' | 'update'; template: PostTemplate } | null = null;
+      if (!sourceTemplateId) {
+        const save = await confirmTwo(
+          'Save these details for a future post?',
+          'Reuse them next time without re-entering everything.',
+          'Save',
+          'Not now',
+        );
+        if (save) {
+          pendingTemplateAction = { kind: 'add', template: { ...templateBlob, id: genTemplateId(), createdAt: Date.now() } };
+        }
+      } else if (normalizeTemplate(templateBlob) !== sourceTemplateSnapshot) {
+        const update = await confirmTwo(
+          'Update saved template?',
+          'Update the template with these changes, or keep the original?',
+          'Update',
+          'Keep',
+        );
+        if (update) {
+          const preservedCreatedAt = (userProfile?.postTemplates ?? []).find(x => x?.id === sourceTemplateId)?.createdAt ?? Date.now();
+          pendingTemplateAction = { kind: 'update', template: { ...templateBlob, id: sourceTemplateId, createdAt: preservedCreatedAt } };
+        }
+      }
+
       // Strip undefined values before Firestore write
       const postData = {
         posterId: user.uid,
@@ -1849,6 +2034,26 @@ const MAX_PLAY_SESSIONS = 5;
         emoji: '🐾',
       }]);
       void onPostCreated();
+
+      // Persist the saved-template AFTER the post is created (best-effort) so a
+      // failed post never leaves an orphan template. Firestore rejects undefined,
+      // so deep-clean the blob first. The post is created regardless of this.
+      if (pendingTemplateAction) {
+        try {
+          const cleanTemplate = deepClean(pendingTemplateAction.template) as PostTemplate;
+          if (pendingTemplateAction.kind === 'add') {
+            await addPostTemplate(user.uid, cleanTemplate);
+          } else {
+            await updatePostTemplate(user.uid, userProfile?.postTemplates ?? [], cleanTemplate);
+          }
+          await refreshUserProfile();
+        } catch {
+          // Best-effort; the post already succeeded.
+        }
+      }
+      // Reset source tracking so a follow-up post in this session starts fresh.
+      setSourceTemplateId(null);
+      setSourceTemplateSnapshot(null);
     } catch (error: unknown) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Failed to post request');
     } finally {
@@ -4067,28 +4272,42 @@ const MAX_PLAY_SESSIONS = 5;
           <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 20, paddingHorizontal: 20, paddingBottom: 40, maxHeight: '80%' }}>
             <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: 4 }}>Reuse a past request</Text>
             <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginBottom: 16 }}>
-              Tap a request to preview it, then reuse its details for a new post.
+              Tap a saved template to preview it, then reuse its details for a new post.
             </Text>
 
-            {reuseLoading ? (
-              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                <ActivityIndicator color={colors.primary} size="large" />
-              </View>
-            ) : visibleReusePosts.length === 0 ? (
+            {templates.length === 0 ? (
               <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center', paddingVertical: 32, paddingHorizontal: 12, lineHeight: 22 }}>
-                You're posting for the first time! Future requests will be reusable from here.
+                No saved templates yet. When you post, choose &apos;Save these details&apos; and it&apos;ll show up here for one-tap reuse.
               </Text>
             ) : (
               <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                {visibleReusePosts.map((post) => {
-                  const expanded = expandedReusePostId === post.id;
-                  const dogLabel = post.dogNames?.length ? post.dogNames.join(' & ') : post.dogName;
-                  const careKeys = [post.careType, ...(post.addOnCareTypes ?? [])].filter((k): k is string => !!k);
+                {templates.map((t) => {
+                  const expanded = expandedReusePostId === t.id;
+                  const dogLabel = t.dogNames?.length ? t.dogNames.join(' & ') : 'Saved request';
+                  const careKeys = [t.careType, ...(t.addOnCareTypes ?? [])].filter((k): k is string => !!k);
+                  const savedLabel = `Saved ${formatSavedDate(t.createdAt)}`;
+                  const stayLabel = t.overnightLocation ? (STAY_LOCATION_LABELS[t.overnightLocation] ?? '') : '';
+                  const compLabel = formatTemplateCompensation(t);
+                  const feedingTimes = formatSlotTimes(t.feedingSlots);
+                  const walkTimes = formatSessionTimes(t.walkSessions);
+                  const playTimes = formatSessionTimes(t.playSessions);
+                  const medTimes = formatSlotTimes(t.medicationSlots);
+                  const detailRows: { label: string; value: string }[] = [
+                    { label: 'Stay location', value: stayLabel },
+                    { label: 'Address', value: t.careAddress ?? '' },
+                    { label: 'Feeding', value: feedingTimes },
+                    { label: 'Walks', value: walkTimes },
+                    { label: 'Playtime', value: playTimes },
+                    { label: 'Medication', value: medTimes },
+                    { label: 'Instructions', value: t.careDetails ?? '' },
+                    { label: 'Compensation', value: compLabel },
+                  ].filter(r => r.value.trim().length > 0);
+                  const photos = t.carePhotos ?? [];
                   return (
-                    <View key={post.id} style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, marginBottom: 10, overflow: 'hidden' }}>
+                    <View key={t.id} style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, marginBottom: 10, overflow: 'hidden' }}>
                       {/* Collapsed row */}
                       <TouchableOpacity
-                        onPress={() => setExpandedReusePostId(expanded ? null : post.id)}
+                        onPress={() => setExpandedReusePostId(expanded ? null : t.id)}
                         activeOpacity={0.7}
                         style={{ flexDirection: 'row', alignItems: 'center', padding: 14 }}
                       >
@@ -4103,6 +4322,7 @@ const MAX_PLAY_SESSIONS = 5;
                               ))}
                             </View>
                           )}
+                          <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 6 }}>{savedLabel}</Text>
                         </View>
                         {/* Expand affordance — right when collapsed, down when expanded */}
                         <Ionicons
@@ -4111,9 +4331,9 @@ const MAX_PLAY_SESSIONS = 5;
                           color={colors.textSecondary}
                           style={{ marginLeft: 10 }}
                         />
-                        {/* Remove control — mirrors the address minus-icon exactly */}
+                        {/* Remove control — deletes the saved template */}
                         <TouchableOpacity
-                          onPress={(e) => { e.stopPropagation(); handleRemoveFromReuse(post); }}
+                          onPress={(e) => { e.stopPropagation(); handleRemoveTemplate(t); }}
                           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                           style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255, 45, 85, 0.15)', alignItems: 'center', justifyContent: 'center', marginLeft: 10 }}
                         >
@@ -4121,17 +4341,29 @@ const MAX_PLAY_SESSIONS = 5;
                         </TouchableOpacity>
                       </TouchableOpacity>
 
-                      {/* Expanded detail — Discover-style PostCard + prefill CTA */}
+                      {/* Expanded detail — lightweight template summary + prefill CTA */}
                       {expanded && (
-                        <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
+                        <View style={{ paddingHorizontal: 14, paddingBottom: 14 }}>
                           <TouchableOpacity
-                            onPress={() => prefillFromPost(post)}
+                            onPress={() => useTemplate(t)}
                             activeOpacity={0.85}
                             style={{ backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginBottom: 12 }}
                           >
                             <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF' }}>Use these details</Text>
                           </TouchableOpacity>
-                          <PostCard post={post} onPress={() => {}} currentUserId={undefined} isFavorited={false} />
+                          {detailRows.map((r, i) => (
+                            <View key={i} style={{ flexDirection: 'row', marginBottom: 6 }}>
+                              <Text style={{ fontSize: 13, color: colors.textSecondary, fontWeight: '600', width: 110 }}>{r.label}</Text>
+                              <Text style={{ fontSize: 13, color: colors.text, flex: 1 }}>{r.value}</Text>
+                            </View>
+                          ))}
+                          {photos.length > 0 && (
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 }}>
+                              {photos.map((uri, i) => (
+                                <Image key={i} source={{ uri }} style={{ width: 56, height: 56, borderRadius: 8, marginRight: 8, marginBottom: 8 }} />
+                              ))}
+                            </View>
+                          )}
                         </View>
                       )}
                     </View>
