@@ -84,15 +84,18 @@ const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL,
             <Text style={styles.reviewLinkText}>Review Reschedule</Text>
           </TouchableOpacity>
         )}
-        {type === 'help_request' && !isMe && (
+        {/* Accepted badge — shown to both sender (helper) and receiver (owner) */}
+        {type === 'help_request' && helpAccepted && (
+          <View style={styles.acceptedBadge}>
+            <Text style={styles.acceptedBadgeText}>✅ Accepted</Text>
+          </View>
+        )}
+        {/* Accept button + confetti — receiver (owner) only, before accepting */}
+        {type === 'help_request' && !helpAccepted && !isMe && (
           // Relatively-positioned container so the absoluteFill burst overlay
           // anchors here and stays visible through the button → badge swap.
           <View style={styles.acceptActionContainer}>
-            {helpAccepted ? (
-              <View style={styles.acceptedBadge}>
-                <Text style={styles.acceptedBadgeText}>✅ Accepted</Text>
-              </View>
-            ) : onAcceptHelp ? (
+            {onAcceptHelp ? (
               <TouchableOpacity
                 onPress={() => {
                   setBurstKey((k) => k + 1);
@@ -112,7 +115,8 @@ const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL,
             ) : null}
           </View>
         )}
-        {type === 'help_request' && isMe && onRemoveRequest && (
+        {/* Remove Request — sender (helper) only, before accepting */}
+        {type === 'help_request' && !helpAccepted && isMe && onRemoveRequest && (
           <TouchableOpacity
             onPress={onRemoveRequest}
             style={styles.removeRequestBtn}
