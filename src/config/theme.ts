@@ -8,6 +8,8 @@ export const colors = {
   secondary: '#4ECDC4',
   background: '#FFFFFF',
   surface: '#FFFFFF',
+  // One step above surface — used for elevated card cells (e.g. tappable list rows).
+  backgroundElevated: '#EBEBEB',
   text: '#2D3436',
   textSecondary: '#636E72',
   error: '#E17055',
@@ -21,6 +23,8 @@ export const darkColors = {
   secondary: '#4ECDC4',
   background: '#1A1A1A',
   surface: '#2C2C2C',
+  // One step above surface — used for elevated card cells (e.g. tappable list rows).
+  backgroundElevated: '#383838',
   text: '#FAFAFA',
   textSecondary: '#ABABAB',
   error: '#E17055',
