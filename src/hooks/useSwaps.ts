@@ -20,6 +20,7 @@ import {
   SitterPreference,
   SwapPost,
   PostStatus,
+  PostTemplate,
 } from '../models/types';
 import { toDate } from '../utils/firestoreConverters';
 
@@ -292,6 +293,38 @@ export const useSwaps = () => {
     });
   };
 
+  /**
+   * Append a new opt-in saved template to users/{uid}.postTemplates.
+   * arrayUnion is safe for add (new objects are always unique).
+   */
+  const addPostTemplate = async (uid: string, t: PostTemplate): Promise<void> => {
+    await updateDoc(doc(db, 'users', uid), {
+      postTemplates: arrayUnion(t),
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  /**
+   * Replace the template with matching id. Firestore can't patch one array
+   * element by id, so read-modify-write the whole array from the in-memory list.
+   */
+  const updatePostTemplate = async (uid: string, current: PostTemplate[], t: PostTemplate): Promise<void> => {
+    const next = (current ?? []).map(x => (x?.id === t.id ? t : x));
+    await updateDoc(doc(db, 'users', uid), {
+      postTemplates: next,
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  /** Remove a saved template by id via read-modify-write (filter out). */
+  const removePostTemplate = async (uid: string, current: PostTemplate[], id: string): Promise<void> => {
+    const next = (current ?? []).filter(x => x?.id !== id);
+    await updateDoc(doc(db, 'users', uid), {
+      postTemplates: next,
+      updatedAt: serverTimestamp(),
+    });
+  };
+
   /** Mark a post as claimed by a sitter */
   const claimPost = async (postId: string, sitterId: string): Promise<void> => {
     await updateDoc(doc(db, 'swapPosts', postId), {
@@ -483,6 +516,9 @@ export const useSwaps = () => {
     isStartExpiredNoHelper,
     getMyPosts,
     hidePostFromReuse,
+    addPostTemplate,
+    updatePostTemplate,
+    removePostTemplate,
     claimPost,
     cancelPost,
     addResponder,

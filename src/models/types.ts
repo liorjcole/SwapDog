@@ -63,6 +63,8 @@ export interface User {
   isAdmin?: boolean;
   /** Post IDs the user permanently hid from the Create Post "Reuse a past request" list. */
   hiddenReusePostIds?: string[];
+  /** User-saved Create-Post templates (opt-in saved reusable post details). */
+  postTemplates?: PostTemplate[];
 }
 
 export interface ReferralCode {
@@ -282,6 +284,50 @@ export interface SwapPost {
 
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * A user-saved, reusable Create-Post template. Stored on users/{uid}.postTemplates.
+ * Carries every reusable detail field (the SAME set reuse-prefill consumes),
+ * but deliberately EXCLUDES the overall stay window (startDate/endDate/startTime/endTime).
+ */
+export interface PostTemplate {
+  /** Stable id, generated client-side (e.g. `${Date.now()}-${random}`). */
+  id: string;
+  /** Epoch ms when first saved. */
+  createdAt: number;
+
+  // ── Identity / display (denormalized so the reuse row needs no lookups) ──
+  dogIds: string[];
+  dogNames?: string[];
+  careType?: CareType;
+  addOnCareTypes?: string[];
+
+  // ── Stay-location preference ──
+  overnightLocation?: 'my_home' | 'sitters_home' | 'no_preference' | null;
+  sitterTransport?: 'pickup' | 'dropoff';
+  careAddress?: string;
+
+  // ── Free text ──
+  careDetails?: string;
+
+  // ── Per-service slots — SAME element shapes as SwapPost ──
+  feedingSlots?: SwapPost['feedingSlots'];
+  walkSessions?: SwapPost['walkSessions'];
+  playSessions?: SwapPost['playSessions'];
+  medicationSlots?: SwapPost['medicationSlots'];
+
+  // ── Photos — remote Storage URLs only ──
+  carePhotos?: string[];
+
+  // ── Compensation ──
+  compensationType?: CompensationType;
+  /** prefill reads pointsOffered ?? pointsCost */
+  pointsOffered?: number;
+  pointsCost?: number;
+  paymentAmount?: number;
+
+  // EXCLUDED on purpose: startDate, endDate, startTime, endTime (overall window).
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
