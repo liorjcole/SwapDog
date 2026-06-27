@@ -65,6 +65,8 @@ export interface User {
   hiddenReusePostIds?: string[];
   /** User-saved Create-Post templates (opt-in saved reusable post details). */
   postTemplates?: PostTemplate[];
+  /** Set by the onPostCompleted Cloud Function after a swap completes; cleared after the user submits or skips the review. */
+  pendingReview?: PendingReview;
 }
 
 export interface ReferralCode {

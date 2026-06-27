@@ -24,7 +24,7 @@ import {
   Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, CommonActions } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RequestsStackParamList } from '../../navigation/types';
@@ -39,7 +39,7 @@ import { usePointsHistory } from '../../hooks/usePointsHistory';
 import { useReviews } from '../../hooks/useReviews';
 import { SwapPost } from '../../models/types';
 import { spacing, borderRadius, shadow } from '../../config/theme';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import EmptyStateView from '../../components/common/EmptyStateView';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -142,6 +142,8 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const { user, userProfile } = useAuthContext();
   const { getMyPosts, cancelPost, getAcceptedPosts, saveSitterReminderIds, isPostExpired, isStartExpiredNoHelper } = useSwaps();
   const { hasReviewed } = useReviews();
+  // Root navigator — used for cross-tab navigation (e.g. Requests → ProfileTab → Review)
+  const rootNav = useNavigation();
   const { getOrCreateConversation } = useMessaging();
   const { deductPoints, addPoints } = usePoints();
   const { recordEntry } = usePointsHistory();
@@ -259,6 +261,25 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         );
         setReviewedPostIds(reviewed);
       }
+      // ── Mark expired claimed commitments as completed (idempotent, Bug 1 fix) ──
+      // getAcceptedPosts only returns status==='claimed' posts for this user (as
+      // owner OR sitter). Any of those whose end datetime has passed should
+      // transition to 'completed' so the Cloud Function (onPostCompleted) fires
+      // and writes pendingReview to both participants' user docs.
+      const expiredClaimed = accepted.filter((p) => isPostExpired(p));
+      if (expiredClaimed.length > 0) {
+        await Promise.all(
+          expiredClaimed.map((p) =>
+            updateDoc(doc(db, 'swapPosts', p.id), {
+              status: 'completed',
+              updatedAt: serverTimestamp(),
+            }).catch((err) =>
+              console.error('[fetchPosts] Failed to mark post completed:', p.id, err)
+            )
+          )
+        );
+      }
+
       setAcceptedPosts(accepted);
     } finally {
       setLoading(false);
@@ -551,7 +572,31 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
             ) : (
               <TouchableOpacity
                 style={{ backgroundColor: '#0984E3', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
-                onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+                onPress={async () => {
+                  // Fetch sitter name on demand (not stored on the post doc).
+                  const claimedByUid = item.claimedBy ?? '';
+                  let otherUserName = 'your caregiver';
+                  if (claimedByUid) {
+                    try {
+                      const snap = await getDoc(doc(db, 'users', claimedByUid));
+                      const d = snap.data();
+                      if (d) otherUserName = (d.displayName as string) || otherUserName;
+                    } catch { /* keep fallback */ }
+                  }
+                  rootNav.dispatch(
+                    CommonActions.navigate('ProfileTab', {
+                      screen: 'Review',
+                      params: {
+                        postId: item.id,
+                        role: 'owner' as const,
+                        otherUserId: claimedByUid,
+                        otherUserName,
+                        dogIds: item.dogIds ?? (item.dogId ? [item.dogId] : []),
+                        dogNames: item.dogNames ?? [item.dogName],
+                      },
+                    })
+                  );
+                }}
                 accessibilityLabel="Leave a review"
                 accessibilityRole="button"
               >
