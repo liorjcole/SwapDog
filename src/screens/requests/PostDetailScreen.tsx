@@ -71,12 +71,12 @@ function resolveDogNames(dogIds: string[], post: SwapPost): string {
 
 function getCareTypeIcon(careType?: string): string {
   switch (careType) {
-    case 'overnight': return 'Overnight sitting';
-    case 'daySitting': return 'Daytime sitting';
-    case 'feeding': return 'Feeding';
-    case 'dogWalking': return 'Walk';
-    case 'medication': return 'Medication';
-    default: return '';
+    case 'overnight':  return '🌙';
+    case 'daySitting': return '☀️';
+    case 'feeding':    return '🍽️';
+    case 'dogWalking': return '🦮';
+    case 'medication': return '💊';
+    default:           return '🐾';
   }
 }
 
@@ -1289,7 +1289,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         {isOwner && respondents.length === 0 && (
           <View style={[styles.ownerNote, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.ownerNoteText, { color: colors.textSecondary }]}>
-              👆 This is your post. Interested sitters will message you.
+              👆 This is your post. Interested dog owners nearby will message you.
             </Text>
           </View>
         )}
