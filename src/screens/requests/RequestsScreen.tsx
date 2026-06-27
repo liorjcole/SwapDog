@@ -234,8 +234,8 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
       );
       // Sort active: claimed on top
       active.sort((a: any, b: any) => {
-        const aIsClaimed = a.status === 'claimed' || a.status === 'reschedulePending' ? 0 : 1;
-        const bIsClaimed = b.status === 'claimed' || b.status === 'reschedulePending' ? 0 : 1;
+        const aIsClaimed = a.status === 'claimed' ? 0 : 1;
+        const bIsClaimed = b.status === 'claimed' ? 0 : 1;
         return aIsClaimed - bIsClaimed;
       });
       // Sort archived: completed first, then by date
@@ -384,14 +384,13 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
     const startStr = smartDate(item.startDate);
     const endStr = smartDate(item.endDate, { includeYear: true });
     const isOpen = item.status === 'open';
-    const isClaimed = item.status === 'claimed' || item.status === 'reschedulePending';
+    const isClaimed = item.status === 'claimed';
     const interestedCount = item.respondedBy?.length ?? 0;
     const statusColor: Record<SwapPost['status'], string> = {
       open: '#00B894',
       claimed: '#FDCB6E',
       completed: '#4ECDC4',
       cancelled: '#636E72',
-      reschedulePending: '#F39C12',
     };
 
     return (
@@ -405,7 +404,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         {isClaimed && (
           <View style={{ backgroundColor: '#FDCB6E', paddingVertical: 6, paddingHorizontal: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12, alignItems: 'center', marginTop: -spacing.md, marginHorizontal: -spacing.md }}>
             <Text style={{ color: '#5D4E00', fontSize: 15, fontWeight: '800', letterSpacing: 0.5 }}>
-              {item.status === 'reschedulePending' ? 'RESCHEDULE PENDING' : 'CLAIMED'}
+              CLAIMED
             </Text>
           </View>
         )}
@@ -450,7 +449,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           </View>
           <View style={[styles.statusBadge, { backgroundColor: statusColor[item.status] + '25' }]}>
             <Text style={[styles.statusBadgeText, { color: statusColor[item.status] }]}>
-              {item.status === 'reschedulePending' ? 'RESCHEDULE PENDING' : item.status.toUpperCase()}
+              {item.status.toUpperCase()}
             </Text>
           </View>
         </View>

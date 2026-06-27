@@ -281,7 +281,6 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [rescheduleStart, setRescheduleStart] = useState<Date>(new Date());
   const [rescheduleEnd, setRescheduleEnd] = useState<Date>(new Date());
-  const [rescheduleNote, setRescheduleNote] = useState('');
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -521,14 +520,14 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const isOvernight = post?.careType === 'overnight';
 
-  // ── Reschedule: propose new dates to sitter ──────────────────────────────
-  const handleReschedule = async () => {
+  // ── Reschedule: validate, confirm mutual agreement, then apply directly ───
+  const handleReschedule = () => {
     if (!post || !user) return;
 
     // For non-overnight, end date = start date (same day)
     const effectiveEnd = isOvernight ? rescheduleEnd : rescheduleStart;
 
-    // ── Date validation ──
+    // ── Date validation (runs BEFORE the confirmation popup) ──
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     if (rescheduleStart < todayStart) {
@@ -540,48 +539,59 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       return;
     }
 
+    // ── Mutual-agreement confirmation gate ──
+    Alert.alert(
+      'Is this a mutually agreed-upon change?',
+      'You should only reschedule after chatting with your dog\u2019s sitter and agreeing on the new date together. Changing it without their agreement could leave your dog without care.',
+      [
+        { text: 'No', style: 'cancel' },
+        { text: 'Yes, we agreed', onPress: () => applyReschedule() },
+      ],
+    );
+  };
+
+  // ── Apply the reschedule directly: overwrite dates + FYI message to sitter ─
+  const applyReschedule = async () => {
+    if (!post || !user) return;
+
+    const effectiveEnd = isOvernight ? rescheduleEnd : rescheduleStart;
+    const sitterId = post.claimedBy;
+    if (!sitterId) {
+      Alert.alert('Error', 'No sitter assigned to this booking.');
+      return;
+    }
+
     try {
-      const sitterId = post.claimedBy;
-      if (!sitterId) {
-        Alert.alert('Error', 'No sitter assigned to this booking.');
-        return;
-      }
-      // Save proposed dates separately (don't overwrite original startDate/endDate)
+      // Direct overwrite — status stays 'claimed', no proposal fields written
       await updateDoc(doc(db, 'swapPosts', post.id), {
-        rescheduleProposedStart: rescheduleStart,
-        rescheduleProposedEnd: effectiveEnd,
-        rescheduleNote: rescheduleNote.trim() || null,
-        rescheduleProposedBy: user.uid,
-        status: 'reschedulePending',
+        startDate: rescheduleStart,
+        endDate: effectiveEnd,
         updatedAt: serverTimestamp() });
-      // Send a typed reschedule message so the chat can render "Review Reschedule" link
+
+      // FYI message to the sitter's chat thread (plain text, not a reschedule type)
       const convId = await getOrCreateConversation(user.uid, sitterId, post.id);
-      const startStr = smartDate(rescheduleStart);
-      const note = rescheduleNote.trim() ? `\n\nNote: ${rescheduleNote.trim()}` : '';
-      const msgText = isOvernight
-        ? `I need to reschedule. Would ${startStr} \u2013 ${smartDate(effectiveEnd)} work instead?${note}`
-        : `I need to reschedule. Would ${startStr} work instead?${note}`;
+      const dateStr = isOvernight
+        ? `${smartDate(rescheduleStart)} \u2013 ${smartDate(effectiveEnd)}`
+        : `${smartDate(rescheduleStart)}`;
+      const msgText = `\uD83D\uDCC5 The booking dates were updated to ${dateStr}.`;
       await addDoc(collection(db, 'conversations', convId, 'messages'), {
         conversationId: convId,
         senderId: user.uid,
         text: msgText,
         read: false,
         createdAt: serverTimestamp(),
-        type: 'reschedule',
-        metadata: {
-          postId: post.id,
-          proposedStart: rescheduleStart.toISOString(),
-          proposedEnd: effectiveEnd.toISOString() } });
+        type: 'text' });
       await updateDoc(doc(db, 'conversations', convId), {
         lastMessage: msgText,
         lastMessageAt: serverTimestamp(),
         updatedAt: serverTimestamp() });
+
+      // Local state
+      setPost((prev) => prev ? { ...prev, startDate: rescheduleStart, endDate: effectiveEnd } : prev);
       setShowRescheduleModal(false);
-      setRescheduleNote('');
-      setPost((prev) => prev ? { ...prev, status: 'reschedulePending' as any, rescheduleProposedStart: rescheduleStart, rescheduleProposedEnd: effectiveEnd, rescheduleProposedBy: user.uid } : prev);
-      Alert.alert('Sent', 'Your reschedule request has been sent to the sitter.');
+      Alert.alert('Updated', 'The booking dates have been updated and your sitter has been notified.');
     } catch (err) {
-      Alert.alert('Error', err instanceof Error ? err.message : 'Could not send reschedule request');
+      Alert.alert('Error', err instanceof Error ? err.message : 'Could not update the booking dates');
     }
   };
 
@@ -773,7 +783,11 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           <View style={{ flex: 1, backgroundColor: colors.background }}>
             <SafeAreaView style={{ flex: 1 }}>
               <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-                <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800', marginBottom: 20 }}>{isOvernight ? 'Propose New Dates' : 'Propose New Date'}</Text>
+                <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800', marginBottom: 12 }}>{isOvernight ? 'Propose New Dates' : 'Propose New Date'}</Text>
+
+                <Text style={{ color: colors.textSecondary, fontSize: 14, lineHeight: 21, marginBottom: 20 }}>
+                  ⚠️ Message your dog’s confirmed sitter and agree on the new date together before changing it. Only update the date here once you’ve both confirmed — changing it without their agreement could leave your dog without care.
+                </Text>
 
                 <Text style={{ color: colors.textSecondary, fontSize: 15, fontWeight: '600', marginBottom: 6 }}>{isOvernight ? 'Start Date' : 'Date'}</Text>
                 <TouchableOpacity
@@ -830,24 +844,13 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   </>
                 )}
 
-                <Text style={{ color: colors.textSecondary, fontSize: 15, fontWeight: '600', marginTop: 16, marginBottom: 6 }}>Note (optional)</Text>
-                <TextInput
-                  style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 14, color: colors.text, fontSize: 17, minHeight: 60, textAlignVertical: 'top', marginBottom: 20 }}
-                  placeholder="e.g. Something came up, would these dates work?"
-                  placeholderTextColor={colors.textSecondary}
-                  value={rescheduleNote}
-                  onChangeText={setRescheduleNote}
-                  multiline
-                  inputAccessoryViewID={DONE_ACCESSORY_ID}
-                  returnKeyType="done"
-                  blurOnSubmit={true}
-                />
+                <View style={{ height: 20 }} />
 
                 <TouchableOpacity
                   style={{ backgroundColor: '#FFD700', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 8 }}
                   onPress={() => { setShowStartPicker(false); setShowEndPicker(false); handleReschedule(); }}
                 >
-                  <Text style={{ color: '#3D2E00', fontWeight: '700', fontSize: 18 }}>Send Proposal</Text>
+                  <Text style={{ color: '#3D2E00', fontWeight: '700', fontSize: 18 }}>Submit</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={{ paddingVertical: 12, alignItems: 'center' }}
@@ -877,9 +880,9 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* ── Status Badge (top of post) ── */}
         <View style={{ alignItems: 'flex-start', paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          <View style={[styles.statusBadge, { backgroundColor: post.status === 'open' ? '#00B89420' : post.status === 'reschedulePending' ? '#F39C1225' : '#63727220' }]}>
-            <Text style={[styles.statusBadgeText, { color: post.status === 'open' ? '#00B894' : post.status === 'reschedulePending' ? '#F39C12' : '#636E72' }]}>
-              {post.status === 'reschedulePending' ? 'RESCHEDULE PENDING' : post.status.toUpperCase()}
+          <View style={[styles.statusBadge, { backgroundColor: post.status === 'open' ? '#00B89420' : '#63727220' }]}>
+            <Text style={[styles.statusBadgeText, { color: post.status === 'open' ? '#00B894' : '#636E72' }]}>
+              {post.status.toUpperCase()}
             </Text>
           </View>
         </View>

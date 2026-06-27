@@ -13,8 +13,6 @@ interface Props {
   type?: 'text' | 'reschedule' | 'image' | 'help_request';
   /** Optional image URL for photo messages */
   imageURL?: string;
-  /** Callback when "Review Reschedule" is tapped */
-  onReviewReschedule?: () => void;
   /** Callback when "Accept" is tapped on a help request */
   onAcceptHelp?: () => void;
   /** Whether this help request has already been accepted */
@@ -27,7 +25,7 @@ interface Props {
   onUnsend?: () => void;
 }
 
-const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL, onReviewReschedule, onAcceptHelp, helpAccepted, onRemoveRequest, removingRequest, onUnsend }) => {
+const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL, onAcceptHelp, helpAccepted, onRemoveRequest, removingRequest, onUnsend }) => {
   const { colors } = useTheme();
 
   // Init to current value so an already-accepted offer never replays on mount.
@@ -93,12 +91,6 @@ const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL,
             {text}
           </Text>
         ) : null}
-        {/* Show "Review Reschedule" link for reschedule messages (only for receiver) */}
-        {type === 'reschedule' && !isMe && onReviewReschedule && (
-          <TouchableOpacity onPress={onReviewReschedule} style={styles.reviewLink}>
-            <Text style={styles.reviewLinkText}>Review Reschedule</Text>
-          </TouchableOpacity>
-        )}
         {/* Accepted badge — shown to both sender (helper) and receiver (owner) */}
         {type === 'help_request' && helpAccepted && (
           <View style={styles.acceptedBadge}>
@@ -156,8 +148,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   time: { fontSize: 12, marginTop: 2, alignSelf: 'flex-end' },
-  reviewLink: { marginTop: 6, paddingVertical: 4 },
-  reviewLinkText: { color: '#0984E3', fontSize: 16, fontWeight: '600', textDecorationLine: 'underline' },
   acceptBtn: { marginTop: 8, backgroundColor: '#00B894', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 8, alignItems: 'center' },
   acceptBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   acceptedBadge: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 16, borderRadius: 8, backgroundColor: 'rgba(0,184,148,0.15)', alignItems: 'center' },
