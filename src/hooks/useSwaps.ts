@@ -100,6 +100,10 @@ export const parsePost = (id: string, data: Record<string, unknown>): SwapPost =
   endTime: data.endTime as string | undefined,
   // Add-on care detail fields
   addOnCareTypes: data.addOnCareTypes as string[] | undefined,
+  // Reuse-prefill fields (written by createPost; previously dropped on read)
+  careAddress: data?.careAddress as string | undefined,
+  overnightLocation: data?.overnightLocation as SwapPost['overnightLocation'],
+  sitterTransport: data?.sitterTransport as SwapPost['sitterTransport'],
   walkSessions: data.walkSessions as SwapPost['walkSessions'],
   walkDurationMins: data.walkDurationMins as number | undefined,
   feedingSlots: data.feedingSlots as SwapPost['feedingSlots'],

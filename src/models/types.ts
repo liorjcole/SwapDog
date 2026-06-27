@@ -232,16 +232,20 @@ export interface SwapPost {
   addOnCareTypes?: string[];
   /** Address for care (owner's home or pickup address). Written by createPost; used for reuse prefill. */
   careAddress?: string;
-  /** Walk sessions with times and dog assignments */
-  walkSessions?: { flexible?: boolean; startTime: string | null; endTime: string | null; durationMins: number; dogIds: string[]; repeatDaily: boolean }[];
+  /** Stay-location preference (overnight/daySitting). Written by createPost; used for reuse prefill. */
+  overnightLocation?: 'my_home' | 'sitters_home' | 'no_preference' | null;
+  /** Sitter transport choice; only meaningful when overnightLocation === 'sitters_home'. */
+  sitterTransport?: 'pickup' | 'dropoff';
+  /** Walk sessions with times, settings, instructions, photos, and dog assignments */
+  walkSessions?: { flexible?: boolean; startTime?: string | null; endTime?: string | null; durationMins?: number; dogIds: string[]; repeatSchedule?: RepeatSchedule | null; instructions?: string; photos?: string[] }[];
   /** Walk total duration in minutes (sum of all sessions) */
   walkDurationMins?: number;
-  /** Feeding slots with times and dog assignments */
-  feedingSlots?: { time: string; daily: boolean; dogIds: string[] }[];
-  /** Play sessions with times, duration, and dog assignments */
-  playSessions?: { sessionNumber: number; flexible: boolean; startTime: string | null; endTime: string | null; durationMins: number; repeatDaily: boolean; dogIds: string[] }[];
-  /** Medication slots with time, details text, and dog assignments */
-  medicationSlots?: { time: string; details: string; daily: boolean; dogIds: string[] }[];
+  /** Feeding slots with times, instructions, photos, and dog assignments */
+  feedingSlots?: { time: string; repeatSchedule?: RepeatSchedule | null; dogIds: string[]; instructions?: string; photos?: string[] }[];
+  /** Play sessions with times, settings, instructions, photos, and dog assignments */
+  playSessions?: { sessionNumber?: number; flexible?: boolean; startTime?: string | null; endTime?: string | null; durationMins?: number; dogIds: string[]; repeatSchedule?: RepeatSchedule | null; instructions?: string; photos?: string[] }[];
+  /** Medication slots with time, extra times, details, photos, and dog assignments */
+  medicationSlots?: { time: string; extraTimes?: string[]; details: string; repeatSchedule?: RepeatSchedule | null; dogIds: string[]; photos?: string[] }[];
 
   // Status
   status: PostStatus;
