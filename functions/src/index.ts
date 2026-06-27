@@ -483,6 +483,168 @@ export const onPostCompleted = onDocumentUpdated(
   }
 );
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// REVIEW AGGREGATION — recompute rating + reviewCount on reviewed users & dogs
+//    Firestore rules forbid the client from writing another user's doc or
+//    another owner's dog doc, so submitted reviews never populate the reviewed
+//    account/dog. These run with admin privileges and recompute aggregates
+//    FROM SOURCE (not increment) so they are idempotent and self-healing.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Admin uid (Lior) — gate for the manual backfill callable. */
+const ADMIN_UID = "5SUwrjPWPzbqf7qTYRS74Uj7CB82";
+
+/** Person reviews aggregate across both the owner and caregiver target types. */
+const PERSON_TARGET_TYPES = ["owner", "caregiver"] as const;
+
+/** Round an average rating to one decimal place; 0 when there are no reviews. */
+function roundRating(sum: number, count: number): number {
+  if (count === 0) return 0;
+  return Math.round((sum / count) * 10) / 10;
+}
+
+/** Sum the numeric `rating` field across a set of review docs. */
+function sumRatings(
+  docs: admin.firestore.QueryDocumentSnapshot[]
+): { sum: number; count: number } {
+  let sum = 0;
+  for (const d of docs) {
+    const rating = d.data().rating;
+    if (typeof rating === "number") sum += rating;
+  }
+  return { sum, count: docs.length };
+}
+
+/** Recompute a person's rating/reviewCount from every owner+caregiver review about them. */
+async function recomputePersonAggregate(revieweeId: string): Promise<void> {
+  const snap = await db
+    .collection("reviews")
+    .where("revieweeId", "==", revieweeId)
+    .where("targetType", "in", [...PERSON_TARGET_TYPES])
+    .get();
+
+  const { sum, count } = sumRatings(snap.docs);
+  await db
+    .doc(`users/${revieweeId}`)
+    .set({ rating: roundRating(sum, count), reviewCount: count }, { merge: true });
+}
+
+/** Recompute a dog's rating/reviewCount from every dog review about it. */
+async function recomputeDogAggregate(revieweeId: string, dogId: string): Promise<void> {
+  const snap = await db
+    .collection("reviews")
+    .where("revieweeId", "==", revieweeId)
+    .where("targetType", "==", "dog")
+    .where("dogId", "==", dogId)
+    .get();
+
+  const { sum, count } = sumRatings(snap.docs);
+  await db
+    .doc(`dogs/${dogId}`)
+    .set({ rating: roundRating(sum, count), reviewCount: count }, { merge: true });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// onReviewCreated — fires when a review doc is created; recomputes the reviewed
+//   person's or dog's aggregate. Mirrors the onPostCompleted v2 trigger style.
+// ─────────────────────────────────────────────────────────────────────────────
+export const onReviewCreated = onDocumentCreated(
+  "reviews/{reviewId}",
+  async (event) => {
+    const snap = event.data;
+    const data = snap?.data();
+    if (!data) return;
+
+    const revieweeId = data.revieweeId as string | undefined;
+    if (!revieweeId) return;
+
+    const targetType = data.targetType as string | undefined;
+
+    try {
+      if (targetType === "owner" || targetType === "caregiver") {
+        await recomputePersonAggregate(revieweeId);
+        console.log(`[onReviewCreated] Recomputed person aggregate for ${revieweeId}`);
+      } else if (targetType === "dog") {
+        const dogId = data.dogId as string | undefined;
+        if (!dogId) return;
+        await recomputeDogAggregate(revieweeId, dogId);
+        console.log(`[onReviewCreated] Recomputed dog aggregate for dog ${dogId}`);
+      }
+    } catch (error) {
+      console.error("[onReviewCreated] Failed:", error);
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// backfillReviewAggregates — admin-only callable that heals EXISTING reviews by
+//   recomputing every person and dog aggregate from the full reviews collection.
+//   Idempotent (recompute-from-source). Invoke once after deploy:
+//     firebase functions:shell → backfillReviewAggregates({})  (as the admin)
+//   or from an admin-authenticated client via httpsCallable.
+// ─────────────────────────────────────────────────────────────────────────────
+export const backfillReviewAggregates = functions.https.onCall(async (_data, context) => {
+  const callerUid = context.auth?.uid;
+  if (callerUid !== ADMIN_UID) {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "Only an admin may run backfillReviewAggregates."
+    );
+  }
+
+  const snap = await db.collection("reviews").get();
+
+  // Person aggregates keyed by revieweeId (owner + caregiver reviews).
+  const personSums = new Map<string, { sum: number; count: number }>();
+  // Dog aggregates keyed by dogId.
+  const dogSums = new Map<string, { sum: number; count: number }>();
+
+  for (const d of snap.docs) {
+    const r = d.data();
+    const revieweeId = r.revieweeId as string | undefined;
+    const targetType = r.targetType as string | undefined;
+    const rating = r.rating;
+    if (!revieweeId || typeof rating !== "number") continue;
+
+    if (targetType === "owner" || targetType === "caregiver") {
+      const acc = personSums.get(revieweeId) ?? { sum: 0, count: 0 };
+      acc.sum += rating;
+      acc.count += 1;
+      personSums.set(revieweeId, acc);
+    } else if (targetType === "dog") {
+      const dogId = r.dogId as string | undefined;
+      if (!dogId) continue;
+      const acc = dogSums.get(dogId) ?? { sum: 0, count: 0 };
+      acc.sum += rating;
+      acc.count += 1;
+      dogSums.set(dogId, acc);
+    }
+  }
+
+  let usersUpdated = 0;
+  for (const [userId, { sum, count }] of personSums) {
+    await db
+      .doc(`users/${userId}`)
+      .set({ rating: roundRating(sum, count), reviewCount: count }, { merge: true });
+    usersUpdated += 1;
+  }
+
+  let dogsUpdated = 0;
+  for (const [dogId, { sum, count }] of dogSums) {
+    await db
+      .doc(`dogs/${dogId}`)
+      .set({ rating: roundRating(sum, count), reviewCount: count }, { merge: true });
+    dogsUpdated += 1;
+  }
+
+  console.log(
+    `[backfillReviewAggregates] Updated ${usersUpdated} users, ${dogsUpdated} dogs ` +
+      `from ${snap.size} reviews`
+  );
+  return { usersUpdated, dogsUpdated, reviewsProcessed: snap.size };
+});
+
+
 /**
  * onFavoriteUserPost — notify users who have favorited the post creator
  * with notifyOnPost=true when that creator publishes a new post.
