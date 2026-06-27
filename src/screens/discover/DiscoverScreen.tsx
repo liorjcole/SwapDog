@@ -599,9 +599,9 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
     const displayUsers = nearbyUsers.length > 0 ? nearbyUsers : lastUsersRef.current;
     const items: FeedItem[] = [];
 
-    // Split posts into available vs taken
+    // Split posts: open first, claimed pinned to the bottom (card badge communicates state)
     const availablePosts = displayPosts.filter(p => p.status === 'open');
-    const takenPosts = displayPosts.filter(p => p.status !== 'open');
+    const takenPosts = displayPosts.filter(p => p.status === 'claimed');
 
     const sortPosts = (posts: typeof displayPosts) => [...posts].sort((a, b) => {
       const aFav = favoriteIds.has(a.posterId) ? 1 : 0;
@@ -620,11 +620,8 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
       sortPosts(availablePosts).forEach((p) => items.push({ kind: 'post', id: p.id, post: p }));
     }
 
-    // Section 2: Taken posts (sitter found)
-    if (takenPosts.length > 0) {
-      items.push({ kind: 'section_header', id: 'header_taken', title: 'Sitter Found', count: takenPosts.length, isPosts: false });
-      sortPosts(takenPosts).forEach((p) => items.push({ kind: 'post', id: p.id, post: p }));
-    }
+    // Section 2: Claimed posts — pinned to bottom, no section header ("Claimed" badge on card communicates state)
+    sortPosts(takenPosts).forEach((p) => items.push({ kind: 'post', id: p.id, post: p }));
 
     return items;
   }, [areaPosts, nearbyUsers, radiusMiles, favoriteIds, hiddenUserIds]);
@@ -743,7 +740,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
         case 'section_header':
           return <SectionHeaderRow item={item} onCreatePost={item.isPosts ? handleNavigateToCreatePost : undefined} />;
         case 'post':
-          return <PostCard post={item.post} onPress={handleNavigateToPost} currentUserId={userProfile?.id} isFavorited={favoriteIds.has(item.post.posterId)} isHighlighted={highlightPostId === item.post.id} pulseScale={pulseAnim} glowOpacity={glowAnim} />;
+          return <PostCard post={item.post} onPress={handleNavigateToPost} currentUserId={userProfile?.id} isFavorited={favoriteIds.has(item.post.posterId)} isHighlighted={highlightPostId === item.post.id} pulseScale={pulseAnim} glowOpacity={glowAnim} isClaimed={item.post.status === 'claimed'} />;
         case 'user':
           return (
             <UserRow
