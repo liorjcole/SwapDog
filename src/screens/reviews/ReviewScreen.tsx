@@ -55,6 +55,18 @@ const ReviewScreen: React.FC<Props> = ({ navigation, route }) => {
       return;
     }
 
+    // Guard against orphan reviews: without a recipient, every review doc would
+    // be written with an empty revieweeId and the server-side aggregation
+    // (onReviewCreated) could never populate anyone's profile — yet the success
+    // popup would still fire. Abort with a real error instead of a false success.
+    if (!params?.otherUserId) {
+      Alert.alert(
+        'Error',
+        'Could not submit review — missing recipient. Please try again.',
+      );
+      return;
+    }
+
     const ok = await submitAllReviews();
     if (ok) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
