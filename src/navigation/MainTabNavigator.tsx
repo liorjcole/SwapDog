@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useNavigation, CommonActions } from '@react-navigation/native';
-import { Text, View } from 'react-native';
+import { Text, View, Modal } from 'react-native';
 import {
   MainTabParamList,
   DiscoverStackParamList,
@@ -21,6 +20,8 @@ import { ensureReferralCode } from '../hooks/useReferrals';
 import RescheduleReviewModal from '../components/common/RescheduleReviewModal';
 import InsufficientPointsModal from '../components/common/InsufficientPointsModal';
 import ConfettiCelebration, { CelebrationItem } from '../components/common/ConfettiCelebration';
+import MandatoryReviewGate from '../components/common/MandatoryReviewGate';
+import { ReviewFlowParams } from '../hooks/useReviewFlow';
 import { SwapPost } from '../models/types';
 import AppHeader from '../components/common/AppHeader';
 
@@ -232,7 +233,10 @@ const MainTabNavigator: React.FC = () => {
   const dismissedPostIds = useRef<Set<string>>(new Set());
   const checkedReferralReward = useRef(false);
   const checkedPendingReview = useRef(false);
-  const tabNavigation = useNavigation();
+
+  // Drives the inescapable review gate. Sourced from the on-open getDoc below;
+  // nulled only after a successful submit clears pendingReview.
+  const [mandatoryReviewData, setMandatoryReviewData] = useState<ReviewFlowParams | null>(null);
 
   // ── Check for pending referral reward on app open ──────────────────────────
   useEffect(() => {
@@ -295,32 +299,17 @@ const MainTabNavigator: React.FC = () => {
         const pending = data?.pendingReview;
         if (!pending) return;
 
-        const otherName = (pending.otherUserName as string) || 'the other person';
-
-        setCelebrationQueue((prev) => [
-          ...prev,
-          {
-            title: 'How did it go? ⭐',
-            subtitle: 'Leave a review for ' + otherName,
-            emoji: '📝',
-            actionLabel: 'Leave Review',
-            onAction: () => {
-              tabNavigation.dispatch(
-                CommonActions.navigate('ProfileTab', {
-                  screen: 'Review',
-                  params: {
-                    postId: pending.postId as string,
-                    role: pending.role as 'owner' | 'caregiver',
-                    otherUserId: pending.otherUserId as string,
-                    otherUserName: pending.otherUserName as string,
-                    dogIds: (pending.dogIds as string[]) ?? [],
-                    dogNames: (pending.dogNames as string[]) ?? [],
-                  },
-                })
-              );
-            },
-          },
-        ]);
+        // Open the inescapable review gate. The gate (a root-level blocking
+        // Modal) covers the tab bar and all navigation until every step is
+        // submitted, at which point clearPendingReview fires and we null this.
+        setMandatoryReviewData({
+          postId: pending.postId as string,
+          role: pending.role as 'owner' | 'caregiver',
+          otherUserId: pending.otherUserId as string,
+          otherUserName: (pending.otherUserName as string) ?? 'the other person',
+          dogIds: (pending.dogIds as string[]) ?? [],
+          dogNames: (pending.dogNames as string[]) ?? [],
+        });
       } catch (err) {
         console.error('[PendingReview] Check failed:', err);
       }
@@ -520,6 +509,24 @@ const MainTabNavigator: React.FC = () => {
 
   return (
     <>
+      {/* Inescapable post-commitment review gate — renders above the tab bar
+          and all navigation. onRequestClose is a no-op so Android hardware
+          back cannot dismiss it; there is no swipe-to-dismiss on an RN Modal. */}
+      <Modal
+        visible={!!mandatoryReviewData}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => {
+          /* no-op: the gate cannot be dismissed without submitting */
+        }}
+      >
+        {mandatoryReviewData && (
+          <MandatoryReviewGate
+            data={mandatoryReviewData}
+            onComplete={() => setMandatoryReviewData(null)}
+          />
+        )}
+      </Modal>
       {/* Reschedule popup — shows on app open for sitter */}
       {reschedulePost && (
         <RescheduleReviewModal
