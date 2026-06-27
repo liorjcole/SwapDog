@@ -1156,7 +1156,9 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         ) : (
           <View style={styles.commitList}>
-            {allSortedCommitments.map((post) => renderCommitmentCard(post))}
+            {allSortedCommitments.map((post) =>
+              renderCommitmentCard(post, post.id ? () => navigation.navigate('PostDetail', { postId: post.id }) : undefined)
+            )}
           </View>
         )}
       </ScrollView>

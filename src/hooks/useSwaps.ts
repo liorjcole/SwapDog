@@ -45,7 +45,7 @@ const parseSwap = (id: string, data: Record<string, unknown>): SwapRequest => ({
 });
 
 // ─── SwapPost parser ──────────────────────────────────────────────────────────
-const parsePost = (id: string, data: Record<string, unknown>): SwapPost => ({
+export const parsePost = (id: string, data: Record<string, unknown>): SwapPost => ({
   id,
   posterId: data.posterId as string,
   posterName: data.posterName as string,

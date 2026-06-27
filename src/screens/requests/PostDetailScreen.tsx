@@ -37,7 +37,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import AvatarImage from '../../components/common/AvatarImage';
 import ConfettiCelebration, { CelebrationItem } from '../../components/common/ConfettiCelebration';
 import { smartDate, isSameDay as isSameDayUtil } from '../../utils/dateHelpers';
-import { useSwaps } from '../../hooks/useSwaps';
+import { useSwaps, parsePost } from '../../hooks/useSwaps';
 import { useUsers } from '../../hooks/useUsers';
 import { useMessaging } from '../../hooks/useMessaging';
 import { SwapPost, RepeatSchedule, formatRepeatLabel } from '../../models/types';
@@ -333,11 +333,24 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         if (user?.uid) {
           const myPosts = await getMyPosts(user.uid);
           const ownPost = myPosts.find((p) => p.id === postId) ?? null;
-          setPost(ownPost);
           if (ownPost) {
+            setPost(ownPost);
             setAllPhotos(await buildPhotos(ownPost));
             try { const pu = await getUser(ownPost.posterId); if (pu?.photoURL) setFreshPosterPhoto(pu.photoURL); } catch { /* non-fatal */ }
+            return;
           }
+        }
+        // Third pass: direct Firestore fetch — covers claimed posts where
+        // current user is the sitter (not the poster; status !== 'open').
+        const snap = await getDoc(doc(db, 'swapPosts', postId));
+        const snapData = snap.data();
+        if (snapData) {
+          const direct = parsePost(snap.id, snapData as Record<string, unknown>);
+          setPost(direct);
+          setAllPhotos(await buildPhotos(direct));
+          try { const pu = await getUser(direct.posterId); if (pu?.photoURL) setFreshPosterPhoto(pu.photoURL); } catch { /* non-fatal */ }
+        } else {
+          setPost(null);
         }
       } finally {
         setLoading(false);
