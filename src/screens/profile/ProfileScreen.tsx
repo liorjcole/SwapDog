@@ -405,7 +405,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* Edit Profile — not bold, bottom right */}
         <TouchableOpacity
-          style={{ alignSelf: 'flex-end', paddingVertical: spacing.xs, marginTop: spacing.sm }}
+          style={{ alignSelf: 'center', paddingVertical: spacing.xs, marginTop: spacing.sm }}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.navigate('EditProfile'); }}
           accessibilityLabel="Edit profile"
           accessibilityRole="button"
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
   editDetailsBtn: { alignSelf: 'flex-start', marginTop: spacing.sm, paddingVertical: 6 },
   editDetailsBtnText: { fontSize: 15, fontWeight: '600' },
   // "View my profile" pill button above the My Dogs section
-  viewMyProfileBtn: { alignSelf: 'flex-start', borderRadius: borderRadius.full, paddingVertical: 6, paddingHorizontal: spacing.md, marginBottom: spacing.md },
+  viewMyProfileBtn: { alignSelf: 'flex-end', borderRadius: borderRadius.full, paddingVertical: 6, paddingHorizontal: spacing.md, marginBottom: spacing.md },
   viewMyProfileBtnText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
   signOutBtn: { margin: spacing.lg, padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center' },
   signOutText: { color: '#FF0000', ...typography.button },
