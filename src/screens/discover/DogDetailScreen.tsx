@@ -43,7 +43,7 @@ const DogDetailScreen: React.FC<Props> = ({ route }) => {
         <Text style={[styles.breed, { color: colors.textSecondary }]}>{dog.breed}</Text>
         <View style={styles.row}>
           <Chip label={formatDogAge(dog.ageYears, dog.ageMonths)} />
-          <Chip label={dog.weightLbs ? `${dog.weightLbs} lbs` : dog.size.replace('_', ' ')} />
+          {dog.weightLbs > 0 && <Chip label={`${dog.weightLbs} lbs`} />}
           <Chip label={dog.sex} />
           <Chip label={`${dog.energyLevel.replace('_', ' ')} energy`} />
         </View>

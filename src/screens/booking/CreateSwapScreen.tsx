@@ -319,7 +319,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
               <Text style={[styles.dogInfoBreed, { color: colors.textSecondary }]}>{selectedDog.breed}</Text>
               <View style={styles.dogInfoChips}>
                 <Chip label={formatDogAge(selectedDog.ageYears, selectedDog.ageMonths)} />
-                <Chip label={selectedDog.weightLbs ? `${selectedDog.weightLbs} lbs` : selectedDog.size.replace('_', ' ')} />
+                {selectedDog.weightLbs > 0 && <Chip label={`${selectedDog.weightLbs} lbs`} />}
                 <Chip label={selectedDog.sex} />
                 <Chip label={`${selectedDog.energyLevel.replace('_', ' ')} energy`} />
                 {selectedDog.vaccinated !== undefined && (

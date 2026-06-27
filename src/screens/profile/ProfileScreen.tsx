@@ -454,7 +454,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
             >
               <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
                 <Text style={[styles.dogName, { color: colors.text }]}>{dog.name}</Text>
-                <Text style={[styles.dogBreed, { color: colors.textSecondary, marginLeft: 8 }]}>{dog.breed} {'\u2022'} {formatDogAge(dog.ageYears, dog.ageMonths)}</Text>
+                <Text style={[styles.dogBreed, { color: colors.textSecondary, marginLeft: 8 }]}>{dog.breed} {'\u2022'} {formatDogAge(dog.ageYears, dog.ageMonths)}{dog.weightLbs > 0 ? ` • ${dog.weightLbs} lbs` : ''}</Text>
               </View>
             </TouchableOpacity>
 
@@ -486,6 +486,18 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={{ fontSize: 13, color: colors.textSecondary, fontStyle: 'italic', alignSelf: 'flex-end', marginTop: 6 }}>
               * Hold & drag to reorder
             </Text>
+
+            {/* Edit details — opens EditDogScreen with photos hidden (photos already handled above) */}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('EditDog', { dogId: dog.id, hidePhotos: true })}
+              style={styles.editDetailsBtn}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${dog.name}'s details`}
+            >
+              <Text style={[styles.editDetailsBtnText, { color: colors.primary }]}>
+                Edit {dog.name}'s details
+              </Text>
+            </TouchableOpacity>
           </View>
         ))}
 
@@ -673,6 +685,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   addAnotherDogBtnText: { fontSize: 17, fontWeight: '700' },
+  // "Edit {name}'s details" button on each dog card
+  editDetailsBtn: { alignSelf: 'flex-start', marginTop: spacing.sm, paddingVertical: 6 },
+  editDetailsBtnText: { fontSize: 15, fontWeight: '600' },
   signOutBtn: { margin: spacing.lg, padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center' },
   signOutText: { color: '#FF0000', ...typography.button },
 });

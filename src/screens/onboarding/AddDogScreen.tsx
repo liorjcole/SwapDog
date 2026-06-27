@@ -15,7 +15,7 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import CharCountHint from '../../components/common/CharCountHint';
 import { useDogs } from '../../hooks/useDogs';
-import { DogSize, DogSex, EnergyLevel } from '../../models/types';
+import { DogSex, EnergyLevel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import Chip from '../../components/common/Chip';
 import DogAddedTransition from '../../components/onboarding/DogAddedTransition';
@@ -55,15 +55,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [showRefChart, setShowRefChart] = useState(false);
-
-  // Auto-map weight to size category
-  const weightToSize = (lbs: number): DogSize => {
-    if (lbs <= 0) return DogSize.medium;
-    if (lbs <= 15) return DogSize.small;
-    if (lbs <= 50) return DogSize.medium;
-    if (lbs <= 100) return DogSize.large;
-    return DogSize.extra_large;
-  };
 
   // Custom back: go to previous dog instead of ProfileSetup
   const doGoBack = useCallback(() => {
@@ -262,7 +253,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         breed: form.breed.trim(),
         ageYears: form.ageYears,
         ageMonths: form.ageYears === 0 ? form.ageMonths : form.ageMonths,
-        size: weightToSize(form.weightLbs),
         weightLbs: form.weightLbs,
         sex: form.sex,
         energyLevel: form.energy,

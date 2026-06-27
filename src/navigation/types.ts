@@ -65,7 +65,7 @@ export type ProfileStackParamList = {
   };
   EditProfile: undefined;
   /** dogId is optional: omit (or pass undefined) to create a new dog */
-  EditDog: { dogId?: string };
+  EditDog: { dogId?: string; hidePhotos?: boolean };
   CommunityStandards: undefined;
   MyAgreement: undefined;
   PointsHistory: undefined;
