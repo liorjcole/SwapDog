@@ -14,7 +14,7 @@ import CharCountHint from '../../components/common/CharCountHint';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useDogs } from '../../hooks/useDogs';
-import { Dog, DogSize, DogSex, EnergyLevel } from '../../models/types';
+import { Dog, DogSex, EnergyLevel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Chip from '../../components/common/Chip';
@@ -35,13 +35,14 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   // If no dogId → create mode
   const dogId = route.params?.dogId;
   const isCreateMode = !dogId;
+  // When opened from ProfileScreen's dog card, photos are already handled above — hide them here.
+  const hidePhotos = route.params?.hidePhotos ?? false;
 
   const [dog, setDog] = useState<Dog | null>(null);
   const [name, setName] = useState('');
   const [breed, setBreed] = useState('');
   const [ageYears, setAgeYears] = useState(0);
   const [ageMonths, setAgeMonths] = useState(1);
-  const [size, setSize] = useState<DogSize>(DogSize.medium);
   const [sex, setSex] = useState<DogSex>(DogSex.male);
   const [energy, setEnergy] = useState<EnergyLevel>(EnergyLevel.moderate);
   const [photoURLs, setPhotoURLs] = useState<string[]>([]);
@@ -56,14 +57,6 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   const [dogBio, setDogBio] = useState('');
   const [showRefChart, setShowRefChart] = useState(false);
 
-  const weightToSize = (lbs: number): DogSize => {
-    if (lbs <= 0) return DogSize.medium;
-    if (lbs <= 15) return DogSize.small;
-    if (lbs <= 50) return DogSize.medium;
-    if (lbs <= 100) return DogSize.large;
-    return DogSize.extra_large;
-  };
-
   useEffect(() => {
     if (isCreateMode) return; // skip fetching in create mode
     getDog(dogId).then((d) => {
@@ -73,7 +66,6 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         setBreed(d.breed);
         setAgeYears(d.ageYears);
         setAgeMonths(d.ageMonths);
-        setSize(d.size);
         setSex(d.sex);
         setEnergy(d.energyLevel);
         setPhotoURLs(d.photoURLs);
@@ -81,13 +73,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         if (d.isGoodWithKids !== undefined) setGoodWithKids(d.isGoodWithKids);
         if (d.vaccinated !== undefined) setVaccinated(d.vaccinated);
         if ((d as any).bio) setDogBio((d as any).bio);
-        // Use actual weight if saved, otherwise reverse-map from size
-        if (d.weightLbs && d.weightLbs > 0) {
-          setWeightLbs(d.weightLbs);
-        } else if (d.size === DogSize.small) setWeightLbs(10);
-        else if (d.size === DogSize.medium) setWeightLbs(35);
-        else if (d.size === DogSize.large) setWeightLbs(75);
-        else if (d.size === DogSize.extra_large) setWeightLbs(120);
+        setWeightLbs(d.weightLbs ?? 0);
       }
       setLoading(false);
     });
@@ -231,7 +217,6 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           breed: breed.trim(),
           ageYears,
           ageMonths,
-          size: weightToSize(weightLbs),
           weightLbs,
           sex,
           energyLevel: energy,
@@ -248,7 +233,6 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           breed: breed.trim(),
           ageYears,
           ageMonths,
-          size: weightToSize(weightLbs),
           weightLbs,
           sex,
           energyLevel: energy,
@@ -295,7 +279,8 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         <Text style={[styles.createTitle, { color: colors.text }]}>Add a New Dog 🐶</Text>
       )}
 
-      {/* Photo gallery */}
+      {/* Photo gallery — hidden when opened from ProfileScreen (photos handled above) */}
+      {!hidePhotos && (<>
       <Text style={[styles.label, { color: colors.text }]}>Photos ({photoURLs.length}/10)</Text>
       <View style={styles.photoGrid}>
         {photoURLs.map((uri, index) => (
@@ -338,6 +323,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           </TouchableOpacity>
         )}
       </View>
+      </>)}
 
       <View ref={refFor('name')}>
         <TextInput

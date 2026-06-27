@@ -1,10 +1,3 @@
-export enum DogSize {
-  small = 'small',
-  medium = 'medium',
-  large = 'large',
-  extra_large = 'extra_large',
-}
-
 export enum EnergyLevel {
   low = 'low',
   moderate = 'moderate',
@@ -91,8 +84,7 @@ export interface Dog {
   ageYears: number;
   /** Additional months (0-11). For puppies (ageYears=0) this is the primary age. */
   ageMonths: number;
-  size: DogSize;
-  weightLbs?: number;
+  weightLbs: number;
   sex: DogSex;
   energyLevel: EnergyLevel;
   /** Up to 10 photo URLs. First photo is the primary/thumbnail. */

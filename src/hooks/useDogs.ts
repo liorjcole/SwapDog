@@ -11,7 +11,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { Dog, DogSize, DogSex, EnergyLevel } from '../models/types';
+import { Dog, DogSex, EnergyLevel } from '../models/types';
 import { toDate } from '../utils/firestoreConverters';
 
 const parseDog = (id: string, data: Record<string, unknown>): Dog => {
@@ -34,8 +34,7 @@ const parseDog = (id: string, data: Record<string, unknown>): Dog => {
     breed: data.breed as string,
     ageYears,
     ageMonths,
-    size: data.size as DogSize,
-    weightLbs: (data.weightLbs as number | undefined) ?? undefined,
+    weightLbs: (data.weightLbs as number | undefined) ?? 0,
     sex: data.sex as DogSex,
     energyLevel: data.energyLevel as EnergyLevel,
     photoURLs,

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { DogSize, DogSex, EnergyLevel } from '../models/types';
+import { DogSex, EnergyLevel } from '../models/types';
 
 // ─── Dog form shape ───
 export interface DogForm {
@@ -8,7 +8,6 @@ export interface DogForm {
   ageYears: number;
   ageMonths: number;
   weightLbs: number;
-  size: DogSize;
   sex: DogSex;
   energy: EnergyLevel;
   goodWithDogs: boolean;
@@ -24,7 +23,6 @@ export const blankDogForm = (): DogForm => ({
   ageYears: 0,
   ageMonths: 1,
   weightLbs: 0,
-  size: DogSize.medium,
   sex: DogSex.male,
   energy: EnergyLevel.moderate,
   goodWithDogs: false,
