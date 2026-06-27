@@ -33,7 +33,7 @@ import { useDogs } from '../../hooks/useDogs';
 import { useSwaps } from '../../hooks/useSwaps';
 import { Dog, CompensationType, CareType, RepeatSchedule, SwapPost, formatRepeatLabel, formatRepeatSubLabel } from '../../models/types';
 import { spacing, borderRadius, typography } from '../../config/theme';
-import { uploadPhotoToStorage } from '../../utils/uploadHelper';
+import { ensureRemotePhotoURL } from '../../utils/uploadHelper';
 import { resolveActiveLocation } from '../../utils/resolveActiveLocation';
 import { onPostCreated } from '../../services/ReviewPromptService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -808,9 +808,27 @@ const MAX_PLAY_SESSIONS = 5;
     }
   }, [user, getMyPosts]);
 
-  // Seed the form from a past post. Only the reusable core — dogs, care types,
-  // notes, address, compensation. Dates/times and per-session arrays are left
-  // for the user to re-pick (they are time-specific).
+  // "8:05 PM" -> Date(today @ 20:05). Returns null for empty/invalid input.
+  // Per-service times are stored as plain time-of-day strings (no date baked in),
+  // so reuse just parses the string and reattaches it to today.
+  const timeStringToDate = (t?: string | null): Date | null => {
+    if (!t) return null;
+    const m = t.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!m) return null;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const mer = m[3].toUpperCase();
+    if (mer === 'PM' && h !== 12) h += 12;
+    if (mer === 'AM' && h === 12) h = 0;
+    const d = new Date();
+    d.setHours(h, min, 0, 0);
+    return d;
+  };
+
+  // Seed the form from a past post. Carries over everything except the overall
+  // stay calendar window (startDate/endDate + start/end time-of-day), which the
+  // user re-picks each time. Per-service times/settings/instructions/photos and
+  // stay-location preference DO carry over.
   const prefillFromPost = (post: SwapPost) => {
     setSelectedDogIds(new Set(post.dogIds?.filter(id => myDogs.some(d => d.id === id)) ?? []));
     setPrimaryCareType((post.careType === 'overnight' || post.careType === 'daySitting') ? post.careType : null);
@@ -825,6 +843,74 @@ const MAX_PLAY_SESSIONS = 5;
       setOfferMoney(true);
       setPaymentAmount(String(post.paymentAmount ?? ''));
     }
+
+    // Stay-location preference. sitterTransport only applies when sitter's home.
+    setOvernightLocation(post.overnightLocation ?? null);
+    setSitterTransport(post.overnightLocation === 'sitters_home' ? (post.sitterTransport ?? null) : null);
+
+    // Overall care photos — already remote Storage URLs; submit passes them through.
+    setCarePhotos(post.carePhotos ?? []);
+
+    // Rebuild per-service slots. Drop dogs the user no longer owns; keep one
+    // default slot when a service has no stored slots so the UI still renders.
+    const keepDogs = (ids?: string[]) => (ids ?? []).filter(id => myDogs.some(d => d.id === id));
+
+    const feeding = post.feedingSlots ?? [];
+    setFeedingSlots(feeding.length > 0 ? feeding.map(s => ({
+      id: nextCellId(),
+      time: timeStringToDate(s.time) as unknown as Date,
+      repeatSchedule: s.repeatSchedule ?? null,
+      showPicker: false,
+      dogIds: keepDogs(s.dogIds),
+      instructions: s.instructions ?? '',
+      photos: s.photos ?? [],
+      showInstructions: !!(s.instructions && s.instructions.trim()),
+    })) : [{ id: nextCellId(), time: null as unknown as Date, repeatSchedule: null, showPicker: false, dogIds: [], instructions: '', photos: [], showInstructions: false }]);
+
+    const walks = post.walkSessions ?? [];
+    setWalkSessions(walks.length > 0 ? walks.map(s => ({
+      id: nextCellId(),
+      flexible: !!s.flexible,
+      startDate: s.flexible ? (null as unknown as Date) : (timeStringToDate(s.startTime) as unknown as Date),
+      endDate: s.flexible ? (null as unknown as Date) : (timeStringToDate(s.endTime) as unknown as Date),
+      showStart: false,
+      showEnd: false,
+      durationMins: s.durationMins ?? null,
+      dogIds: keepDogs(s.dogIds),
+      repeatSchedule: s.repeatSchedule ?? null,
+      instructions: s.instructions ?? '',
+      photos: s.photos ?? [],
+      showInstructions: !!(s.instructions && s.instructions.trim()),
+    })) : [makeDefaultWalkSession()]);
+
+    const plays = post.playSessions ?? [];
+    setPlaySessions(plays.length > 0 ? plays.map(s => ({
+      id: nextCellId(),
+      flexible: !!s.flexible,
+      startDate: s.flexible ? (null as unknown as Date) : (timeStringToDate(s.startTime) as unknown as Date),
+      endDate: s.flexible ? (null as unknown as Date) : (timeStringToDate(s.endTime) as unknown as Date),
+      showStart: false,
+      showEnd: false,
+      durationMins: s.durationMins ?? null,
+      repeatSchedule: s.repeatSchedule ?? null,
+      dogIds: keepDogs(s.dogIds),
+      instructions: s.instructions ?? '',
+      photos: s.photos ?? [],
+      showInstructions: !!(s.instructions && s.instructions.trim()),
+    })) : [makeDefaultPlaySession()]);
+
+    const meds = post.medicationSlots ?? [];
+    setMedicationSlots(meds.length > 0 ? meds.map(s => ({
+      id: nextCellId(),
+      time: timeStringToDate(s.time) as unknown as Date,
+      extraTimes: (s.extraTimes ?? []).map(t => ({ time: timeStringToDate(t) as unknown as Date, showPicker: false })),
+      details: s.details ?? '',
+      repeatSchedule: s.repeatSchedule ?? null,
+      showPicker: false,
+      dogIds: keepDogs(s.dogIds),
+      photos: s.photos ?? [],
+    })) : [{ id: nextCellId(), time: null as unknown as Date, extraTimes: [], details: '', repeatSchedule: null, showPicker: false, dogIds: [], photos: [] }]);
+
     setShowReuseModal(false);
   };
 
@@ -1630,11 +1716,16 @@ const MAX_PLAY_SESSIONS = 5;
 
       // Care-type-specific optional fields
       const careTypeFields: Record<string, unknown> = { careType: primaryCareType, addOnCareTypes: Array.from(addOnCareTypes), overnightLocation: (primaryCareType === 'overnight' || primaryCareType === 'daySitting') ? overnightLocation : null, careAddress: careAddress.trim() || undefined, sitterTransport: overnightLocation === 'sitters_home' ? sitterTransport : undefined };
+      // Per-service photos: upload local picks to Storage; reused remote URLs pass through untouched.
+      const uploadServicePhotos = (uris: string[], kind: string): Promise<string[]> =>
+        Promise.all(uris.map((uri, idx) =>
+          ensureRemotePhotoURL(uri, `service-photos/${user.uid}/${kind}_${Date.now()}_${idx}.jpg`),
+        ));
       if (offerPoints) {
         careTypeFields.pointsOffered = parseFloat(pointsOffered);
       }
       if (addOnCareTypes.has('dogWalking')) {
-        careTypeFields.walkSessions = walkSessions.map(ws => ({
+        careTypeFields.walkSessions = await Promise.all(walkSessions.map(async ws => ({
           flexible: ws.flexible,
           startTime: ws.flexible ? null : (ws.startDate ? formatTime12(ws.startDate) : ''),
           endTime: ws.flexible ? null : (ws.endDate ? formatTime12(ws.endDate) : ''),
@@ -1647,36 +1738,36 @@ const MAX_PLAY_SESSIONS = 5;
           dogIds: ws.dogIds,
           repeatSchedule: primaryCareType === 'overnight' && ws.repeatSchedule ? ws.repeatSchedule : null,
           instructions: ws.instructions.trim() || undefined,
-          photos: ws.photos.length > 0 ? ws.photos : undefined,
-        }));
+          photos: ws.photos.length > 0 ? await uploadServicePhotos(ws.photos, 'walk') : undefined,
+        })));
         careTypeFields.walkDurationMins = walkDurationMins;
       }
       if (addOnCareTypes.has('feeding')) {
-        careTypeFields.feedingSlots = feedingSlots.map(s => ({
+        careTypeFields.feedingSlots = await Promise.all(feedingSlots.map(async s => ({
           time: s.time ? formatTime12(s.time) : '',
           repeatSchedule: primaryCareType === 'overnight' && s.repeatSchedule ? s.repeatSchedule : null,
           dogIds: s.dogIds,
           instructions: s.instructions.trim() || undefined,
-          photos: s.photos.length > 0 ? s.photos : undefined,
-        }));
+          photos: s.photos.length > 0 ? await uploadServicePhotos(s.photos, 'feeding') : undefined,
+        })));
       }
       if (primaryCareType === 'overnight' || primaryCareType === 'daySitting') {
         careTypeFields.startTime = startTime;
         careTypeFields.endTime = endTime;
       }
       if (addOnCareTypes.has('medication')) {
-        careTypeFields.medicationSlots = medicationSlots.map(s => ({
+        careTypeFields.medicationSlots = await Promise.all(medicationSlots.map(async s => ({
           time: s.time ? formatTime12(s.time) : '',
           extraTimes: s.extraTimes.map(et => et.time ? formatTime12(et.time) : ''),
           details: s.details.trim(),
           repeatSchedule: primaryCareType === 'overnight' && s.repeatSchedule ? s.repeatSchedule : null,
           dogIds: s.dogIds,
-          photos: s.photos.length > 0 ? s.photos : undefined,
-        }));
+          photos: s.photos.length > 0 ? await uploadServicePhotos(s.photos, 'medication') : undefined,
+        })));
       }
 
       if (addOnCareTypes.has('playtime')) {
-        careTypeFields.playSessions = playSessions.map((s, i) => ({
+        careTypeFields.playSessions = await Promise.all(playSessions.map(async (s, i) => ({
           sessionNumber: i + 1,
           flexible: s.flexible,
           startTime: s.flexible ? null : (s.startDate ? formatTime12(s.startDate) : ''),
@@ -1685,8 +1776,8 @@ const MAX_PLAY_SESSIONS = 5;
           repeatSchedule: primaryCareType === 'overnight' && s.repeatSchedule ? s.repeatSchedule : null,
           dogIds: s.dogIds,
           instructions: s.instructions.trim() || undefined,
-          photos: s.photos.length > 0 ? s.photos : undefined,
-        }));
+          photos: s.photos.length > 0 ? await uploadServicePhotos(s.photos, 'play') : undefined,
+        })));
       }
 
       // Determine effective start/end date for non-range types
@@ -1701,7 +1792,7 @@ const MAX_PLAY_SESSIONS = 5;
           uploadedCarePhotos = await Promise.all(
             carePhotos.map(async (uri, idx) => {
               const path = `care-photos/${user.uid}/${Date.now()}_${idx}.jpg`;
-              return uploadPhotoToStorage(uri, path);
+              return ensureRemotePhotoURL(uri, path);
             })
           );
         } finally {
