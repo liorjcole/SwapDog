@@ -37,9 +37,11 @@ export interface PostCardProps {
   isHighlighted?: boolean;
   pulseScale?: Animated.Value;
   glowOpacity?: Animated.Value;
+  /** When true, hides the "See Full Details" button — used in reuse-modal context; Discover remains unaffected. */
+  hideSeeFullDetails?: boolean;
 }
 
-const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, isFavorited, isHighlighted, pulseScale, glowOpacity }) => {
+const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, isFavorited, isHighlighted, pulseScale, glowOpacity, hideSeeFullDetails }) => {
   const handlePostPress = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress(post.id);
@@ -223,9 +225,11 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
           </View>
         )}
 
-        <View style={[styles.detailsBtn, isFavorited && !isOwnPost && { borderColor: '#FFD700' }]}>
-          <Text style={[styles.detailsBtnText, isFavorited && !isOwnPost && { color: '#FFD700' }]}>See Full Details</Text>
-        </View>
+        {!hideSeeFullDetails && (
+          <View style={[styles.detailsBtn, isFavorited && !isOwnPost && { borderColor: '#FFD700' }]}>
+            <Text style={[styles.detailsBtnText, isFavorited && !isOwnPost && { color: '#FFD700' }]}>See Full Details</Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
     </Animated.View>

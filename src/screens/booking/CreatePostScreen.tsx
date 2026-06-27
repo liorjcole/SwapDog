@@ -4039,7 +4039,7 @@ const MAX_PLAY_SESSIONS = 5;
                           >
                             <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF' }}>Use these details</Text>
                           </TouchableOpacity>
-                          <PostCard post={post} onPress={() => {}} currentUserId={undefined} isFavorited={false} />
+                          <PostCard post={post} onPress={() => {}} currentUserId={undefined} isFavorited={false} hideSeeFullDetails={true} />
                         </View>
                       )}
                     </View>
