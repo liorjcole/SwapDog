@@ -38,6 +38,7 @@ import AvatarImage from '../../components/common/AvatarImage';
 import ConfettiCelebration, { CelebrationItem } from '../../components/common/ConfettiCelebration';
 import { smartDate, isSameDay as isSameDayUtil } from '../../utils/dateHelpers';
 import { useSwaps, parsePost } from '../../hooks/useSwaps';
+import { useCancelCommitment } from '../../hooks/useCancelCommitment';
 import { useUsers } from '../../hooks/useUsers';
 import { useMessaging } from '../../hooks/useMessaging';
 import { SwapPost, RepeatSchedule, formatRepeatLabel } from '../../models/types';
@@ -263,6 +264,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { getAreaPosts, getMyPosts, addResponder, approveHelper, saveOwnerReminderIds, cancelPost } = useSwaps();
   const { isFavorite, removeFavorite } = useFavorites();
   const { getOrCreateConversation, sendMessage } = useMessaging();
+  const { cancelCommitment } = useCancelCommitment();
 
   const [post, setPost] = useState<SwapPost | null>(null);
   const [freshPosterPhoto, setFreshPosterPhoto] = useState<string | null>(null);
@@ -596,32 +598,38 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   // ── Cancel a claimed booking ─────────────────────────────────────────────
+  // Owner cancel routes through the shared 24h-aware flow so the late-cancel
+  // penalty applies here exactly as it does on the Requests/Schedule tab.
   const handleCancelClaimed = () => {
     if (!post || !user) return;
-    Alert.alert(
-      'Cancel Booking',
-      'Are you sure you want to cancel this booking? The sitter will be notified.',
-      [
-        { text: 'Keep Booking', style: 'cancel' },
-        {
-          text: 'Cancel Booking',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const sitterId = post.claimedBy;
-              await cancelPost(post.id);
-              if (sitterId) {
-                const convId = await getOrCreateConversation(user.uid, sitterId, post.id);
-                await sendMessage(convId, user.uid, 'I had to cancel this booking. Sorry for the inconvenience!');
-              }
-              setPost((prev) => prev ? { ...prev, status: 'cancelled' } : prev);
-              Alert.alert('Cancelled', 'The booking has been cancelled and the sitter has been notified.');
-            } catch (err) {
-              Alert.alert('Error', err instanceof Error ? err.message : 'Could not cancel booking');
-            }
-          } },
-      ]
-    );
+    const sitterId = post.claimedBy;
+    cancelCommitment(post, {
+      onCancelled: async () => {
+        try {
+          if (sitterId) {
+            const convId = await getOrCreateConversation(user.uid, sitterId, post.id);
+            await sendMessage(convId, user.uid, 'I had to cancel this booking. Sorry for the inconvenience!');
+          }
+        } catch (err) {
+          console.warn('[PostDetailScreen] Failed to notify sitter of cancel:', err);
+        }
+        setPost((prev) => prev ? { ...prev, status: 'cancelled' } : prev);
+        navigation.goBack();
+      },
+    });
+  };
+
+  // ── Sitter cancel from Post Detail (their claimed commitment) ─────────────
+  // Same shared flow with role = sitter: <24h triggers the strong warning and
+  // the owner receives 2 compensation points + system message.
+  const handleSitterCancel = () => {
+    if (!post || !user) return;
+    cancelCommitment(post, {
+      onCancelled: () => {
+        setPost((prev) => prev ? { ...prev, status: 'cancelled' } : prev);
+        navigation.goBack();
+      },
+    });
   };
 
   // Inline compensation editing (hooks must be before any early returns)
@@ -912,6 +920,25 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
           </View>
         )}
+
+        {/* ── Cancel banner (sitter viewing their claimed commitment) ── */}
+        {post?.claimedBy === user?.uid && post?.status === 'claimed' && (
+          <View style={[styles.rescheduleBanner, { backgroundColor: '#3D2E00', borderColor: '#FFD700' }]}>
+            <Text style={{ color: '#FFD700', fontSize: 17, fontWeight: '600', marginBottom: 8 }}>
+              Plans changed?
+            </Text>
+            <Text style={{ color: '#FFD700', fontSize: 15, marginBottom: 12 }}>
+              Cancel your commitment to this booking
+            </Text>
+            <TouchableOpacity
+              style={{ backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#FF4444', borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}
+              onPress={handleSitterCancel}
+            >
+              <Text style={{ color: '#FF4444', fontWeight: '700', fontSize: 16 }}>Cancel Booking</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
 
         {/* ── Interested Helpers (owner only) ── */}
         {isOwner && respondents.length > 0 && (
