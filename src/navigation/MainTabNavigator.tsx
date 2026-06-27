@@ -12,17 +12,14 @@ import {
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useMessaging } from '../hooks/useMessaging';
-import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, addDoc, getDocs, getDoc, deleteField } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, getDoc, deleteField } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { smartDate, isSameDay } from '../utils/dateHelpers';
 import { shareReferral } from '../utils/shareReferral';
 import { ensureReferralCode } from '../hooks/useReferrals';
-import RescheduleReviewModal from '../components/common/RescheduleReviewModal';
 import InsufficientPointsModal from '../components/common/InsufficientPointsModal';
 import ConfettiCelebration, { CelebrationItem } from '../components/common/ConfettiCelebration';
 import MandatoryReviewGate from '../components/common/MandatoryReviewGate';
 import { ReviewFlowParams } from '../hooks/useReviewFlow';
-import { SwapPost } from '../models/types';
 import AppHeader from '../components/common/AppHeader';
 
 // Discover stack
@@ -226,11 +223,8 @@ const MainTabNavigator: React.FC = () => {
     [unreadCount, colors.surface],
   );
 
-  // ── Reschedule popup for sitter (on app open) ──────────────────────────────
-  const [reschedulePost, setReschedulePost] = useState<SwapPost | null>(null);
+
   const [celebrationQueue, setCelebrationQueue] = useState<CelebrationItem[]>([]);
-  const [showReschedulePopup, setShowReschedulePopup] = useState(false);
-  const dismissedPostIds = useRef<Set<string>>(new Set());
   const checkedReferralReward = useRef(false);
   const checkedPendingReview = useRef(false);
 
@@ -316,53 +310,6 @@ const MainTabNavigator: React.FC = () => {
     })();
   }, [user]);
 
-  useEffect(() => {
-    if (!user) return;
-    // Listen for posts where THIS user is the sitter and status is reschedulePending
-    const q = query(
-      collection(db, 'swapPosts'),
-      where('claimedBy', '==', user.uid),
-      where('status', '==', 'reschedulePending')
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      const posts = snap.docs.map((d) => {
-        const data = d.data();
-        const toDate = (v: any): Date => {
-          if (!v) return new Date();
-          if (v.toDate) return v.toDate();
-          if (typeof v === 'string') return new Date(v);
-          return new Date();
-        };
-        return {
-          id: d.id,
-          posterId: data.posterId as string,
-          posterName: data.posterName as string,
-          dogId: data.dogId as string,
-          dogName: data.dogName as string,
-          startDate: toDate(data.startDate),
-          endDate: toDate(data.endDate),
-          careDetails: data.careDetails as string ?? '',
-          compensationType: data.compensationType ?? 'points',
-          pointsCost: data.pointsCost ?? 0,
-          status: data.status,
-          claimedBy: data.claimedBy,
-          rescheduleProposedStart: toDate(data.rescheduleProposedStart),
-          rescheduleProposedEnd: toDate(data.rescheduleProposedEnd),
-          rescheduleNote: data.rescheduleNote as string | undefined,
-          rescheduleProposedBy: data.rescheduleProposedBy as string | undefined,
-          createdAt: toDate(data.createdAt),
-        } as SwapPost;
-      });
-      // Show popup for the first undismissed pending reschedule
-      const pending = posts.find((p) => !dismissedPostIds.current.has(p.id));
-      if (pending) {
-        setReschedulePost(pending);
-        setShowReschedulePopup(true);
-      }
-    });
-    return unsub;
-  }, [user]);
-
   // ── Sitter acceptance celebration (when owner approves this user as sitter) ──
   const shownAcceptanceIds = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -392,120 +339,6 @@ const MainTabNavigator: React.FC = () => {
     return unsub;
   }, [user]);
 
-  const handleRescheduleRespond = async (
-    action: 'accept' | 'reject' | 'propose',
-    note?: string,
-    newStart?: Date,
-    newEnd?: Date,
-  ) => {
-    if (!reschedulePost || !user) return;
-    try {
-      const postRef = doc(db, 'swapPosts', reschedulePost.id);
-      if (action === 'accept') {
-        // Accept: move proposed dates to actual dates, clear reschedule fields
-        setCelebrationQueue((prev) => [...prev, { title: 'Dates Updated!', subtitle: (isSameDay(reschedulePost.rescheduleProposedStart!, reschedulePost.rescheduleProposedEnd!) ? smartDate(reschedulePost.rescheduleProposedStart!) : smartDate(reschedulePost.rescheduleProposedStart!) + ' \u2013 ' + smartDate(reschedulePost.rescheduleProposedEnd!)) + ' confirmed for ' + reschedulePost.dogName + '!', emoji: '\U0001F4C5' }]);
-        await updateDoc(postRef, {
-          startDate: reschedulePost.rescheduleProposedStart,
-          endDate: reschedulePost.rescheduleProposedEnd,
-          status: 'claimed',
-          rescheduleProposedStart: null,
-          rescheduleProposedEnd: null,
-          rescheduleNote: null,
-          rescheduleProposedBy: null,
-          updatedAt: serverTimestamp(),
-        });
-        // Notify owner via chat
-        // Use addDoc directly to send the chat message
-        const convQ = query(
-          collection(db, 'conversations'),
-          where('swapRequestId', '==', reschedulePost.id),
-          where('participantIds', 'array-contains', user.uid)
-        );
-        // Simplified: send via direct Firestore write
-        const sameDay = isSameDay(reschedulePost.rescheduleProposedStart!, reschedulePost.rescheduleProposedEnd!);
-        const dateStr = sameDay
-          ? smartDate(reschedulePost.rescheduleProposedStart!)
-          : `${smartDate(reschedulePost.rescheduleProposedStart!)}–${smartDate(reschedulePost.rescheduleProposedEnd!)}`;
-        const msgText = note
-          ? `I accept the new ${sameDay ? 'date' : 'dates'} (${dateStr}). ${note}`
-          : `I accept the new ${sameDay ? 'date' : 'dates'} (${dateStr}).`;
-        // Find the conversation for this post
-        const convSnap = await getDocs(convQ);
-        if (!convSnap.empty) {
-          const convId = convSnap.docs[0].id;
-          await addDoc(collection(db, 'conversations', convId, 'messages'), {
-            conversationId: convId, senderId: user.uid, text: msgText,
-            read: false, createdAt: serverTimestamp(), type: 'text',
-          });
-          await updateDoc(doc(db, 'conversations', convId), {
-            lastMessage: msgText, lastMessageAt: serverTimestamp(), updatedAt: serverTimestamp(),
-          });
-        }
-      } else if (action === 'reject') {
-        // Reject: revert status to claimed, clear reschedule fields
-        await updateDoc(postRef, {
-          status: 'claimed',
-          rescheduleProposedStart: null,
-          rescheduleProposedEnd: null,
-          rescheduleNote: null,
-          rescheduleProposedBy: null,
-          updatedAt: serverTimestamp(),
-        });
-        const msgText = note
-          ? `I can't do the new dates. ${note}`
-          : `I can't do the proposed dates.`;
-        const convQ2 = query(
-          collection(db, 'conversations'),
-          where('swapRequestId', '==', reschedulePost.id),
-          where('participantIds', 'array-contains', user.uid)
-        );
-        const convSnap = await getDocs(convQ2);
-        if (!convSnap.empty) {
-          const convId = convSnap.docs[0].id;
-          await addDoc(collection(db, 'conversations', convId, 'messages'), {
-            conversationId: convId, senderId: user.uid, text: msgText,
-            read: false, createdAt: serverTimestamp(), type: 'text',
-          });
-          await updateDoc(doc(db, 'conversations', convId), {
-            lastMessage: msgText, lastMessageAt: serverTimestamp(), updatedAt: serverTimestamp(),
-          });
-        }
-      } else if (action === 'propose') {
-        // Counter-propose: update the proposed dates, keep reschedulePending
-        await updateDoc(postRef, {
-          rescheduleProposedStart: newStart,
-          rescheduleProposedEnd: newEnd,
-          rescheduleNote: note || null,
-          rescheduleProposedBy: user.uid,
-          updatedAt: serverTimestamp(),
-        });
-        const msgText = note
-          ? `How about ${smartDate(newStart!)}–${smartDate(newEnd!)} instead? ${note}`
-          : `How about ${smartDate(newStart!)}–${smartDate(newEnd!)} instead?`;
-        const convQ3 = query(
-          collection(db, 'conversations'),
-          where('swapRequestId', '==', reschedulePost.id),
-          where('participantIds', 'array-contains', user.uid)
-        );
-        const convSnap = await getDocs(convQ3);
-        if (!convSnap.empty) {
-          const convId = convSnap.docs[0].id;
-          await addDoc(collection(db, 'conversations', convId, 'messages'), {
-            conversationId: convId, senderId: user.uid, text: msgText,
-            read: false, createdAt: serverTimestamp(), type: 'reschedule',
-            metadata: { postId: reschedulePost.id, proposedStart: newStart!.toISOString(), proposedEnd: newEnd!.toISOString() },
-          });
-          await updateDoc(doc(db, 'conversations', convId), {
-            lastMessage: msgText, lastMessageAt: serverTimestamp(), updatedAt: serverTimestamp(),
-          });
-        }
-      }
-      setShowReschedulePopup(false);
-      setReschedulePost(null);
-    } catch (err) {
-      console.warn('[MainTabNavigator] reschedule respond error:', err);
-    }
-  };
 
   return (
     <>
@@ -527,24 +360,6 @@ const MainTabNavigator: React.FC = () => {
           />
         )}
       </Modal>
-      {/* Reschedule popup — shows on app open for sitter */}
-      {reschedulePost && (
-        <RescheduleReviewModal
-          visible={showReschedulePopup}
-          onClose={() => {
-            dismissedPostIds.current.add(reschedulePost.id);
-            setShowReschedulePopup(false);
-          }}
-          proposedStart={reschedulePost.rescheduleProposedStart!}
-          proposedEnd={reschedulePost.rescheduleProposedEnd!}
-          originalStart={reschedulePost.startDate}
-          originalEnd={reschedulePost.endDate}
-          proposerName={reschedulePost.posterName}
-          proposerNote={reschedulePost.rescheduleNote}
-          isOvernight={reschedulePost.careType === 'overnight'}
-          onRespond={handleRescheduleRespond}
-        />
-      )}
     <ConfettiCelebration
         queue={celebrationQueue}
         onDismissAll={() => setCelebrationQueue([])}

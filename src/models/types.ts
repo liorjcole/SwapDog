@@ -112,7 +112,7 @@ export type SitterPreference = 'points' | 'payment';
 // NEW: Public post model — replaces targeted SwapRequest
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type PostStatus = 'open' | 'claimed' | 'completed' | 'cancelled' | 'reschedulePending';
+export type PostStatus = 'open' | 'claimed' | 'completed' | 'cancelled';
 export type PaymentRate = 'per_hour' | 'per_day';
 export type CompensationType = 'points' | 'payment' | 'either';
 

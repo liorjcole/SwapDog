@@ -16,11 +16,9 @@ import { useMessaging } from '../../hooks/useMessaging';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useFavorites } from '../../hooks/useFavorites';
 import { setActiveConversation } from '../../services/NotificationService';
-import { Message, SwapPost } from '../../models/types';
+import { Message } from '../../models/types';
 import { collection, query, where, getDocs, getDoc, doc as firestoreDoc, updateDoc as firestoreUpdateDoc, serverTimestamp as fsServerTimestamp, addDoc as fsAddDoc, deleteDoc} from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { smartDate } from '../../utils/dateHelpers';
-import RescheduleReviewModal from '../../components/common/RescheduleReviewModal';
 import { spacing, borderRadius } from '../../config/theme';
 import MessageBubble from '../../components/common/MessageBubble';
 
@@ -44,8 +42,6 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   const isSystem = otherUserId === 'swapdog-team';
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
-  const [reschedulePost, setReschedulePost] = useState<SwapPost | null>(null);
-  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendingPhoto, setSendingPhoto] = useState(false);
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
@@ -251,101 +247,6 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  // ── Open reschedule review modal for a reschedule-type message ──
-  const handleReviewReschedule = async (msg: Message) => {
-    if (!msg.metadata?.postId) return;
-    try {
-      const postSnap = await getDoc(firestoreDoc(db, 'swapPosts', msg.metadata.postId));
-      if (!postSnap.exists()) return;
-      const data = postSnap.data();
-      const toDate = (v: any): Date => {
-        if (!v) return new Date();
-        if (v.toDate) return v.toDate();
-        if (typeof v === 'string') return new Date(v);
-        return new Date();
-      };
-      const post = {
-        id: postSnap.id,
-        posterId: data.posterId,
-        posterName: data.posterName,
-        dogId: data.dogId ?? '',
-        dogName: data.dogName ?? '',
-        startDate: toDate(data.startDate),
-        endDate: toDate(data.endDate),
-        careDetails: data.careDetails ?? '',
-        compensationType: data.compensationType ?? 'points',
-        pointsCost: data.pointsCost ?? 0,
-        status: data.status,
-        claimedBy: data.claimedBy,
-        rescheduleProposedStart: data.rescheduleProposedStart ? toDate(data.rescheduleProposedStart) : (msg.metadata.proposedStart ? new Date(msg.metadata.proposedStart) : undefined),
-        rescheduleProposedEnd: data.rescheduleProposedEnd ? toDate(data.rescheduleProposedEnd) : (msg.metadata.proposedEnd ? new Date(msg.metadata.proposedEnd) : undefined),
-        rescheduleNote: data.rescheduleNote,
-        rescheduleProposedBy: data.rescheduleProposedBy,
-        createdAt: toDate(data.createdAt) } as SwapPost;
-      setReschedulePost(post);
-      setShowRescheduleModal(true);
-    } catch (err) {
-      console.warn('[ChatScreen] handleReviewReschedule error:', err);
-    }
-  };
-
-  const handleRescheduleRespond = async (
-    action: 'accept' | 'reject' | 'propose',
-    note?: string,
-    newStart?: Date,
-    newEnd?: Date,
-  ) => {
-    if (!reschedulePost || !user) return;
-    try {
-      const postRef = firestoreDoc(db, 'swapPosts', reschedulePost.id);
-      let msgText = '';
-      if (action === 'accept') {
-        await firestoreUpdateDoc(postRef, {
-          startDate: reschedulePost.rescheduleProposedStart,
-          endDate: reschedulePost.rescheduleProposedEnd,
-          status: 'claimed',
-          rescheduleProposedStart: null, rescheduleProposedEnd: null,
-          rescheduleNote: null, rescheduleProposedBy: null,
-          updatedAt: fsServerTimestamp() });
-        msgText = note
-          ? `I accept the new dates (${smartDate(reschedulePost.rescheduleProposedStart!)}\u2013${smartDate(reschedulePost.rescheduleProposedEnd!)}). ${note}`
-          : `I accept the new dates (${smartDate(reschedulePost.rescheduleProposedStart!)}\u2013${smartDate(reschedulePost.rescheduleProposedEnd!)}).`;
-      } else if (action === 'reject') {
-        await firestoreUpdateDoc(postRef, {
-          status: 'claimed',
-          rescheduleProposedStart: null, rescheduleProposedEnd: null,
-          rescheduleNote: null, rescheduleProposedBy: null,
-          updatedAt: fsServerTimestamp() });
-        msgText = note ? `I can't do the new dates. ${note}` : `I can't do the proposed dates.`;
-      } else if (action === 'propose') {
-        await firestoreUpdateDoc(postRef, {
-          rescheduleProposedStart: newStart, rescheduleProposedEnd: newEnd,
-          rescheduleNote: note || null, rescheduleProposedBy: user.uid,
-          updatedAt: fsServerTimestamp() });
-        msgText = note
-          ? `How about ${smartDate(newStart!)}\u2013${smartDate(newEnd!)} instead? ${note}`
-          : `How about ${smartDate(newStart!)}\u2013${smartDate(newEnd!)} instead?`;
-      }
-      // Send chat message
-      if (conversationId && msgText) {
-        const msgType = action === 'propose' ? 'reschedule' : 'text';
-        const msgData: Record<string, any> = {
-          conversationId, senderId: user.uid, text: msgText,
-          read: false, createdAt: fsServerTimestamp(), type: msgType };
-        if (action === 'propose' && newStart && newEnd) {
-          msgData.metadata = { postId: reschedulePost.id, proposedStart: newStart.toISOString(), proposedEnd: newEnd.toISOString() };
-        }
-        await fsAddDoc(collection(db, 'conversations', conversationId, 'messages'), msgData);
-        await firestoreUpdateDoc(firestoreDoc(db, 'conversations', conversationId), {
-          lastMessage: msgText, lastMessageAt: fsServerTimestamp(), updatedAt: fsServerTimestamp() });
-      }
-      setShowRescheduleModal(false);
-      setReschedulePost(null);
-    } catch (err) {
-      console.warn('[ChatScreen] reschedule respond error:', err);
-    }
-  };
-
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.background }}
@@ -501,7 +402,6 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
             imageURL={item.imageURL}
             createdAt={item.createdAt}
             type={item.type}
-            onReviewReschedule={item.type === 'reschedule' ? () => handleReviewReschedule(item) : undefined}
             onAcceptHelp={item.type === 'help_request' && item.metadata?.postId && !acceptedPostIds.has(item.metadata.postId) ? handleAcceptHelp : undefined}
             helpAccepted={item.type === 'help_request' && item.metadata?.postId ? acceptedPostIds.has(item.metadata.postId) : false}
             onRemoveRequest={item.type === 'help_request' && item.senderId === user?.uid && !acceptedPostIds.has(item.metadata?.postId ?? '') ? handleRemoveRequest : undefined}
@@ -521,21 +421,6 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
         }}
         contentContainerStyle={[styles.list, isSystem && { paddingTop: 80 }]}
       />
-      {/* Reschedule review modal (triggered from "Review Reschedule" link in chat) */}
-      {reschedulePost && (
-        <RescheduleReviewModal
-          visible={showRescheduleModal}
-          onClose={() => setShowRescheduleModal(false)}
-          proposedStart={reschedulePost.rescheduleProposedStart!}
-          proposedEnd={reschedulePost.rescheduleProposedEnd!}
-          originalStart={reschedulePost.startDate}
-          originalEnd={reschedulePost.endDate}
-          proposerName={reschedulePost.posterName}
-          proposerNote={reschedulePost.rescheduleNote}
-          isOvernight={reschedulePost.careType === 'overnight'}
-          onRespond={handleRescheduleRespond}
-        />
-      )}
       {/* Photo picker modal with blur */}
       <Modal
         visible={showPhotoPicker}
