@@ -1,4 +1,5 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
+import { ReviewFlowParams } from '../hooks/useReviewFlow';
 
 export type AuthStackParamList = {
   Splash: undefined;
@@ -34,6 +35,8 @@ export type DiscoverStackParamList = {
 export type RequestsStackParamList = {
   Requests: undefined;
   WriteReview: { swapRequestId: string; revieweeId: string; reviewRole?: 'owner' | 'sitter'; lateCancellation?: boolean };
+  /** Voluntary review — opens as modal within Requests stack so goBack() returns to Schedule */
+  Review: ReviewFlowParams;
   UserDetail: { userId: string };
   DogDetail: { dogId: string };
   /** Full detail view for a public area post */
