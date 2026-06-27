@@ -1,6 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { initializeAuth, getAuth, Auth, getReactNativePersistence } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { initializeFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -19,7 +19,10 @@ const app: FirebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) 
 const auth: Auth = getApps().length === 1
   ? initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) })
   : getAuth(app);
-const db: Firestore = getFirestore(app);
+// initializeFirestore must be called before any other Firestore access on this app.
+// ignoreUndefinedProperties: true silently drops undefined fields instead of throwing,
+// fixing owner-role review writes where dogId/dogName/note may be undefined.
+const db: Firestore = initializeFirestore(app, { ignoreUndefinedProperties: true });
 const storage: FirebaseStorage = getStorage(app);
 
 export { app, auth, db, storage };
