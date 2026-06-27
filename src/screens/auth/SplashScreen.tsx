@@ -12,7 +12,6 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/types';
 import AnimatedSlide, { HOLD_SPEED, SLIDE_BACKGROUND, HoldMode } from '../../components/auth/AnimatedSlide';
@@ -119,7 +118,6 @@ function useRateTimeout(
 }
 
 const SplashScreen: React.FC<Props> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
   const [holdMode, setHoldMode] = useState<HoldMode>('idle');
@@ -217,8 +215,6 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
   const noteTop = NOTE_TOP_FRAC * height;
   const noteRight = NOTE_RIGHT_FRAC * width;
 
-  const bottomPad = Math.max(insets?.bottom ?? 0, 24);
-
   return (
     <View style={styles.container}>
       <FlatList
@@ -253,7 +249,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         pointerEvents="none"
       />
 
-      <View style={[styles.overlay, { paddingBottom: bottomPad + 16 }]} pointerEvents="box-none">
+      <View style={[styles.overlay, { paddingBottom: 18 }]} pointerEvents="box-none">
         {SLIDES.length > 1 && (
           <View style={styles.dots}>
             {SLIDES.map((slide, index) => (
@@ -302,7 +298,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
   );
 };
 
-// Matches the `height` in styles.button below — used to compute the nudge offset.
+// Matches the `height` in styles.button below.
 const BUTTON_HEIGHT = 54;
 
 const styles = StyleSheet.create({
@@ -320,9 +316,8 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4, marginHorizontal: 4 },
   dotActive: { backgroundColor: '#FFFFFF' },
   dotInactive: { backgroundColor: 'rgba(255,255,255,0.4)' },
-  // marginBottom lifts the row by half the button height so it sits higher
-  // without changing its horizontal layout or the safe-area padding below.
-  buttonRow: { flexDirection: 'row', width: '100%', gap: 12, marginBottom: BUTTON_HEIGHT / 2 },
+  // marginBottom = 8pt gap above wordmark (wordmark bottom 18 + height 44 = 62; 62 + 8 = 70pt from screen bottom).
+  buttonRow: { flexDirection: 'row', width: '100%', gap: 12, marginBottom: 8 },
   button: {
     flex: 1,
     height: BUTTON_HEIGHT,
@@ -333,10 +328,9 @@ const styles = StyleSheet.create({
   buttonSolid: { backgroundColor: 'rgba(255,255,255,0.18)' },
   buttonOutline: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.9)' },
   buttonText: { fontSize: 18, fontWeight: '600', color: '#FFFFFF' },
-  // Centered wordmark below the buttons. Explicit width+height (160×46) to
-  // prevent RN/Yoga from falling back to the PNG's intrinsic 934px width.
-  // Dimensions preserve the 934:270 aspect ratio: round(160×270/934) = 46.
-  wordmark: { width: 160, height: 46, alignSelf: 'center' },
+  // Centered wordmark below the buttons. Explicit 152×44 (Lior's demo offset: logo 18pt from
+  // screen bottom). Dimensions preserve the 934:270 aspect ratio: round(152×270/934) = 44.
+  wordmark: { width: 152, height: 44, alignSelf: 'center' },
 });
 
 export default SplashScreen;
