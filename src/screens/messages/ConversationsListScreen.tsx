@@ -136,7 +136,7 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
       >
         {isSystem ? (
           <View style={[styles.convAvatar, { backgroundColor: colors.primary + '22' }]}>
-            <Text style={styles.convAvatarEmoji}>🐾</Text>
+            <Text style={styles.convAvatarEmoji}>🐶</Text>
           </View>
         ) : (
           <AvatarImage
