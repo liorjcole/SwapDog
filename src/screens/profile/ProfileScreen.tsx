@@ -516,7 +516,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
       <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Referrals</Text>
         <TouchableOpacity
-          style={[styles.prefRow, { backgroundColor: colors.surface, ...shadow.sm }]}
+          style={[styles.prefRow, styles.prefRowCard, { backgroundColor: colors.backgroundElevated, borderColor: colors.border, ...shadow.sm }]}
           onPress={handleInviteFriend}
           accessibilityLabel="Invite a Friend"
           accessibilityRole="button"
@@ -536,7 +536,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
       <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Community</Text>
         <TouchableOpacity
-          style={[styles.prefRow, { backgroundColor: colors.surface, ...shadow.sm }]}
+          style={[styles.prefRow, styles.prefRowCard, { backgroundColor: colors.backgroundElevated, borderColor: colors.border, ...shadow.sm }]}
           onPress={handleCommunityStandards}
           accessibilityLabel="View SwapDog Community Standards"
           accessibilityRole="button"
@@ -546,7 +546,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
         {hasContract && (
           <TouchableOpacity
-            style={[styles.prefRow, { backgroundColor: colors.surface, ...shadow.sm }]}
+            style={[styles.prefRow, styles.prefRowCard, { backgroundColor: colors.backgroundElevated, borderColor: colors.border, ...shadow.sm }]}
             onPress={handleMyAgreement}
             accessibilityLabel="View My Membership Agreement"
             accessibilityRole="button"
@@ -601,6 +601,8 @@ const styles = StyleSheet.create({
   dogName: { fontSize: 18, fontWeight: '700' },
   dogBreed: { fontSize: 15, marginTop: 2 },
   prefRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.sm },
+  // Elevated card treatment for tappable pref rows (Invite a Friend, Community Standards, My Agreement).
+  prefRowCard: { borderWidth: StyleSheet.hairlineWidth },
   prefLabel: { fontSize: 17 },
   prefValue: { fontSize: 17 },
   prefChevron: { fontSize: 24, fontWeight: '300' },
