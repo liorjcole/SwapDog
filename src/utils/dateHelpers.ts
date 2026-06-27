@@ -22,6 +22,39 @@ export function smartDate(
 }
 
 /**
+ * Parse a 12-hour AM/PM time string (e.g. "9:00 AM") and apply it to
+ * the given Date's hours/minutes in-place. Returns the mutated date,
+ * or the original if the string does not match the expected format.
+ */
+export function applyTimeString(date: Date, timeStr: string): Date {
+  const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return date;
+  let h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  if (match[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+  if (match[3].toUpperCase() === 'AM' && h === 12) h = 0;
+  date.setHours(h, m, 0, 0);
+  return date;
+}
+
+/**
+ * Format an epoch-ms timestamp as a short 12-hour time string, e.g. "9:00 AM".
+ */
+export function formatTime(ms: number): string {
+  return new Date(ms).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * Format a Date as a short month + day string, e.g. "Jun 28".
+ */
+export function formatShortDate(date: Date): string {
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/**
  * Returns true when two Dates fall on the same calendar day.
  */
 export function isSameDay(a: Date, b: Date): boolean {
