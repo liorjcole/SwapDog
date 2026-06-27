@@ -313,6 +313,43 @@ export const onHelpConfirmed = onDocumentUpdated(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// 3b. BOOKING RESCHEDULED — regenerate reminders for the new date/time
+//    Trigger: swapPosts/{postId} updated (already-claimed booking whose date moved)
+//    Direct auto-reschedule (#58) overwrites startDate/endDate/startTime; the
+//    existing unsent reminder docs still point at the OLD time, so we delete the
+//    unsent ones and rebuild from the current post data. Idempotent.
+// ═══════════════════════════════════════════════════════════════════════════════
+export const onPostRescheduled = onDocumentUpdated(
+  "swapPosts/{postId}",
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after) return;
+
+    // Only for bookings that were AND remain claimed — a fresh claim is handled
+    // by onHelpConfirmed, which creates the initial reminders.
+    if (before.status !== "claimed" || after.status !== "claimed") return;
+    if (!after.claimedBy) return;
+
+    const dateChanged =
+      timestampMillis(before.startDate) !== timestampMillis(after.startDate) ||
+      timestampMillis(before.endDate) !== timestampMillis(after.endDate) ||
+      (before.startTime as string | undefined) !==
+        (after.startTime as string | undefined);
+    if (!dateChanged) return;
+
+    try {
+      await regenerateReminders(event.params.postId, after);
+    } catch (error) {
+      console.error(
+        "[onPostRescheduled] Failed to regenerate reminders:",
+        error
+      );
+    }
+  }
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // 4. REFERRAL CODE USED — award 3 points to referrer
 //    Trigger: users/{userId} updated (referredBy field set)
 //    Notifies: the REFERRER with push notification + in-app reward flag
@@ -835,7 +872,113 @@ interface ReminderDoc {
   createdAt: admin.firestore.FieldValue;
 }
 
+// ── Repeat-schedule model (mirrors the client `RepeatSchedule` in models/types.ts) ──
+interface RepeatSchedule {
+  type: "daily" | "weekly" | "custom" | "specificDates";
+  /** Day index for weekly (0=Sun ... 6=Sat) */
+  weeklyDay?: number;
+  /** Day indices for custom (0-6) */
+  customDays?: number[];
+  /** Whether all selected days share the same time or have individual times */
+  timeMode?: "same" | "different";
+  /** Per-day times as "h:mm AM/PM", keyed by day index (0-6). Only when timeMode='different'. */
+  dayTimes?: Record<number, string>;
+  /** ISO date strings ('YYYY-MM-DD') for specificDates type */
+  specificDates?: string[];
+}
+
+/**
+ * Whether a repeat-scheduled task fires on a given overnight day.
+ * `dayAnchor` is a noon-UTC anchor carrying the ET calendar date (from getDatesInRangeET).
+ * A missing/null schedule means a single occurrence → fire only on day 0 (or single-day stays).
+ */
+function firesOnDay(
+  schedule: RepeatSchedule | null | undefined,
+  dayAnchor: Date,
+  dayIndex: number,
+  totalDays: number
+): boolean {
+  if (!schedule) return totalDays === 1 || dayIndex === 0;
+
+  const weekday = dayAnchor.getUTCDay();
+  switch (schedule.type) {
+    case "daily":
+      return true;
+    case "weekly":
+      return weekday === (schedule.weeklyDay ?? 1);
+    case "custom":
+      return (schedule.customDays ?? []).includes(weekday);
+    case "specificDates": {
+      const y = dayAnchor.getUTCFullYear();
+      const m = String(dayAnchor.getUTCMonth() + 1).padStart(2, "0");
+      const d = String(dayAnchor.getUTCDate()).padStart(2, "0");
+      return (schedule.specificDates ?? []).includes(`${y}-${m}-${d}`);
+    }
+    default:
+      return totalDays === 1 || dayIndex === 0;
+  }
+}
+
+/**
+ * Resolve the clock time for a task on a specific day, honouring a `different`
+ * per-day time override when present; otherwise the slot/session default time.
+ */
+function timeForDay(
+  schedule: RepeatSchedule | null | undefined,
+  dayAnchor: Date,
+  fallbackTime: string
+): string {
+  if (schedule?.timeMode === "different") {
+    const override = schedule.dayTimes?.[dayAnchor.getUTCDay()];
+    if (override) return override;
+  }
+  return fallbackTime;
+}
+
 // ── Core scheduling logic ───────────────────────────────────────────────────
+
+/** Milliseconds for a Firestore Timestamp-like value, or null when absent/invalid. */
+function timestampMillis(v: unknown): number | null {
+  if (
+    v &&
+    typeof (v as admin.firestore.Timestamp).toMillis === "function"
+  ) {
+    return (v as admin.firestore.Timestamp).toMillis();
+  }
+  return null;
+}
+
+/**
+ * Delete a post's still-unsent reminder docs and rebuild them from the current
+ * post data. Used after a reschedule so reminders track the new date/time.
+ * Idempotent: re-running deletes the freshly-created unsent docs and recreates
+ * the identical set, so it never duplicates reminders for the same event.
+ * Already-sent reminders are left untouched.
+ */
+async function regenerateReminders(
+  postId: string,
+  postData: Record<string, unknown>
+): Promise<void> {
+  const unsent = await db
+    .collection("reminders")
+    .where("postId", "==", postId)
+    .where("sent", "==", false)
+    .get();
+
+  const BATCH_LIMIT = 500;
+  for (let i = 0; i < unsent.docs.length; i += BATCH_LIMIT) {
+    const batch = db.batch();
+    for (const d of unsent.docs.slice(i, i + BATCH_LIMIT)) batch.delete(d.ref);
+    await batch.commit();
+  }
+
+  await scheduleReminders(postId, postData);
+
+  console.log(
+    `[regenerateReminders] Rebuilt reminders for post ${postId} ` +
+      `(deleted ${unsent.size} unsent)`
+  );
+}
 
 /**
  * Schedule all reminder notifications for a confirmed post.
@@ -927,15 +1070,6 @@ async function scheduleReminders(
     }
   };
 
-  // Helper to determine if a responsibility fires on a given day
-  const shouldFireOnDay = (
-    daily: boolean,
-    dayIndex: number,
-    totalDays: number
-  ): boolean => {
-    return daily || totalDays === 1 || dayIndex === 0;
-  };
-
   // Helper: get days array for overnight stays, or null for single-day
   const getOvernightDays = (): Date[] | null => {
     if (careType === "overnight" && startDate && endDate) {
@@ -966,16 +1100,79 @@ async function scheduleReminders(
     );
   }
 
+  // ── 1b. Main session reminders (standalone feeding/walk/play/medication) ──
+  // These are single-care-type posts where the care IS the session (not an add-on),
+  // so they need their own 1h/10min reminders for both parties. Event time comes
+  // from the post's slot/session time, falling back to startTime.
+  const STANDALONE_CARE: Record<
+    string,
+    { title: string; body: string }
+  > = {
+    feeding: { title: "🍽️ Feeding time!", body: `Time to feed ${displayDogName}` },
+    dogWalking: { title: "🐕 Walk time!", body: `Time to walk ${displayDogName}` },
+    playtime: {
+      title: "🎾 Play session!",
+      body: `Time for ${displayDogName}'s play session`,
+    },
+    medication: {
+      title: "💊 Medication time!",
+      body: `Time to give ${displayDogName} medication`,
+    },
+  };
+
+  if (careType && STANDALONE_CARE[careType] && startDate) {
+    // Resolve the event clock time from the post's slot/session, else startTime.
+    let eventTimeStr = startTime;
+    if (careType === "feeding") {
+      const slots = postData.feedingSlots as { time?: string }[] | undefined;
+      eventTimeStr =
+        (postData.feedingTime as string) || slots?.[0]?.time || startTime;
+    } else if (careType === "dogWalking") {
+      const sessions = postData.walkSessions as
+        | { startTime?: string | null }[]
+        | undefined;
+      eventTimeStr = sessions?.[0]?.startTime || startTime;
+    } else if (careType === "playtime") {
+      const sessions = postData.playSessions as
+        | { startTime?: string | null }[]
+        | undefined;
+      eventTimeStr = sessions?.[0]?.startTime || startTime;
+    } else if (careType === "medication") {
+      const slots = postData.medicationSlots as { time?: string }[] | undefined;
+      eventTimeStr = slots?.[0]?.time || startTime;
+    }
+
+    const eventTime = buildDateTimeET(
+      startDate as admin.firestore.Timestamp,
+      eventTimeStr
+    );
+    const meta = STANDALONE_CARE[careType];
+    addReminder(eventTime, `session_${careType}`, meta.title, meta.body);
+  }
+
   // ── 2. Feeding reminders ──
   if (addOns.includes("feeding")) {
     const feedingSlots =
-      (postData.feedingSlots as { time: string; daily: boolean }[]) || [];
+      (postData.feedingSlots as {
+        time: string;
+        repeatSchedule?: RepeatSchedule | null;
+      }[]) || [];
 
     if (overnightDays) {
       for (let i = 0; i < overnightDays.length; i++) {
         for (const slot of feedingSlots) {
-          if (shouldFireOnDay(slot.daily, i, overnightDays.length)) {
-            const feedTime = buildDateTimeET(overnightDays[i], slot.time);
+          if (
+            firesOnDay(
+              slot.repeatSchedule,
+              overnightDays[i],
+              i,
+              overnightDays.length
+            )
+          ) {
+            const feedTime = buildDateTimeET(
+              overnightDays[i],
+              timeForDay(slot.repeatSchedule, overnightDays[i], slot.time)
+            );
             addReminder(
               feedTime,
               "feeding",
@@ -1005,23 +1202,29 @@ async function scheduleReminders(
   if (addOns.includes("dogWalking")) {
     const walkSessions =
       (postData.walkSessions as {
-        startTime: string;
-        repeatDaily?: boolean;
+        startTime?: string | null;
+        repeatSchedule?: RepeatSchedule | null;
       }[]) || [];
 
     if (overnightDays) {
       for (let i = 0; i < overnightDays.length; i++) {
         for (const session of walkSessions) {
+          if (!session.startTime) continue;
           if (
-            shouldFireOnDay(
-              session.repeatDaily ?? false,
+            firesOnDay(
+              session.repeatSchedule,
+              overnightDays[i],
               i,
               overnightDays.length
             )
           ) {
             const walkTime = buildDateTimeET(
               overnightDays[i],
-              session.startTime
+              timeForDay(
+                session.repeatSchedule,
+                overnightDays[i],
+                session.startTime
+              )
             );
             addReminder(
               walkTime,
@@ -1034,6 +1237,7 @@ async function scheduleReminders(
       }
     } else if (startDate) {
       for (const session of walkSessions) {
+        if (!session.startTime) continue;
         const walkTime = buildDateTimeET(
           startDate as admin.firestore.Timestamp,
           session.startTime
@@ -1052,16 +1256,16 @@ async function scheduleReminders(
   if (addOns.includes("playtime")) {
     const playSessions =
       (postData.playSessions as {
-        flexible: boolean;
-        startTime: string | null;
-        durationMins: number;
-        repeatDaily?: boolean;
+        flexible?: boolean;
+        startTime?: string | null;
+        durationMins?: number;
+        repeatSchedule?: RepeatSchedule | null;
       }[]) || [];
 
     for (const session of playSessions) {
       if (session.flexible) {
         // Flexible playtime → morning reminder at 8 AM
-        const totalMins = session.durationMins;
+        const totalMins = session.durationMins ?? 0;
         const durationText =
           totalMins >= 60
             ? `${Math.floor(totalMins / 60)}h${totalMins % 60 > 0 ? ` ${totalMins % 60}m` : ""}`
@@ -1070,8 +1274,9 @@ async function scheduleReminders(
         if (overnightDays) {
           for (let i = 0; i < overnightDays.length; i++) {
             if (
-              shouldFireOnDay(
-                session.repeatDaily ?? false,
+              firesOnDay(
+                session.repeatSchedule,
+                overnightDays[i],
                 i,
                 overnightDays.length
               )
@@ -1102,15 +1307,20 @@ async function scheduleReminders(
         if (overnightDays) {
           for (let i = 0; i < overnightDays.length; i++) {
             if (
-              shouldFireOnDay(
-                session.repeatDaily ?? false,
+              firesOnDay(
+                session.repeatSchedule,
+                overnightDays[i],
                 i,
                 overnightDays.length
               )
             ) {
               const playTime = buildDateTimeET(
                 overnightDays[i],
-                session.startTime!
+                timeForDay(
+                  session.repeatSchedule,
+                  overnightDays[i],
+                  session.startTime!
+                )
               );
               addReminder(
                 playTime,
@@ -1141,20 +1351,30 @@ async function scheduleReminders(
     const medSlots =
       (postData.medicationSlots as {
         time: string;
-        details: string;
-        daily: boolean;
+        details?: string;
+        repeatSchedule?: RepeatSchedule | null;
       }[]) || [];
 
     if (overnightDays) {
       for (let i = 0; i < overnightDays.length; i++) {
         for (const slot of medSlots) {
-          if (shouldFireOnDay(slot.daily, i, overnightDays.length)) {
-            const medTime = buildDateTimeET(overnightDays[i], slot.time);
+          if (
+            firesOnDay(
+              slot.repeatSchedule,
+              overnightDays[i],
+              i,
+              overnightDays.length
+            )
+          ) {
+            const medTime = buildDateTimeET(
+              overnightDays[i],
+              timeForDay(slot.repeatSchedule, overnightDays[i], slot.time)
+            );
             addReminder(
               medTime,
               "medication",
               "💊 Medication time!",
-              `Time to give ${displayDogName} medication: ${slot.details}`
+              `Time to give ${displayDogName} medication${slot.details ? `: ${slot.details}` : ""}`
             );
           }
         }
@@ -1169,7 +1389,7 @@ async function scheduleReminders(
           medTime,
           "medication",
           "💊 Medication time!",
-          `Time to give ${displayDogName} medication: ${slot.details}`
+          `Time to give ${displayDogName} medication${slot.details ? `: ${slot.details}` : ""}`
         );
       }
     }

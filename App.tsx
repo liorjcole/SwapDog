@@ -76,6 +76,19 @@ export default function App() {
           }
           break;
 
+        case 'reminder':
+          // Open the booking's Post Detail (Requests tab) for the due reminder
+          if (data.postId) {
+            nav.navigate('Main', {
+              screen: 'RequestsTab',
+              params: {
+                screen: 'PostDetail',
+                params: { postId: data.postId },
+              },
+            } as never);
+          }
+          break;
+
         case 'referral_reward':
           // Open the invite/referral screen to encourage more invites
           nav.navigate('Main', {

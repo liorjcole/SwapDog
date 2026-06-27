@@ -45,7 +45,6 @@ import { SwapPost, RepeatSchedule, formatRepeatLabel } from '../../models/types'
 import { spacing, borderRadius, shadow, typography } from '../../config/theme';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useFavorites } from '../../hooks/useFavorites';
-import { scheduleOwnerReminders, requestNotificationPermissions } from '../../services/ReminderService';
 import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
 
 const RED = '#FF2D55';
@@ -261,7 +260,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
   const { user, userProfile } = useAuthContext();
   const { getUser } = useUsers();
-  const { getAreaPosts, getMyPosts, addResponder, approveHelper, saveOwnerReminderIds, cancelPost } = useSwaps();
+  const { getAreaPosts, getMyPosts, addResponder, approveHelper, cancelPost } = useSwaps();
   const { isFavorite, removeFavorite } = useFavorites();
   const { getOrCreateConversation, sendMessage } = useMessaging();
   const { cancelCommitment } = useCancelCommitment();
@@ -494,21 +493,8 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             setCelebrationQueue([{ title: 'Booking Confirmed!', subtitle: helperName + ' is now your sitter for ' + (post.dogNames && post.dogNames.length > 1 ? post.dogNames.join(' & ') : post.dogName) + '!', emoji: '🐶' }]);
             setPost((prev) => prev ? { ...prev, status: 'claimed', claimedBy: helperId } : prev);
             void onPostAccepted();
-            try {
-              const hasPermission = await requestNotificationPermissions();
-              if (hasPermission) {
-                const dogDisplayName = post.dogNames && post.dogNames.length > 1
-                  ? post.dogNames.join(' & ') : post.dogName;
-                const ownerIds = await scheduleOwnerReminders({
-                  startDate: post.startDate,
-                  dogName: dogDisplayName,
-                  ownerName: post.posterName,
-                  sitterName: helperName });
-                if (ownerIds.length > 0) await saveOwnerReminderIds(post.id, ownerIds);
-              }
-            } catch (reminderErr) {
-              console.warn('[PostDetail] Failed to schedule reminders:', reminderErr);
-            }
+            // Commitment reminders are scheduled server-side (onHelpConfirmed →
+            // scheduleReminders); no client-side local scheduling here.
           } catch (err: unknown) {
             Alert.alert('Error', err instanceof Error ? err.message : 'Could not approve helper');
           } finally {

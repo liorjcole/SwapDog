@@ -4,7 +4,7 @@
  *   "Commitments"  : calendar-style view of all accepted swap commitments
  *                    Red (#FF2D55) = your dog is being cared for; Teal (#2DD4BF) = you're caring for someone's dog
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -26,7 +26,6 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useMessaging } from '../../hooks/useMessaging';
@@ -41,11 +40,7 @@ import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import EmptyStateView from '../../components/common/EmptyStateView';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import {
-  cancelSwapReminders,
-  scheduleSitterReminders,
-  requestNotificationPermissions,
-} from '../../services/ReminderService';
+import { cancelSwapReminders } from '../../services/ReminderService';
 
 const RED = '#FF2D55';
 const TEAL = '#2DD4BF';
@@ -138,7 +133,7 @@ function overlapsDate(post: SwapPost, date: Date): boolean {
 const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user } = useAuthContext();
-  const { getMyPosts, cancelPost, getAcceptedPosts, saveSitterReminderIds, isPostExpired, isStartExpiredNoHelper } = useSwaps();
+  const { getMyPosts, cancelPost, getAcceptedPosts, isPostExpired, isStartExpiredNoHelper } = useSwaps();
   const { hasReviewed } = useReviews();
   const { cancelCommitment } = useCancelCommitment();
   const { getOrCreateConversation } = useMessaging();
@@ -284,44 +279,9 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
 
   useFocusEffect(useCallback(() => { fetchPosts(); }, [fetchPosts]));
 
-  // ── Sitter-side reminder scheduling ───────────────────────────────────────
-  useEffect(() => {
-    if (!user || acceptedPosts.length === 0) return;
-
-    const scheduleMissingReminders = async () => {
-      for (const post of acceptedPosts) {
-        if (post.claimedBy !== user.uid) continue;
-        if ((post.sitterReminderNotificationIds ?? []).length > 0) continue;
-
-        const storageKey = `sitter_reminders_scheduled_${post.id}`;
-        try {
-          const alreadyScheduled = await AsyncStorage.getItem(storageKey);
-          if (alreadyScheduled) continue;
-
-          const hasPermission = await requestNotificationPermissions();
-          if (!hasPermission) continue;
-
-          const sitterIds = await scheduleSitterReminders({
-            startDate: post.startDate,
-            dogName: post.dogName,
-            ownerName: post.posterName,
-            sitterName: user.displayName ?? 'You',
-          });
-
-          if (sitterIds.length > 0) {
-            await AsyncStorage.setItem(storageKey, 'true');
-            saveSitterReminderIds(post.id, sitterIds).catch((e) =>
-              console.warn('[RequestsScreen] saveSitterReminderIds failed:', e),
-            );
-          }
-        } catch (e) {
-          console.warn('[RequestsScreen] sitter reminder scheduling failed:', e);
-        }
-      }
-    };
-
-    scheduleMissingReminders();
-  }, [acceptedPosts, user?.uid]);
+  // Commitment reminders (1h/10min) are now scheduled server-side
+  // (onHelpConfirmed → scheduleReminders, processReminders cron). The old
+  // sitter-side local scheduling was removed to avoid duplicate/mistimed pushes.
 
   // ── Cancel post ───────────────────────────────────────────────────────────
   const handleCancel = async (postId: string) => {

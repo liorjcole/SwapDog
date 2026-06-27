@@ -481,27 +481,6 @@ export const useSwaps = () => {
     return results.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   };
 
-  /**
-   * Persist owner-side reminder notification IDs to Firestore so they can
-   * be cancelled if the post is later cancelled.
-   */
-  const saveOwnerReminderIds = async (postId: string, ids: string[]): Promise<void> => {
-    await updateDoc(doc(db, 'swapPosts', postId), {
-      reminderNotificationIds: ids,
-      updatedAt: serverTimestamp(),
-    });
-  };
-
-  /**
-   * Persist sitter-side reminder notification IDs to Firestore to track
-   * that this sitter's device has already scheduled them.
-   */
-  const saveSitterReminderIds = async (postId: string, ids: string[]): Promise<void> => {
-    await updateDoc(doc(db, 'swapPosts', postId), {
-      sitterReminderNotificationIds: ids,
-      updatedAt: serverTimestamp(),
-    });
-  };
 
   return {
     // Legacy
@@ -526,8 +505,6 @@ export const useSwaps = () => {
     getPendingPosts,
     approveHelper,
     getAcceptedPosts,
-    saveOwnerReminderIds,
-    saveSitterReminderIds,
     respondToCounter,
   };
 };
