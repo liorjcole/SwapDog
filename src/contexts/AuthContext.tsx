@@ -102,6 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           vettingScheduledAt: data.vettingScheduledAt ? toDate(data.vettingScheduledAt) : undefined,
           instagramHandle: data.instagramHandle,
           hiddenReusePostIds: data?.hiddenReusePostIds ?? [],
+          postTemplates: data?.postTemplates ?? [],
         };
       }
       return null;
