@@ -1380,7 +1380,7 @@ const modalStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingBottom: spacing.xl * 2 },
+  content: { paddingBottom: spacing.lg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   notFound: { fontSize: 18 },
   section: { borderRadius: borderRadius.lg, padding: spacing.md, marginBottom: spacing.md, marginHorizontal: spacing.md, marginTop: spacing.md },
