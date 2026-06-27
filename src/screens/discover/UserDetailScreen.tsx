@@ -221,7 +221,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             <TouchableOpacity
               onPress={() => Alert.alert('Remove Favorite', `Remove ${user.displayName} from your favorites?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: () => removeFavorite(userId) }])}
             >
-              <Text style={{ fontSize: 22, color: '#FFD700', marginBottom: 2 }}>\u2605</Text>
+              <Text style={{ fontSize: 22, color: '#FFD700', marginBottom: 2 }}>★</Text>
             </TouchableOpacity>
             <Text style={{ fontSize: 13, fontStyle: 'italic', color: '#FFD700', marginBottom: 4 }}>Favorited Pup Parent</Text>
           </View>
