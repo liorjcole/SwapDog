@@ -103,6 +103,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           instagramHandle: data.instagramHandle,
           hiddenReusePostIds: data?.hiddenReusePostIds ?? [],
           postTemplates: data?.postTemplates ?? [],
+          // Written by the onPostCompleted Cloud Function; drives the mandatory
+          // review gate. Mapped here so userProfile.pendingReview is reliable
+          // for any consumer (the gate itself reads the live getDoc on open).
+          pendingReview: data.pendingReview
+            ? {
+                postId: data.pendingReview.postId ?? '',
+                role: data.pendingReview.role ?? 'owner',
+                otherUserId: data.pendingReview.otherUserId ?? '',
+                otherUserName: data.pendingReview.otherUserName ?? '',
+                dogIds: data.pendingReview.dogIds ?? [],
+                dogNames: data.pendingReview.dogNames ?? [],
+                createdAt: toDate(data.pendingReview.createdAt),
+              }
+            : undefined,
         };
       }
       return null;
