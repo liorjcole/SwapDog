@@ -24,7 +24,7 @@ import {
   Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useFocusEffect, useNavigation, CommonActions } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RequestsStackParamList } from '../../navigation/types';
@@ -142,8 +142,6 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const { user, userProfile } = useAuthContext();
   const { getMyPosts, cancelPost, getAcceptedPosts, saveSitterReminderIds, isPostExpired, isStartExpiredNoHelper } = useSwaps();
   const { hasReviewed } = useReviews();
-  // Root navigator — used for cross-tab navigation (e.g. Requests → ProfileTab → Review)
-  const rootNav = useNavigation();
   const { getOrCreateConversation } = useMessaging();
   const { deductPoints, addPoints } = usePoints();
   const { recordEntry } = usePointsHistory();
@@ -582,19 +580,16 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                       if (d) otherUserName = (d.displayName as string) || otherUserName;
                     } catch { /* keep fallback */ }
                   }
-                  rootNav.dispatch(
-                    CommonActions.navigate('ProfileTab', {
-                      screen: 'Review',
-                      params: {
-                        postId: item.id,
-                        role: 'owner' as const,
-                        otherUserId: claimedByUid,
-                        otherUserName,
-                        dogIds: item.dogIds ?? (item.dogId ? [item.dogId] : []),
-                        dogNames: item.dogNames ?? [item.dogName],
-                      },
-                    })
-                  );
+                  // Navigate within the Requests stack — goBack() after submit
+                  // returns to the Schedule list, not the Profile tab.
+                  navigation.navigate('Review', {
+                    postId: item.id,
+                    role: 'owner' as const,
+                    otherUserId: claimedByUid,
+                    otherUserName,
+                    dogIds: item.dogIds ?? (item.dogId ? [item.dogId] : []),
+                    dogNames: item.dogNames ?? [item.dogName],
+                  });
                 }}
                 accessibilityLabel="Leave a review"
                 accessibilityRole="button"

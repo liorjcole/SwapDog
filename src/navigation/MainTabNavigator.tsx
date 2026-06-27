@@ -99,6 +99,8 @@ const RequestsNavigator: React.FC = () => {
     >
       <RequestsStack.Screen name="Requests" component={RequestsScreen} options={{ title: 'My Schedule' }} />
       <RequestsStack.Screen name="WriteReview" component={WriteReviewScreen} options={{ title: 'Write Review', presentation: 'modal' }} />
+      {/* Voluntary review — opens within Requests stack so goBack() returns to Schedule */}
+      <RequestsStack.Screen name="Review" component={ReviewScreen} options={{ title: 'Leave a Review', presentation: 'modal' }} />
       <RequestsStack.Screen name="PostDetail" component={PostDetailScreen} options={{ title: 'Post Details' }} />
       <RequestsStack.Screen name="UserDetail" component={UserDetailScreen} options={{ title: 'Profile' }} />
       <RequestsStack.Screen name="DogDetail" component={DogDetailScreen} options={{ title: 'Dog Profile' }} />
