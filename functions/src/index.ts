@@ -392,7 +392,7 @@ export const onReferralUsed = onDocumentUpdated(
 //    Also sets pendingReview flag on both user docs for in-app popup.
 // ─────────────────────────────────────────────────────────────────────────────
 export const onPostCompleted = onDocumentUpdated(
-  "posts/{postId}",
+  "swapPosts/{postId}",
   async (event) => {
     const before = event.data?.before?.data();
     const after = event.data?.after?.data();
