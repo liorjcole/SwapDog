@@ -433,7 +433,8 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         )}
         <Text style={[styles.sectionTitle, { color: colors.text }]}>My Dogs</Text>
         {dogs.map((dog) => (
-          <View key={dog.id} style={[styles.dogCard, { backgroundColor: colors.surface, ...shadow.sm }]}>
+          <View key={dog.id} style={[styles.dogCard, { backgroundColor: colors.backgroundElevated, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, ...shadow.sm }]}>
+
             {/* X button to delete dog */}
             <TouchableOpacity
               onPress={() => handleDeleteDog(dog.id, dog.name)}
