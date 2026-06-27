@@ -337,22 +337,6 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <ScrollView scrollEnabled={scrollEnabled} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={{ paddingBottom: 16 }} bounces={false} overScrollMode="never">
       <View style={[styles.header, { backgroundColor: colors.background }]}>
-        {/* View my profile — top */}
-        {user && (
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              navigation.navigate('UserDetail', { userId: user.uid });
-            }}
-            style={{ marginBottom: spacing.sm }}
-            accessibilityLabel="View my profile"
-            accessibilityRole="link"
-          >
-            <Text style={{ fontSize: 15, color: '#FFFFFF', textDecorationLine: 'underline' }}>
-              View my profile
-            </Text>
-          </TouchableOpacity>
-        )}
 
         {/* Name — above pfp */}
         <Text style={[styles.name, { color: colors.text }]} accessibilityRole="header">
@@ -426,13 +410,27 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           accessibilityLabel="Edit profile"
           accessibilityRole="button"
         >
-          <Text style={{ fontSize: 15, color: '#FFFFFF' }}>Edit Profile</Text>
+          <Text style={{ fontSize: 15, color: '#FFFFFF', textDecorationLine: 'underline' }}>Edit Profile</Text>
         </TouchableOpacity>
       </View>
 
 
 
       <View style={[styles.section, { backgroundColor: colors.surface }]}>
+        {/* View my profile — above dogs */}
+        {user && (
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.navigate('UserDetail', { userId: user.uid });
+            }}
+            style={[styles.viewMyProfileBtn, { backgroundColor: colors.primary }]}
+            accessibilityLabel="View my profile"
+            accessibilityRole="link"
+          >
+            <Text style={styles.viewMyProfileBtnText}>View my profile</Text>
+          </TouchableOpacity>
+        )}
         <Text style={[styles.sectionTitle, { color: colors.text }]}>My Dogs</Text>
         {dogs.map((dog) => (
           <View key={dog.id} style={[styles.dogCard, { backgroundColor: colors.surface, ...shadow.sm }]}>
@@ -688,6 +686,9 @@ const styles = StyleSheet.create({
   // "Edit {name}'s details" button on each dog card
   editDetailsBtn: { alignSelf: 'flex-start', marginTop: spacing.sm, paddingVertical: 6 },
   editDetailsBtnText: { fontSize: 15, fontWeight: '600' },
+  // "View my profile" pill button above the My Dogs section
+  viewMyProfileBtn: { alignSelf: 'flex-start', borderRadius: borderRadius.full, paddingVertical: 6, paddingHorizontal: spacing.md, marginBottom: spacing.md },
+  viewMyProfileBtnText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
   signOutBtn: { margin: spacing.lg, padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center' },
   signOutText: { color: '#FF0000', ...typography.button },
 });
