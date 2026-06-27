@@ -662,10 +662,13 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
 
   const selectedCommitments = acceptedPosts.filter((p) => overlapsDate(p, selectedDate));
 
-  // All commitments sorted chronologically (always-visible list)
-  const allSortedCommitments = [...acceptedPosts].sort(
-    (a, b) => a.startDate.getTime() - b.startDate.getTime(),
-  );
+  // All commitments partitioned into upcoming and past for the always-visible list
+  const upcomingCommitments = [...acceptedPosts]
+    .filter((p) => !isPostExpired(p))
+    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+  const pastCommitments = [...acceptedPosts]
+    .filter((p) => isPostExpired(p))
+    .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
 
 
   const handleCommitmentTap = (post: SwapPost) => {
@@ -893,9 +896,10 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
     setExpandedCommitId((prev) => (prev === postId ? null : postId));
   };
 
-  const renderCommitmentCard = (post: SwapPost, onCardPress?: () => void) => {
+  const renderCommitmentCard = (post: SwapPost, onCardPress?: () => void, opts?: { dimmed?: boolean }) => {
     const isMyDog = post.posterId === user?.uid;
-    const accentColor = isMyDog ? RED : TEAL;
+    // Mute the accent to a neutral border color for past (expired) commitments
+    const accentColor = opts?.dimmed ? colors.border : (isMyDog ? RED : TEAL);
     const roleLabel = isMyDog ? 'Your dog' : "You're booked";
     const otherName = isMyDog
       ? (post.respondedBy?.find((r) => r.userId === post.claimedBy)?.userName ?? 'Your sitter')
@@ -919,7 +923,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
       : () => toggleExpand(post.id);
 
     return (
-      <View key={post.id}>
+      <View key={post.id} style={opts?.dimmed ? { opacity: 0.55 } : undefined}>
         <TouchableOpacity
           style={[
             styles.commitCard,
@@ -1192,18 +1196,46 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           </Text>
         </View>
 
-        {allSortedCommitments.length === 0 ? (
+        {upcomingCommitments.length === 0 && pastCommitments.length === 0 ? (
           <View style={styles.noneToday}>
             <Text style={[styles.noneTodayText, { color: colors.textSecondary }]}>
               No upcoming commitments
             </Text>
           </View>
         ) : (
-          <View style={styles.commitList}>
-            {allSortedCommitments.map((post) =>
-              renderCommitmentCard(post, post.id ? () => navigation.navigate('PostDetail', { postId: post.id }) : undefined)
+          <>
+            {upcomingCommitments.length === 0 ? (
+              <View style={styles.noneToday}>
+                <Text style={[styles.noneTodayText, { color: colors.textSecondary }]}>
+                  No upcoming commitments
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.commitList}>
+                {upcomingCommitments.map((post) =>
+                  renderCommitmentCard(post, post.id ? () => navigation.navigate('PostDetail', { postId: post.id }) : undefined)
+                )}
+              </View>
             )}
-          </View>
+            {pastCommitments.length > 0 && (
+              <>
+                <View style={[styles.pastDividerHeader, { borderTopColor: colors.border }]}>
+                  <Text style={[styles.selectedDayTitle, { color: colors.textSecondary }]}>
+                    Past
+                  </Text>
+                </View>
+                <View style={styles.commitList}>
+                  {pastCommitments.map((post) =>
+                    renderCommitmentCard(
+                      post,
+                      post.id ? () => navigation.navigate('PostDetail', { postId: post.id }) : undefined,
+                      { dimmed: true },
+                    )
+                  )}
+                </View>
+              </>
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -1477,6 +1509,8 @@ const styles = StyleSheet.create({
 
   // Section header for all commitments list
   allCommitmentsHeader: { borderTopWidth: 1, paddingTop: spacing.md, marginBottom: spacing.sm },
+  // Muted divider between upcoming and past commitments
+  pastDividerHeader: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.md, marginBottom: spacing.sm, marginTop: spacing.lg },
   selectedDayTitle: { fontSize: 17, fontWeight: '700' },
   noneToday: { alignItems: 'center', paddingVertical: spacing.lg },
   noneTodayText: { fontSize: 16, fontStyle: 'italic' },
