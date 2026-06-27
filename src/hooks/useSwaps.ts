@@ -186,9 +186,11 @@ export const useSwaps = () => {
     return ref.id;
   };
 
-  /** Fetch all open posts, optionally filtered by distance */
-  /** Check if a post's end date/time has passed */
-  const isPostExpired = (post: SwapPost): boolean => {
+  /** Check if a post's end date/time has passed.
+   * @param graceSecs - extra seconds after end time before the post is considered expired (default 0).
+   *   Pass 60 for claimed posts to implement the ~1-minute-after-end-time drop from Discover.
+   */
+  const isPostExpired = (post: SwapPost, graceSecs = 0): boolean => {
     const now = new Date();
     const end = new Date(post.endDate);
     // Combine endDate with endTime if available
@@ -205,7 +207,7 @@ export const useSwaps = () => {
       // No end time — expire at end of day
       end.setHours(23, 59, 59, 999);
     }
-    return now > end;
+    return now > new Date(end.getTime() + graceSecs * 1_000);
   };
 
   /**
@@ -238,6 +240,7 @@ export const useSwaps = () => {
     return now > start;
   };
 
+  /** Fetch all area posts (open + claimed) for the Discover feed, filtered by distance and expiry. */
   const getAreaPosts = async (
     location?: { latitude: number; longitude: number },
     radiusMiles = 25
@@ -251,8 +254,8 @@ export const useSwaps = () => {
       .map((d) => parsePost(d.id, d.data() as Record<string, unknown>))
       .filter((p) => {
         if (p.status === 'claimed') {
-          // Claimed posts have a helper — skip date-expiry checks; keep until completed
-          return !((p as any).pointsDisabled);
+          // Drop claimed posts ~1 min after their event ends (display-only; Firestore status unchanged)
+          return !isPostExpired(p, 60) && !((p as any).pointsDisabled);
         }
         return (
           p.status === 'open' &&
