@@ -76,6 +76,8 @@ struct ConversationsListView: View {
                     trailing: Theme.Spacing.md
                 ))
             }
+
+            supportFooter
         }
         .listStyle(.plain)
         .background(Theme.Colors.background)
@@ -125,6 +127,24 @@ struct ConversationsListView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // MARK: - Support Footer
+
+    /// Informational footer row appended below the conversation list.
+    ///
+    /// Scrolls with the content. Font explicitly set to 16 pt
+    /// (footnote base 13 pt + 3 per design spec).
+    private var supportFooter: some View {
+        Text("For support, email \(AppConstants.supportEmail)")
+            .font(.system(size: 16))
+            .foregroundStyle(Theme.Colors.textSecondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Theme.Spacing.md)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+    }
+
     // MARK: - Helpers
 
     private var errorBinding: Binding<Bool> {
@@ -160,11 +180,22 @@ private struct ConversationRow: View {
     // MARK: Subviews
 
     private var avatarView: some View {
-        CachedAsyncImage(urlString: item.otherUser?.profileImageURL ?? "")
-            .frame(width: 52, height: 52)
-            .clipShape(Circle())
-            .overlay(Circle().stroke(Theme.Colors.surface, lineWidth: 1.5))
-            .accessibilityHidden(true)
+        Group {
+            if item.otherUser?.displayName == AppConstants.watchdogTeamDisplayName {
+                // WatchDog Team: dog emoji centered in the avatar circle
+                Text("🐶")
+                    .font(.system(size: 30))
+                    .frame(width: 52, height: 52)
+                    .background(Theme.Colors.shimmerBase)
+                    .clipShape(Circle())
+            } else {
+                CachedAsyncImage(urlString: item.otherUser?.profileImageURL ?? "")
+                    .frame(width: 52, height: 52)
+                    .clipShape(Circle())
+            }
+        }
+        .overlay(Circle().stroke(Theme.Colors.surface, lineWidth: 1.5))
+        .accessibilityHidden(true)
     }
 
     private var contentStack: some View {

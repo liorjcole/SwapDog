@@ -115,6 +115,14 @@ enum AppConstants {
     /// Privacy Policy web page URL.
     static let privacyPolicyURL = "https://swapdog.app/privacy"
 
+    // MARK: - Support
+
+    /// Display name for the WatchDog Team system sender in conversations.
+    static let watchdogTeamDisplayName = "WatchDog Team"
+
+    /// Primary support email address shown in the messaging footer.
+    static let supportEmail = "hi@joinwatchdog.com"
+
     // MARK: - UserDefaults Keys
 
     /// Strongly-typed UserDefaults key strings for local preferences.

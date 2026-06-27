@@ -74,9 +74,7 @@ struct ChatView: View {
     private var navBarContent: some ToolbarContent {
         ToolbarItem(placement: .principal) {
             HStack(spacing: Theme.Spacing.sm) {
-                CachedAsyncImage(urlString: viewModel.otherUserImageURL ?? "")
-                    .frame(width: 32, height: 32)
-                    .clipShape(Circle())
+                chatHeaderAvatar
                     .accessibilityHidden(true)
 
                 Text(viewModel.otherUserName)
@@ -84,6 +82,24 @@ struct ChatView: View {
                     .foregroundStyle(Theme.Colors.textPrimary)
                     .accessibilityAddTraits(.isHeader)
             }
+        }
+    }
+
+    /// Avatar shown in the chat navigation bar.
+    ///
+    /// WatchDog Team conversations display the dog emoji instead of a remote image.
+    @ViewBuilder
+    private var chatHeaderAvatar: some View {
+        if viewModel.otherUserName == AppConstants.watchdogTeamDisplayName {
+            Text("🐶")
+                .font(.system(size: 20))
+                .frame(width: 32, height: 32)
+                .background(Theme.Colors.shimmerBase)
+                .clipShape(Circle())
+        } else {
+            CachedAsyncImage(urlString: viewModel.otherUserImageURL ?? "")
+                .frame(width: 32, height: 32)
+                .clipShape(Circle())
         }
     }
 
