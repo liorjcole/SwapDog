@@ -384,7 +384,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
         >
           {isSystem ? (
             <View style={[styles.headerAvatarPlaceholder, { backgroundColor: colors.primary + '22' }]}>
-              <Text style={{ fontSize: 34 }}>🐾</Text>
+              <Text style={{ fontSize: 34 }}>🐶</Text>
             </View>
           ) : (
             <AvatarImage
@@ -572,7 +572,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
       <View style={[styles.inputRow, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
         {isSystem ? (
           <View style={{ flex: 1, alignItems: 'center', paddingVertical: 20, paddingHorizontal: 16 }}>
-            <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
+            <Text style={{ fontSize: 17, color: colors.textSecondary, textAlign: 'center', lineHeight: 24 }}>
               For support, email{' '}
               <Text
                 style={{ color: colors.primary, fontWeight: '600' }}
