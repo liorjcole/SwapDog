@@ -39,9 +39,11 @@ export interface PostCardProps {
   glowOpacity?: Animated.Value;
   /** When true, hides the "See Full Details" button — used in reuse-modal context; Discover remains unaffected. */
   hideSeeFullDetails?: boolean;
+  /** When true, the post has been claimed by another sitter — dims the card and shows a gray lock badge. */
+  isClaimed?: boolean;
 }
 
-const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, isFavorited, isHighlighted, pulseScale, glowOpacity, hideSeeFullDetails }) => {
+const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, isFavorited, isHighlighted, pulseScale, glowOpacity, hideSeeFullDetails, isClaimed }) => {
   const handlePostPress = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress(post.id);
@@ -54,7 +56,8 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
   const careLabel = post.careType ? getCareTypeLabel(post.careType) : 'Pet Care';
 
   return (
-    <Animated.View style={isHighlighted && pulseScale && glowOpacity ? { transform: [{ scale: pulseScale }], shadowColor: '#FFFFFF', shadowOpacity: glowOpacity as unknown as number, shadowRadius: 20, shadowOffset: { width: 0, height: 0 }, elevation: 10 } : undefined}>
+    // Dim the entire card when claimed — mirrors the past-commitments dim in RequestsScreen (~L769)
+    <Animated.View style={[isHighlighted && pulseScale && glowOpacity ? { transform: [{ scale: pulseScale }], shadowColor: '#FFFFFF', shadowOpacity: glowOpacity as unknown as number, shadowRadius: 20, shadowOffset: { width: 0, height: 0 }, elevation: 10 } : undefined, isClaimed ? { opacity: 0.55 } : undefined]}>
     <TouchableOpacity
       style={[styles.postCard, { backgroundColor: isOwnPost ? '#1A0A10' : colors.surface, ...shadow.sm, ...(isFavorited && !isOwnPost ? { borderWidth: 2, borderColor: '#FFD700' } : {}), ...(isOwnPost ? { borderWidth: 1.5, borderColor: RED + '80' } : {}) }]}
       onPress={handlePostPress}
@@ -62,7 +65,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
       accessibilityLabel={`Post for ${post.dogName}`}
     >
       <View style={styles.postCardInner}>
-        {/* Own post badge — top right */}
+        {/* Own post badge — top right (takes precedence; never double-badge with Claimed) */}
         {isOwnPost && (
           <View style={{ position: 'absolute', top: -1, right: -1, backgroundColor: RED, paddingHorizontal: 10, paddingVertical: 4, borderBottomLeftRadius: 8, borderTopRightRadius: 10, zIndex: 10 }}>
             <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 }}>YOUR POST</Text>
@@ -72,6 +75,12 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
         {isFavorited && !isOwnPost && (
           <View style={{ position: 'absolute', top: -1, right: -1, backgroundColor: '#FFD700', paddingHorizontal: 10, paddingVertical: 4, borderBottomLeftRadius: 8, borderTopRightRadius: 10, zIndex: 10 }}>
             <Text style={{ fontSize: 12, fontWeight: '800', color: '#000000', letterSpacing: 0.5 }}>FAVORITE</Text>
+          </View>
+        )}
+        {/* Claimed badge — gray, top right; only shown to non-owners (YOUR POST takes precedence) */}
+        {isClaimed && !isOwnPost && !isFavorited && (
+          <View style={{ position: 'absolute', top: -1, right: -1, backgroundColor: '#78909C', paddingHorizontal: 10, paddingVertical: 4, borderBottomLeftRadius: 8, borderTopRightRadius: 10, zIndex: 10 }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 }}>🔒 Claimed</Text>
           </View>
         )}
         {/* Dog photos + names row */}

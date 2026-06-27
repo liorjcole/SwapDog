@@ -244,17 +244,23 @@ export const useSwaps = () => {
   ): Promise<SwapPost[]> => {
     const q = query(
       collection(db, 'swapPosts'),
-      where('status', '==', 'open')
+      where('status', 'in', ['open', 'claimed'])
     );
     const snap = await getDocs(q);
     const all = snap.docs
       .map((d) => parsePost(d.id, d.data() as Record<string, unknown>))
-      .filter((p) =>
-        p.status === 'open' &&
-        !isPostExpired(p) &&
-        !isStartExpiredNoHelper(p) &&   // exclude start-expired posts with no helper
-        !((p as any).pointsDisabled)
-      ); // exclude claimed/cancelled/expired/points-disabled
+      .filter((p) => {
+        if (p.status === 'claimed') {
+          // Claimed posts have a helper — skip date-expiry checks; keep until completed
+          return !((p as any).pointsDisabled);
+        }
+        return (
+          p.status === 'open' &&
+          !isPostExpired(p) &&
+          !isStartExpiredNoHelper(p) && // exclude start-expired posts with no helper
+          !((p as any).pointsDisabled)
+        );
+      }); // keep open + claimed; exclude completed/expired/cancelled/points-disabled
 
     if (!location) return all;
 
