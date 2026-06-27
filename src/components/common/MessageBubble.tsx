@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Dimensions, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -29,9 +29,24 @@ interface Props {
 
 const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL, onReviewReschedule, onAcceptHelp, helpAccepted, onRemoveRequest, removingRequest, onUnsend }) => {
   const { colors } = useTheme();
-  // Confetti burst state: burstKey remounts the overlay to replay; showBurst gates rendering.
+
+  // Init to current value so an already-accepted offer never replays on mount.
+  const prevAccepted = useRef(helpAccepted ?? false);
+  // Confetti burst: showBurst gates rendering; burstKey remounts to replay.
   const [burstKey, setBurstKey] = useState(0);
   const [showBurst, setShowBurst] = useState(false);
+
+  // Fire confetti on the false→true helpAccepted transition only.
+  // Fires for BOTH owner (who tapped Accept) and helper (whose offer was accepted)
+  // because helpAccepted derives from persisted swapPost.status === 'claimed'.
+  useEffect(() => {
+    if (!prevAccepted.current && helpAccepted) {
+      setBurstKey((k) => k + 1);
+      setShowBurst(true);
+    }
+    prevAccepted.current = helpAccepted ?? false;
+  }, [helpAccepted]);
+
   const timeStr = createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const handleLongPress = () => {
@@ -90,30 +105,11 @@ const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL,
             <Text style={styles.acceptedBadgeText}>✅ Accepted</Text>
           </View>
         )}
-        {/* Accept button + confetti — receiver (owner) only, before accepting */}
-        {type === 'help_request' && !helpAccepted && !isMe && (
-          // Relatively-positioned container so the absoluteFill burst overlay
-          // anchors here and stays visible through the button → badge swap.
-          <View style={styles.acceptActionContainer}>
-            {onAcceptHelp ? (
-              <TouchableOpacity
-                onPress={() => {
-                  setBurstKey((k) => k + 1);
-                  setShowBurst(true);
-                  onAcceptHelp?.();
-                }}
-                style={styles.acceptBtn}
-              >
-                <Text style={styles.acceptBtnText}>Accept</Text>
-              </TouchableOpacity>
-            ) : null}
-            {showBurst ? (
-              <ButtonConfettiBurst
-                key={burstKey}
-                onDone={() => setShowBurst(false)}
-              />
-            ) : null}
-          </View>
+        {/* Accept button — owner only, before accepting */}
+        {type === 'help_request' && !helpAccepted && !isMe && onAcceptHelp && (
+          <TouchableOpacity onPress={onAcceptHelp} style={styles.acceptBtn}>
+            <Text style={styles.acceptBtnText}>Accept</Text>
+          </TouchableOpacity>
         )}
         {/* Remove Request — sender (helper) only, before accepting */}
         {type === 'help_request' && !helpAccepted && isMe && onRemoveRequest && (
@@ -130,6 +126,13 @@ const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL,
         <Text style={[styles.time, { color: isMe ? 'rgba(255,255,255,0.7)' : colors.textSecondary }]}>
           {timeStr}
         </Text>
+        {/* Confetti burst anchored to bubble centre; fires on false→true transition (both parties). */}
+        {type === 'help_request' && showBurst && (
+          <ButtonConfettiBurst
+            key={burstKey}
+            onDone={() => setShowBurst(false)}
+          />
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -155,7 +158,6 @@ const styles = StyleSheet.create({
   time: { fontSize: 12, marginTop: 2, alignSelf: 'flex-end' },
   reviewLink: { marginTop: 6, paddingVertical: 4 },
   reviewLinkText: { color: '#0984E3', fontSize: 16, fontWeight: '600', textDecorationLine: 'underline' },
-  acceptActionContainer: { position: 'relative', overflow: 'visible' },
   acceptBtn: { marginTop: 8, backgroundColor: '#00B894', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 8, alignItems: 'center' },
   acceptBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   acceptedBadge: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 16, borderRadius: 8, backgroundColor: 'rgba(0,184,148,0.15)', alignItems: 'center' },
@@ -164,4 +166,6 @@ const styles = StyleSheet.create({
   removeRequestBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
 });
 
+
 export default MessageBubble;
+
