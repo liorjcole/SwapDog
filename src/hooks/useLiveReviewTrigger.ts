@@ -138,10 +138,14 @@ export const useLiveReviewTrigger = ({
       const dogNames = post.dogNames ?? (post.dogName ? [post.dogName] : []);
       // Dog photos are denormalized on the post — no extra fetch needed.
       const dogPhotoURLs = post.dogPhotoURLs ?? (post.dogPhotoURL ? [post.dogPhotoURL] : []);
-      // In caregiver flow the owner == poster; prefer the denormalized posterPhotoURL.
+      // The live user doc is authoritative — the denormalized posterPhotoURL goes
+      // stale on photo change and breaks on Storage token rotation. In the
+      // caregiver flow the reviewed user IS the poster, so the snapshot is a
+      // valid last-resort fallback; in the owner flow the reviewed user is the
+      // claimer, for whom no poster snapshot exists.
       const otherUserPhotoURL: string | undefined =
         role === 'caregiver'
-          ? (post.posterPhotoURL ?? otherUserPhotoURLFromGet)
+          ? (otherUserPhotoURLFromGet ?? post.posterPhotoURL)
           : otherUserPhotoURLFromGet;
       return { postId: post.id, role, otherUserId, otherUserName, dogIds, dogNames, dogPhotoURLs, otherUserPhotoURL };
     };

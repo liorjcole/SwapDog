@@ -2,11 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Image, View, Text, StyleProp, ViewStyle, ImageStyle, TouchableOpacity, StyleSheet } from 'react-native';
 
 /**
- * Avatar that falls back to a 🐶 emoji on a random-ish colored circle
- * when the photo URL is missing, empty, or fails to load.
+ * Avatar that falls back to a 🐶 emoji on a deterministic colored circle when
+ * the photo URL is missing, empty, or finally fails to load.
  *
- * Auto-retries up to 3 times with increasing delay if the image fails
- * (covers transient CDN/network blips that caused permanent emoji fallback).
+ * A loading image renders over a neutral placeholder underlay (the same colored
+ * circle), so a valid-but-slow photo never flashes a blank gap. Auto-retries up
+ * to 3 times with increasing delay on load error (covers transient CDN/network
+ * blips); the emoji fallback only appears once the retry budget is exhausted. A
+ * healthy URL keeps a stable source (no remount key churn) so RN reuses its
+ * cached bytes instead of re-fetching.
  *
  * Border styles are extracted to a wrapper View so they never clip the image on iOS.
  */
@@ -46,15 +50,19 @@ const splitStyle = (flat: Record<string, any>) => {
 const AvatarImage: React.FC<AvatarImageProps> = ({ photoURL, displayName, size, style, emojiSize, onPress }) => {
   const [retryCount, setRetryCount] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setFailed(false);
     setRetryCount(0);
+    setLoaded(false);
     return () => { if (retryTimer.current) clearTimeout(retryTimer.current); };
   }, [photoURL]);
 
   const handleError = () => {
+    // Drop back to the placeholder underlay while we retry — never blank.
+    setLoaded(false);
     if (retryCount < MAX_RETRIES) {
       const delay = (retryCount + 1) * 1000;
       retryTimer.current = setTimeout(() => {
@@ -70,6 +78,8 @@ const AvatarImage: React.FC<AvatarImageProps> = ({ photoURL, displayName, size, 
   const bgColor = BG_COLORS[(displayName?.length ?? 0) % BG_COLORS.length];
   const emoji = emojiSize ?? Math.round(size * 0.55);
 
+  // Cache-bust only on retry; a healthy URL keeps a stable source so RN reuses
+  // its cached bytes instead of re-fetching (no flash, no remount thrash).
   const uri = hasURL
     ? (retryCount > 0 ? cleanURL + (cleanURL.includes('?') ? '&' : '?') + '_r=' + retryCount : cleanURL)
     : '';
@@ -81,14 +91,31 @@ const AvatarImage: React.FC<AvatarImageProps> = ({ photoURL, displayName, size, 
     wrapperStyle.marginTop != null || wrapperStyle.marginBottom != null ||
     wrapperStyle.alignSelf != null;
 
+  const baseCircle = { width: size, height: size, borderRadius: size / 2 };
+
   const imageContent = hasURL ? (
-    <Image
-      key={'avatar-' + retryCount}
-      source={{ uri }}
-      style={[{ width: size, height: size, borderRadius: size / 2 }, innerStyle]}
-      onError={handleError}
-      accessibilityLabel={displayName ? displayName + "'s photo" : 'Profile photo'}
-    />
+    <View style={[baseCircle, { overflow: 'hidden' }, innerStyle]}>
+      {/* Neutral placeholder underlay — shown during the initial load AND every
+          retry, so a valid-but-slow photo never flashes a blank gap. */}
+      {!loaded && (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { borderRadius: size / 2, backgroundColor: bgColor, alignItems: 'center', justifyContent: 'center' },
+          ]}
+          accessibilityLabel={displayName ? displayName + "'s avatar" : 'Avatar'}
+        >
+          <Text style={{ fontSize: emoji }}>🐶</Text>
+        </View>
+      )}
+      <Image
+        source={{ uri }}
+        style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]}
+        onLoad={() => setLoaded(true)}
+        onError={handleError}
+        accessibilityLabel={displayName ? displayName + "'s photo" : 'Profile photo'}
+      />
+    </View>
   ) : (
     <View
       style={[

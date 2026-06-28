@@ -53,7 +53,7 @@ export const useReviewFlow = (params: ReviewFlowParams) => {
       return [
         {
           targetType: 'caregiver' as ReviewTargetType,
-          title: `Rate ${params.otherUserName} as a caregiver`,
+          title: `Review ${params.otherUserName}`,
           subtitle: 'How was their care of your pup?',
           hint: 'Rate their reliability, attentiveness, and how well they cared for your dog.',
         },
@@ -70,7 +70,7 @@ export const useReviewFlow = (params: ReviewFlowParams) => {
       dogId,
       dogName: dogNames[i] ?? 'the dog',
       photoURL: dogPhotoURLs[i],
-      title: `Rate ${dogNames[i] ?? 'the dog'} 🐾`,
+      title: `Review ${dogNames[i] ?? 'the dog'} 🐾`,
       subtitle: '⚠️ This rating is about the dog — not the owner.',
       hint: 'Was the dog friendly, well-behaved, and as described? Any issues with temperament, energy, or special needs?',
     }));
@@ -78,7 +78,7 @@ export const useReviewFlow = (params: ReviewFlowParams) => {
     const ownerStep: ReviewStep = {
       targetType: 'owner' as ReviewTargetType,
       photoURL: params.otherUserPhotoURL,
-      title: `Rate ${params.otherUserName} as an owner`,
+      title: `Review ${params.otherUserName}`,
       subtitle: '⚠️ This rating is about the owner — not the dog.',
       hint: 'How were their response times? Were they clear and transparent about what was needed? How reputable and reliable were they?',
     };

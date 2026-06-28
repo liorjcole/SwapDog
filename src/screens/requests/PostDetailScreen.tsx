@@ -39,7 +39,7 @@ import ConfettiCelebration, { CelebrationItem } from '../../components/common/Co
 import { smartDate, isSameDay as isSameDayUtil, formatTimeLower, hasEventStarted } from '../../utils/dateHelpers';
 import { useSwaps, parsePost } from '../../hooks/useSwaps';
 import { useCancelCommitment } from '../../hooks/useCancelCommitment';
-import { useUsers } from '../../hooks/useUsers';
+import { useUserPhoto } from '../../hooks/useUserPhoto';
 import { useMessaging } from '../../hooks/useMessaging';
 import { SwapPost, RepeatSchedule, formatRepeatLabel } from '../../models/types';
 import { spacing, borderRadius, shadow, typography } from '../../config/theme';
@@ -259,14 +259,15 @@ const FullscreenPhotoModal: React.FC<FullscreenModalProps> = ({ photos, initialI
 const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
   const { user, userProfile } = useAuthContext();
-  const { getUser } = useUsers();
   const { getAreaPosts, getMyPosts, addResponder, approveHelper, cancelPost } = useSwaps();
   const { isFavorite, removeFavorite } = useFavorites();
   const { getOrCreateConversation, sendMessage } = useMessaging();
   const { cancelCommitment } = useCancelCommitment();
 
   const [post, setPost] = useState<SwapPost | null>(null);
-  const [freshPosterPhoto, setFreshPosterPhoto] = useState<string | null>(null);
+  // Owner identity photo: live users/{uid} doc is the source of truth; the
+  // denormalized post.posterPhotoURL is only an instant placeholder.
+  const { photoURL: posterPhotoURL } = useUserPhoto(post?.posterId, post?.posterPhotoURL);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
   const claimingRef = useRef(false);
@@ -326,8 +327,6 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         if (found) {
           setPost(found);
           setAllPhotos(await buildPhotos(found));
-          // Fetch fresh poster photo (post.posterPhotoURL can be stale/missing)
-          try { const pu = await getUser(found.posterId); if (pu?.photoURL) setFreshPosterPhoto(pu.photoURL); } catch { /* non-fatal */ }
           return;
         }
         if (user?.uid) {
@@ -336,7 +335,6 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           if (ownPost) {
             setPost(ownPost);
             setAllPhotos(await buildPhotos(ownPost));
-            try { const pu = await getUser(ownPost.posterId); if (pu?.photoURL) setFreshPosterPhoto(pu.photoURL); } catch { /* non-fatal */ }
             return;
           }
         }
@@ -348,7 +346,6 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           const direct = parsePost(snap.id, snapData as Record<string, unknown>);
           setPost(direct);
           setAllPhotos(await buildPhotos(direct));
-          try { const pu = await getUser(direct.posterId); if (pu?.photoURL) setFreshPosterPhoto(pu.photoURL); } catch { /* non-fatal */ }
         } else {
           setPost(null);
         }
@@ -1018,7 +1015,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             style={styles.posterRow}
           >
             <AvatarImage
-              photoURL={freshPosterPhoto ?? post.posterPhotoURL}
+              photoURL={posterPhotoURL}
               displayName={post.posterName}
               size={48}
               style={[styles.posterAvatar, { borderColor: posterIsFavorited && !isOwner ? '#FFD700' : colors.border }]}

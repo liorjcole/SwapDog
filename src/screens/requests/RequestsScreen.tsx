@@ -980,18 +980,21 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
               onPress={async () => {
                 const posterUid = post.posterId ?? '';
                 let otherUserName = 'the owner';
-                // posterPhotoURL is denormalized on the post; fall back to user doc if absent.
-                let otherUserPhotoURL: string | undefined = post.posterPhotoURL;
+                // Live user doc is the source of truth; the denormalized
+                // posterPhotoURL is only a last-resort fallback when the fresh
+                // read misses (stale snapshots break on Storage token rotation).
+                let otherUserPhotoURL: string | undefined;
                 if (posterUid) {
                   try {
                     const snap = await getDoc(doc(db, 'users', posterUid));
                     const d = snap.data();
                     if (d) {
                       otherUserName = (d.displayName as string) || otherUserName;
-                      if (!otherUserPhotoURL) otherUserPhotoURL = d.photoURL as string | undefined;
+                      otherUserPhotoURL = d.photoURL as string | undefined;
                     }
                   } catch { /* keep fallback */ }
                 }
+                if (!otherUserPhotoURL) otherUserPhotoURL = post.posterPhotoURL;
                 navigation.navigate('Review', {
                   postId: post.id,
                   role: 'caregiver' as const,
