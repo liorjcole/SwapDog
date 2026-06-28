@@ -34,7 +34,7 @@ import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useMessaging } from '../../hooks/useMessaging';
 import { useTheme } from '../../contexts/ThemeContext';
-import { smartDate, isSameDay, isPostInProgress, applyTimeString, hasEventStarted } from '../../utils/dateHelpers';
+import { smartDate, isSameDay, applyTimeString, hasEventStarted } from '../../utils/dateHelpers';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useReviews } from '../../hooks/useReviews';
 import { useCancelCommitment } from '../../hooks/useCancelCommitment';
@@ -47,6 +47,8 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { cancelSwapReminders } from '../../services/ReminderService';
 import EventProgressBar from '../../components/common/EventProgressBar';
 import HappeningNowBanner from '../../components/common/HappeningNowBanner';
+import { useHappeningNow } from '../../hooks/useHappeningNow';
+import { getCareTypeIcon } from '../../utils/careTypeHelpers';
 
 // ── Context accent tokens ─────────────────────────────────────────────────────
 const RED = '#FF2D55';   // My Posts / your dog being cared for (= colors.primary)
@@ -56,21 +58,11 @@ const TEAL = '#2DD4BF';  // My Commitments / you caring for someone's dog
 // Height animates between MAX (measured calendar height) and MIN (fully
 // collapsed). useNativeDriver MUST be false — height is a layout property.
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CAL_HEIGHT_MIN = Math.round(SCREEN_HEIGHT * 0.15); // ~128 pt stub — mirrors Discover's MAP_HEIGHT_MIN
+const CAL_HEIGHT_MIN = 0; // full collapse — list fills the whole screen on scroll-up
 const CAL_HEIGHT_ESTIMATE = 380;     // initial guess until measured via onLayout
 const CAL_COLLAPSE_DURATION = 250;   // ms, matches Discover
 
 
-// ── Care type helpers (Wave 19B) ──────────────────────────────────────────────
-function getCareTypeIcon(careType?: string): string {
-  switch (careType) {
-    case 'overnight': return '🌙';
-    case 'daySitting': return '☀️';
-    case 'feeding': return '🍽️';
-    case 'dogWalking': return '🦮';
-    default: return '🐾';
-  }
-}
 
 function getCareTypeSummary(post: SwapPost): string {
   switch (post.careType) {
@@ -733,18 +725,8 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const completedToShow = filterByDay(completedCommitments)
     .sort((a, b) => b.endDate.getTime() - a.endDate.getTime());
 
-  // ── "Happening now" banner stack driver ────────────────────────────────
-  // Single source of truth: isPostInProgress (the same gate EventProgressBar
-  // uses). own side = your claimed posts; commitment side = sitter commitments.
-  // nowTick (60s) keeps this list fresh as events start/end.
-  const liveEvents: { post: SwapPost; own: boolean }[] = [
-    ...myPosts
-      .filter((p) => p.status === 'claimed' && isPostInProgress(p, nowTick))
-      .map((p) => ({ post: p, own: true })),
-    ...sitterCommitments
-      .filter((p) => isPostInProgress(p, nowTick))
-      .map((p) => ({ post: p, own: false })),
-  ].sort((a, b) => b.post.startDate.getTime() - a.post.startDate.getTime());
+  // Banner events from shared hook (own lightweight fetch + 60s tick).
+  const { liveEvents } = useHappeningNow();
 
   // Toggle the calendar day filter: tap to select, tap the same day to clear.
   const handleDatePress = (date: Date) => {
@@ -1209,13 +1191,13 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
       {/* ── Happening-now banner stack (pinned, focal point) ── */}
       {liveEvents.length > 0 && (
         <View style={styles.bannerStack}>
-          {liveEvents.map(({ post, own }) => (
+          {liveEvents.map(({ post, accent, careIcon, contextLabel }) => (
             <HappeningNowBanner
               key={post.id}
               post={post}
-              accent={own ? RED : TEAL}
-              careIcon={getCareTypeIcon(post.careType)}
-              contextLabel={own ? 'Your dog is being cared for' : "You're caring for their dog"}
+              accent={accent}
+              careIcon={careIcon}
+              contextLabel={contextLabel}
               backgroundColor={colors.surface}
               textColor={colors.text}
               onPress={() => navigation.navigate('PostDetail', { postId: post.id })}

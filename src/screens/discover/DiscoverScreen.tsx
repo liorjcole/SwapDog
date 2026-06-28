@@ -45,6 +45,8 @@ import EmptyStateView from '../../components/common/EmptyStateView';
 import ShimmerLoading from '../../components/common/ShimmerLoading';
 import PostCard from '../../components/common/PostCard';
 import { placesAutocomplete, placeDetails, newSessionToken, Prediction } from '../../utils/googlePlaces';
+import HappeningNowBanner from '../../components/common/HappeningNowBanner';
+import { useHappeningNow } from '../../hooks/useHappeningNow';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -401,6 +403,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
   const { getOrCreateConversation, sendMessage } = useMessaging();
 
   const { location, loading: locationLoading, setLocationOverride, clearLocationOverride } = useDiscoverLocation();
+  const { liveEvents } = useHappeningNow();
 
   const [radiusMiles, setRadiusMiles] = useState<number>(5);
   const [nearbyUsers, setNearbyUsers] = useState<NearbyUser[]>([]);
@@ -863,6 +866,24 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
         <RadiusSelector radiusMiles={radiusMiles} onSelectPreset={handlePresetSelect} />
       </View>
 
+      {/* ── Happening-now banner stack (pinned above feed) ── */}
+      {liveEvents.length > 0 && (
+        <View style={styles.bannerStack}>
+          {liveEvents.map(({ post, accent, careIcon, contextLabel }) => (
+            <HappeningNowBanner
+              key={post.id}
+              post={post}
+              accent={accent}
+              careIcon={careIcon}
+              contextLabel={contextLabel}
+              backgroundColor={colors.surface}
+              textColor={colors.text}
+              onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
+            />
+          ))}
+        </View>
+      )}
+
       {/* ── COMBINED FEED ── */}
       {/* Show a clean loading indicator until the FIRST location+data fetch
           completes. This eliminates the flash: empty feed → shimmer → data.
@@ -930,6 +951,7 @@ const styles = StyleSheet.create({
 
   // Radius — single line, 3 chips only, no flexWrap
   radiusContainer: { borderBottomWidth: 1, paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
+  bannerStack: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   radiusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   radiusLabel: { fontSize: 15, fontWeight: '600', marginRight: spacing.xs },
   radiusChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: borderRadius.full, borderWidth: 1.5 },
