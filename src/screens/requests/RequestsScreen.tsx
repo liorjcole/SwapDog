@@ -34,7 +34,7 @@ import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useMessaging } from '../../hooks/useMessaging';
 import { useTheme } from '../../contexts/ThemeContext';
-import { smartDate, isSameDay, isPostInProgress } from '../../utils/dateHelpers';
+import { smartDate, isSameDay, isPostInProgress, applyTimeString } from '../../utils/dateHelpers';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useReviews } from '../../hooks/useReviews';
 import { useCancelCommitment } from '../../hooks/useCancelCommitment';
@@ -55,7 +55,8 @@ const TEAL = '#2DD4BF';  // My Commitments / you caring for someone's dog
 // ── Collapsing-calendar tuning (mirrors the Discover map-collapse) ────────────
 // Height animates between MAX (measured calendar height) and MIN (fully
 // collapsed). useNativeDriver MUST be false — height is a layout property.
-const CAL_HEIGHT_MIN = 0;             // fully collapse for max list room (tunable)
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const CAL_HEIGHT_MIN = Math.round(SCREEN_HEIGHT * 0.15); // ~128 pt stub — mirrors Discover's MAP_HEIGHT_MIN
 const CAL_HEIGHT_ESTIMATE = 380;     // initial guess until measured via onLayout
 const CAL_COLLAPSE_DURATION = 250;   // ms, matches Discover
 
@@ -118,7 +119,7 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+// SCREEN_WIDTH + SCREEN_HEIGHT destructured above (module scope)
 const CAL_H_PADDING = spacing.md * 2;
 const CELL_WIDTH = Math.floor((SCREEN_WIDTH - CAL_H_PADDING) / 7);
 
@@ -271,19 +272,25 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         p.status === 'completed' ||
         (p.status === 'cancelled' && (p as any).lateCancelled)
       );
-      // Sort active: claimed on top
-      active.sort((a: any, b: any) => {
-        const aIsClaimed = a.status === 'claimed' ? 0 : 1;
-        const bIsClaimed = b.status === 'claimed' ? 0 : 1;
-        return aIsClaimed - bIsClaimed;
-      });
+      // Sort active: unclaimed first (earliest → latest start), then claimed (earliest → latest start).
+      // Mirrors the applyTimeString pattern used by isPostInProgress / EventProgressBar.
+      const effectiveStartMs = (p: SwapPost): number => {
+        if (!p.startDate) return Infinity; // guard: sort missing-date to end
+        const d = new Date(p.startDate);
+        if (p.startTime) applyTimeString(d, p.startTime);
+        else d.setHours(0, 0, 0, 0);
+        return d.getTime();
+      };
+      const byStart = (a: SwapPost, b: SwapPost) => effectiveStartMs(a) - effectiveStartMs(b);
+      const unclaimedActive = active.filter((p: SwapPost) => p.status !== 'claimed').sort(byStart);
+      const claimedActive   = active.filter((p: SwapPost) => p.status === 'claimed').sort(byStart);
       // Sort archived: completed first, then by date
       archived.sort((a, b) => {
         if (a.status === 'completed' && b.status !== 'completed') return -1;
         if (a.status !== 'completed' && b.status === 'completed') return 1;
         return b.endDate.getTime() - a.endDate.getTime();
       });
-      setMyPosts(active);
+      setMyPosts([...unclaimedActive, ...claimedActive]);
       setArchivedPosts(archived);
 
       // Check review status for completed posts
@@ -1001,11 +1008,13 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.calLegendItem}>
             <View style={[styles.calDot, { backgroundColor: RED }]} />
             <Text style={[styles.calLegendText, { color: colors.textSecondary }]}>
-              Your posts
+              Your dog is being cared for
             </Text>
-            <View style={[styles.calDot, { backgroundColor: TEAL, marginLeft: spacing.md }]} />
+          </View>
+          <View style={styles.calLegendItem}>
+            <View style={[styles.calDot, { backgroundColor: TEAL }]} />
             <Text style={[styles.calLegendText, { color: colors.textSecondary }]}>
-              Your commitments
+              You're caring for someone's dog
             </Text>
           </View>
           {selectedDay && (
@@ -1031,7 +1040,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
 
   // Tabs: My Posts (left, default, pink) | My Commitments (right, teal).
   const tabs: { key: TabType; label: string; accent: string }[] = [
-    { key: 'mine', label: 'My Posts', accent: RED },
+    { key: 'mine', label: `My Posts${myPosts.length > 0 ? ` (${myPosts.length})` : ''}`, accent: RED },
     {
       key: 'commitments',
       label: `My Commitments${sitterCommitments.length > 0 ? ` (${sitterCommitments.length})` : ''}`,
@@ -1339,7 +1348,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   calLegendItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  calLegendText: { fontSize: 14 },
+  calLegendText: { fontSize: 16 },
   // Day-filter "show all" chip
   showAllChip: {
     borderWidth: 1,
