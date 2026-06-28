@@ -34,7 +34,7 @@ import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useMessaging } from '../../hooks/useMessaging';
 import { useTheme } from '../../contexts/ThemeContext';
-import { smartDate, isSameDay, isPostInProgress } from '../../utils/dateHelpers';
+import { smartDate, isSameDay, isPostInProgress, applyTimeString } from '../../utils/dateHelpers';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useReviews } from '../../hooks/useReviews';
 import { useCancelCommitment } from '../../hooks/useCancelCommitment';
@@ -272,19 +272,25 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         p.status === 'completed' ||
         (p.status === 'cancelled' && (p as any).lateCancelled)
       );
-      // Sort active: claimed on top
-      active.sort((a: any, b: any) => {
-        const aIsClaimed = a.status === 'claimed' ? 0 : 1;
-        const bIsClaimed = b.status === 'claimed' ? 0 : 1;
-        return aIsClaimed - bIsClaimed;
-      });
+      // Sort active: unclaimed first (earliest → latest start), then claimed (earliest → latest start).
+      // Mirrors the applyTimeString pattern used by isPostInProgress / EventProgressBar.
+      const effectiveStartMs = (p: SwapPost): number => {
+        if (!p.startDate) return Infinity; // guard: sort missing-date to end
+        const d = new Date(p.startDate);
+        if (p.startTime) applyTimeString(d, p.startTime);
+        else d.setHours(0, 0, 0, 0);
+        return d.getTime();
+      };
+      const byStart = (a: SwapPost, b: SwapPost) => effectiveStartMs(a) - effectiveStartMs(b);
+      const unclaimedActive = active.filter((p: SwapPost) => p.status !== 'claimed').sort(byStart);
+      const claimedActive   = active.filter((p: SwapPost) => p.status === 'claimed').sort(byStart);
       // Sort archived: completed first, then by date
       archived.sort((a, b) => {
         if (a.status === 'completed' && b.status !== 'completed') return -1;
         if (a.status !== 'completed' && b.status === 'completed') return 1;
         return b.endDate.getTime() - a.endDate.getTime();
       });
-      setMyPosts(active);
+      setMyPosts([...unclaimedActive, ...claimedActive]);
       setArchivedPosts(archived);
 
       // Check review status for completed posts
