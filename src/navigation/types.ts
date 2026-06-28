@@ -30,6 +30,8 @@ export type DiscoverStackParamList = {
   PostDetail: { postId: string };
   /** Chat screen within Discover stack (for back navigation) */
   Chat: { conversationId: string; otherUserId: string };
+  /** Layered anonymized reviews breakdown (user mode + dog mode) */
+  ReviewsList: { userId: string; displayName: string; dogId?: string; dogName?: string };
 };
 
 export type RequestsStackParamList = {
@@ -45,12 +47,16 @@ export type RequestsStackParamList = {
   CreatePost: undefined;
   /** Chat screen within Requests stack (for back navigation) */
   Chat: { conversationId: string; otherUserId: string };
+  /** Layered anonymized reviews breakdown (user mode + dog mode) */
+  ReviewsList: { userId: string; displayName: string; dogId?: string; dogName?: string };
 };
 
 export type MessagesStackParamList = {
   ConversationsList: undefined;
   Chat: { conversationId: string; otherUserId: string };
   UserDetail: { userId: string };
+  /** Layered anonymized reviews breakdown (UserDetail is reachable from Messages too) */
+  ReviewsList: { userId: string; displayName: string; dogId?: string; dogName?: string };
 };
 
 export type ProfileStackParamList = {
@@ -74,6 +80,8 @@ export type ProfileStackParamList = {
   PointsHistory: undefined;
   /** Chat screen within Profile stack (for back navigation) */
   Chat: { conversationId: string; otherUserId: string };
+  /** Layered anonymized reviews breakdown (user mode + dog mode) */
+  ReviewsList: { userId: string; displayName: string; dogId?: string; dogName?: string };
 };
 
 export type MainTabParamList = {

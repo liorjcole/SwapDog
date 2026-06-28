@@ -44,6 +44,8 @@ const parseDog = (id: string, data: Record<string, unknown>): Dog => {
     isSpayedNeutered: data.isSpayedNeutered as boolean | undefined,
     vaccinated: data.vaccinated as boolean | undefined,
     temperament: data.temperament as string | undefined,
+    rating: data?.rating as number | undefined,
+    reviewCount: data?.reviewCount as number | undefined,
     createdAt: toDate(data.createdAt as Parameters<typeof toDate>[0]),
     updatedAt: toDate(data.updatedAt as Parameters<typeof toDate>[0]),
   };
