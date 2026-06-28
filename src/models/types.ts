@@ -99,6 +99,10 @@ export interface Dog {
   isSpayedNeutered?: boolean;
   vaccinated?: boolean;
   temperament?: string;
+  /** Aggregate rating (1 decimal) written by recomputeDogAggregate CF */
+  rating?: number;
+  /** Number of dog reviews, written by recomputeDogAggregate CF */
+  reviewCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }

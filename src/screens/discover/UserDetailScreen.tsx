@@ -268,8 +268,17 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             </Text>
           </View>
 
-          {/* Reviews box */}
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center' }}>
+          {/* Reviews box — tap to open the layered anonymized reviews breakdown */}
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => {
+              if (!user?.id) return;
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.navigate('ReviewsList', { userId: user.id, displayName: user.displayName ?? 'this user' });
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="View reviews"
+          >
             {user.rating !== undefined && user.reviewCount ? (
               <View style={{ alignItems: 'center' }}>
                 <StarRating rating={Math.round(user.rating)} />
@@ -280,7 +289,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             ) : (
               <Text style={{ color: colors.textSecondary, fontSize: 15 }}>No reviews yet</Text>
             )}
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
 

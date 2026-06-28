@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { RouteProp } from '@react-navigation/native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { RouteProp, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { DiscoverStackParamList } from '../../navigation/types';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDogs } from '../../hooks/useDogs';
@@ -9,6 +10,7 @@ import { spacing, borderRadius, typography } from '../../config/theme';
 import PhotoCarousel from '../../components/common/PhotoCarousel';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Chip from '../../components/common/Chip';
+import StarRating from '../../components/common/StarRating';
 import { formatDogAge } from '../../utils/formatDogAge';
 
 type Props = {
@@ -17,6 +19,7 @@ type Props = {
 
 const DogDetailScreen: React.FC<Props> = ({ route }) => {
   const { colors } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { dogId } = route.params ?? {};
   const { getDog } = useDogs();
   const [dog, setDog] = useState<Dog | null>(null);
@@ -47,6 +50,27 @@ const DogDetailScreen: React.FC<Props> = ({ route }) => {
           <Chip label={dog.sex} />
           <Chip label={`${dog.energyLevel.replace('_', ' ')} energy`} />
         </View>
+        {/* Dog rating — tap to open this dog's anonymized reviews breakdown */}
+        {dog.rating && dog.reviewCount ? (
+          <TouchableOpacity
+            style={styles.ratingRow}
+            onPress={() =>
+              navigation.navigate('ReviewsList', {
+                userId: dog.ownerId,
+                displayName: dog.name,
+                dogId: dog.id,
+                dogName: dog.name,
+              })
+            }
+            accessibilityRole="button"
+            accessibilityLabel={`${dog.reviewCount} review${dog.reviewCount !== 1 ? 's' : ''}, ${dog.rating.toFixed(1)} stars. Tap to see reviews.`}
+          >
+            <StarRating rating={Math.round(dog.rating)} size={20} />
+            <Text style={[styles.ratingText, { color: colors.textSecondary }]}>
+              {dog.reviewCount} review{dog.reviewCount !== 1 ? 's' : ''}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
         {dog.bio && <Text style={[styles.bio, { color: colors.text }]}>{dog.bio}</Text>}
         {traits.length > 0 && (
           <>
@@ -73,6 +97,8 @@ const styles = StyleSheet.create({
   name: { ...typography.h2, marginBottom: spacing.xs },
   breed: { fontSize: 18, marginBottom: spacing.md },
   row: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
+  ratingText: { fontSize: 14, marginLeft: spacing.xs, textDecorationLine: 'underline' },
   bio: { ...typography.body, marginBottom: spacing.lg, lineHeight: 22 },
   sectionTitle: { ...typography.h3, marginBottom: spacing.sm },
 });
