@@ -3,6 +3,7 @@ import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import StarRating from './StarRating';
 import KeyboardDoneBar, { DONE_ACCESSORY_ID } from './KeyboardDoneBar';
+import AvatarImage from './AvatarImage';
 import { spacing, borderRadius } from '../../config/theme';
 import { MIN_NOTE_LENGTH, useReviewFlow } from '../../hooks/useReviewFlow';
 
@@ -43,6 +44,15 @@ const ReviewStepCard: React.FC<Props> = ({ flow }) => {
       )}
 
       <Text style={[styles.title, { color: colors.text }]}>{step.title}</Text>
+      {step.photoURL ? (
+        <View style={styles.avatarContainer}>
+          <AvatarImage
+            photoURL={step.photoURL}
+            displayName={step.dogName ?? ''}
+            size={88}
+          />
+        </View>
+      ) : null}
       <Text style={[styles.subtitle, { color: colors.primary }]}>{step.subtitle}</Text>
 
       <View style={styles.starsRow}>
@@ -88,6 +98,7 @@ const ReviewStepCard: React.FC<Props> = ({ flow }) => {
 
 const styles = StyleSheet.create({
   progress: { fontSize: 15, fontWeight: '600', textAlign: 'center', marginBottom: spacing.sm },
+  avatarContainer: { alignItems: 'center', marginBottom: spacing.md },
   title: { fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: 6 },
   subtitle: { fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: spacing.lg },
   starsRow: { alignItems: 'center', marginBottom: spacing.lg },

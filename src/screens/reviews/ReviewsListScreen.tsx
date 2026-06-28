@@ -50,10 +50,14 @@ const ReviewsListScreen: React.FC<Props> = ({ route }) => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
 
   useEffect(() => {
     let active = true;
+    setLoadError(null);
+    setLoading(true);
     const load = async () => {
       if (!userId) {
         if (active) setLoading(false);
@@ -66,11 +70,12 @@ const ReviewsListScreen: React.FC<Props> = ({ route }) => {
           const ownerDogs = await getDogsByOwner(userId);
           if (active) setDogs(ownerDogs ?? []);
         }
-      } catch {
-        if (active) {
-          setReviews([]);
-          setDogs([]);
-        }
+      } catch (err) {
+        // Surface the error rather than masquerading as an empty list.
+        // A missing Firestore index (FAILED_PRECONDITION) would otherwise show
+        // "No reviews yet" while the aggregate count/stars still display.
+        console.error('[ReviewsList] Load failed:', err);
+        if (active) setLoadError('Could not load reviews. Check your connection and try again.');
       } finally {
         if (active) setLoading(false);
       }
@@ -80,7 +85,7 @@ const ReviewsListScreen: React.FC<Props> = ({ route }) => {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, isDogMode]);
+  }, [userId, isDogMode, retryKey]);
 
   // ── Dog mode: only this dog's reviews ──
   const dogModeReviews = useMemo(
@@ -117,7 +122,29 @@ const ReviewsListScreen: React.FC<Props> = ({ route }) => {
     [personReviews],
   );
 
+  const handleRetry = () => {
+    setReviews([]);
+    setDogs([]);
+    setRetryKey((k) => k + 1);
+  };
+
   if (loading) return <LoadingSpinner />;
+
+  if (loadError) {
+    return (
+      <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.textSecondary }]}>{loadError}</Text>
+        <TouchableOpacity
+          onPress={handleRetry}
+          style={[styles.retryButton, { borderColor: colors.primary }]}
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading reviews"
+        >
+          <Text style={[styles.retryText, { color: colors.primary }]}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   const renderChip = (key: RoleFilter, label: string) => (
     <TouchableOpacity
@@ -229,6 +256,10 @@ const styles = StyleSheet.create({
   dogName: { fontSize: 18, fontWeight: '700' },
   dogHeaderRight: { flexDirection: 'row', alignItems: 'center' },
   dogCount: { fontSize: 14, marginLeft: spacing.xs },
+  errorContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
+  errorText: { fontSize: 16, textAlign: 'center', marginBottom: spacing.md },
+  retryButton: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 24, paddingVertical: 10 },
+  retryText: { fontSize: 16, fontWeight: '700' },
 });
 
 export default ReviewsListScreen;

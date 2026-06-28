@@ -125,16 +125,25 @@ export const useLiveReviewTrigger = ({
       if (!otherUserId) return null;
 
       let otherUserName = 'the other person';
+      let otherUserPhotoURLFromGet: string | undefined;
       try {
         const other = await getUserRef.current(otherUserId);
         if (other?.displayName) otherUserName = other.displayName;
+        otherUserPhotoURLFromGet = other?.photoURL ?? undefined;
       } catch (err) {
         console.error('[LiveReview] getUser failed:', err);
       }
 
       const dogIds = post.dogIds ?? (post.dogId ? [post.dogId] : []);
       const dogNames = post.dogNames ?? (post.dogName ? [post.dogName] : []);
-      return { postId: post.id, role, otherUserId, otherUserName, dogIds, dogNames };
+      // Dog photos are denormalized on the post — no extra fetch needed.
+      const dogPhotoURLs = post.dogPhotoURLs ?? (post.dogPhotoURL ? [post.dogPhotoURL] : []);
+      // In caregiver flow the owner == poster; prefer the denormalized posterPhotoURL.
+      const otherUserPhotoURL: string | undefined =
+        role === 'caregiver'
+          ? (post.posterPhotoURL ?? otherUserPhotoURLFromGet)
+          : otherUserPhotoURLFromGet;
+      return { postId: post.id, role, otherUserId, otherUserName, dogIds, dogNames, dogPhotoURLs, otherUserPhotoURL };
     };
 
     const triggerReview = async (post: SwapPost): Promise<void> => {
