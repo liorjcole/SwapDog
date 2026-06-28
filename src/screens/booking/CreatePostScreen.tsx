@@ -35,6 +35,7 @@ import { Dog, CompensationType, CareType, RepeatSchedule, SwapPost, PostTemplate
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { ensureRemotePhotoURL } from '../../utils/uploadHelper';
 import { resolveActiveLocation } from '../../utils/resolveActiveLocation';
+import { placesAutocomplete, newSessionToken, Prediction } from '../../utils/googlePlaces';
 import { onPostCreated } from '../../services/ReviewPromptService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import RepeatScheduleModal from '../../components/common/RepeatScheduleModal';
@@ -891,25 +892,19 @@ const MAX_PLAY_SESSIONS = 5;
 
   const suggestedAddress = userProfile?.locationName ?? '';
 
-  // Address autocomplete (Nominatim / OpenStreetMap — same backend as Discover)
+  // Address autocomplete — Google Places REST (replaces Nominatim/OSM)
   const [addressQuery, setAddressQuery] = useState('');
-  const [addressSuggestions, setAddressSuggestions] = useState<{ place_id: number; display_name: string }[]>([]);
+  const [addressSuggestions, setAddressSuggestions] = useState<Prediction[]>([]);
   const [addressFetching, setAddressFetching] = useState(false);
   const addressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Session token: one token per typing session; reset after each selection.
+  const addressSessionTokenRef = useRef<string>(newSessionToken());
 
   const fetchAddressSuggestions = useCallback((q: string) => {
     if (q.trim().length < 2) { setAddressSuggestions([]); return; }
     setAddressFetching(true);
-    void fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=5&countrycodes=us,ca`,
-      { headers: { 'Accept-Language': 'en', 'User-Agent': 'SwapDogApp/1.0' } },
-    )
-      .then((r) => {
-        if (!r || !r.ok) throw new Error('Geocode failed');
-        return r.json() as Promise<{ place_id: number; display_name: string }[]>;
-      })
+    void placesAutocomplete(q, addressSessionTokenRef.current)
       .then((results) => setAddressSuggestions(results))
-      .catch(() => setAddressSuggestions([]))
       .finally(() => setAddressFetching(false));
   }, []);
 
@@ -926,6 +921,8 @@ const MAX_PLAY_SESSIONS = 5;
     const updated = [trimmed, ...savedAddresses.filter(a => a !== trimmed)].slice(0, 5);
     setSavedAddresses(updated);
     await AsyncStorage.setItem('saved_addresses', JSON.stringify(updated));
+    // Mint a new session token now that the session is closed.
+    addressSessionTokenRef.current = newSessionToken();
     setShowAddressModal(false);
     setAddressQuery('');
     setAddressSuggestions([]);
@@ -4240,19 +4237,16 @@ const MAX_PLAY_SESSIONS = 5;
             {/* Autocomplete suggestions dropdown */}
             {addressSuggestions.length > 0 && (
               <ScrollView style={{ maxHeight: 200, borderWidth: 1, borderColor: colors.border, borderRadius: 10, marginTop: 4, backgroundColor: colors.background }} keyboardShouldPersistTaps="handled">
-                {addressSuggestions.map((item) => {
-                  const label = item.display_name.split(',').slice(0, 3).join(',').trim();
-                  return (
-                    <TouchableOpacity
-                      key={item.place_id}
-                      onPress={() => { saveAddress(label); setAddressQuery(''); setAddressSuggestions([]); }}
-                      style={{ padding: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={{ fontSize: 15, color: colors.text }} numberOfLines={2}>{item.display_name}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                {addressSuggestions.map((item) => (
+                  <TouchableOpacity
+                    key={item.placeId}
+                    onPress={() => { void saveAddress(item.description); setAddressQuery(''); setAddressSuggestions([]); }}
+                    style={{ padding: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontSize: 15, color: colors.text }} numberOfLines={2}>{item.description}</Text>
+                  </TouchableOpacity>
+                ))}
               </ScrollView>
             )}
           </View>

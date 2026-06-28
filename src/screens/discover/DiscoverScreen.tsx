@@ -44,6 +44,7 @@ import { spacing, borderRadius, shadow, typography } from '../../config/theme';
 import EmptyStateView from '../../components/common/EmptyStateView';
 import ShimmerLoading from '../../components/common/ShimmerLoading';
 import PostCard from '../../components/common/PostCard';
+import { placesAutocomplete, placeDetails, newSessionToken, Prediction } from '../../utils/googlePlaces';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -211,39 +212,32 @@ interface LocationModalProps {
   isOverride: boolean;
 }
 
-interface NominatimResult {
-  place_id: number;
-  display_name: string;
-  lat: string;
-  lon: string;
-}
+// NominatimResult removed — replaced by Prediction from googlePlaces.ts
 
 const LocationModal: React.FC<LocationModalProps> = ({
   visible, onClose, onConfirm, onUseCurrentLocation, isOverride }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
+  const [suggestions, setSuggestions] = useState<Prediction[]>([]);
   const [fetching, setFetching] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // One session token covers autocomplete + place-details; reset on each open/selection.
+  const sessionTokenRef = useRef<string>(newSessionToken());
 
   useEffect(() => {
-    if (!visible) { setQuery(''); setSuggestions([]); }
+    if (!visible) {
+      setQuery('');
+      setSuggestions([]);
+      sessionTokenRef.current = newSessionToken(); // fresh token for next open
+    }
   }, [visible]);
 
   const fetchSuggestions = useCallback((q: string) => {
     if (q.trim().length < 2) { setSuggestions([]); return; }
     setFetching(true);
-    void fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=5&countrycodes=us,ca`,
-      { headers: { 'Accept-Language': 'en', 'User-Agent': 'SwapDogApp/1.0' } },
-    )
-      .then((r) => {
-        if (!r || !r.ok) throw new Error(`Geocode request failed: ${r?.status ?? 'no response'}`);
-        return r.json() as Promise<NominatimResult[]>;
-      })
+    void placesAutocomplete(q, sessionTokenRef.current)
       .then((results) => setSuggestions(results))
-      .catch(() => setSuggestions([]))
       .finally(() => setFetching(false));
   }, []);
 
@@ -253,14 +247,19 @@ const LocationModal: React.FC<LocationModalProps> = ({
     debounceRef.current = setTimeout(() => fetchSuggestions(text), 300);
   }, [fetchSuggestions]);
 
-  const handleSelectSuggestion = useCallback((item: NominatimResult) => {
-    const lat = parseFloat(item.lat);
-    const lng = parseFloat(item.lon);
-    const parts = item.display_name.split(',');
-    const label = parts.slice(0, 3).join(',').trim();
+  const handleSelectSuggestion = useCallback((item: Prediction) => {
     setSuggestions([]);
     setQuery('');
-    onConfirm({ latitude: lat, longitude: lng }, label);
+    // Fetch place details to get lat/lng, then confirm.  Mint a new session
+    // token immediately so the next typing session is billed separately.
+    const token = sessionTokenRef.current;
+    sessionTokenRef.current = newSessionToken();
+    void (async () => {
+      const detail = await placeDetails(item.placeId, token);
+      if (!detail) return; // graceful no-op if details unavailable
+      const label = detail.city || detail.formattedAddress;
+      onConfirm({ latitude: detail.lat, longitude: detail.lng }, label);
+    })();
   }, [onConfirm]);
 
   return (
@@ -304,14 +303,14 @@ const LocationModal: React.FC<LocationModalProps> = ({
               <View style={[styles.dropdown, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 {suggestions.map((item) => (
                   <TouchableOpacity
-                    key={item.place_id}
+                    key={item.placeId}
                     style={[styles.dropdownItem, { borderBottomColor: colors.border }]}
                     onPress={() => handleSelectSuggestion(item)}
-                    accessibilityLabel={item.display_name}
+                    accessibilityLabel={item.description}
                     accessibilityRole="button"
                   >
                     <Text style={[styles.dropdownItemText, { color: colors.text }]} numberOfLines={2}>
-                      {item.display_name}
+                      {item.description}
                     </Text>
                   </TouchableOpacity>
                 ))}
