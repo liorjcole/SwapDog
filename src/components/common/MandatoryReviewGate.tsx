@@ -78,14 +78,7 @@ const MandatoryReviewGate: React.FC<Props> = ({ data, onComplete }) => {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Header with no back/close affordance — the gate cannot be dismissed. */}
-        <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Leave a Review</Text>
-          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-            Required before you continue
-          </Text>
-        </View>
-
+        {/* No header/back/close affordance — the gate cannot be dismissed. */}
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
@@ -121,15 +114,7 @@ const MandatoryReviewGate: React.FC<Props> = ({ data, onComplete }) => {
 };
 
 const styles = StyleSheet.create({
-  header: {
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-  },
-  headerTitle: { fontSize: 20, fontWeight: '700' },
-  headerSub: { fontSize: 14, fontWeight: '600', marginTop: 2 },
-  content: { padding: spacing.lg, paddingTop: spacing.md, paddingBottom: 60 },
+  content: { padding: spacing.lg, paddingTop: spacing.lg, paddingBottom: 60 },
   nextBtn: {
     padding: spacing.md,
     borderRadius: borderRadius.md,
