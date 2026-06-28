@@ -217,7 +217,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   // Drives the collapse from the active list's onScroll — verbatim Discover logic.
   const handleListScroll = (event: { nativeEvent?: { contentOffset?: { y?: number } } }) => {
     const y = event?.nativeEvent?.contentOffset?.y ?? 0;
-    if (y > 10 && !calCollapsed.current) {
+    if (y > 120 && !calCollapsed.current) {
       calCollapsed.current = true;
       Animated.timing(calHeightAnim, {
         toValue: CAL_HEIGHT_MIN,
