@@ -328,16 +328,49 @@ const MainTabNavigator: React.FC = () => {
         const pending = data?.pendingReview;
         if (!pending) return;
 
+        // Best-effort photo fetches for the gate steps. The pendingReview doc
+        // carries no photos, so we fetch them here in parallel. Failures are
+        // non-fatal: the gate opens with no avatar rather than crashing.
+        const pendingDogIds = (pending.dogIds as string[]) ?? [];
+        const pendingOtherUserId = pending.otherUserId as string;
+
+        const [dogPhotoURLs, otherUserPhotoURL] = await Promise.all([
+          Promise.all(
+            pendingDogIds.map(async (dogId: string): Promise<string> => {
+              try {
+                const dogSnap = await getDoc(doc(db, 'dogs', dogId));
+                const dogData = dogSnap.data();
+                const urls = dogData?.photoURLs as string[] | undefined;
+                return urls?.[0] ?? '';
+              } catch {
+                return '';
+              }
+            }),
+          ),
+          (async (): Promise<string | undefined> => {
+            if (!pendingOtherUserId) return undefined;
+            try {
+              const otherSnap = await getDoc(doc(db, 'users', pendingOtherUserId));
+              const otherData = otherSnap.data();
+              return (otherData?.photoURL as string | undefined) ?? undefined;
+            } catch {
+              return undefined;
+            }
+          })(),
+        ]);
+
         // Open the inescapable review gate. The gate (a root-level blocking
         // Modal) covers the tab bar and all navigation until every step is
         // submitted, at which point clearPendingReview fires and we null this.
         setMandatoryReviewData({
           postId: pending.postId as string,
           role: pending.role as 'owner' | 'caregiver',
-          otherUserId: pending.otherUserId as string,
+          otherUserId: pendingOtherUserId,
           otherUserName: (pending.otherUserName as string) ?? 'the other person',
-          dogIds: (pending.dogIds as string[]) ?? [],
+          dogIds: pendingDogIds,
           dogNames: (pending.dogNames as string[]) ?? [],
+          dogPhotoURLs,
+          otherUserPhotoURL,
         });
       } catch (err) {
         console.error('[PendingReview] Check failed:', err);

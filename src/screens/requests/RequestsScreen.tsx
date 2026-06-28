@@ -620,14 +620,18 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
               <TouchableOpacity
                 style={{ backgroundColor: '#0984E3', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
                 onPress={async () => {
-                  // Fetch sitter name on demand (not stored on the post doc).
+                  // Fetch sitter name (and photo) on demand — not stored on the post doc.
                   const claimedByUid = item.claimedBy ?? '';
                   let otherUserName = 'your caregiver';
+                  let otherUserPhotoURL: string | undefined;
                   if (claimedByUid) {
                     try {
                       const snap = await getDoc(doc(db, 'users', claimedByUid));
                       const d = snap.data();
-                      if (d) otherUserName = (d.displayName as string) || otherUserName;
+                      if (d) {
+                        otherUserName = (d.displayName as string) || otherUserName;
+                        otherUserPhotoURL = d.photoURL as string | undefined;
+                      }
                     } catch { /* keep fallback */ }
                   }
                   // Navigate within the Requests stack — goBack() after submit
@@ -639,6 +643,8 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                     otherUserName,
                     dogIds: item.dogIds ?? (item.dogId ? [item.dogId] : []),
                     dogNames: item.dogNames ?? [item.dogName],
+                    dogPhotoURLs: item.dogPhotoURLs ?? (item.dogPhotoURL ? [item.dogPhotoURL] : []),
+                    otherUserPhotoURL,
                   });
                 }}
                 accessibilityLabel="Leave a review"
@@ -992,11 +998,16 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
               onPress={async () => {
                 const posterUid = post.posterId ?? '';
                 let otherUserName = 'the owner';
+                // posterPhotoURL is denormalized on the post; fall back to user doc if absent.
+                let otherUserPhotoURL: string | undefined = post.posterPhotoURL;
                 if (posterUid) {
                   try {
                     const snap = await getDoc(doc(db, 'users', posterUid));
                     const d = snap.data();
-                    if (d) otherUserName = (d.displayName as string) || otherUserName;
+                    if (d) {
+                      otherUserName = (d.displayName as string) || otherUserName;
+                      if (!otherUserPhotoURL) otherUserPhotoURL = d.photoURL as string | undefined;
+                    }
                   } catch { /* keep fallback */ }
                 }
                 navigation.navigate('Review', {
@@ -1006,6 +1017,8 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                   otherUserName,
                   dogIds: post.dogIds ?? (post.dogId ? [post.dogId] : []),
                   dogNames: post.dogNames ?? [post.dogName],
+                  dogPhotoURLs: post.dogPhotoURLs ?? (post.dogPhotoURL ? [post.dogPhotoURL] : []),
+                  otherUserPhotoURL,
                 });
               }}
               accessibilityLabel="Leave a review"

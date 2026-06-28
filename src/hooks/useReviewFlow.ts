@@ -16,12 +16,18 @@ export interface ReviewFlowParams {
   otherUserName: string;
   dogIds: string[];
   dogNames: string[];
+  /** Primary photo URL for each dog — index-aligned with dogIds. Undefined renders no avatar. */
+  dogPhotoURLs?: string[];
+  /** Profile photo URL of the other user being reviewed (owner in caregiver flow). */
+  otherUserPhotoURL?: string;
 }
 
 export interface ReviewStep {
   targetType: ReviewTargetType;
   dogId?: string;
   dogName?: string;
+  /** Identity photo shown under the step title. Undefined = no avatar rendered. */
+  photoURL?: string;
   title: string;
   subtitle: string;
   hint: string;
@@ -58,10 +64,12 @@ export const useReviewFlow = (params: ReviewFlowParams) => {
     // to just the owner step so the user is never trapped on a zero-step flow.
     const dogIds = params.dogIds ?? [];
     const dogNames = params.dogNames ?? [];
+    const dogPhotoURLs = params.dogPhotoURLs ?? [];
     const dogSteps: ReviewStep[] = dogIds.map((dogId, i) => ({
       targetType: 'dog' as ReviewTargetType,
       dogId,
       dogName: dogNames[i] ?? 'the dog',
+      photoURL: dogPhotoURLs[i],
       title: `Rate ${dogNames[i] ?? 'the dog'} 🐾`,
       subtitle: '⚠️ This rating is about the dog — not the owner.',
       hint: 'Was the dog friendly, well-behaved, and as described? Any issues with temperament, energy, or special needs?',
@@ -69,6 +77,7 @@ export const useReviewFlow = (params: ReviewFlowParams) => {
 
     const ownerStep: ReviewStep = {
       targetType: 'owner' as ReviewTargetType,
+      photoURL: params.otherUserPhotoURL,
       title: `Rate ${params.otherUserName} as an owner`,
       subtitle: '⚠️ This rating is about the owner — not the dog.',
       hint: 'How were their response times? Were they clear and transparent about what was needed? How reputable and reliable were they?',
