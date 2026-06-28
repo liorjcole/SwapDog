@@ -7,6 +7,14 @@
         { "fieldPath": "sent", "order": "ASCENDING" },
         { "fieldPath": "sendAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "reviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "revieweeId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
