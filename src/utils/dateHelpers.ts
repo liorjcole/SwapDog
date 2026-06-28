@@ -55,6 +55,16 @@ export function formatShortDate(date: Date): string {
 }
 
 /**
+ * Convert a stored 12-hour time string ("9:00 AM" / "5:00 PM") to compact
+ * lowercase form ("9:00am" / "5:00pm") for inline display next to a date.
+ * Returns an empty string for missing/empty input.
+ */
+export function formatTimeLower(timeStr?: string): string {
+  if (!timeStr) return '';
+  return timeStr.replace(/\s*(AM|PM)/i, (_, p: string) => p.toLowerCase());
+}
+
+/**
  * Returns true when two Dates fall on the same calendar day.
  */
 export function isSameDay(a: Date, b: Date): boolean {

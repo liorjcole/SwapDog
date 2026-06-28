@@ -36,7 +36,7 @@ import { onPostAccepted } from '../../services/ReviewPromptService';
 import { useTheme } from '../../contexts/ThemeContext';
 import AvatarImage from '../../components/common/AvatarImage';
 import ConfettiCelebration, { CelebrationItem } from '../../components/common/ConfettiCelebration';
-import { smartDate, isSameDay as isSameDayUtil } from '../../utils/dateHelpers';
+import { smartDate, isSameDay as isSameDayUtil, formatTimeLower } from '../../utils/dateHelpers';
 import { useSwaps, parsePost } from '../../hooks/useSwaps';
 import { useCancelCommitment } from '../../hooks/useCancelCommitment';
 import { useUsers } from '../../hooks/useUsers';
@@ -1079,21 +1079,39 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               {getCareTypeIcon(post.careType)}  {getCareTypeLabel(post.careType)}
             </Text>
           )}
-          <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 16 }]}>
-            📅  {smartDate(post.startDate)} – {smartDate(post.endDate, { includeYear: true })}
-          </Text>
+          {/* Date/time — same-day collapses to one date; multi-day shows inline times per date */}
+          {(() => {
+            const sameDay = post.endDate
+              ? isSameDayUtil(post.startDate, post.endDate)
+              : true;
+            const startLabel = smartDate(post.startDate);
+            const endLabel = smartDate(post.endDate, { includeYear: true });
+            const t0 = formatTimeLower(post.startTime);
+            const t1 = formatTimeLower(post.endTime);
+
+            let dateStr: string;
+            if (sameDay) {
+              // e.g. "Jun 30 (9:00am-5:00pm)"  or  "Jun 30 (9:00am)"  or  "Jun 30"
+              const timeRange = t0 && t1 ? ` (${t0}-${t1})` : t0 ? ` (${t0})` : '';
+              dateStr = `${startLabel}${timeRange}`;
+            } else {
+              // e.g. "Jun 25 (5:00pm) – Jun 27, 2026 (6:00pm)"  or  "Jun 25 – Jun 27, 2026"
+              const startWithTime = t0 ? `${startLabel} (${t0})` : startLabel;
+              const endWithTime = t1 ? `${endLabel} (${t1})` : endLabel;
+              dateStr = `${startWithTime} – ${endWithTime}`;
+            }
+
+            return (
+              <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 16 }]}>
+                📅  {dateStr}
+              </Text>
+            );
+          })()}
 
           {/* Dogs */}
           {post.dogNames && post.dogNames.length > 0 && (
             <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 16, marginTop: 4 }]}>
               🐕  {post.dogNames.join(', ')}
-            </Text>
-          )}
-
-          {/* Day sitting / overnight times */}
-          {(post.careType === 'daySitting' || post.careType === 'overnight') && post.startTime && post.endTime && (
-            <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 16, marginTop: 4 }]}>
-              🕐  {post.startTime} – {post.endTime}
             </Text>
           )}
 
