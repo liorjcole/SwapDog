@@ -20,6 +20,7 @@ import InsufficientPointsModal from '../components/common/InsufficientPointsModa
 import ConfettiCelebration, { CelebrationItem } from '../components/common/ConfettiCelebration';
 import MandatoryReviewGate from '../components/common/MandatoryReviewGate';
 import { ReviewFlowParams } from '../hooks/useReviewFlow';
+import { useLiveReviewTrigger } from '../hooks/useLiveReviewTrigger';
 import AppHeader from '../components/common/AppHeader';
 
 // Discover stack
@@ -311,6 +312,19 @@ const MainTabNavigator: React.FC = () => {
       }
     })();
   }, [user]);
+
+  // ── Live review trigger: open the SAME gate the moment a commitment ends ──
+  // while the user is in-app, on any tab (additive to the on-open getDoc above,
+  // which still covers the not-in-app / cold-start case). Both feed the single
+  // mandatoryReviewData state and the one root Modal below.
+  const openMandatoryReview = useCallback((params: ReviewFlowParams) => {
+    setMandatoryReviewData((prev) => prev ?? params);
+  }, []);
+  useLiveReviewTrigger({
+    user,
+    isGateOpen: !!mandatoryReviewData,
+    openGate: openMandatoryReview,
+  });
 
   // ── Sitter acceptance celebration (when owner approves this user as sitter) ──
   const shownAcceptanceIds = useRef<Set<string>>(new Set());

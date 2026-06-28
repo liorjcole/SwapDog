@@ -93,17 +93,29 @@ export function isPostInProgress(post: SwapPost, nowMs: number = Date.now()): bo
   if (!post?.startDate || !post?.endDate) return false;
 
   const start = new Date(post.startDate);
-  const end = new Date(post.endDate);
-
   if (post.startTime) applyTimeString(start, post.startTime);
   else start.setHours(0, 0, 0, 0);
 
-  if (post.endTime) applyTimeString(end, post.endTime);
-  else end.setHours(23, 59, 59, 999);
-
   const startMs = start.getTime();
-  const endMs = end.getTime();
-  if (endMs <= startMs) return false;
+  const endMs = resolvePostEndMs(post);
+  if (endMs === null || endMs <= startMs) return false;
 
   return nowMs >= startMs && nowMs < endMs;
+}
+
+/**
+ * Resolve a post's effective END instant as epoch-ms, the same way
+ * isPostInProgress / isPostExpired do: combine endDate with the optional AM/PM
+ * endTime string, anchoring a missing time to the very end of the day
+ * (23:59:59.999). For a multi-day post this is the final endDate's instant.
+ *
+ * Returns null when the post has no endDate so callers can guard uniformly.
+ * Use this to schedule a precise "event just ended" timer.
+ */
+export function resolvePostEndMs(post: SwapPost): number | null {
+  if (!post?.endDate) return null;
+  const end = new Date(post.endDate);
+  if (post.endTime) applyTimeString(end, post.endTime);
+  else end.setHours(23, 59, 59, 999);
+  return end.getTime();
 }
