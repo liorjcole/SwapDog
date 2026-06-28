@@ -1,10 +1,16 @@
 /**
- * RequestsScreen (now "Schedule") — two tabs:
- *   "My Posts"     : the user's own posts so they can see responses / cancel
- *   "Commitments"  : calendar-style view of all accepted swap commitments
- *                    Red (#FF2D55) = your dog is being cared for; Teal (#2DD4BF) = you're caring for someone's dog
+ * RequestsScreen (the "My Schedule" tab) — single vertical layout:
+ *   1. Happening-now banner stack (pinned) — one focal card per live event,
+ *      pink for your post / teal for your commitment, with EventProgressBar.
+ *   2. Month calendar (shared by both tabs) that collapses on list scroll
+ *      (Discover map-collapse pattern, useNativeDriver: false). Dots: pink for
+ *      your posts, teal for commitments. Tap a day to filter both lists.
+ *   3. Segmented tabs (pinned): "My Posts" (left, default, pink #FF2D55) |
+ *      "My Commitments" (right, teal #2DD4BF, sitter-only: claimedBy === uid).
+ *   4. The active tab's list, reusing the existing cells (gold claimed styling
+ *      + helper-request badge for My Posts; teal sitter cells for commitments).
  */
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,9 +20,7 @@ import {
   RefreshControl,
   Image,
   Alert,
-  ScrollView,
   Dimensions,
-  Modal,
   PanResponder,
   Animated,
   LayoutAnimation,
@@ -30,7 +34,7 @@ import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useMessaging } from '../../hooks/useMessaging';
 import { useTheme } from '../../contexts/ThemeContext';
-import { smartDate, isSameDay } from '../../utils/dateHelpers';
+import { smartDate, isSameDay, isPostInProgress } from '../../utils/dateHelpers';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useReviews } from '../../hooks/useReviews';
 import { useCancelCommitment } from '../../hooks/useCancelCommitment';
@@ -42,9 +46,18 @@ import EmptyStateView from '../../components/common/EmptyStateView';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { cancelSwapReminders } from '../../services/ReminderService';
 import EventProgressBar from '../../components/common/EventProgressBar';
+import HappeningNowBanner from '../../components/common/HappeningNowBanner';
 
-const RED = '#FF2D55';
-const TEAL = '#2DD4BF';
+// ── Context accent tokens ─────────────────────────────────────────────────────
+const RED = '#FF2D55';   // My Posts / your dog being cared for (= colors.primary)
+const TEAL = '#2DD4BF';  // My Commitments / you caring for someone's dog
+
+// ── Collapsing-calendar tuning (mirrors the Discover map-collapse) ────────────
+// Height animates between MAX (measured calendar height) and MIN (fully
+// collapsed). useNativeDriver MUST be false — height is a layout property.
+const CAL_HEIGHT_MIN = 0;             // fully collapse for max list room (tunable)
+const CAL_HEIGHT_ESTIMATE = 380;     // initial guess until measured via onLayout
+const CAL_COLLAPSE_DURATION = 250;   // ms, matches Discover
 
 
 // ── Care type helpers (Wave 19B) ──────────────────────────────────────────────
@@ -139,17 +152,21 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const { cancelCommitment } = useCancelCommitment();
   const { getOrCreateConversation } = useMessaging();
 
-  const [tab, setTab] = useState<TabType>('commitments');
+  const [tab, setTab] = useState<TabType>('mine');
   const [expandedCommitId, setExpandedCommitId] = useState<string | null>(null);
 
   // Enable LayoutAnimation on Android
   if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
   }
-  const scrollViewRef = useRef<ScrollView>(null);
-  const [flashDates, setFlashDates] = useState<{ start: Date; end: Date } | null>(null);
-  const flashAnim = useRef(new Animated.Value(1)).current;
-  const flashColorAnim = useRef(new Animated.Value(0)).current;
+
+  // Re-evaluate the "Happening now" banner stack on the same 60s cadence the
+  // EventProgressBar ticks, so live banners appear/disappear without a refresh.
+  const [nowTick, setNowTick] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Swipe between tabs
   const tabPanResponder = useRef(
@@ -174,14 +191,50 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Calendar state — default to current month / today selected
+  // Calendar state — default to current month, no day filter selected.
   const today = new Date();
-  const [selectedDate, setSelectedDate] = useState<Date>(
-    new Date(today.getFullYear(), today.getMonth(), today.getDate()),
-  );
+  // selectedDay drives BOTH the calendar highlight and the list day-filter.
+  // null = no filter (show all). Tapping a day toggles it on/off.
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [calMonth, setCalMonth] = useState<Date>(
     new Date(today.getFullYear(), today.getMonth(), 1),
   );
+
+  // ── Collapsing calendar (copied from Discover map-collapse) ────────────────
+  // calHeightAnim animates the calendar's height on scroll; calCollapsed is a
+  // one-shot-per-direction latch so the animation fires once, not per event.
+  const calHeightAnim = useRef(new Animated.Value(CAL_HEIGHT_ESTIMATE)).current;
+  const calMaxHeight = useRef<number>(CAL_HEIGHT_ESTIMATE);
+  const calCollapsed = useRef(false);
+
+  // Measure the calendar's natural height once laid out → becomes CAL_HEIGHT_MAX.
+  const onCalLayout = (e: { nativeEvent?: { layout?: { height?: number } } }) => {
+    const h = e?.nativeEvent?.layout?.height ?? 0;
+    if (h > 0 && Math.abs(h - calMaxHeight.current) > 1) {
+      calMaxHeight.current = h;
+      if (!calCollapsed.current) calHeightAnim.setValue(h);
+    }
+  };
+
+  // Drives the collapse from the active list's onScroll — verbatim Discover logic.
+  const handleListScroll = (event: { nativeEvent?: { contentOffset?: { y?: number } } }) => {
+    const y = event?.nativeEvent?.contentOffset?.y ?? 0;
+    if (y > 10 && !calCollapsed.current) {
+      calCollapsed.current = true;
+      Animated.timing(calHeightAnim, {
+        toValue: CAL_HEIGHT_MIN,
+        duration: CAL_COLLAPSE_DURATION,
+        useNativeDriver: false, // REQUIRED — height is a layout property
+      }).start();
+    } else if (y <= 2 && calCollapsed.current) {
+      calCollapsed.current = false;
+      Animated.timing(calHeightAnim, {
+        toValue: calMaxHeight.current,
+        duration: CAL_COLLAPSE_DURATION,
+        useNativeDriver: false,
+      }).start();
+    }
+  };
 
   // Pan responder for horizontal swipe to change month
   const calPanResponder = useRef(
@@ -197,11 +250,6 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
       },
     }),
   ).current;
-
-  // Popup overlay state
-  const [popupCommitments, setPopupCommitments] = useState<SwapPost[]>([]);
-  const [popupDate, setPopupDate] = useState<Date | null>(null);
-  const [showPopup, setShowPopup] = useState(false);
 
   const fetchPosts = useCallback(async () => {
     if (!user) return;
@@ -607,80 +655,61 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
     return cells;
   };
 
-  /** Returns red/teal dot presence for a given calendar date. */
+  // ── Day filter ───────────────────────────────────────────────────────
+  // When a calendar day is selected, both tab lists filter to posts occurring
+  // that day; otherwise the full list is shown.
+  const filterByDay = (posts: SwapPost[]): SwapPost[] =>
+    selectedDay ? posts.filter((p) => overlapsDate(p, selectedDay)) : posts;
+
+  // Sitter-only commitments (you're caring for someone's dog). Owner-side
+  // claimed posts now live under My Posts with the gold claimed styling.
+  const sitterCommitments = acceptedPosts.filter((p) => p.claimedBy === user?.uid);
+
+  /**
+   * Dot presence for a calendar day:
+   *   red  = one of your own posts (My Posts) falls on this day
+   *   teal = one of your sitter commitments falls on this day
+   * "Falls on" spans the full [startDate, endDate] range (multi-day overnights).
+   */
   const getDotsForDate = (date: Date): { red: boolean; teal: boolean } => {
     let red = false;
     let teal = false;
-    for (const post of acceptedPosts) {
-      if (!overlapsDate(post, date)) continue;
-      if (post.posterId === user?.uid) red = true;
-      if (post.claimedBy === user?.uid) teal = true;
+    for (const post of myPosts) {
+      if (overlapsDate(post, date)) { red = true; break; }
+    }
+    for (const post of sitterCommitments) {
+      if (overlapsDate(post, date)) { teal = true; break; }
     }
     return { red, teal };
   };
 
-  const selectedCommitments = acceptedPosts.filter((p) => overlapsDate(p, selectedDate));
-
-  // All commitments partitioned into upcoming and past for the always-visible list
-  const upcomingCommitments = [...acceptedPosts]
+  // Sitter commitments partitioned into upcoming/past, after the day filter.
+  const upcomingCommitments = filterByDay(sitterCommitments)
     .filter((p) => !isPostExpired(p))
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-  const pastCommitments = [...acceptedPosts]
+  const pastCommitments = filterByDay(sitterCommitments)
     .filter((p) => isPostExpired(p))
     .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
 
+  // ── "Happening now" banner stack driver ────────────────────────────────
+  // Single source of truth: isPostInProgress (the same gate EventProgressBar
+  // uses). own side = your claimed posts; commitment side = sitter commitments.
+  // nowTick (60s) keeps this list fresh as events start/end.
+  const liveEvents: { post: SwapPost; own: boolean }[] = [
+    ...myPosts
+      .filter((p) => p.status === 'claimed' && isPostInProgress(p, nowTick))
+      .map((p) => ({ post: p, own: true })),
+    ...sitterCommitments
+      .filter((p) => isPostInProgress(p, nowTick))
+      .map((p) => ({ post: p, own: false })),
+  ].sort((a, b) => b.post.startDate.getTime() - a.post.startDate.getTime());
 
-  const handleCommitmentTap = (post: SwapPost) => {
-    const targetDate = post.startDate;
-    setSelectedDate(targetDate);
-    
-    // Navigate to commitments month if different
-    const targetMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
-    setCalMonth(targetMonth);
-    
-    // Scroll to top of calendar
-    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-    
-    // Flash animation — triple size pulse with red flash, 3 times
-    setFlashDates({ start: post.startDate, end: post.endDate });
-    flashAnim.setValue(1);
-    flashColorAnim.setValue(0);
-    Animated.parallel([
-      Animated.sequence([
-        // Pulse 1
-        Animated.timing(flashAnim, { toValue: 3, duration: 250, useNativeDriver: false }),
-        Animated.timing(flashAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
-        // Pulse 2
-        Animated.timing(flashAnim, { toValue: 3, duration: 250, useNativeDriver: false }),
-        Animated.timing(flashAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
-        // Pulse 3
-        Animated.timing(flashAnim, { toValue: 3, duration: 250, useNativeDriver: false }),
-        Animated.timing(flashAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
-      ]),
-      Animated.sequence([
-        // Red flash 1
-        Animated.timing(flashColorAnim, { toValue: 1, duration: 250, useNativeDriver: false }),
-        Animated.timing(flashColorAnim, { toValue: 0, duration: 200, useNativeDriver: false }),
-        // Red flash 2
-        Animated.timing(flashColorAnim, { toValue: 1, duration: 250, useNativeDriver: false }),
-        Animated.timing(flashColorAnim, { toValue: 0, duration: 200, useNativeDriver: false }),
-        // Red flash 3
-        Animated.timing(flashColorAnim, { toValue: 1, duration: 250, useNativeDriver: false }),
-        Animated.timing(flashColorAnim, { toValue: 0, duration: 200, useNativeDriver: false }),
-      ]),
-    ]).start(() => setFlashDates(null));
-  };
-
-  // Handle calendar date tap — show popup if that date has commitments
+  // Toggle the calendar day filter: tap to select, tap the same day to clear.
   const handleDatePress = (date: Date) => {
-    const dayCommitments = acceptedPosts.filter((p) => overlapsDate(p, date));
-    setSelectedDate(new Date(date.getFullYear(), date.getMonth(), date.getDate()));
-    if (dayCommitments.length > 0) {
-      setPopupCommitments(dayCommitments);
-      setPopupDate(date);
-      setShowPopup(true);
-    }
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    setSelectedDay((prev) => (prev && isSameDay(prev, d) ? null : d));
   };
+
 
   // ── Commitment card ───────────────────────────────────────────────────────
   const handleMessageFromCommitment = async (post: SwapPost) => {
@@ -850,273 +879,213 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   // ── Commitments tab ───────────────────────────────────────────────────────
-  const renderCommitmentsTab = () => {
+  // ── Calendar (shared by both tabs; height animates on scroll) ─────────────
+  const renderCalendar = () => {
     const calDays = buildCalendarDays();
 
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView
-        ref={scrollViewRef}
-        contentContainerStyle={styles.calendarScroll}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              fetchPosts();
-            }}
-          />
-        }
-      >
-        {/* Calendar section — entire area swipeable left/right */}
+      <View onLayout={onCalLayout} style={styles.calendarBlock}>
+        {/* Calendar section — entire area swipeable left/right to change month */}
         <View {...calPanResponder.panHandlers}>
-        {/* Month header */}
-        <View style={styles.calMonthHeader}>
-          <TouchableOpacity
-            onPress={prevMonth}
-            style={styles.calNavBtn}
-            accessibilityLabel="Previous month"
-            accessibilityRole="button"
-          >
-            <Text style={[styles.calNavText, { color: colors.primary }]}>‹</Text>
-          </TouchableOpacity>
-          <Text style={[styles.calMonthTitle, { color: colors.text }]}>
-            {MONTH_NAMES[calMonth.getMonth()]} {calMonth.getFullYear()}
-          </Text>
-          <TouchableOpacity
-            onPress={nextMonth}
-            style={styles.calNavBtn}
-            accessibilityLabel="Next month"
-            accessibilityRole="button"
-          >
-            <Text style={[styles.calNavText, { color: colors.primary }]}>›</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Day-of-week row */}
-        <View style={styles.calDowRow}>
-          {DAY_LABELS.map((d, i) => (
-            <Text key={i} style={[styles.calDowText, { color: colors.textSecondary }]}>
-              {d}
+          {/* Month header */}
+          <View style={styles.calMonthHeader}>
+            <TouchableOpacity
+              onPress={prevMonth}
+              style={styles.calNavBtn}
+              accessibilityLabel="Previous month"
+              accessibilityRole="button"
+            >
+              <Text style={[styles.calNavText, { color: colors.primary }]}>‹</Text>
+            </TouchableOpacity>
+            <Text style={[styles.calMonthTitle, { color: colors.text }]}>
+              {MONTH_NAMES[calMonth.getMonth()]} {calMonth.getFullYear()}
             </Text>
-          ))}
-        </View>
+            <TouchableOpacity
+              onPress={nextMonth}
+              style={styles.calNavBtn}
+              accessibilityLabel="Next month"
+              accessibilityRole="button"
+            >
+              <Text style={[styles.calNavText, { color: colors.primary }]}>›</Text>
+            </TouchableOpacity>
+          </View>
 
-        {/* Calendar grid — swipeable left/right to change month */}
-        <View style={styles.calGrid}>
-          {calDays.map((date, idx) => {
-            if (date === null) {
-              return <View key={`empty-${idx}`} style={styles.calCell} />;
-            }
-            const dots = getDotsForDate(date);
-            const isSelected = isSameDay(date, selectedDate);
-            const isToday = isSameDay(date, today);
-            const hasAny = dots.red || dots.teal;
+          {/* Day-of-week row */}
+          <View style={styles.calDowRow}>
+            {DAY_LABELS.map((d, i) => (
+              <Text key={i} style={[styles.calDowText, { color: colors.textSecondary }]}>
+                {d}
+              </Text>
+            ))}
+          </View>
 
-            // Commitment scheduled: filled circle (red=owner, teal=sitter)
-            // Selected/clicked: bold number + dot underneath
-            const commitColor = dots.red ? RED : dots.teal ? TEAL : null;
+          {/* Calendar grid — swipeable left/right to change month */}
+          <View style={styles.calGrid}>
+            {calDays.map((date, idx) => {
+              if (date === null) {
+                return <View key={`empty-${idx}`} style={styles.calCell} />;
+              }
+              const dots = getDotsForDate(date);
+              const isSelected = selectedDay ? isSameDay(date, selectedDay) : false;
+              const isToday = isSameDay(date, today);
+              const hasAny = dots.red || dots.teal;
 
-            return (
-              <TouchableOpacity
-                key={idx}
-                style={styles.calCell}
-                onPress={() => handleDatePress(date)}
-                accessibilityLabel={`${date.getDate()} ${MONTH_NAMES[date.getMonth()]}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-              >
-                {(() => {
-                  const isFlashing = flashDates && (() => { const d = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime(); const s = new Date(flashDates.start.getFullYear(), flashDates.start.getMonth(), flashDates.start.getDate()).getTime(); const e = new Date(flashDates.end.getFullYear(), flashDates.end.getMonth(), flashDates.end.getDate()).getTime(); return d >= s && d <= e; })();
-                  if (isFlashing) {
-                    // Flashing: animated circle — always wins, even if selected
-                    return (
-                      <Animated.View style={[styles.calDayCircle, { backgroundColor: flashColorAnim.interpolate({ inputRange: [0, 1], outputRange: [commitColor ?? RED, '#FF0000'] }), overflow: 'visible' }, { transform: [{ scale: flashAnim }] }]}>
-                        <Text style={[styles.calDayNum, { color: '#fff', fontWeight: '800' }]}>
-                          {date.getDate()}
-                        </Text>
-                      </Animated.View>
-                    );
-                  }
-                  if (hasAny) {
-                    // Both red + teal on same day: split circle 50/50 vertical
-                    if (dots.red && dots.teal) {
+              // Event scheduled: filled circle (red = your post, teal = commitment).
+              const commitColor = dots.red ? RED : dots.teal ? TEAL : null;
+
+              return (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.calCell}
+                  onPress={() => handleDatePress(date)}
+                  accessibilityLabel={`${date.getDate()} ${MONTH_NAMES[date.getMonth()]}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                >
+                  {(() => {
+                    if (hasAny) {
+                      // Both red + teal on same day: split circle 50/50 vertical
+                      if (dots.red && dots.teal) {
+                        return (
+                          <View style={[styles.calDayCircle, { overflow: 'hidden' }, isSelected && styles.calDaySelectedRing]}>
+                            <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '50%', backgroundColor: RED }} />
+                            <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '50%', backgroundColor: TEAL }} />
+                            <Text style={[styles.calDayNum, { color: '#fff', fontWeight: isSelected ? '800' : '700', fontSize: isSelected ? 18 : 14 }]}>
+                              {date.getDate()}
+                            </Text>
+                          </View>
+                        );
+                      }
+                      // Single color: red = your post, teal = your commitment
                       return (
-                        <View style={[styles.calDayCircle, { overflow: 'hidden' }]}>
-                          <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '50%', backgroundColor: RED }} />
-                          <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '50%', backgroundColor: TEAL }} />
+                        <View style={[styles.calDayCircle, { backgroundColor: commitColor ?? RED }, isSelected && styles.calDaySelectedRing]}>
                           <Text style={[styles.calDayNum, { color: '#fff', fontWeight: isSelected ? '800' : '700', fontSize: isSelected ? 18 : 14 }]}>
                             {date.getDate()}
                           </Text>
                         </View>
                       );
                     }
-                    // Single color: red = your dog, teal = you're caring for someone's dog
+                    // Normal / selected / today (no event)
                     return (
-                      <View style={[styles.calDayCircle, { backgroundColor: commitColor ?? RED }]}>
-                        <Text style={[styles.calDayNum, { color: '#fff', fontWeight: isSelected ? '800' : '700', fontSize: isSelected ? 18 : 14 }]}>
+                      <View style={[
+                        styles.calDayCircle,
+                        isSelected
+                          ? styles.calDaySelectedRing
+                          : isToday
+                          ? { borderWidth: 1.5, borderColor: colors.primary }
+                          : undefined,
+                      ]}>
+                        <Text style={[
+                          styles.calDayNum,
+                          { color: colors.text },
+                          isSelected && { fontSize: 18, fontWeight: '800' },
+                          !isSelected && isToday ? { color: colors.primary, fontWeight: '700' } : undefined,
+                        ]}>
                           {date.getDate()}
                         </Text>
                       </View>
                     );
-                  }
-                  // Normal or selected (no commitment)
-                  return (
-                    <View style={[
-                      styles.calDayCircle,
-                      !isSelected && isToday
-                        ? { borderWidth: 1.5, borderColor: colors.primary }
-                        : undefined,
-                    ]}>
-                      <Text style={[
-                        styles.calDayNum,
-                        { color: isSelected ? colors.text : colors.text },
-                        isSelected && { fontSize: 22, fontWeight: '800' },
-                        !isSelected && isToday ? { color: colors.primary, fontWeight: '700' } : undefined,
-                      ]}>
-                        {date.getDate()}
-                      </Text>
-                    </View>
-                  );
-                })()}
-                {/* Selected: dot underneath */}
-                {isSelected && (
-                  <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.textSecondary, marginTop: 2 }} />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                  })()}
+                  {/* Selected: dot underneath */}
+                  {isSelected && (
+                    <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.textSecondary, marginTop: 2 }} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
-        {/* Legend */}
+        {/* Legend + day-filter affordance */}
         <View style={styles.calLegend}>
           <View style={styles.calLegendItem}>
             <View style={[styles.calDot, { backgroundColor: RED }]} />
             <Text style={[styles.calLegendText, { color: colors.textSecondary }]}>
-              Your dog is being cared for
+              Your posts
             </Text>
-          </View>
-          <View style={styles.calLegendItem}>
-            <View style={[styles.calDot, { backgroundColor: TEAL }]} />
+            <View style={[styles.calDot, { backgroundColor: TEAL, marginLeft: spacing.md }]} />
             <Text style={[styles.calLegendText, { color: colors.textSecondary }]}>
-              You're caring for someone's dog
+              Your commitments
             </Text>
           </View>
-        </View>
-
-        {/* Always-visible chronological list of ALL commitments */}
-        <View style={[styles.allCommitmentsHeader, { borderTopColor: colors.border }]}>
-          <Text style={[styles.selectedDayTitle, { color: colors.text }]}>
-            All Commitments
-          </Text>
-        </View>
-
-        {upcomingCommitments.length === 0 && pastCommitments.length === 0 ? (
-          <View style={styles.noneToday}>
-            <Text style={[styles.noneTodayText, { color: colors.textSecondary }]}>
-              No upcoming commitments
-            </Text>
-          </View>
-        ) : (
-          <>
-            {upcomingCommitments.length === 0 ? (
-              <View style={styles.noneToday}>
-                <Text style={[styles.noneTodayText, { color: colors.textSecondary }]}>
-                  No upcoming commitments
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.commitList}>
-                {upcomingCommitments.map((post) =>
-                  renderCommitmentCard(post, post.id ? () => navigation.navigate('PostDetail', { postId: post.id }) : undefined)
-                )}
-              </View>
-            )}
-            {pastCommitments.length > 0 && (
-              <>
-                <View style={[styles.pastDividerHeader, { borderTopColor: colors.border }]}>
-                  <Text style={[styles.selectedDayTitle, { color: colors.textSecondary }]}>
-                    Past
-                  </Text>
-                </View>
-                <View style={styles.commitList}>
-                  {pastCommitments.map((post) =>
-                    renderCommitmentCard(
-                      post,
-                      post.id ? () => navigation.navigate('PostDetail', { postId: post.id }) : undefined,
-                      { dimmed: true },
-                    )
-                  )}
-                </View>
-              </>
-            )}
-          </>
-        )}
-      </ScrollView>
-
-      {/* ── Date Tap Popup Overlay ── */}
-      <Modal
-        visible={showPopup}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowPopup(false)}
-      >
-        <TouchableOpacity
-          style={styles.popupBackdrop}
-          activeOpacity={1}
-          onPress={() => setShowPopup(false)}
-        >
-          <View
-            style={[styles.popupCard, { backgroundColor: colors.surface }]}
-            onStartShouldSetResponder={() => true}
-          >
-            {/* Header */}
-            <View style={styles.popupHeader}>
-              <Text style={[styles.popupDate, { color: colors.text }]}>
-                {popupDate ? smartDate(popupDate) : ''}
+          {selectedDay && (
+            <TouchableOpacity
+              onPress={() => setSelectedDay(null)}
+              style={[styles.showAllChip, { borderColor: colors.border }]}
+              accessibilityLabel="Show all days"
+              accessibilityRole="button"
+            >
+              <Text style={[styles.showAllChipText, { color: colors.primary }]}>
+                {smartDate(selectedDay)} · Show all ✕
               </Text>
-              <TouchableOpacity
-                onPress={() => setShowPopup(false)}
-                style={styles.popupCloseBtn}
-                accessibilityLabel="Close"
-                accessibilityRole="button"
-              >
-                <Text style={[styles.popupCloseText, { color: colors.textSecondary }]}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            {/* Scrollable commitment list */}
-            <ScrollView style={styles.popupScroll} showsVerticalScrollIndicator={false}>
-              {popupCommitments.map((post) => renderCommitmentCard(post, () => { setShowPopup(false); navigation.navigate('PostDetail', { postId: post.id }); }))}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   };
 
+
   // ─────────────────────────────────────────────────────────────────────────
   if (loading) return <LoadingSpinner />;
 
-  const tabs: { key: TabType; label: string }[] = [
+  // Tabs: My Posts (left, default, pink) | My Commitments (right, teal).
+  const tabs: { key: TabType; label: string; accent: string }[] = [
+    { key: 'mine', label: 'My Posts', accent: RED },
     {
       key: 'commitments',
-      label: `Commitments${acceptedPosts.length > 0 ? ` (${acceptedPosts.length})` : ''}`,
+      label: `My Commitments${sitterCommitments.length > 0 ? ` (${sitterCommitments.length})` : ''}`,
+      accent: TEAL,
     },
-    { key: 'mine', label: 'My Posts' },
+  ];
+
+  // Archive footer respects the active day filter.
+  const archivedToShow = selectedDay ? filterByDay(archivedPosts) : archivedPosts;
+
+  // My Commitments list rows: upcoming commits, an optional Past divider, then
+  // dimmed past commits — flattened so a single FlatList drives the collapse.
+  type CommitRow =
+    | { kind: 'commit'; post: SwapPost; dimmed: boolean }
+    | { kind: 'divider' };
+  const commitRows: CommitRow[] = [
+    ...upcomingCommitments.map((post) => ({ kind: 'commit' as const, post, dimmed: false })),
+    ...(pastCommitments.length > 0 ? [{ kind: 'divider' as const }] : []),
+    ...pastCommitments.map((post) => ({ kind: 'commit' as const, post, dimmed: true })),
   ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Tab bar */}
+      {/* ── Happening-now banner stack (pinned, focal point) ── */}
+      {liveEvents.length > 0 && (
+        <View style={styles.bannerStack}>
+          {liveEvents.map(({ post, own }) => (
+            <HappeningNowBanner
+              key={post.id}
+              post={post}
+              accent={own ? RED : TEAL}
+              careIcon={getCareTypeIcon(post.careType)}
+              contextLabel={own ? 'Your dog is being cared for' : "You're caring for their dog"}
+              backgroundColor={colors.surface}
+              textColor={colors.text}
+              onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
+            />
+          ))}
+        </View>
+      )}
+
+      {/* ── Collapsing calendar (height animates on list scroll) ── */}
+      <Animated.View style={{ height: calHeightAnim, overflow: 'hidden' }}>
+        {renderCalendar()}
+      </Animated.View>
+
+      {/* ── Segmented tabs (pinned, context-themed) ── */}
       <View style={[styles.tabs, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         {tabs.map((t) => (
           <TouchableOpacity
             key={t.key}
             style={[
               styles.tab,
-              tab === t.key && { borderBottomColor: colors.primary, borderBottomWidth: 2 },
+              tab === t.key && { borderBottomColor: t.accent, borderBottomWidth: 2 },
             ]}
             onPress={() => setTab(t.key)}
             accessibilityLabel={t.label}
@@ -1126,7 +1095,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
             <Text
               style={[
                 styles.tabText,
-                { color: tab === t.key ? colors.primary : colors.textSecondary },
+                { color: tab === t.key ? t.accent : colors.textSecondary },
               ]}
             >
               {t.label}
@@ -1138,8 +1107,10 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
       <View style={{ flex: 1 }} {...tabPanResponder.panHandlers}>
       {tab === 'mine' ? (
         <FlatList
-            data={myPosts}
+            data={filterByDay(myPosts)}
             keyExtractor={(p) => p.id}
+            onScroll={handleListScroll}
+            scrollEventThrottle={16}
             ListHeaderComponent={
               <TouchableOpacity
                 style={styles.postRequestCard}
@@ -1160,21 +1131,21 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
               />
             }
             ListEmptyComponent={
-              archivedPosts.length === 0 ? (
+              archivedToShow.length === 0 ? (
                 <EmptyStateView
                   emoji=""
-                  title="No posts yet"
-                  subtitle="Post a request and local sitters will reach out"
+                  title={selectedDay ? 'No posts this day' : 'No posts yet'}
+                  subtitle={selectedDay ? 'Tap “Show all” to clear the filter' : 'Post a request and local sitters will reach out'}
                 />
               ) : null
             }
             ListFooterComponent={
-              archivedPosts.length > 0 ? (
+              archivedToShow.length > 0 ? (
                 <View style={{ marginTop: 24 }}>
                   <Text style={{ color: colors.textSecondary, fontSize: 15, fontWeight: '700', letterSpacing: 1, marginBottom: 12, paddingHorizontal: 4, textTransform: 'uppercase' }}>
                     Archive
                   </Text>
-                  {archivedPosts.map((post) => (
+                  {archivedToShow.map((post) => (
                     <View key={post.id}>
                       {renderArchivedPost({ item: post })}
                     </View>
@@ -1186,7 +1157,49 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
             contentContainerStyle={styles.list}
           />
       ) : (
-        renderCommitmentsTab()
+        <FlatList
+            data={commitRows}
+            keyExtractor={(row, idx) => (row.kind === 'commit' ? row.post.id : `divider-${idx}`)}
+            onScroll={handleListScroll}
+            scrollEventThrottle={16}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => {
+                  setRefreshing(true);
+                  fetchPosts();
+                }}
+              />
+            }
+            ListEmptyComponent={
+              <EmptyStateView
+                emoji=""
+                title={selectedDay ? 'No commitments this day' : 'No commitments yet'}
+                subtitle={selectedDay ? 'Tap “Show all” to clear the filter' : "When you sit someone's dog, it shows here"}
+              />
+            }
+            renderItem={({ item }) => {
+              if (item.kind === 'divider') {
+                return (
+                  <View style={[styles.pastDividerHeader, { borderTopColor: colors.border }]}>
+                    <Text style={[styles.selectedDayTitle, { color: colors.textSecondary }]}>
+                      Past
+                    </Text>
+                  </View>
+                );
+              }
+              return (
+                <View style={{ marginBottom: spacing.sm }}>
+                  {renderCommitmentCard(
+                    item.post,
+                    () => navigation.navigate('PostDetail', { postId: item.post.id }),
+                    item.dimmed ? { dimmed: true } : undefined,
+                  )}
+                </View>
+              );
+            }}
+            contentContainerStyle={styles.list}
+          />
       )}
       </View>
     </View>
@@ -1276,8 +1289,11 @@ const styles = StyleSheet.create({
   },
   postRequestCardText: { color: '#FFFFFF', fontSize: 18, fontWeight: '400' },
 
-  // Calendar container
-  calendarScroll: { padding: spacing.md, paddingBottom: spacing.xl * 3 },
+  // Happening-now banner stack (pinned)
+  bannerStack: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
+
+  // Calendar block (inside the collapsing Animated.View)
+  calendarBlock: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
 
   // Month nav header
   calMonthHeader: {
@@ -1311,6 +1327,8 @@ const styles = StyleSheet.create({
   calDayNum: { fontSize: 16, fontWeight: '500' },
   calDots: { flexDirection: 'row', gap: 2, marginTop: 1 },
   calDot: { width: 10, height: 10, borderRadius: 5 },
+  // Selected-day ring (filter active)
+  calDaySelectedRing: { borderWidth: 2, borderColor: '#FFFFFF' },
 
   // Legend
   calLegend: {
@@ -1321,48 +1339,22 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   calLegendItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  calLegendText: { fontSize: 16 },
+  calLegendText: { fontSize: 14 },
+  // Day-filter "show all" chip
+  showAllChip: {
+    borderWidth: 1,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    marginTop: spacing.xs,
+  },
+  showAllChipText: { fontSize: 14, fontWeight: '700' },
 
-  // Section header for all commitments list
-  allCommitmentsHeader: { borderTopWidth: 1, paddingTop: spacing.md, marginBottom: spacing.sm },
   // Muted divider between upcoming and past commitments
   pastDividerHeader: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.md, marginBottom: spacing.sm, marginTop: spacing.lg },
   selectedDayTitle: { fontSize: 17, fontWeight: '700' },
-  noneToday: { alignItems: 'center', paddingVertical: spacing.lg },
-  noneTodayText: { fontSize: 16, fontStyle: 'italic' },
-  // Popup overlay
-  popupBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  popupCard: {
-    width: '85%',
-    maxHeight: '70%',
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  popupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  popupDate: { fontSize: 18, fontWeight: '700', flex: 1, marginRight: spacing.sm },
-  popupCloseBtn: { padding: 4 },
-  popupCloseText: { fontSize: 22, fontWeight: '300' },
-  popupScroll: { flexShrink: 1 },
-  // Keep old selectedDayHeader alias so nothing breaks
-  selectedDayHeader: { borderTopWidth: 1, paddingTop: spacing.md, marginBottom: spacing.sm },
 
   // Commitment cards
-  commitList: { gap: spacing.sm },
   commitCard: { borderRadius: borderRadius.lg, borderLeftWidth: 4, padding: spacing.md },
   commitCardInner: { flexDirection: 'row', alignItems: 'center' },
   commitDogPhotos: { flexDirection: 'row', alignItems: 'center', marginRight: 12 },

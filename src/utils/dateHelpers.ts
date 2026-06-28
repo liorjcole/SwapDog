@@ -1,3 +1,5 @@
+import { SwapPost } from '../models/types';
+
 /**
  * Smart date formatting — "Today", "Tomorrow", or "May 23" style.
  * Compares calendar dates only (ignores time).
@@ -63,4 +65,35 @@ export function isSameDay(a: Date, b: Date): boolean {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
   );
+}
+
+/**
+ * Single source of truth for "is this event happening right now?".
+ *
+ * Resolves the post's effective start/end the same way EventProgressBar does
+ * (date + optional AM/PM time string; missing times anchor to start/end of day)
+ * and returns true only while now is within [start, end). Returns false for
+ * missing/degenerate date windows so callers can drop it in unconditionally.
+ *
+ * Used by EventProgressBar (its render gate) and the Schedule "Happening now"
+ * banner driver — keeping both in lockstep: if the bar would render, the
+ * banner shows, and vice-versa.
+ */
+export function isPostInProgress(post: SwapPost, nowMs: number = Date.now()): boolean {
+  if (!post?.startDate || !post?.endDate) return false;
+
+  const start = new Date(post.startDate);
+  const end = new Date(post.endDate);
+
+  if (post.startTime) applyTimeString(start, post.startTime);
+  else start.setHours(0, 0, 0, 0);
+
+  if (post.endTime) applyTimeString(end, post.endTime);
+  else end.setHours(23, 59, 59, 999);
+
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+  if (endMs <= startMs) return false;
+
+  return nowMs >= startMs && nowMs < endMs;
 }

@@ -6,6 +6,7 @@ import {
   applyTimeString,
   formatTime,
   formatShortDate,
+  isPostInProgress,
 } from '../../utils/dateHelpers';
 
 interface Props {
@@ -58,11 +59,10 @@ export default function EventProgressBar({ post, style }: Props) {
   const startMs = start.getTime();
   const endMs = end.getTime();
 
-  // Guard: degenerate window.
-  if (endMs <= startMs) return null;
-
-  // Not in progress — render nothing so the layout doesn't shift.
-  if (nowMs < startMs || nowMs >= endMs) return null;
+  // Not in progress (degenerate window, before start, or after end) — render
+  // nothing so the layout doesn't shift. Shared gate keeps the bar and the
+  // Schedule "Happening now" banner in lockstep.
+  if (!isPostInProgress(post, nowMs)) return null;
 
   const pct = Math.min(100, Math.max(0, ((nowMs - startMs) / (endMs - startMs)) * 100));
 
