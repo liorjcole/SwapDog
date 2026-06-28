@@ -490,6 +490,53 @@ export const useSwaps = () => {
     return results.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   };
 
+  /**
+   * Fetch completed (and late-cancelled) commitments where the user was the
+   * sitter. These drop out of getAcceptedPosts (which filters status==='claimed')
+   * once a post completes, so they are fetched separately to keep them visible.
+   *
+   * Uses the same composite index as getAcceptedPosts: (claimedBy, status).
+   */
+  const getCompletedCommitments = async (userId: string): Promise<SwapPost[]> => {
+    const [completedSnap, cancelledSnap] = await Promise.all([
+      getDocs(query(
+        collection(db, 'swapPosts'),
+        where('claimedBy', '==', userId),
+        where('status', '==', 'completed')
+      )),
+      getDocs(query(
+        collection(db, 'swapPosts'),
+        where('claimedBy', '==', userId),
+        where('status', '==', 'cancelled')
+      )),
+    ]);
+
+    const seen = new Set<string>();
+    const results: SwapPost[] = [];
+
+    for (const d of completedSnap.docs) {
+      const data = d.data();
+      if (!data) continue;
+      if (!seen.has(d.id)) {
+        seen.add(d.id);
+        results.push(parsePost(d.id, data as Record<string, unknown>));
+      }
+    }
+
+    // Include cancelled commitments only when flagged as a late cancellation.
+    for (const d of cancelledSnap.docs) {
+      const data = d.data();
+      if (!data) continue;
+      if (!data.lateCancelled) continue;
+      if (!seen.has(d.id)) {
+        seen.add(d.id);
+        results.push(parsePost(d.id, data as Record<string, unknown>));
+      }
+    }
+
+    return results.sort((a, b) => b.endDate.getTime() - a.endDate.getTime());
+  };
+
 
   return {
     // Legacy
@@ -514,6 +561,7 @@ export const useSwaps = () => {
     getPendingPosts,
     approveHelper,
     getAcceptedPosts,
+    getCompletedCommitments,
     respondToCounter,
   };
 };
