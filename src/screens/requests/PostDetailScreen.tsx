@@ -36,7 +36,7 @@ import { onPostAccepted } from '../../services/ReviewPromptService';
 import { useTheme } from '../../contexts/ThemeContext';
 import AvatarImage from '../../components/common/AvatarImage';
 import ConfettiCelebration, { CelebrationItem } from '../../components/common/ConfettiCelebration';
-import { smartDate, isSameDay as isSameDayUtil, formatTimeLower } from '../../utils/dateHelpers';
+import { smartDate, isSameDay as isSameDayUtil, formatTimeLower, hasEventStarted } from '../../utils/dateHelpers';
 import { useSwaps, parsePost } from '../../hooks/useSwaps';
 import { useCancelCommitment } from '../../hooks/useCancelCommitment';
 import { useUsers } from '../../hooks/useUsers';
@@ -882,7 +882,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
 
         {/* ── Reschedule / Cancel banner (owner, claimed post) ── */}
-        {isOwner && post.status === 'claimed' && !isJustApproved && (
+        {isOwner && post.status === 'claimed' && !isJustApproved && !hasEventStarted(post) && (
           <View style={[styles.rescheduleBanner, { backgroundColor: '#3D2E00', borderColor: '#FFD700' }]}>
             <Text style={{ color: '#FFD700', fontSize: 17, fontWeight: '600', marginBottom: 8 }}>
               Plans changed?
@@ -908,7 +908,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         )}
 
         {/* ── Cancel banner (sitter viewing their claimed commitment) ── */}
-        {post?.claimedBy === user?.uid && post?.status === 'claimed' && (
+        {post?.claimedBy === user?.uid && post?.status === 'claimed' && !hasEventStarted(post) && (
           <View style={[styles.rescheduleBanner, { backgroundColor: '#3D2E00', borderColor: '#FFD700' }]}>
             <Text style={{ color: '#FFD700', fontSize: 17, fontWeight: '600', marginBottom: 8 }}>
               Plans changed?

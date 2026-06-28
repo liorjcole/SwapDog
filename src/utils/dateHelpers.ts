@@ -119,3 +119,22 @@ export function resolvePostEndMs(post: SwapPost): number | null {
   else end.setHours(23, 59, 59, 999);
   return end.getTime();
 }
+
+/**
+ * Returns true once now >= the post's effective start moment — covers both
+ * in-progress bookings AND events that have already ended.
+ *
+ * Uses the same start-resolution logic as isPostInProgress / EventProgressBar:
+ *   startDate @ startTime (or startDate @ 00:00 when startTime is absent).
+ *
+ * Returns false when startDate is absent — safe to use unconditionally.
+ */
+export function hasEventStarted(post: SwapPost, nowMs: number = Date.now()): boolean {
+  if (!post?.startDate) return false;
+
+  const start = new Date(post.startDate);
+  if (post.startTime) applyTimeString(start, post.startTime);
+  else start.setHours(0, 0, 0, 0);
+
+  return nowMs >= start.getTime();
+}

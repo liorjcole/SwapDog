@@ -34,7 +34,7 @@ import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useMessaging } from '../../hooks/useMessaging';
 import { useTheme } from '../../contexts/ThemeContext';
-import { smartDate, isSameDay, isPostInProgress } from '../../utils/dateHelpers';
+import { smartDate, isSameDay, isPostInProgress, applyTimeString, hasEventStarted } from '../../utils/dateHelpers';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useReviews } from '../../hooks/useReviews';
 import { useCancelCommitment } from '../../hooks/useCancelCommitment';
@@ -55,7 +55,8 @@ const TEAL = '#2DD4BF';  // My Commitments / you caring for someone's dog
 // ── Collapsing-calendar tuning (mirrors the Discover map-collapse) ────────────
 // Height animates between MAX (measured calendar height) and MIN (fully
 // collapsed). useNativeDriver MUST be false — height is a layout property.
-const CAL_HEIGHT_MIN = 0;             // fully collapse for max list room (tunable)
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const CAL_HEIGHT_MIN = Math.round(SCREEN_HEIGHT * 0.15); // ~128 pt stub — mirrors Discover's MAP_HEIGHT_MIN
 const CAL_HEIGHT_ESTIMATE = 380;     // initial guess until measured via onLayout
 const CAL_COLLAPSE_DURATION = 250;   // ms, matches Discover
 
@@ -118,7 +119,7 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+// SCREEN_WIDTH + SCREEN_HEIGHT destructured above (module scope)
 const CAL_H_PADDING = spacing.md * 2;
 const CELL_WIDTH = Math.floor((SCREEN_WIDTH - CAL_H_PADDING) / 7);
 
@@ -147,7 +148,7 @@ function overlapsDate(post: SwapPost, date: Date): boolean {
 const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user } = useAuthContext();
-  const { getMyPosts, cancelPost, getAcceptedPosts, isPostExpired, isStartExpiredNoHelper } = useSwaps();
+  const { getMyPosts, cancelPost, getAcceptedPosts, getCompletedCommitments, isPostExpired, isStartExpiredNoHelper } = useSwaps();
   const { hasReviewed } = useReviews();
   const { cancelCommitment } = useCancelCommitment();
   const { getOrCreateConversation } = useMessaging();
@@ -188,6 +189,11 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const [archivedPosts, setArchivedPosts] = useState<SwapPost[]>([]);
   const [reviewedPostIds, setReviewedPostIds] = useState<Set<string>>(new Set());
   const [acceptedPosts, setAcceptedPosts] = useState<SwapPost[]>([]);
+  // Completed caregiver commitments (status==='completed' drops out of
+  // getAcceptedPosts, so they are tracked separately).
+  const [completedCommitments, setCompletedCommitments] = useState<SwapPost[]>([]);
+  // Which completed commitments the caregiver has already reviewed (targetType 'owner').
+  const [reviewedCaregiverPostIds, setReviewedCaregiverPostIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -254,9 +260,10 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const fetchPosts = useCallback(async () => {
     if (!user) return;
     try {
-      const [mine, accepted] = await Promise.all([
+      const [mine, accepted, completedSitter] = await Promise.all([
         getMyPosts(user.uid),
         getAcceptedPosts(user.uid),
+        getCompletedCommitments(user.uid),
       ]);
       const nonCancelled = mine.filter((p: any) => p.status !== 'cancelled' || (p as any).lateCancelled);
       const active = nonCancelled.filter((p: SwapPost) =>
@@ -271,19 +278,25 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         p.status === 'completed' ||
         (p.status === 'cancelled' && (p as any).lateCancelled)
       );
-      // Sort active: claimed on top
-      active.sort((a: any, b: any) => {
-        const aIsClaimed = a.status === 'claimed' ? 0 : 1;
-        const bIsClaimed = b.status === 'claimed' ? 0 : 1;
-        return aIsClaimed - bIsClaimed;
-      });
+      // Sort active: unclaimed first (earliest → latest start), then claimed (earliest → latest start).
+      // Mirrors the applyTimeString pattern used by isPostInProgress / EventProgressBar.
+      const effectiveStartMs = (p: SwapPost): number => {
+        if (!p.startDate) return Infinity; // guard: sort missing-date to end
+        const d = new Date(p.startDate);
+        if (p.startTime) applyTimeString(d, p.startTime);
+        else d.setHours(0, 0, 0, 0);
+        return d.getTime();
+      };
+      const byStart = (a: SwapPost, b: SwapPost) => effectiveStartMs(a) - effectiveStartMs(b);
+      const unclaimedActive = active.filter((p: SwapPost) => p.status !== 'claimed').sort(byStart);
+      const claimedActive   = active.filter((p: SwapPost) => p.status === 'claimed').sort(byStart);
       // Sort archived: completed first, then by date
       archived.sort((a, b) => {
         if (a.status === 'completed' && b.status !== 'completed') return -1;
         if (a.status !== 'completed' && b.status === 'completed') return 1;
         return b.endDate.getTime() - a.endDate.getTime();
       });
-      setMyPosts(active);
+      setMyPosts([...unclaimedActive, ...claimedActive]);
       setArchivedPosts(archived);
 
       // Check review status for completed posts
@@ -320,6 +333,31 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
       }
 
       setAcceptedPosts(accepted);
+
+      // ── Caregiver completed commitments ───────────────────────────────────
+      // Sitter-only: filter to posts where this user was the caregiver.
+      const myCompletedCommitments = completedSitter.filter(
+        (p) => p.claimedBy === user.uid
+      );
+      setCompletedCommitments(myCompletedCommitments);
+
+      // Check which completed commitments the caregiver has already reviewed
+      // (check for the 'owner' target, which is the final step of the caregiver
+      // review flow — if that exists, the whole review was submitted).
+      if (myCompletedCommitments.length > 0) {
+        const reviewed = new Set<string>();
+        await Promise.all(
+          myCompletedCommitments.map(async (p) => {
+            try {
+              const done = await hasReviewed(p.id, user.uid, 'owner');
+              if (done) reviewed.add(p.id);
+            } catch { /* non-fatal */ }
+          })
+        );
+        setReviewedCaregiverPostIds(reviewed);
+      } else {
+        setReviewedCaregiverPostIds(new Set());
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -691,6 +729,10 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
     .filter((p) => isPostExpired(p))
     .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
 
+  // Completed caregiver commitments respect the active day filter.
+  const completedToShow = filterByDay(completedCommitments)
+    .sort((a, b) => b.endDate.getTime() - a.endDate.getTime());
+
   // ── "Happening now" banner stack driver ────────────────────────────────
   // Single source of truth: isPostInProgress (the same gate EventProgressBar
   // uses). own side = your claimed posts; commitment side = sitter commitments.
@@ -861,7 +903,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.expandedBtnText}>💬  Message</Text>
               </TouchableOpacity>
 
-              {post.status !== 'completed' && (
+              {post.status !== 'completed' && !hasEventStarted(post, nowTick) && (
                 <TouchableOpacity
                   style={styles.deleteLink}
                   onPress={() => handleCancelCommitment(post)}
@@ -877,6 +919,106 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
       </View>
     );
   };
+
+  // ── Completed commitment card (caregiver) ──────────────────────────────────
+  // Mirrors renderArchivedPost (owner side) but targets the caregiver role:
+  //   review targets = each dog + the owner (post.posterId).
+  const renderCompletedCommitmentCard = (post: SwapPost) => {
+    const startStr = smartDate(post.startDate);
+    const endStr = smartDate(post.endDate, { includeYear: true });
+    const isReviewed = reviewedCaregiverPostIds.has(post.id);
+    const isLateCancelled = (post as any).lateCancelled as boolean | undefined;
+
+    const dogPhotos = (post.dogPhotoURLs && post.dogPhotoURLs.length > 0)
+      ? post.dogPhotoURLs
+      : (post.dogPhotoURL ? [post.dogPhotoURL] : []);
+    const dogNamesDisplay = (post.dogNames && post.dogNames.length > 0)
+      ? post.dogNames.join(' & ')
+      : post.dogName;
+
+    return (
+      <TouchableOpacity
+        key={post.id}
+        style={[styles.card, { backgroundColor: colors.surface, ...shadow.sm, opacity: 0.6 }]}
+        onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
+        accessibilityRole="button"
+        accessibilityLabel={`Completed commitment for ${dogNamesDisplay}`}
+      >
+        {/* Status banner */}
+        {isLateCancelled ? (
+          <View style={{ backgroundColor: '#FF2D5520', paddingVertical: 5, paddingHorizontal: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12, alignItems: 'center', marginTop: -spacing.md, marginHorizontal: -spacing.md }}>
+            <Text style={{ color: '#FF2D55', fontSize: 14, fontWeight: '700', letterSpacing: 0.5 }}>LATE CANCELLED</Text>
+          </View>
+        ) : (
+          <View style={{ backgroundColor: '#0984E320', paddingVertical: 5, paddingHorizontal: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12, alignItems: 'center', marginTop: -spacing.md, marginHorizontal: -spacing.md }}>
+            <Text style={{ color: '#0984E3', fontSize: 14, fontWeight: '700', letterSpacing: 0.5 }}>COMPLETED</Text>
+          </View>
+        )}
+
+        {/* Dog photo(s) + dates */}
+        <View style={[styles.cardHeader, { marginTop: spacing.sm }]}>
+          {dogPhotos.length > 0 ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {dogPhotos.map((url: string, idx: number) => (
+                <Image
+                  key={idx}
+                  source={{ uri: url }}
+                  style={[styles.dogThumbSmall, { borderColor: colors.border }, idx > 0 && { marginLeft: -12 }]}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={[styles.dogThumbPlaceholder, { backgroundColor: colors.primary + '15' }]}>
+              <Text style={styles.dogThumbEmoji}>D</Text>
+            </View>
+          )}
+          <View style={styles.headerInfo}>
+            <Text style={[styles.posterName, { color: colors.textSecondary }]}>{dogNamesDisplay}</Text>
+            <Text style={{ fontSize: 15, color: colors.textSecondary }}>
+              {isSameDay(post.startDate, post.endDate) ? startStr : `${startStr} — ${endStr}`}
+            </Text>
+          </View>
+        </View>
+
+        {/* Leave Review / Reviewed indicator */}
+        <View style={{ marginTop: 8 }}>
+          {isReviewed ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8 }}>
+              <Text style={{ color: '#00B894', fontSize: 16, fontWeight: '600' }}>✓ Reviewed</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={{ backgroundColor: '#0984E3', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
+              onPress={async () => {
+                const posterUid = post.posterId ?? '';
+                let otherUserName = 'the owner';
+                if (posterUid) {
+                  try {
+                    const snap = await getDoc(doc(db, 'users', posterUid));
+                    const d = snap.data();
+                    if (d) otherUserName = (d.displayName as string) || otherUserName;
+                  } catch { /* keep fallback */ }
+                }
+                navigation.navigate('Review', {
+                  postId: post.id,
+                  role: 'caregiver' as const,
+                  otherUserId: posterUid,
+                  otherUserName,
+                  dogIds: post.dogIds ?? (post.dogId ? [post.dogId] : []),
+                  dogNames: post.dogNames ?? [post.dogName],
+                });
+              }}
+              accessibilityLabel="Leave a review"
+              accessibilityRole="button"
+            >
+              <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>Leave Review</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
 
   // ── Commitments tab ───────────────────────────────────────────────────────
   // ── Calendar (shared by both tabs; height animates on scroll) ─────────────
@@ -1001,11 +1143,13 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.calLegendItem}>
             <View style={[styles.calDot, { backgroundColor: RED }]} />
             <Text style={[styles.calLegendText, { color: colors.textSecondary }]}>
-              Your posts
+              Your dog is being cared for
             </Text>
-            <View style={[styles.calDot, { backgroundColor: TEAL, marginLeft: spacing.md }]} />
+          </View>
+          <View style={styles.calLegendItem}>
+            <View style={[styles.calDot, { backgroundColor: TEAL }]} />
             <Text style={[styles.calLegendText, { color: colors.textSecondary }]}>
-              Your commitments
+              You're caring for someone's dog
             </Text>
           </View>
           {selectedDay && (
@@ -1031,7 +1175,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
 
   // Tabs: My Posts (left, default, pink) | My Commitments (right, teal).
   const tabs: { key: TabType; label: string; accent: string }[] = [
-    { key: 'mine', label: 'My Posts', accent: RED },
+    { key: 'mine', label: `My Posts${myPosts.length > 0 ? ` (${myPosts.length})` : ''}`, accent: RED },
     {
       key: 'commitments',
       label: `My Commitments${sitterCommitments.length > 0 ? ` (${sitterCommitments.length})` : ''}`,
@@ -1043,15 +1187,22 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const archivedToShow = selectedDay ? filterByDay(archivedPosts) : archivedPosts;
 
   // My Commitments list rows: upcoming commits, an optional Past divider, then
-  // dimmed past commits — flattened so a single FlatList drives the collapse.
+  // dimmed past commits, and finally completed caregiver commitments with a
+  // Leave Review button — all flattened so a single FlatList drives the view.
   type CommitRow =
     | { kind: 'commit'; post: SwapPost; dimmed: boolean }
-    | { kind: 'divider' };
+    | { kind: 'divider' }
+    | { kind: 'completed-divider' }
+    | { kind: 'completed-commit'; post: SwapPost };
+
   const commitRows: CommitRow[] = [
     ...upcomingCommitments.map((post) => ({ kind: 'commit' as const, post, dimmed: false })),
     ...(pastCommitments.length > 0 ? [{ kind: 'divider' as const }] : []),
     ...pastCommitments.map((post) => ({ kind: 'commit' as const, post, dimmed: true })),
+    ...(completedToShow.length > 0 ? [{ kind: 'completed-divider' as const }] : []),
+    ...completedToShow.map((post) => ({ kind: 'completed-commit' as const, post })),
   ];
+
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -1159,7 +1310,11 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
       ) : (
         <FlatList
             data={commitRows}
-            keyExtractor={(row, idx) => (row.kind === 'commit' ? row.post.id : `divider-${idx}`)}
+            keyExtractor={(row, idx) => (
+              row.kind === 'commit' || row.kind === 'completed-commit'
+                ? row.post.id
+                : `divider-${idx}`
+            )}
             onScroll={handleListScroll}
             scrollEventThrottle={16}
             refreshControl={
@@ -1185,6 +1340,22 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                     <Text style={[styles.selectedDayTitle, { color: colors.textSecondary }]}>
                       Past
                     </Text>
+                  </View>
+                );
+              }
+              if (item.kind === 'completed-divider') {
+                return (
+                  <View style={[styles.pastDividerHeader, { borderTopColor: colors.border }]}>
+                    <Text style={[styles.selectedDayTitle, { color: colors.textSecondary }]}>
+                      Completed
+                    </Text>
+                  </View>
+                );
+              }
+              if (item.kind === 'completed-commit') {
+                return (
+                  <View style={{ marginBottom: spacing.sm }}>
+                    {renderCompletedCommitmentCard(item.post)}
                   </View>
                 );
               }
@@ -1339,7 +1510,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   calLegendItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  calLegendText: { fontSize: 14 },
+  calLegendText: { fontSize: 16 },
   // Day-filter "show all" chip
   showAllChip: {
     borderWidth: 1,

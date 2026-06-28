@@ -48,6 +48,7 @@ import ConductStandardsScreen from '../screens/onboarding/ConductStandardsScreen
 import MyAgreementScreen from '../screens/profile/MyAgreementScreen';
 import ReferralScreen from '../screens/profile/ReferralScreen';
 import ReviewScreen from '../screens/reviews/ReviewScreen';
+import ReviewsListScreen from '../screens/reviews/ReviewsListScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const DiscoverStack = createNativeStackNavigator<DiscoverStackParamList>();
@@ -82,6 +83,14 @@ const DiscoverNavigator: React.FC = () => {
       <DiscoverStack.Screen name="PostDetail" component={PostDetailScreen} options={{ title: 'Post Details' }} />
       <DiscoverStack.Screen name="CreatePost" component={CreatePostScreen} options={{ title: 'Create Post', presentation: 'modal' }} />
       <DiscoverStack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat', headerShown: false }} />
+      <DiscoverStack.Screen
+        name="ReviewsList"
+        component={ReviewsListScreen}
+        options={({ route }) => ({
+          title: route.params?.dogName ? `${route.params.dogName} Reviews` : 'Reviews',
+          presentation: 'modal',
+        })}
+      />
     </DiscoverStack.Navigator>
   );
 };
@@ -107,6 +116,14 @@ const RequestsNavigator: React.FC = () => {
       <RequestsStack.Screen name="DogDetail" component={DogDetailScreen} options={{ title: 'Dog Profile' }} />
       <RequestsStack.Screen name="CreatePost" component={CreatePostScreen} options={{ title: 'Create Post', presentation: 'modal' }} />
       <RequestsStack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat', headerShown: false }} />
+      <RequestsStack.Screen
+        name="ReviewsList"
+        component={ReviewsListScreen}
+        options={({ route }) => ({
+          title: route.params?.dogName ? `${route.params.dogName} Reviews` : 'Reviews',
+          presentation: 'modal',
+        })}
+      />
     </RequestsStack.Navigator>
   );
 };
@@ -126,6 +143,14 @@ const MessagesNavigator: React.FC = () => {
       <MessagesStack.Screen name="ConversationsList" component={ConversationsListScreen} options={{ title: 'Messages' }} />
       <MessagesStack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
       <MessagesStack.Screen name="UserDetail" component={UserDetailScreen} options={{ title: 'Profile' }} />
+      <MessagesStack.Screen
+        name="ReviewsList"
+        component={ReviewsListScreen}
+        options={({ route }) => ({
+          title: route.params?.dogName ? `${route.params.dogName} Reviews` : 'Reviews',
+          presentation: 'modal',
+        })}
+      />
     </MessagesStack.Navigator>
   );
 };
@@ -175,7 +200,14 @@ const ProfileNavigator: React.FC = () => {
         component={ReferralScreen}
         options={{ title: 'Invite a Friend', headerBackTitle: 'Back' }}
       />
-
+      <ProfileStack.Screen
+        name="ReviewsList"
+        component={ReviewsListScreen}
+        options={({ route }) => ({
+          title: route.params?.dogName ? `${route.params.dogName} Reviews` : 'Reviews',
+          presentation: 'modal',
+        })}
+      />
     </ProfileStack.Navigator>
   );
 };

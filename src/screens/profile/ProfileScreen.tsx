@@ -388,8 +388,17 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
             </Text>
           </TouchableOpacity>
 
-          {/* Reviews box */}
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center' }}>
+          {/* Reviews box — tap to open the layered anonymized reviews breakdown */}
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => {
+              if (!user?.uid) return;
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.navigate('ReviewsList', { userId: user.uid, displayName: userProfile?.displayName ?? 'User' });
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="View reviews"
+          >
             {userProfile?.rating !== undefined && userProfile?.reviewCount ? (
               <View style={{ alignItems: 'center' }}>
                 <StarRating rating={Math.round(userProfile?.rating ?? 0)} />
@@ -400,7 +409,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
             ) : (
               <Text style={{ color: colors.textSecondary, fontSize: 15 }}>No reviews yet</Text>
             )}
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Edit Profile — not bold, bottom right */}
