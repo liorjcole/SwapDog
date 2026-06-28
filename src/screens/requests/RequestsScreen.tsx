@@ -34,7 +34,7 @@ import { RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useMessaging } from '../../hooks/useMessaging';
 import { useTheme } from '../../contexts/ThemeContext';
-import { smartDate, isSameDay, isPostInProgress } from '../../utils/dateHelpers';
+import { smartDate, isSameDay, isPostInProgress, hasEventStarted } from '../../utils/dateHelpers';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useReviews } from '../../hooks/useReviews';
 import { useCancelCommitment } from '../../hooks/useCancelCommitment';
@@ -861,7 +861,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.expandedBtnText}>💬  Message</Text>
               </TouchableOpacity>
 
-              {post.status !== 'completed' && (
+              {post.status !== 'completed' && !hasEventStarted(post, nowTick) && (
                 <TouchableOpacity
                   style={styles.deleteLink}
                   onPress={() => handleCancelCommitment(post)}
