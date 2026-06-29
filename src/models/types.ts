@@ -43,6 +43,7 @@ export interface User {
   subscriptionStatus?: 'active' | 'expired' | 'cancelled';
   subscriptionPlan?: 'monthly';
   subscribedAt?: unknown;
+  freeAccessUntil?: Date;   // Promo code grants paywall bypass until this date
   location?: GeoPoint;
   locationName?: string;
   pushToken?: string;

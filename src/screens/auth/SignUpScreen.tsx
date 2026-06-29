@@ -135,6 +135,17 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
+          onPress={() => navigation.navigate('PromoCode')}
+          accessibilityLabel="Add a referral or promo code (optional)"
+          accessibilityRole="link"
+          style={styles.promoLink}
+        >
+          <Text style={[styles.link, { color: colors.textSecondary }]}>
+            Have a referral or promo code? <Text style={[styles.linkBold, { color: colors.primary }]}>Add it here</Text>
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           onPress={() => navigation.goBack()}
           accessibilityLabel="Back to sign in"
           accessibilityRole="link"
@@ -168,6 +179,7 @@ const styles = StyleSheet.create({
   passwordWrap: { position: 'relative', marginBottom: spacing.md },
   passwordInput: { marginBottom: 0, paddingRight: 48 },
   eyeBtn: { position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' },
+  promoLink: { marginBottom: spacing.sm },
   link: { textAlign: 'center', fontSize: 17 },
   linkBold: { fontWeight: '700' } });
 

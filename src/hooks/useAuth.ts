@@ -3,11 +3,11 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../config/firebase';
 import { useAuthContext } from '../contexts/AuthContext';
-import { generateReferralCode, redeemReferralCode } from './useReferrals';
+import { generateReferralCode, redeemReferralCode, isPromoCode } from './useReferrals';
 const REFERRAL_STORAGE_KEY = '@swapdog_referral_code';
 
 export const useAuth = () => {
@@ -91,6 +91,19 @@ export const useAuth = () => {
         });
       } catch {
         console.warn('[useAuth] Points history write failed (non-fatal — points still seeded on user doc)');
+      }
+
+      // Promo code → grant 30-day free-access window (non-fatal)
+      if (usedCode && isPromoCode(usedCode)) {
+        try {
+          const freeAccessUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          await updateDoc(doc(db, 'users', uid), {
+            freeAccessUntil,
+            updatedAt: serverTimestamp(),
+          });
+        } catch {
+          console.warn('[useAuth] freeAccessUntil write failed (non-fatal)');
+        }
       }
     } catch (postAuthErr) {
       console.warn('[useAuth] Post-signup setup failed (non-fatal):', postAuthErr);
