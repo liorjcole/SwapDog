@@ -15,6 +15,15 @@ import { db } from '../config/firebase';
 import { ReferralCode } from '../models/types';
 import { toDate } from '../utils/firestoreConverters';
 
+/** Designated promo codes that grant 30-day free access. */
+export const PROMO_CODES = new Set(['WATCHDOGFREE']);
+
+/** Returns true if `code` is a designated promo code (case-insensitive). */
+export const isPromoCode = (code: string): boolean => {
+  if (!code) return false;
+  return PROMO_CODES.has(code.trim().toUpperCase());
+};
+
 const COLLECTION = 'referral_codes';
 
 /**

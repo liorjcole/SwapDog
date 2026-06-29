@@ -100,6 +100,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           conductAgreedAt: data.conductAgreedAt ? toDate(data.conductAgreedAt) : undefined,
           contractSignedAt: data.contractSignedAt ? toDate(data.contractSignedAt) : undefined,
           vettingScheduledAt: data.vettingScheduledAt ? toDate(data.vettingScheduledAt) : undefined,
+          freeAccessUntil: data.freeAccessUntil ? toDate(data.freeAccessUntil) : undefined,
           instagramHandle: data.instagramHandle,
           hiddenReusePostIds: data?.hiddenReusePostIds ?? [],
           postTemplates: data?.postTemplates ?? [],

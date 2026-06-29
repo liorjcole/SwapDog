@@ -5,6 +5,7 @@ export type AuthStackParamList = {
   Splash: undefined;
   SignIn: undefined;
   SignUp: { email?: string };
+  PromoCode: undefined;
 };
 
 export type OnboardingStackParamList = {

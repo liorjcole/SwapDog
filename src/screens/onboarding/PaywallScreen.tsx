@@ -18,7 +18,7 @@ type Props = {
 
 const PaywallScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
-  const { user, refreshUserProfile } = useAuthContext();
+  const { user, userProfile, refreshUserProfile } = useAuthContext();
   const [dismissed, setDismissed] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string>('Initializing...');
   const [showDebug, setShowDebug] = useState(false);
@@ -108,8 +108,16 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
     triggered.current = true;
-    showPaywall();
-  }, [isConfigured, isLoading, configError]);
+    const run = async () => {
+      // Free-access window: promo code granted a 30-day paywall bypass
+      if (userProfile?.freeAccessUntil && userProfile.freeAccessUntil > new Date()) {
+        await activateAccount();
+        return;
+      }
+      showPaywall();
+    };
+    run();
+  }, [isConfigured, isLoading, configError, userProfile]);
 
   // If Superwall SDK failed to configure, show error with retry
   if (configError) {
