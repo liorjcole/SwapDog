@@ -16,7 +16,7 @@ type Props = {
   navigation: NativeStackNavigationProp<OnboardingStackParamList, 'LocationSetup'>;
 };
 
-const LocationSetupScreen: React.FC<Props> = () => {
+const LocationSetupScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user, refreshUserProfile } = useAuthContext();
   const { locationName, setLocationName } = useOnboarding();

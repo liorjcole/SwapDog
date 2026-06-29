@@ -24,7 +24,7 @@ const OnboardingStack: React.FC = () => {
         headerShadowVisible: false,
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.primary,
-        headerBackTitleVisible: false,
+        headerBackButtonDisplayMode: 'minimal',
         animation: 'slide_from_right',
       }}
     >

@@ -242,12 +242,13 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
       {/* "Press for 2x speed" note: single instance in the fixed overlay so it
           never scrolls with slides. Fades out on 2x-hold, back in on release.
           pointerEvents="none" keeps it entirely out of the touch path. */}
-      <Animated.Image
-        source={require('../../../assets/signin-animations/press-for-2x.png')}
-        style={{ position: 'absolute', top: noteTop, right: noteRight, width: noteWidth, height: noteHeight, opacity: noteOpacity }}
-        resizeMode="contain"
-        pointerEvents="none"
-      />
+      <View pointerEvents="none" style={{ position: 'absolute', top: noteTop, right: noteRight }}>
+        <Animated.Image
+          source={require('../../../assets/signin-animations/press-for-2x.png')}
+          style={{ width: noteWidth, height: noteHeight, opacity: noteOpacity }}
+          resizeMode="contain"
+        />
+      </View>
 
       <View style={[styles.overlay, { paddingBottom: 18 }]} pointerEvents="box-none">
         {SLIDES.length > 1 && (
@@ -285,14 +286,15 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
         {/* Permanent WatchDog wordmark: the bottom-most element of the fixed
             overlay, identical across every slide. pointerEvents="none" keeps it
             out of the touch path so paging / hold-for-2x / pause stay intact. */}
-        <Image
-          source={require('../../../assets/watchdog-wordmark.png')}
-          style={styles.wordmark}
-          resizeMode="contain"
-          pointerEvents="none"
-          accessibilityRole="image"
-          accessibilityLabel="WatchDog"
-        />
+        <View pointerEvents="none">
+          <Image
+            source={require('../../../assets/watchdog-wordmark.png')}
+            style={styles.wordmark}
+            resizeMode="contain"
+            accessibilityRole="image"
+            accessibilityLabel="WatchDog"
+          />
+        </View>
       </View>
     </View>
   );

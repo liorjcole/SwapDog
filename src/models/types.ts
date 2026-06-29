@@ -245,15 +245,15 @@ export interface SwapPost {
   /** Sitter transport choice; only meaningful when overnightLocation === 'sitters_home'. */
   sitterTransport?: 'pickup' | 'dropoff';
   /** Walk sessions with times, settings, instructions, photos, and dog assignments */
-  walkSessions?: { flexible?: boolean; startTime?: string | null; endTime?: string | null; durationMins?: number; dogIds: string[]; repeatSchedule?: RepeatSchedule | null; instructions?: string; photos?: string[] }[];
+  walkSessions?: { flexible?: boolean; startTime?: string | null; endTime?: string | null; durationMins?: number; dogIds: string[]; repeatSchedule?: RepeatSchedule | null; /** Legacy flag from pre-repeatSchedule posts; superseded by repeatSchedule. */ repeatDaily?: boolean; instructions?: string; photos?: string[] }[];
   /** Walk total duration in minutes (sum of all sessions) */
   walkDurationMins?: number;
   /** Feeding slots with times, instructions, photos, and dog assignments */
-  feedingSlots?: { time: string; repeatSchedule?: RepeatSchedule | null; dogIds: string[]; instructions?: string; photos?: string[] }[];
+  feedingSlots?: { time: string; repeatSchedule?: RepeatSchedule | null; /** Legacy flag from pre-repeatSchedule posts; superseded by repeatSchedule. */ daily?: boolean; dogIds: string[]; instructions?: string; photos?: string[] }[];
   /** Play sessions with times, settings, instructions, photos, and dog assignments */
-  playSessions?: { sessionNumber?: number; flexible?: boolean; startTime?: string | null; endTime?: string | null; durationMins?: number; dogIds: string[]; repeatSchedule?: RepeatSchedule | null; instructions?: string; photos?: string[] }[];
+  playSessions?: { sessionNumber?: number; flexible?: boolean; startTime?: string | null; endTime?: string | null; durationMins?: number; dogIds: string[]; repeatSchedule?: RepeatSchedule | null; /** Legacy flag from pre-repeatSchedule posts; superseded by repeatSchedule. */ repeatDaily?: boolean; instructions?: string; photos?: string[] }[];
   /** Medication slots with time, extra times, details, photos, and dog assignments */
-  medicationSlots?: { time: string; extraTimes?: string[]; details: string; repeatSchedule?: RepeatSchedule | null; dogIds: string[]; photos?: string[] }[];
+  medicationSlots?: { time: string; extraTimes?: string[]; details: string; repeatSchedule?: RepeatSchedule | null; /** Legacy flag from pre-repeatSchedule posts; superseded by repeatSchedule. */ daily?: boolean; dogIds: string[]; photos?: string[] }[];
 
   // Status
   status: PostStatus;
