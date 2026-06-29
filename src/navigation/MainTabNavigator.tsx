@@ -15,6 +15,7 @@ import { useMessaging } from '../hooks/useMessaging';
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, getDoc, deleteField } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { shareReferral } from '../utils/shareReferral';
+import { resolveDogPhotos } from '../utils/resolvePhotoURLs';
 import { ensureReferralCode } from '../hooks/useReferrals';
 import InsufficientPointsModal from '../components/common/InsufficientPointsModal';
 import ConfettiCelebration, { CelebrationItem } from '../components/common/ConfettiCelebration';
@@ -334,19 +335,11 @@ const MainTabNavigator: React.FC = () => {
         const pendingDogIds = (pending.dogIds as string[]) ?? [];
         const pendingOtherUserId = pending.otherUserId as string;
 
+        // resolveDogPhotos fetches dogs/{dogId}.photoURLs[0] for each dog in
+        // parallel — same helper used by the live-trigger and RequestsScreen paths
+        // so all gate entry points behave identically.
         const [dogPhotoURLs, otherUserPhotoURL] = await Promise.all([
-          Promise.all(
-            pendingDogIds.map(async (dogId: string): Promise<string> => {
-              try {
-                const dogSnap = await getDoc(doc(db, 'dogs', dogId));
-                const dogData = dogSnap.data();
-                const urls = dogData?.photoURLs as string[] | undefined;
-                return urls?.[0] ?? '';
-              } catch {
-                return '';
-              }
-            }),
-          ),
+          resolveDogPhotos(pendingDogIds),
           (async (): Promise<string | undefined> => {
             if (!pendingOtherUserId) return undefined;
             try {

@@ -1844,9 +1844,10 @@ const MAX_PLAY_SESSIONS = 5;
       const dogIds = selectedDogs.map((d) => d.id);
       const dogNames = selectedDogs.map((d) => d.name);
       const dogBreeds = selectedDogs.map((d) => d.breed);
-      const dogPhotoURLs = selectedDogs
-        .map((d) => d.photoURLs?.[0])
-        .filter((url): url is string => Boolean(url));
+      // Map WITHOUT filtering so dogPhotoURLs[i] always aligns with dogIds[i].
+      // A dog without a photo gets '' (empty string) rather than being dropped,
+      // preventing index skew on multi-dog posts where ≥1 dog has no photo.
+      const dogPhotoURLs = selectedDogs.map((d) => d.photoURLs?.[0] ?? '');
 
       // Build payment fields conditionally — flat amount for the whole job
       const paymentFields = offerMoney

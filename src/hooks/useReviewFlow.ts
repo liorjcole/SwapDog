@@ -53,6 +53,8 @@ export const useReviewFlow = (params: ReviewFlowParams) => {
       return [
         {
           targetType: 'caregiver' as ReviewTargetType,
+          // Mirror the caregiver-role owner step: surface the other user's avatar.
+          photoURL: params.otherUserPhotoURL,
           title: `Review ${params.otherUserName}`,
           subtitle: 'How was their care of your pup?',
           hint: 'Rate their reliability, attentiveness, and how well they cared for your dog.',
