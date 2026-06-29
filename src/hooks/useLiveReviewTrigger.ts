@@ -16,6 +16,7 @@ import { useUsers } from './useUsers';
 import { useReviews } from './useReviews';
 import { ReviewFlowParams } from './useReviewFlow';
 import { resolvePostEndMs } from '../utils/dateHelpers';
+import { resolveDogPhotos } from '../utils/resolvePhotoURLs';
 import { SwapPost } from '../models/types';
 
 // Re-scan cadence: backstop for the precise per-commitment timers below, in case
@@ -136,8 +137,11 @@ export const useLiveReviewTrigger = ({
 
       const dogIds = post.dogIds ?? (post.dogId ? [post.dogId] : []);
       const dogNames = post.dogNames ?? (post.dogName ? [post.dogName] : []);
-      // Dog photos are denormalized on the post — no extra fetch needed.
-      const dogPhotoURLs = post.dogPhotoURLs ?? (post.dogPhotoURL ? [post.dogPhotoURL] : []);
+      // Resolve dog photos LIVE from dogs/{dogId}.photoURLs[0] so Storage token
+      // rotation after a re-upload doesn't leave the step showing a blank image.
+      // Denormalized post URLs are only a fallback when the live read yields nothing.
+      const fallbackDogPhotos = post.dogPhotoURLs ?? (post.dogPhotoURL ? [post.dogPhotoURL] : []);
+      const dogPhotoURLs = await resolveDogPhotos(dogIds, fallbackDogPhotos);
       // The live user doc is authoritative — the denormalized posterPhotoURL goes
       // stale on photo change and breaks on Storage token rotation. In the
       // caregiver flow the reviewed user IS the poster, so the snapshot is a

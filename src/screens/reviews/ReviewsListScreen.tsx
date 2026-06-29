@@ -66,19 +66,27 @@ const ReviewsListScreen: React.FC<Props> = ({ route }) => {
       try {
         const fetched = await getReviewsForUser(userId);
         if (active) setReviews(fetched ?? []);
-        if (!isDogMode) {
+      } catch (err) {
+        // Append the real error so a missing Firestore index (FAILED_PRECONDITION)
+        // or a permission error is visible on-device instead of the generic message.
+        console.error('[ReviewsList] Load failed:', err);
+        if (active)
+          setLoadError(
+            `Could not load reviews.\n${(err as { message?: string })?.message ?? String(err)}`,
+          );
+      }
+      // Fetch dogs in its own try/catch so a dogs-collection failure can't
+      // masquerade as a reviews-load error; reviews stay visible even if this fails.
+      if (!isDogMode) {
+        try {
           const ownerDogs = await getDogsByOwner(userId);
           if (active) setDogs(ownerDogs ?? []);
+        } catch (err) {
+          console.error('[ReviewsList] getDogsByOwner failed:', err);
+          // Non-fatal: per-dog sections are hidden but reviews remain visible.
         }
-      } catch (err) {
-        // Surface the error rather than masquerading as an empty list.
-        // A missing Firestore index (FAILED_PRECONDITION) would otherwise show
-        // "No reviews yet" while the aggregate count/stars still display.
-        console.error('[ReviewsList] Load failed:', err);
-        if (active) setLoadError('Could not load reviews. Check your connection and try again.');
-      } finally {
-        if (active) setLoading(false);
       }
+      if (active) setLoading(false);
     };
     load();
     return () => {

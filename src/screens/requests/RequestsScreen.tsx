@@ -41,6 +41,7 @@ import { useCancelCommitment } from '../../hooks/useCancelCommitment';
 import { SwapPost } from '../../models/types';
 import { spacing, borderRadius, shadow } from '../../config/theme';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { resolveDogPhotos } from '../../utils/resolvePhotoURLs';
 import { db } from '../../config/firebase';
 import EmptyStateView from '../../components/common/EmptyStateView';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -628,14 +629,19 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                   }
                   // Navigate within the Requests stack — goBack() after submit
                   // returns to the Schedule list, not the Profile tab.
+                  const reviewDogIds = item.dogIds ?? (item.dogId ? [item.dogId] : []);
+                  const reviewDogPhotoURLs = await resolveDogPhotos(
+                    reviewDogIds,
+                    item.dogPhotoURLs ?? (item.dogPhotoURL ? [item.dogPhotoURL] : []),
+                  );
                   navigation.navigate('Review', {
                     postId: item.id,
                     role: 'owner' as const,
                     otherUserId: claimedByUid,
                     otherUserName,
-                    dogIds: item.dogIds ?? (item.dogId ? [item.dogId] : []),
+                    dogIds: reviewDogIds,
                     dogNames: item.dogNames ?? [item.dogName],
-                    dogPhotoURLs: item.dogPhotoURLs ?? (item.dogPhotoURL ? [item.dogPhotoURL] : []),
+                    dogPhotoURLs: reviewDogPhotoURLs,
                     otherUserPhotoURL,
                   });
                 }}
@@ -995,14 +1001,19 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                   } catch { /* keep fallback */ }
                 }
                 if (!otherUserPhotoURL) otherUserPhotoURL = post.posterPhotoURL;
+                const caregiverDogIds = post.dogIds ?? (post.dogId ? [post.dogId] : []);
+                const caregiverDogPhotoURLs = await resolveDogPhotos(
+                  caregiverDogIds,
+                  post.dogPhotoURLs ?? (post.dogPhotoURL ? [post.dogPhotoURL] : []),
+                );
                 navigation.navigate('Review', {
                   postId: post.id,
                   role: 'caregiver' as const,
                   otherUserId: posterUid,
                   otherUserName,
-                  dogIds: post.dogIds ?? (post.dogId ? [post.dogId] : []),
+                  dogIds: caregiverDogIds,
                   dogNames: post.dogNames ?? [post.dogName],
-                  dogPhotoURLs: post.dogPhotoURLs ?? (post.dogPhotoURL ? [post.dogPhotoURL] : []),
+                  dogPhotoURLs: caregiverDogPhotoURLs,
                   otherUserPhotoURL,
                 });
               }}
