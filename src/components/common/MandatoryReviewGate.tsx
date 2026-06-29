@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   BackHandler,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useReviewFlow, ReviewFlowParams } from '../../hooks/useReviewFlow';
@@ -35,6 +35,10 @@ interface Props {
  */
 const MandatoryReviewGate: React.FC<Props> = ({ data, onComplete }) => {
   const { colors } = useTheme();
+  // Read the real device top inset so the title clears the notch/status bar
+  // with comfortable breathing room. SafeAreaView handles only the bottom edge
+  // to avoid double-counting the top inset.
+  const insets = useSafeAreaInsets();
   const flow = useReviewFlow(data);
   const {
     isLast,
@@ -73,14 +77,14 @@ const MandatoryReviewGate: React.FC<Props> = ({ data, onComplete }) => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['bottom']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* No header/back/close affordance — the gate cannot be dismissed. */}
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
           keyboardShouldPersistTaps="handled"
         >
           <ReviewStepCard flow={flow} />
@@ -114,7 +118,8 @@ const MandatoryReviewGate: React.FC<Props> = ({ data, onComplete }) => {
 };
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.lg, paddingTop: spacing.lg, paddingBottom: 60 },
+  // paddingTop is set dynamically (insets.top + spacing.lg) via inline style.
+  content: { padding: spacing.lg, paddingBottom: 60 },
   nextBtn: {
     padding: spacing.md,
     borderRadius: borderRadius.md,
