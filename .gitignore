@@ -26,3 +26,10 @@ scripts/*
 functions/lib/
 functions/node_modules/
 ios/
+
+# Firebase emulator debug logs
+tests/rules/*.log
+firebase-debug.log
+firestore-debug.log
+storage-debug.log
+ui-debug.log
