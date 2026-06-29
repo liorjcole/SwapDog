@@ -268,6 +268,169 @@ export const onNewHelpOffer = onDocumentUpdated(
   }
 );
 
+// ─── Helper: half-open interval overlap predicate ─────────────────────────────
+function intervalsOverlap(
+  aStart: Date,
+  aEnd: Date,
+  bStart: Date,
+  bEnd: Date
+): boolean {
+  return aStart.getTime() < bEnd.getTime() && aEnd.getTime() > bStart.getTime();
+}
+
+// ─── Helper: resolve a post's effective [start, end] caregiver window ──────────
+// Mirrors the client isPostInProgress logic: a post with top-level startTime/
+// endTime is time-precise; otherwise it anchors to the full calendar day(s).
+// Returns null when the post lacks usable startDate/endDate Timestamps.
+function resolveInterval(
+  postData: Record<string, unknown>
+): { start: Date; end: Date } | null {
+  const rawStart = postData.startDate as admin.firestore.Timestamp | undefined;
+  const rawEnd = postData.endDate as admin.firestore.Timestamp | undefined;
+  if (!rawStart || typeof rawStart.toDate !== "function") return null;
+  if (!rawEnd || typeof rawEnd.toDate !== "function") return null;
+
+  const start = rawStart.toDate();
+  const end = rawEnd.toDate();
+
+  const startTime = postData.startTime as string | undefined;
+  const endTime = postData.endTime as string | undefined;
+
+  if (startTime) {
+    const { hours, minutes } = parseTime12Str(startTime);
+    start.setHours(hours, minutes, 0, 0);
+  } else {
+    start.setHours(0, 0, 0, 0);
+  }
+
+  if (endTime) {
+    const { hours, minutes } = parseTime12Str(endTime);
+    end.setHours(hours, minutes, 59, 999);
+  } else {
+    end.setHours(23, 59, 59, 999);
+  }
+
+  return { start, end };
+}
+
+// ─── Helper: readable label for a post (there is no top-level `title` field) ───
+function describePost(postData: Record<string, unknown>): string {
+  const dogNames = postData.dogNames as string[] | undefined;
+  const dogName = postData.dogName as string | undefined;
+  const dogLabel =
+    dogNames && dogNames.length > 0
+      ? dogNames.join(" & ")
+      : dogName || "a booking";
+  const posterName = postData.posterName as string | undefined;
+  return posterName ? `${posterName}'s booking for ${dogLabel}` : dogLabel;
+}
+
+// ─── Helper: withdraw a helper's pending requests overlapping a new commitment ─
+// When a user is accepted as caregiver they must not remain in the running for
+// any OTHER open post whose time overlaps. Firestore can't filter inside the
+// respondedBy[] array-of-maps, so we scan open posts (same constraint as the
+// client getPendingPosts), arrayRemove the helper's entry from each overlapping
+// post, and send the helper one heads-up push per withdrawal. The other post
+// stays open for other helpers. Idempotent — arrayRemove of an absent entry is
+// a no-op, so a CF retry can't double-withdraw.
+//
+// NOTE (follow-up, out of scope): this does NOT close the simultaneous-
+// acceptance race where two owners approve the same helper on overlapping posts
+// within milliseconds — both posts leave 'open' before either CF runs. Fully
+// closing it needs a transactional claimPost callable that rejects a claim when
+// the helper already holds an overlapping commitment.
+async function withdrawOverlappingRequests(
+  helperId: string,
+  acceptedPostId: string,
+  acceptedPostData: Record<string, unknown>
+): Promise<void> {
+  const acceptedInterval = resolveInterval(acceptedPostData);
+  if (!acceptedInterval) {
+    console.warn(
+      `[withdrawOverlapping] Accepted post ${acceptedPostId} has no valid interval — skipping`
+    );
+    return;
+  }
+
+  // Cannot filter by respondedBy[].userId server-side — scan open posts.
+  const openSnap = await db
+    .collection("swapPosts")
+    .where("status", "==", "open")
+    .get();
+
+  const batch = db.batch();
+  const withdrawn: { postId: string; title: string }[] = [];
+
+  for (const doc of openSnap.docs) {
+    if (doc.id === acceptedPostId) continue;
+
+    const data = doc.data();
+    if (!data) continue;
+
+    const respondedBy =
+      (data.respondedBy as Array<Record<string, unknown>> | undefined) ?? [];
+    const helperEntry = respondedBy.find(
+      (r) => (r.userId as string) === helperId
+    );
+    if (!helperEntry) continue;
+
+    const otherInterval = resolveInterval(data);
+    if (!otherInterval) continue;
+
+    if (
+      !intervalsOverlap(
+        acceptedInterval.start,
+        acceptedInterval.end,
+        otherInterval.start,
+        otherInterval.end
+      )
+    ) {
+      continue;
+    }
+
+    batch.update(doc.ref, {
+      respondedBy: admin.firestore.FieldValue.arrayRemove(helperEntry),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    withdrawn.push({ postId: doc.id, title: describePost(data) });
+
+    console.log(
+      `[withdrawOverlapping] Withdrawing ${helperId}'s request on post ${doc.id} ` +
+        `(overlap ${otherInterval.start.toISOString()}–${otherInterval.end.toISOString()})`
+    );
+  }
+
+  if (withdrawn.length === 0) return;
+
+  await batch.commit();
+  console.log(
+    `[withdrawOverlapping] Withdrew ${withdrawn.length} overlapping request(s) for ${helperId}`
+  );
+
+  // Heads-up push to the helper — best-effort, non-fatal.
+  try {
+    const tokens = await getUserTokens(helperId);
+    if (tokens.length === 0) return;
+    for (const { postId, title } of withdrawn) {
+      await sendPushNotifications(
+        helperId,
+        tokens,
+        "Heads up",
+        `You're confirmed for an overlapping booking, so your pending request on "${title}" was withdrawn.`,
+        {
+          type: "reminder",
+          postId,
+        }
+      );
+    }
+  } catch (error) {
+    console.error(
+      "[withdrawOverlapping] Failed to notify helper of withdrawal:",
+      error
+    );
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // 3. HELP CONFIRMED (post claimed)
 //    Trigger: swapPosts/{postId} updated (status changes to 'claimed')
@@ -308,6 +471,18 @@ export const onHelpConfirmed = onDocumentUpdated(
       await scheduleReminders(event.params.postId, after);
     } catch (error) {
       console.error("[onHelpConfirmed] Failed to schedule reminders:", error);
+    }
+
+    // Auto-withdraw this helper's pending requests on other open posts whose
+    // time overlaps the just-accepted commitment (no caregiver double-booking).
+    // Guarded so a withdrawal failure never breaks the confirm/reminder path.
+    try {
+      await withdrawOverlappingRequests(claimedBy, event.params.postId, after);
+    } catch (error) {
+      console.error(
+        "[onHelpConfirmed] Failed to withdraw overlapping requests:",
+        error
+      );
     }
   }
 );
