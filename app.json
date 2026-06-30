@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ari.SwapDog",
-      "buildNumber": "54",
+      "buildNumber": "55",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
