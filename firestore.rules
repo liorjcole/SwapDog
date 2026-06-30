@@ -7,14 +7,53 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == '5SUwrjPWPzbqf7qTYRS74Uj7CB82';
     }
 
-    // Users: read if authenticated (needed for referral lists), write own doc only
-    // Admin can read all user docs and update accountStatus
+    // Users
+    // ── Reads ──
+    //   Any authenticated user can read (the feed renders other users' public
+    //   profile data — displayName, photoURL, rating). NOTE: email, location
+    //   (exact coords) and pushTokens remain readable to any signed-in account.
+    //   Hiding those without breaking the feed needs a public-projection doc
+    //   (publicProfiles/{uid}) written by a trigger — a data-model change tracked
+    //   as a follow-up (audit #3). Not changed here to avoid breaking reads.
+    // ── Writes ──
+    //   The owner may only mutate an explicit allow-list of profile fields.
+    //   rating, reviewCount, points, isAdmin, vettingScheduledAt and the
+    //   subscription/* fields are NOT in the list, so they are server-only
+    //   (Cloud Functions / admin) — this defeats client rating/points/aggregate
+    //   tampering and admin self-promotion (audit #1, #8, #10).
     match /users/{userId} {
+      // Fields the client is allowed to set on its own user doc. Any key not
+      // listed here (notably rating / reviewCount / points / isAdmin) is denied,
+      // making those server-only.
+      function isAllowedUserUpdate() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'email', 'displayName', 'photoURL', 'bio', 'instagramHandle',
+          'location', 'locationName', 'isOnboarded',
+          'pushToken', 'pushTokens',
+          'referredBy', 'referralCode', 'referralCodeUsed',
+          'conductAgreedAt', 'contractSignedAt', 'contractSignedName',
+          'contractVersion', 'accountStatus',
+          'hiddenReusePostIds', 'postTemplates',
+          'pendingReview', 'pendingReferralReward',
+          'updatedAt'
+        ]);
+      }
+
+      // A suspended / terminated / rejected account may not rewrite its own
+      // accountStatus (audit #1: "a banned user un-bans themselves"). Onboarding
+      // still transitions pending_approval -> active client-side; moving the full
+      // lifecycle server-side is a follow-up (audit #2).
+      function statusChangeAllowed() {
+        return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['accountStatus'])
+          || !(resource.data.accountStatus in ['suspended', 'terminated', 'rejected']);
+      }
+
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && (
+      allow update: if isAdmin() || (
         request.auth.uid == userId
-        || isAdmin()
+        && isAllowedUserUpdate()
+        && statusChangeAllowed()
       );
       allow delete: if false;
 
@@ -138,11 +177,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Reviews: read if authenticated, create only (immutable)
+    // Reviews: read if authenticated, create-only (immutable).
+    // Server-side validation (audit #5): reviewer must be the caller, reviewer
+    // and reviewee must differ, and rating must be an integer in [1, 5].
+    // Malformed / self / out-of-range reviews are rejected at the rules layer
+    // so they can never reach the onReviewCreated aggregation trigger.
     match /reviews/{reviewId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
-        && request.resource.data.reviewerId == request.auth.uid;
+        && request.resource.data.reviewerId == request.auth.uid
+        && request.resource.data.revieweeId is string
+        && request.resource.data.revieweeId != request.resource.data.reviewerId
+        && request.resource.data.targetType is string
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      // Reviews are immutable once written
       allow update: if false;
       allow delete: if false;
     }

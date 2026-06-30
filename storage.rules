@@ -2,18 +2,32 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Dog photos — any authenticated user can read; dog owner can write
+    // Dog photos — any authenticated user can read; writes are owner-scoped (audit #15).
+    // New dogs upload to an owner-bound temp path (`temp_<uid>_<ts>`) before the
+    // dog doc exists; edits to an existing dog use its real doc id, which must be
+    // owned by the caller (verified via a cross-service Firestore lookup).
     match /dogs/{dogId}/{allPaths=**} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
                    && request.resource.size < 10 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+                   && request.resource.contentType.matches('image/.*')
+                   && (
+                     dogId.matches('temp_' + request.auth.uid + '_.*')
+                     || (
+                       firestore.exists(/databases/(default)/documents/dogs/$(dogId))
+                       && firestore.get(/databases/(default)/documents/dogs/$(dogId)).data.ownerId == request.auth.uid
+                     )
+                   );
     }
 
-    // Chat images — any authenticated user can read/write
+    // Chat images — scoped to conversation participants for both read and write (audit #6).
+    // The {conversationId} path segment is the Firestore conversation doc id, so
+    // membership is verified via a cross-service lookup of participantIds.
     match /chat-images/{conversationId}/{allPaths=**} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null
+                   && request.auth.uid in firestore.get(/databases/(default)/documents/conversations/$(conversationId)).data.participantIds;
       allow write: if request.auth != null
+                   && request.auth.uid in firestore.get(/databases/(default)/documents/conversations/$(conversationId)).data.participantIds
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
