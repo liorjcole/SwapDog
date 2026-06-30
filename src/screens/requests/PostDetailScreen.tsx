@@ -1168,9 +1168,10 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 <View style={{ marginBottom: 10 }}>
                   <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 4 }}>🐕 Walks</Text>
                   {post.walkSessions.map((ws, i) => {
-                    const durLabel = ws.durationMins >= 60
-                      ? `${Math.floor(ws.durationMins / 60)}h${ws.durationMins % 60 > 0 ? ` ${ws.durationMins % 60}m` : ''}`
-                      : `${ws.durationMins}m`;
+                    const mins = ws.durationMins ?? 0;
+                    const durLabel = mins >= 60
+                      ? `${Math.floor(mins / 60)}h${mins % 60 > 0 ? ` ${mins % 60}m` : ''}`
+                      : `${mins}m`;
                     return (
                       <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
                         <Text style={{ fontSize: 15, color: colors.textSecondary }}>
@@ -1192,9 +1193,10 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 <View style={{ marginBottom: 10 }}>
                   <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 4 }}>🎾 Playtime</Text>
                   {post.playSessions.map((ps, i) => {
-                    const durLabel = ps.durationMins >= 60
-                      ? `${Math.floor(ps.durationMins / 60)}h${ps.durationMins % 60 > 0 ? ` ${ps.durationMins % 60}m` : ''}`
-                      : `${ps.durationMins}m`;
+                    const mins = ps.durationMins ?? 0;
+                    const durLabel = mins >= 60
+                      ? `${Math.floor(mins / 60)}h${mins % 60 > 0 ? ` ${mins % 60}m` : ''}`
+                      : `${mins}m`;
                     return (
                       <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
                         <Text style={{ fontSize: 15, color: colors.textSecondary }}>

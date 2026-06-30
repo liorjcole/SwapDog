@@ -7,5 +7,8 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.d.ts", "expo-env.d.ts"]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.d.ts", "expo-env.d.ts"],
+  // functions/ is a separate Cloud Functions package with its own tsconfig and
+  // node_modules; exclude it so an app-side compile doesn't pull in its deps.
+  "exclude": ["node_modules", "functions"]
 }

@@ -1,0 +1,53 @@
+name: ci
+
+# Type-check gate (P0 from the Production Readiness & DevOps audit). Runs on
+# EVERY pull request regardless of which paths changed, so a type regression
+# can't reach a build again — the LocationSetupScreen onboarding crash shipped to
+# build 46 precisely because nothing type-checked PRs. The app and the Cloud
+# Functions package are compiled separately because each has its own tsconfig
+# and node_modules.
+on:
+  pull_request:
+  push:
+    branches:
+      - react-native
+      - main
+
+jobs:
+  app:
+    name: Lint & type-check (app)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      # Advisory for now: the existing codebase carries a lint backlog that is
+      # being cleaned up separately. Lint runs for visibility but does not gate
+      # merges yet — flip `continue-on-error` to false once the backlog is clear.
+      - name: Lint (advisory)
+        continue-on-error: true
+        run: npx expo lint
+      - name: Type-check app
+        run: npx tsc --noEmit
+
+  functions:
+    name: Type-check (functions)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - name: Install function dependencies
+        run: npm ci
+        working-directory: functions
+      - name: Type-check functions
+        run: npx tsc --noEmit
+        working-directory: functions
+
