@@ -15,33 +15,9 @@ import {
   addNotificationResponseListener,
 } from './src/services/NotificationService';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
-
-// expo-superwall evaluates requireNativeModule("SuperwallExpo") at module scope.
-// If the native binary doesn't have that module registered (e.g. EAS cache miss),
-// it throws synchronously — before React mounts, before ErrorBoundary can catch it → white screen.
-// Wrapping require() in try/catch intercepts the throw and substitutes a pass-through component.
-type SuperwallProviderProps = {
-  apiKeys: { ios?: string; android?: string };
-  onConfigurationError?: (error: Error) => void;
-  children: React.ReactNode;
-};
-
-const SuperwallProvider: React.FC<SuperwallProviderProps> = (() => {
-  try {
-    const mod = require('expo-superwall') as {
-      SuperwallProvider: React.FC<SuperwallProviderProps>;
-    };
-    return mod.SuperwallProvider;
-  } catch (err) {
-    // Native module 'SuperwallExpo' is absent from this binary.
-    // App launches normally; paywall gating is disabled for this session.
-    console.warn('[App] expo-superwall native module unavailable — Superwall disabled:', err);
-    function SuperwallPassthrough({ children }: SuperwallProviderProps): React.ReactElement {
-      return <>{children}</>;
-    }
-    return SuperwallPassthrough;
-  }
-})();
+// All expo-superwall access is routed through this guarded wrapper so no top-level
+// import can crash launch when the native module is absent. See src/lib/superwall.ts.
+import { SuperwallProvider } from './src/lib/superwall';
 
 const SUPERWALL_IOS_KEY = 'pk_1CHpmKHV-l-lYGShDBz1e';
 
