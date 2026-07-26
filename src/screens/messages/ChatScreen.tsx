@@ -17,7 +17,7 @@ import { useSwaps } from '../../hooks/useSwaps';
 import { useFavorites } from '../../hooks/useFavorites';
 import { setActiveConversation } from '../../services/NotificationService';
 import { Message } from '../../models/types';
-import { collection, query, where, getDocs, getDoc, doc as firestoreDoc, updateDoc as firestoreUpdateDoc, serverTimestamp as fsServerTimestamp, addDoc as fsAddDoc, deleteDoc} from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc as firestoreDoc, updateDoc as firestoreUpdateDoc, serverTimestamp as fsServerTimestamp, addDoc as fsAddDoc, deleteDoc, deleteField, limit as firestoreLimit } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { spacing, borderRadius } from '../../config/theme';
 import MessageBubble from '../../components/common/MessageBubble';
@@ -38,6 +38,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
   const { claimPost, removeResponder } = useSwaps();
   const [acceptedPostIds, setAcceptedPostIds] = useState<Set<string>>(new Set());
   const [removingMessageId, setRemovingMessageId] = useState<string | null>(null);
+  const [respondedRescheduleIds, setRespondedRescheduleIds] = useState<Set<string>>(new Set());
   const starred = isFavorite(otherUserId);
   const isSystem = otherUserId === 'swapdog-team';
   const [messages, setMessages] = useState<Message[]>([]);
@@ -356,7 +357,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
 
                       // Check remaining messages in this conversation
                       const msgsSnap = await getDocs(
-                        query(collection(db, 'conversations', conversationId, 'messages'))
+                        query(collection(db, 'conversations', conversationId, 'messages'), firestoreLimit(1))
                       );
 
                       if (msgsSnap.empty) {
@@ -364,24 +365,6 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
                         await deleteDoc(firestoreDoc(db, 'conversations', conversationId));
                         // Navigate back to messages list
                         navigation.goBack();
-                      }
-
-                      // Notify the post owner via their WatchDog team conversation
-                      try {
-                        const ownerConvQuery = query(collection(db, 'conversations'));
-                        const allConvSnap = await getDocs(ownerConvQuery);
-                        const ownerWatchdogConv = allConvSnap.docs.find((d) => {
-                          const participants = (d.data().participantIds as string[]) ?? [];
-                          return participants.includes(otherUserId) && participants.includes('swapdog-team');
-                        });
-                        if (ownerWatchdogConv) {
-                          await sendMessage(ownerWatchdogConv.id, 'swapdog-team',
-                            'Heads up — someone requested to help on one of your posts but has since removed their request. ' +
-                            'You may have seen a notification about it, but there are no active requests from this person.'
-                          );
-                        }
-                      } catch {
-                        // Non-fatal — the core removal succeeded
                       }
 
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -395,6 +378,61 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
               ]
             );
           };
+          const handleRescheduleWorks = async () => {
+            if (!user) return;
+            try {
+              setRespondedRescheduleIds((prev) => new Set(prev).add(item.id));
+              await sendMessage(conversationId, user.uid, 'Works for me!');
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (err: unknown) {
+              setRespondedRescheduleIds((prev) => {
+                const next = new Set(prev);
+                next.delete(item.id);
+                return next;
+              });
+              Alert.alert('Error', err instanceof Error ? err.message : 'Could not send response');
+            }
+          };
+
+          const handleRescheduleCannot = async () => {
+            const postId = item.metadata?.postId;
+            const ownerId = item.metadata?.ownerId;
+            if (!postId || !ownerId || !user) return;
+            Alert.alert(
+              "Can't make it?",
+              "We'll put this post back on Discover and let the owner know.",
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Repost',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      setRespondedRescheduleIds((prev) => new Set(prev).add(item.id));
+                      await firestoreUpdateDoc(firestoreDoc(db, 'swapPosts', postId), {
+                        status: 'open',
+                        claimedBy: deleteField(),
+                        respondedBy: [],
+                        updatedAt: fsServerTimestamp(),
+                      });
+                      const dateLabel = item.metadata?.dateLabel ?? 'the new time';
+                      const eventLabel = item.metadata?.eventLabel ?? 'the booking';
+                      const msgText = `WatchDog update: ${otherUserName} can't make ${dateLabel} for ${eventLabel}, so the post is back on Discover. Previous helper requests were cleared so you can choose fresh responses.`;
+                      await sendMessage(conversationId, 'swapdog-team', msgText);
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    } catch (err: unknown) {
+                      setRespondedRescheduleIds((prev) => {
+                        const next = new Set(prev);
+                        next.delete(item.id);
+                        return next;
+                      });
+                      Alert.alert('Error', err instanceof Error ? err.message : 'Could not repost this booking');
+                    }
+                  },
+                },
+              ],
+            );
+          };
           return (
           <MessageBubble
             text={item.text}
@@ -406,6 +444,9 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
             helpAccepted={item.type === 'help_request' && item.metadata?.postId ? acceptedPostIds.has(item.metadata.postId) : false}
             onRemoveRequest={item.type === 'help_request' && item.senderId === user?.uid && !acceptedPostIds.has(item.metadata?.postId ?? '') ? handleRemoveRequest : undefined}
             removingRequest={removingMessageId === item.id}
+            onRescheduleWorks={item.type === 'reschedule_request' && item.metadata?.caregiverId === user?.uid ? handleRescheduleWorks : undefined}
+            onRescheduleCannot={item.type === 'reschedule_request' && item.metadata?.caregiverId === user?.uid ? handleRescheduleCannot : undefined}
+            rescheduleResponded={respondedRescheduleIds.has(item.id)}
             onUnsend={
               item.senderId === user?.uid &&
               item.createdAt &&

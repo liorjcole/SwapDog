@@ -20,14 +20,37 @@ const getCareTypeLabel = (t: string): string => {
   }
 };
 
-/** Map dogIds to display names using post.dogIds/dogNames arrays */
-function resolveDogNames(dogIds: string[], post: SwapPost): string {
-  if (!dogIds.length || !post.dogIds || !post.dogNames) return '';
-  const names = dogIds.map(id => {
-    const idx = post.dogIds!.indexOf(id);
-    return idx >= 0 ? post.dogNames![idx] : '';
-  }).filter(Boolean);
-  return names.join(', ');
+function getSummaryDate(post: SwapPost): string {
+  const start = smartDate(post.startDate);
+  const end = smartDate(post.endDate);
+
+  if (post.careType === 'overnight') {
+    const range = isSameDay(post.startDate, post.endDate) ? start : `${start} – ${end}`;
+    return range;
+  }
+
+  const timeRange = post.startTime && post.endTime
+    ? `, ${post.startTime} – ${post.endTime}`
+    : post.startTime
+      ? `, ${post.startTime}`
+      : '';
+
+  return `${start}${timeRange}`;
+}
+
+function getDetailsSummary(post: SwapPost): string {
+  const details: string[] = [];
+
+  if (post.feedingSlots?.length) details.push('Feeding');
+  if (post.walkSessions?.length) details.push('Walks');
+  if (post.playSessions?.length) details.push('Playtime');
+  if (post.medicationSlots?.length) details.push('Medication');
+
+  if (details.length === 0 && post.careType) {
+    details.push(getCareTypeLabel(post.careType));
+  }
+
+  return details.join(', ');
 }
 
 export interface PostCardProps {
@@ -51,10 +74,8 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
   }, [onPress, post.id]);
   const { colors } = useTheme();
   const isOwnPost = !!(currentUserId && post.posterId === currentUserId);
-  const startStr = smartDate(post.startDate);
-  const endStr = smartDate(post.endDate, { includeYear: true });
-
-  const careLabel = post.careType ? getCareTypeLabel(post.careType) : 'Pet Care';
+  const dateSummary = getSummaryDate(post);
+  const detailsSummary = getDetailsSummary(post);
 
   return (
     // Dim the entire card when claimed — mirrors the past-commitments dim in RequestsScreen (~L769)
@@ -66,6 +87,11 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
       accessibilityLabel={`Post for ${post.dogName}`}
     >
       <View style={styles.postCardInner}>
+        {post.careType === 'overnight' && (
+          <View style={styles.overnightBadge}>
+            <Text style={styles.overnightBadgeText}>🌙 Overnight</Text>
+          </View>
+        )}
         {/* Own post badge — top right; suppressed when Claimed wins priority */}
         {isOwnPost && !isClaimed && (
           <View style={{ position: 'absolute', top: -1, right: -1, backgroundColor: RED, paddingHorizontal: 10, paddingVertical: 4, borderBottomLeftRadius: 8, borderTopRightRadius: 10, zIndex: 10 }}>
@@ -85,7 +111,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
           </View>
         )}
         {/* Dog photos + names row */}
-        <View style={styles.cardHeader}>
+        <View style={[styles.cardHeader, post.careType === 'overnight' && styles.cardHeaderWithTopBadge]}>
           {/* Dog avatar(s) */}
           {post.dogPhotoURLs && post.dogPhotoURLs.length > 1 ? (
             <View style={{ flexDirection: 'row', marginRight: 10 }}>
@@ -113,7 +139,7 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
                 ? post.dogNames.join(' & ')
                 : post.dogName}
             </Text>
-            <Text style={[styles.dateRange, { color: colors.textSecondary }]}>{isSameDay(post.startDate, post.endDate) ? startStr : `${startStr} – ${endStr}`}</Text>
+            <Text style={[styles.dateRange, { color: colors.textSecondary }]}>{dateSummary}</Text>
           </View>
           {post.compensationType && (
             <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={1}>
@@ -128,108 +154,14 @@ const PostCard: React.FC<PostCardProps> = memo(({ post, onPress, currentUserId, 
           )}
         </View>
 
-        {/* ── Full Care Details ── */}
-        <View style={{ marginTop: 8, borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 8 }}>
-          {/* Primary care type */}
-          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
-            {careLabel}
-          </Text>
-
-          {/* Day sitting / overnight times */}
-          {(post.careType === 'daySitting' || post.careType === 'overnight') && post.startTime && post.endTime && (
-            <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 2 }}>
-              🕐  {post.startTime} – {post.endTime}
+        {detailsSummary ? (
+          <View style={{ marginTop: 8, borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 8 }}>
+            <Text style={{ fontSize: 15, color: colors.textSecondary }} numberOfLines={1}>
+              <Text style={{ color: colors.text, fontWeight: '700' }}>Details: </Text>
+              {detailsSummary}
             </Text>
-          )}
-
-          {/* Feeding slots */}
-          {post.feedingSlots && post.feedingSlots.length > 0 && (
-            <View style={{ marginTop: 6 }}>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>🍽️ Feeding</Text>
-              {post.feedingSlots.map((slot, i) => (
-                <Text key={i} style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
-                  {slot.time}{slot.daily ? '  ·  repeat daily' : ''}
-                  {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
-                    ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
-                    : ''}
-                </Text>
-              ))}
-            </View>
-          )}
-
-          {/* Medication slots */}
-          {post.medicationSlots && post.medicationSlots.length > 0 && (
-            <View style={{ marginTop: 6 }}>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>💊 Medication</Text>
-              {post.medicationSlots.map((slot, i) => (
-                <Text key={i} style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }} numberOfLines={1}>
-                  {slot.time}{slot.daily ? '  ·  repeat daily' : ''}{slot.details ? ` — ${slot.details}` : ''}
-                  {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
-                    ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
-                    : ''}
-                </Text>
-              ))}
-            </View>
-          )}
-
-          {/* Walk sessions */}
-          {post.walkSessions && post.walkSessions.length > 0 && (
-            <View style={{ marginTop: 6 }}>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>🐕 Walks</Text>
-              {post.walkSessions.map((ws, i) => {
-                const mins = ws.durationMins ?? 0;
-                const durLabel = mins >= 60
-                  ? `${Math.floor(mins / 60)}h${mins % 60 > 0 ? ` ${mins % 60}m` : ''}`
-                  : `${mins}m`;
-                return (
-                  <Text key={i} style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
-                    {ws.flexible
-                      ? `Flexible · ${durLabel}`
-                      : `${ws.startTime} – ${ws.endTime}  (${durLabel})`}{ws.repeatDaily ? '  ·  repeat daily' : ''}
-                    {ws.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
-                      ? `  ·  ${resolveDogNames(ws.dogIds, post)}`
-                      : ''}
-                  </Text>
-                );
-              })}
-            </View>
-          )}
-
-          {/* Play sessions */}
-          {post.playSessions && post.playSessions.length > 0 && (
-            <View style={{ marginTop: 6 }}>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>🎾 Playtime</Text>
-              {post.playSessions.map((ps, i) => {
-                const mins = ps.durationMins ?? 0;
-                const durLabel = mins >= 60
-                  ? `${Math.floor(mins / 60)}h${mins % 60 > 0 ? ` ${mins % 60}m` : ''}`
-                  : `${mins}m`;
-                return (
-                  <Text key={i} style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
-                    {ps.flexible
-                      ? `Flexible · ${durLabel}`
-                      : `${ps.startTime} – ${ps.endTime}  (${durLabel})`}
-                    {ps.repeatDaily ? '  ·  repeat daily' : ''}
-                    {ps.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
-                      ? `  ·  ${resolveDogNames(ps.dogIds, post)}`
-                      : ''}
-                  </Text>
-                );
-              })}
-            </View>
-          )}
-
-          {/* Free-text care details */}
-          {post.careDetails ? (
-            <View style={{ backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, marginTop: 8 }}>
-              <Text style={{ fontSize: 16, color: colors.textSecondary, fontStyle: 'italic' }} numberOfLines={3}>
-                "{post.careDetails}"
-              </Text>
-            </View>
-          ) : null}
-
-
-        </View>
+          </View>
+        ) : null}
 
         {post.status === 'open' && currentUserId && (post.respondedBy ?? []).some(r => r.userId === currentUserId) && (
           <View style={styles.respondedBadge}>
@@ -265,6 +197,19 @@ const styles = StyleSheet.create({
   dogThumbLead: { width: 48, height: 48, borderRadius: 24, borderWidth: 1.5 },
   dogThumbLeadPlaceholder: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   dogLine: { fontSize: 16, fontWeight: '600', marginBottom: spacing.xs },
+  cardHeaderWithTopBadge: { marginTop: 16 },
+  overnightBadge: {
+    position: 'absolute',
+    top: -1,
+    left: -1,
+    backgroundColor: '#BFE7FF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderBottomRightRadius: 8,
+    borderTopLeftRadius: 10,
+    zIndex: 10,
+  },
+  overnightBadgeText: { fontSize: 12, fontWeight: '800', color: '#0B4F71', letterSpacing: 0.5 },
   respondedBadge: { backgroundColor: '#0984E320', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start', marginTop: 6 },
   respondedBadgeText: { color: '#0984E3', fontSize: 13, fontWeight: '700' },
   detailsBtn: { marginTop: spacing.sm, borderWidth: 1.5, borderColor: '#FF2D55', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16, alignSelf: 'flex-start' },
@@ -272,4 +217,3 @@ const styles = StyleSheet.create({
 });
 
 export default PostCard;
-

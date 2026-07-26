@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { usePlacement, useSuperwall } from '../../lib/superwall';
+import { isSuperwallAvailable, usePlacement, useSuperwall } from '../../lib/superwall';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -14,6 +14,14 @@ const RED = '#FF2D55';
 
 type Props = {
   navigation: NativeStackNavigationProp<OnboardingStackParamList, 'Paywall'>;
+};
+
+const getSkipReasonType = (reason: unknown): string => {
+  if (reason && typeof reason === 'object' && 'type' in reason) {
+    const type = (reason as { type?: unknown }).type;
+    if (typeof type === 'string') return type;
+  }
+  return String(reason);
 };
 
 const PaywallScreen: React.FC<Props> = ({ navigation }) => {
@@ -29,7 +37,7 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
   const isConfigured = useSuperwall((state) => state.isConfigured);
   const isLoading = useSuperwall((state) => state.isLoading);
 
-  const activateAccount = async () => {
+  const activateAccount = useCallback(async () => {
     if (!user) return;
     await updateDoc(doc(db, 'users', user.uid), {
       isOnboarded: true,
@@ -39,7 +47,7 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
       updatedAt: serverTimestamp(),
     });
     await refreshUserProfile();
-  };
+  }, [refreshUserProfile, user]);
 
   const { registerPlacement, state: placementState } = usePlacement({
     onPresent: (info) => {
@@ -59,7 +67,7 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
     },
     onSkip: async (reason) => {
       console.log('[Superwall] Paywall skipped:', reason);
-      const reasonType = (reason as any)?.type ?? String(reason);
+      const reasonType = getSkipReasonType(reason);
       setDebugInfo(`Skipped: ${reasonType}`);
 
       // Only activate if the user is already subscribed
@@ -74,7 +82,7 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
     },
   });
 
-  const showPaywall = async () => {
+  const showPaywall = useCallback(async () => {
     setDismissed(false);
     setDebugInfo('Calling registerPlacement...');
     try {
@@ -93,7 +101,7 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
       setDebugInfo(`registerPlacement threw: ${msg}`);
       setDismissed(true);
     }
-  };
+  }, [activateAccount, placementState?.status, registerPlacement]);
 
   // Auto-trigger Superwall paywall on mount (only when SDK is configured)
   useEffect(() => {
@@ -101,6 +109,12 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
     if (configError) {
       setDebugInfo(`Config error: ${configError}`);
       setDismissed(true);
+      return;
+    }
+    if (!isSuperwallAvailable) {
+      triggered.current = true;
+      setDebugInfo('Superwall unavailable — continuing with the safe fallback');
+      void showPaywall();
       return;
     }
     if (!isConfigured || isLoading) {
@@ -117,7 +131,26 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
       showPaywall();
     };
     run();
-  }, [isConfigured, isLoading, configError, userProfile]);
+  }, [
+    activateAccount,
+    configError,
+    isConfigured,
+    isLoading,
+    showPaywall,
+    userProfile?.freeAccessUntil,
+  ]);
+
+  useEffect(() => {
+    if (configError || isConfigured || !isSuperwallAvailable) return undefined;
+
+    const timeout = setTimeout(() => {
+      if (triggered.current) return;
+      setDebugInfo('Superwall configuration timed out after 8 seconds');
+      setDismissed(true);
+    }, 8000);
+
+    return () => clearTimeout(timeout);
+  }, [configError, isConfigured]);
 
   // If Superwall SDK failed to configure, show error with retry
   if (configError) {

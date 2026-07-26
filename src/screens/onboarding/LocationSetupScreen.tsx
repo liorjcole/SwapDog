@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } fr
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { geohashForLocation } from 'geofire-common';
 import * as Haptics from 'expo-haptics';
 import { OnboardingStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -37,8 +38,10 @@ const LocationSetupScreen: React.FC<Props> = ({ navigation }) => {
       setLocationName(name);
 
       if (!user) return;
+      const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
       await updateDoc(doc(db, 'users', user.uid), {
-        location: { latitude: loc.coords.latitude, longitude: loc.coords.longitude },
+        location: coords,
+        locationGeohash: geohashForLocation([coords.latitude, coords.longitude]),
         locationName: name,
         isOnboarded: true,
         updatedAt: serverTimestamp(),

@@ -67,13 +67,25 @@ export const useReviews = () => {
    * Get all reviews for a user (as reviewee), newest first.
    */
   const getReviewsForUser = async (userId: string): Promise<Review[]> => {
-    const q = query(
-      collection(db, 'reviews'),
-      where('revieweeId', '==', userId),
-      orderBy('createdAt', 'desc'),
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => parseReview(d.id, d.data() as Record<string, unknown>));
+    const reviewsRef = collection(db, 'reviews');
+    try {
+      const orderedQuery = query(
+        reviewsRef,
+        where('revieweeId', '==', userId),
+        orderBy('createdAt', 'desc'),
+      );
+      const snap = await getDocs(orderedQuery);
+      return snap.docs.map((d) => parseReview(d.id, d.data() as Record<string, unknown>));
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code !== 'failed-precondition') throw err;
+
+      const fallbackQuery = query(reviewsRef, where('revieweeId', '==', userId));
+      const snap = await getDocs(fallbackQuery);
+      return snap.docs
+        .map((d) => parseReview(d.id, d.data() as Record<string, unknown>))
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }
   };
 
   /**

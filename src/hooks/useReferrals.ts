@@ -192,6 +192,7 @@ export const getMyReferrals = async (userId: string): Promise<import('../models/
         photoURL: d.photoURL,
         bio: d.bio,
         location: d.location,
+        locationGeohash: d.locationGeohash,
         locationName: d.locationName,
         pushToken: d.pushToken,
         pushTokens: d.pushTokens,

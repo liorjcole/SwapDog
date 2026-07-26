@@ -32,6 +32,12 @@ const averageRating = (reviews: Review[]): number => {
   return sum / reviews.length;
 };
 
+const getRoleFilterDescription = (filter: RoleFilter, displayName: string): string | null => {
+  if (filter === 'owner') return `Reviews from when ${displayName} had another WatchDog member care for their pup.`;
+  if (filter === 'caregiver') return `Reviews from when ${displayName} cared for another WatchDog member's pup.`;
+  return null;
+};
+
 /**
  * Layered, fully-anonymized reviews breakdown.
  * User mode (no dogId): person reviews (refinable by role) then one section per dog with reviews.
@@ -201,6 +207,11 @@ const ReviewsListScreen: React.FC<Props> = ({ route }) => {
           {caregiverCount > 0 && renderChip('caregiver', `As Caregiver (${caregiverCount})`)}
         </ScrollView>
       )}
+      {getRoleFilterDescription(roleFilter, displayName) ? (
+        <Text style={[styles.filterDescription, { color: colors.primary }]}>
+          {getRoleFilterDescription(roleFilter, displayName)}
+        </Text>
+      ) : null}
       {filteredPersonReviews.length === 0 ? (
         <Text style={[styles.empty, { color: colors.textSecondary }]}>No reviews yet</Text>
       ) : (
@@ -245,6 +256,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   filterText: { fontSize: 15, fontWeight: '600' },
+  filterDescription: { fontSize: 14, lineHeight: 19, marginTop: -spacing.xs, marginBottom: spacing.md },
   empty: { fontSize: 16, marginBottom: spacing.md },
   dogSection: { marginTop: spacing.lg },
   dogHeader: {
@@ -263,4 +275,3 @@ const styles = StyleSheet.create({
 });
 
 export default ReviewsListScreen;
-

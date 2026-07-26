@@ -79,4 +79,6 @@ const DebouncedTimePicker: React.FC<Props> = React.memo(({
   );
 });
 
+DebouncedTimePicker.displayName = 'DebouncedTimePicker';
+
 export default DebouncedTimePicker;

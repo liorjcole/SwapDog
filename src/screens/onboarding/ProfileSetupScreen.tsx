@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform, Keyboard } from 'react-native';
+  Animated, View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -14,7 +14,7 @@ import { useOnboarding } from '../../contexts/OnboardingContext';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { ensureRemotePhotoURL } from '../../utils/uploadHelper';
 import { validateReferralCode, redeemReferralCode } from '../../hooks/useReferrals';
-import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
+import AuthVideoBackground from '../../components/auth/AuthVideoBackground';
 
 type Props = {
   navigation: NativeStackNavigationProp<OnboardingStackParamList, 'ProfileSetup'>;
@@ -32,19 +32,36 @@ const cleanIgHandle = (raw: string): string => {
 
 const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
-  const { scrollRef, onScroll, refFor, scrollToInput } = useKeyboardScroll();
+  const {
+    scrollRef,
+    onScroll,
+    onLayout,
+    onContentSizeChange,
+    refFor,
+    scrollToInput,
+    keyboardHeight,
+  } = useKeyboardScroll();
   const { user } = useAuthContext();
   const { displayName, setDisplayName, bio, setBio, instagramHandle, setInstagramHandle, photoURL, setPhotoURL } = useOnboarding();
   const [friendReferralCode, setFriendReferralCode] = useState('');
   const [showReferralField, setShowReferralField] = useState(false);
   const [loading, setLoading] = useState(false);
+  const backgroundOverlayOpacity = useRef(new Animated.Value(0.38)).current;
+
+  useEffect(() => {
+    Animated.timing(backgroundOverlayOpacity, {
+      toValue: 0.9,
+      duration: 650,
+      useNativeDriver: true,
+    }).start();
+  }, [backgroundOverlayOpacity]);
 
   /** Track y-offsets of inputs so we can scroll to them on focus */
   // Input scroll handled by useKeyboardScroll hook
 
   const pickImage = async () => {
     Alert.alert(
-      'Add Your Profile Photo',
+      'THIS IS A PHOTO OF YOU!\n(not your pup)',
       `This is your "dog parent" photo, so be sure to choose a pic of you and not your pup! Don’t worry… your dog’s photos come next :)`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -128,7 +145,6 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
       }
 
       await setDoc(doc(db, 'users', user.uid), {
-        email: user.email,
         displayName: displayName.trim(),
         bio: bio.trim(),
         instagramHandle: cleanIgHandle(instagramHandle) || '',
@@ -147,16 +163,18 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <>
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <AuthVideoBackground scrimOpacity={backgroundOverlayOpacity}>
+    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
     <ScrollView
         ref={scrollRef}
         onScroll={onScroll}
+        onLayout={onLayout}
+        onContentSizeChange={onContentSizeChange}
         scrollEventThrottle={16}
-        automaticallyAdjustKeyboardInsets={true}
+        automaticallyAdjustKeyboardInsets={false}
         keyboardShouldPersistTaps="handled"
-        style={[styles.container, { backgroundColor: colors.background }]}
-        contentContainerStyle={styles.content}
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingBottom: spacing.lg + keyboardHeight }]}
     >
       <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">Set up your profile</Text>
       <Text style={[styles.sub, { color: colors.textSecondary }]}>Tell the community about yourself and your experience with dogs! This helps the dog parents in your neighborhood feel comfortable trusting you with their pup and excited to look after yours :)</Text>
@@ -176,6 +194,9 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         )}
         <Text style={[styles.photoHint, { color: colors.primary }]}>Add Your Profile Photo</Text>
+        <Text style={[styles.photoSubHint, { color: colors.textSecondary }]}>
+          (This is a photo of YOU not your pup!)
+        </Text>
       </TouchableOpacity>
 
       <View ref={refFor('name')}>
@@ -198,7 +219,6 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
           value={bio}
           onChangeText={setBio}
           multiline
-          inputAccessoryViewID={DONE_ACCESSORY_ID}
           numberOfLines={4}
           returnKeyType="done"
           blurOnSubmit={true}
@@ -267,9 +287,8 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
 
 
 
-          <KeyboardDoneBar />
 </View>
-    </>
+    </AuthVideoBackground>
   );
 };
 
@@ -283,6 +302,7 @@ const styles = StyleSheet.create({
   photoPlaceholder: { width: 90, height: 90, borderRadius: 45, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.xs },
   photoPlaceholderText: { fontSize: 34 },
   photoHint: { fontSize: 16, fontWeight: '600' },
+  photoSubHint: { fontSize: 14, fontWeight: '600', marginTop: 4, textAlign: 'center' },
   fieldHint: { fontSize: 14, marginTop: 4, marginBottom: 8, paddingHorizontal: 4 },
   input: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, fontSize: 17 },
   textArea: { minHeight: 140, textAlignVertical: 'top', paddingTop: spacing.sm },

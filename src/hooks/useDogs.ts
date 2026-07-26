@@ -43,6 +43,7 @@ const parseDog = (id: string, data: Record<string, unknown>): Dog => {
     isGoodWithKids: data.isGoodWithKids as boolean | undefined,
     isSpayedNeutered: data.isSpayedNeutered as boolean | undefined,
     vaccinated: data.vaccinated as boolean | undefined,
+    pottyTrained: data.pottyTrained as boolean | undefined,
     temperament: data.temperament as string | undefined,
     rating: data?.rating as number | undefined,
     reviewCount: data?.reviewCount as number | undefined,

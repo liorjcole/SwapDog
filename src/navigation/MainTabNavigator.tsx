@@ -12,7 +12,7 @@ import {
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useMessaging } from '../hooks/useMessaging';
-import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, getDoc, deleteField } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, getDoc, getDocs, deleteField } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { shareReferral } from '../utils/shareReferral';
 import { ensureReferralCode } from '../hooks/useReferrals';
@@ -143,6 +143,7 @@ const MessagesNavigator: React.FC = () => {
       <MessagesStack.Screen name="ConversationsList" component={ConversationsListScreen} options={{ title: 'Messages' }} />
       <MessagesStack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
       <MessagesStack.Screen name="UserDetail" component={UserDetailScreen} options={{ title: 'Profile' }} />
+      <MessagesStack.Screen name="DogDetail" component={DogDetailScreen} options={{ title: 'Dog Profile' }} />
       <MessagesStack.Screen
         name="ReviewsList"
         component={ReviewsListScreen}
@@ -334,7 +335,7 @@ const MainTabNavigator: React.FC = () => {
         const pendingDogIds = (pending.dogIds as string[]) ?? [];
         const pendingOtherUserId = pending.otherUserId as string;
 
-        const [dogPhotoURLs, otherUserPhotoURL] = await Promise.all([
+        const [dogPhotoURLs, otherUserPhotoURL, otherUserDogOptions] = await Promise.all([
           Promise.all(
             pendingDogIds.map(async (dogId: string): Promise<string> => {
               try {
@@ -357,6 +358,26 @@ const MainTabNavigator: React.FC = () => {
               return undefined;
             }
           })(),
+          (async (): Promise<ReviewFlowParams['otherUserDogOptions']> => {
+            if (!pendingOtherUserId) return [];
+            try {
+              const dogsSnap = await getDocs(query(collection(db, 'dogs'), where('ownerId', '==', pendingOtherUserId)));
+              const postDogIdSet = new Set(pendingDogIds);
+              return dogsSnap.docs
+                .filter((dogDoc) => !postDogIdSet.has(dogDoc.id))
+                .map((dogDoc) => {
+                  const dogData = dogDoc.data();
+                  const photoURLs = dogData?.photoURLs as string[] | undefined;
+                  return {
+                    dogId: dogDoc.id,
+                    dogName: (dogData?.name as string) ?? 'the dog',
+                    photoURL: photoURLs?.[0],
+                  };
+                });
+            } catch {
+              return [];
+            }
+          })(),
         ]);
 
         // Open the inescapable review gate. The gate (a root-level blocking
@@ -370,6 +391,7 @@ const MainTabNavigator: React.FC = () => {
           dogIds: pendingDogIds,
           dogNames: (pending.dogNames as string[]) ?? [],
           dogPhotoURLs,
+          otherUserDogOptions,
           otherUserPhotoURL,
         });
       } catch (err) {

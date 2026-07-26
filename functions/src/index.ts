@@ -1,13 +1,522 @@
 import * as admin from "firebase-admin";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as functions from "firebase-functions";
 import Expo, { ExpoPushMessage, ExpoPushTicket, ExpoPushReceipt } from "expo-server-sdk";
+import twilio from "twilio";
+import * as crypto from "crypto";
 
 
 admin.initializeApp();
 const db = admin.firestore();
 const expo = new Expo();
+
+const twilioAccountSid = defineSecret("TWILIO_ACCOUNT_SID");
+const twilioAuthToken = defineSecret("TWILIO_AUTH_TOKEN");
+const twilioVerifyServiceSid = defineSecret("TWILIO_VERIFY_SERVICE_SID");
+
+const REFERRAL_COLLECTION = "referral_codes";
+const PROMO_CODES = new Set(["WATCHDOGFREE"]);
+const PHONE_SIGNUP_TICKET_COLLECTION = "phoneSignupTickets";
+const PHONE_SIGNUP_TICKET_TTL_MS = 10 * 60 * 1000;
+
+function makeTwilioClient() {
+  return twilio(twilioAccountSid.value(), twilioAuthToken.value());
+}
+
+function getProviderErrorCode(error: unknown): number | string | undefined {
+  return (error as { code?: number | string })?.code;
+}
+
+function getProviderErrorStatus(error: unknown): number | undefined {
+  return (error as { status?: number })?.status;
+}
+
+function toPhoneVerificationError(error: unknown): HttpsError {
+  const code = getProviderErrorCode(error);
+  const status = getProviderErrorStatus(error);
+  console.warn("[phoneVerification] Provider error:", {
+    code,
+    status,
+    message: (error as { message?: string })?.message,
+  });
+
+  if (code === 20404 || status === 404) {
+    return new HttpsError(
+      "permission-denied",
+      "Invalid or expired verification code. Please request a new code."
+    );
+  }
+
+  if (status === 429) {
+    return new HttpsError("resource-exhausted", "Too many attempts. Please try again later.");
+  }
+
+  return new HttpsError("internal", "Phone verification failed. Please try again.");
+}
+
+function normalizePhoneNumber(raw: unknown): string {
+  if (typeof raw !== "string") {
+    throw new HttpsError("invalid-argument", "Phone number is required.");
+  }
+
+  const value = raw.trim();
+  const digits = value.replace(/\D/g, "");
+  if (!digits) {
+    throw new HttpsError("invalid-argument", "Phone number is required.");
+  }
+
+  let e164: string;
+  if (value.startsWith("+")) {
+    e164 = `+${digits}`;
+  } else if (digits.length === 10) {
+    e164 = `+1${digits}`;
+  } else if (digits.length === 11 && digits.startsWith("1")) {
+    e164 = `+${digits}`;
+  } else {
+    throw new HttpsError(
+      "invalid-argument",
+      "Use a valid phone number, including country code if outside the US."
+    );
+  }
+
+  const normalizedDigits = e164.slice(1);
+  if (normalizedDigits.length < 8 || normalizedDigits.length > 15) {
+    throw new HttpsError("invalid-argument", "Use a valid phone number.");
+  }
+
+  return e164;
+}
+
+function hashPhoneNumber(phoneNumber: string): string {
+  return crypto.createHash("sha256").update(phoneNumber).digest("hex");
+}
+
+function hashSignupTicket(ticket: string): string {
+  return crypto.createHash("sha256").update(ticket).digest("hex");
+}
+
+async function createPhoneSignupTicket(phoneNumber: string): Promise<string> {
+  const ticket = crypto.randomBytes(32).toString("base64url");
+  const now = admin.firestore.Timestamp.now();
+
+  await db.collection(PHONE_SIGNUP_TICKET_COLLECTION).doc(hashSignupTicket(ticket)).set({
+    phoneHash: hashPhoneNumber(phoneNumber),
+    phoneNumber,
+    createdAt: now,
+    expiresAt: admin.firestore.Timestamp.fromMillis(now.toMillis() + PHONE_SIGNUP_TICKET_TTL_MS),
+    consumedAt: null,
+  });
+
+  return ticket;
+}
+
+async function consumePhoneSignupTicket(phoneNumber: string, rawTicket: unknown): Promise<void> {
+  if (typeof rawTicket !== "string" || rawTicket.trim().length < 20) {
+    throw new HttpsError("permission-denied", "Please verify your phone number again.");
+  }
+
+  const ticketRef = db
+    .collection(PHONE_SIGNUP_TICKET_COLLECTION)
+    .doc(hashSignupTicket(rawTicket.trim()));
+  const now = admin.firestore.Timestamp.now();
+
+  await db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(ticketRef);
+    const data = snap.data();
+    if (!data) {
+      throw new HttpsError("permission-denied", "Please verify your phone number again.");
+    }
+
+    const ticketPhone = data.phoneNumber as string | undefined;
+    const expiresAt = data.expiresAt as admin.firestore.Timestamp | undefined;
+    const consumedAt = data.consumedAt as admin.firestore.Timestamp | null | undefined;
+    if (
+      ticketPhone !== phoneNumber ||
+      !expiresAt ||
+      expiresAt.toMillis() <= now.toMillis() ||
+      consumedAt
+    ) {
+      throw new HttpsError("permission-denied", "Please verify your phone number again.");
+    }
+
+    transaction.update(ticketRef, {
+      consumedAt: now,
+      updatedAt: now,
+    });
+  });
+}
+
+async function verifyTwilioPhoneCode(phoneNumber: string, rawCode: unknown): Promise<void> {
+  const code = typeof rawCode === "string" ? rawCode.trim() : "";
+  if (!/^\d{4,10}$/.test(code)) {
+    throw new HttpsError("invalid-argument", "Enter the verification code.");
+  }
+
+  let check: { status: string };
+  try {
+    check = await makeTwilioClient()
+      .verify.v2.services(twilioVerifyServiceSid.value())
+      .verificationChecks.create({ to: phoneNumber, code });
+  } catch (error) {
+    throw toPhoneVerificationError(error);
+  }
+
+  if (check.status !== "approved") {
+    throw new HttpsError("permission-denied", "Invalid or expired verification code.");
+  }
+}
+
+async function enforcePhoneSendLimit(phoneNumber: string): Promise<void> {
+  const ref = db.collection("phoneVerificationRateLimits").doc(hashPhoneNumber(phoneNumber));
+  const now = admin.firestore.Timestamp.now();
+  const snap = await ref.get();
+  const data = snap.data();
+  const lastSentAt = data?.lastSentAt as admin.firestore.Timestamp | undefined;
+  const windowStart = data?.windowStart as admin.firestore.Timestamp | undefined;
+  const sends = typeof data?.sends === "number" ? data.sends : 0;
+
+  if (lastSentAt && now.toMillis() - lastSentAt.toMillis() < 30_000) {
+    throw new HttpsError("resource-exhausted", "Please wait before requesting another code.");
+  }
+
+  const shouldResetWindow =
+    !windowStart || now.toMillis() - windowStart.toMillis() > 60 * 60 * 1000;
+  const nextSends = shouldResetWindow ? 1 : sends + 1;
+  if (nextSends > 5) {
+    throw new HttpsError("resource-exhausted", "Too many code requests. Please try again later.");
+  }
+
+  await ref.set(
+    {
+      phoneHash: hashPhoneNumber(phoneNumber),
+      sends: nextSends,
+      windowStart: shouldResetWindow ? now : windowStart,
+      lastSentAt: now,
+      updatedAt: now,
+    },
+    { merge: true }
+  );
+}
+
+async function generateReferralCodeForUser(userId: string): Promise<string> {
+  const existingUser = await db.collection("users").doc(userId).get();
+  const existingCode = existingUser.data()?.referralCode as string | undefined;
+  if (existingCode) return existingCode;
+
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    let code = "";
+    for (let i = 0; i < 8; i += 1) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    const collision = await db.collection(REFERRAL_COLLECTION).where("code", "==", code).limit(1).get();
+    if (!collision.empty) continue;
+
+    await db.collection(REFERRAL_COLLECTION).add({
+      code,
+      createdBy: userId,
+      isActive: true,
+      usedBy: [],
+      maxUses: 10,
+      usedCount: 0,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return code;
+  }
+
+  throw new HttpsError("internal", "Could not generate a referral code.");
+}
+
+async function resolveReferralCode(rawCode: unknown, userId: string): Promise<{
+  referredBy?: string;
+  usedCode?: string;
+  freeAccessUntil?: Date;
+}> {
+  if (typeof rawCode !== "string" || rawCode.trim().length === 0) return {};
+  const usedCode = rawCode.trim().toUpperCase();
+  const freeAccessUntil = PROMO_CODES.has(usedCode)
+    ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    : undefined;
+
+  if (usedCode === "8888" || usedCode === "1717" || PROMO_CODES.has(usedCode)) {
+    return { usedCode, freeAccessUntil };
+  }
+
+  const snap = await db
+    .collection(REFERRAL_COLLECTION)
+    .where("code", "==", usedCode)
+    .limit(1)
+    .get();
+  if (snap.empty) return { usedCode, freeAccessUntil };
+
+  const codeDoc = snap.docs[0];
+  const data = codeDoc.data();
+  const isActive = data.isActive === true;
+  const usedCount = typeof data.usedCount === "number" ? data.usedCount : 0;
+  const maxUses = typeof data.maxUses === "number" ? data.maxUses : 0;
+  const createdBy = data.createdBy as string | undefined;
+
+  if (!isActive || usedCount >= maxUses || !createdBy || createdBy === userId) {
+    return { usedCode, freeAccessUntil };
+  }
+
+  await codeDoc.ref.update({
+    usedCount: admin.firestore.FieldValue.increment(1),
+    usedBy: admin.firestore.FieldValue.arrayUnion(userId),
+  });
+
+  return { referredBy: createdBy, usedCode, freeAccessUntil };
+}
+
+async function findUserIdByPhone(phoneNumber: string): Promise<string | null> {
+  try {
+    const userRecord = await admin.auth().getUserByPhoneNumber(phoneNumber);
+    return userRecord.uid;
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code !== "auth/user-not-found") {
+      console.warn("[findUserIdByPhone] Auth lookup failed:", error);
+    }
+  }
+
+  const privateSnap = await db
+    .collection("privateUsers")
+    .where("phoneNumber", "==", phoneNumber)
+    .limit(1)
+    .get();
+  return privateSnap.empty ? null : privateSnap.docs[0].id;
+}
+
+async function createOrLoadPhoneUser(phoneNumber: string, referralCode: unknown): Promise<string> {
+  const existingUid = await findUserIdByPhone(phoneNumber);
+  if (existingUid) {
+    await ensurePhoneUserDocs(existingUid, phoneNumber, referralCode);
+    return existingUid;
+  }
+
+  let uid: string;
+  try {
+    const created = await admin.auth().createUser({ phoneNumber });
+    uid = created.uid;
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "auth/phone-number-already-exists") {
+      const existing = await admin.auth().getUserByPhoneNumber(phoneNumber);
+      uid = existing.uid;
+    } else {
+      throw error;
+    }
+  }
+
+  await ensurePhoneUserDocs(uid, phoneNumber, referralCode);
+
+  return uid;
+}
+
+async function ensurePhoneUserDocs(
+  uid: string,
+  phoneNumber: string,
+  referralCode: unknown
+): Promise<void> {
+  const userRef = db.collection("users").doc(uid);
+  const userSnap = await userRef.get();
+  const isNewProfile = !userSnap.exists;
+  const newReferralCode = await generateReferralCodeForUser(uid);
+  const referral = isNewProfile ? await resolveReferralCode(referralCode, uid) : {};
+
+  const userDoc: Record<string, unknown> = isNewProfile ? {
+    email: "",
+    displayName: "",
+    photoURL: "",
+    bio: "",
+    isOnboarded: false,
+    referredBy: referral.referredBy ?? null,
+    referralCodeUsed: referral.usedCode ?? null,
+    referralCode: newReferralCode,
+    points: 5,
+    accountStatus: "pending_approval",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  } : {
+    referralCode: userSnap.data()?.referralCode ?? newReferralCode,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  if (referral.freeAccessUntil) {
+    userDoc.freeAccessUntil = referral.freeAccessUntil;
+  }
+
+  await userRef.set(userDoc, { merge: true });
+  await db.collection("privateUsers").doc(uid).set(
+    {
+      phoneNumber,
+      authProvider: "phone_otp",
+      ...(isNewProfile ? { createdAt: admin.firestore.FieldValue.serverTimestamp() } : {}),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  if (isNewProfile) {
+    await userRef.collection("pointsHistory").add({
+      type: "bonus",
+      description: "Welcome to WatchDog!",
+      points: 5,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+}
+
+export const startPhoneVerification = onCall(
+  {
+    secrets: [twilioAccountSid, twilioAuthToken, twilioVerifyServiceSid],
+  },
+  async (request) => {
+    const phoneNumber = normalizePhoneNumber(request.data?.phoneNumber);
+    await enforcePhoneSendLimit(phoneNumber);
+
+    try {
+      await makeTwilioClient()
+        .verify.v2.services(twilioVerifyServiceSid.value())
+        .verifications.create({ to: phoneNumber, channel: "sms" });
+    } catch (error) {
+      throw toPhoneVerificationError(error);
+    }
+
+    return { phoneNumber };
+  }
+);
+
+export const verifyPhoneCode = onCall(
+  {
+    secrets: [twilioAccountSid, twilioAuthToken, twilioVerifyServiceSid],
+  },
+  async (request) => {
+    const phoneNumber = normalizePhoneNumber(request.data?.phoneNumber);
+    const mode = request.data?.mode === "signIn" ? "signIn" : "signUp";
+    const supportsSignupTicket = request.data?.supportsSignupTicket === true;
+
+    await verifyTwilioPhoneCode(phoneNumber, request.data?.code);
+
+    const existingUid = await findUserIdByPhone(phoneNumber);
+    if (mode === "signIn" && !existingUid) {
+      if (!supportsSignupTicket) {
+        throw new HttpsError("not-found", "No account exists for this phone number.");
+      }
+      const signupTicket = await createPhoneSignupTicket(phoneNumber);
+      return {
+        status: "verifiedNoAccount",
+        phoneNumber,
+        signupTicket,
+      };
+    }
+
+    const uid = existingUid ?? await createOrLoadPhoneUser(phoneNumber, request.data?.referralCode);
+    if (existingUid) {
+      await ensurePhoneUserDocs(existingUid, phoneNumber, request.data?.referralCode);
+    }
+
+    const token = await admin.auth().createCustomToken(uid, {
+      phone_verified: true,
+      auth_provider: "phone_otp",
+    });
+    return { status: "authenticated", token, isNewUser: !existingUid };
+  }
+);
+
+export const verifyPhoneForAccountUpgrade = onCall(
+  {
+    secrets: [twilioAccountSid, twilioAuthToken, twilioVerifyServiceSid],
+  },
+  async (request) => {
+    const phoneNumber = normalizePhoneNumber(request.data?.phoneNumber);
+    await verifyTwilioPhoneCode(phoneNumber, request.data?.code);
+
+    const existingUid = await findUserIdByPhone(phoneNumber);
+    if (existingUid && existingUid !== request.auth?.uid) {
+      throw new HttpsError("already-exists", "This phone number is already attached to an account.");
+    }
+
+    const signupTicket = await createPhoneSignupTicket(phoneNumber);
+    return { phoneNumber, signupTicket };
+  }
+);
+
+export const attachPhoneToCurrentUser = onCall(
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Please sign in to your old account first.");
+    }
+
+    const phoneNumber = normalizePhoneNumber(request.data?.phoneNumber);
+    await consumePhoneSignupTicket(phoneNumber, request.data?.signupTicket);
+
+    const existingUid = await findUserIdByPhone(phoneNumber);
+    if (existingUid && existingUid !== uid) {
+      throw new HttpsError("already-exists", "This phone number is already attached to an account.");
+    }
+
+    try {
+      await admin.auth().updateUser(uid, { phoneNumber });
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code === "auth/phone-number-already-exists") {
+        throw new HttpsError("already-exists", "This phone number is already attached to an account.");
+      }
+      console.warn("[attachPhoneToCurrentUser] Auth update failed:", error);
+      throw new HttpsError("internal", "Could not attach this phone number. Please try again.");
+    }
+
+    await ensurePhoneUserDocs(uid, phoneNumber, undefined);
+    await db.collection("users").doc(uid).set(
+      {
+        email: "",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    await db.collection("privateUsers").doc(uid).set(
+      {
+        phoneNumber,
+        authProvider: "phone_otp",
+        migratedFromEmail: true,
+        migratedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    const token = await admin.auth().createCustomToken(uid, {
+      phone_verified: true,
+      auth_provider: "phone_otp",
+      migrated_from_email: true,
+    });
+    return { token };
+  }
+);
+
+export const completePhoneSignUp = onCall(
+  async (request) => {
+    const phoneNumber = normalizePhoneNumber(request.data?.phoneNumber);
+    await consumePhoneSignupTicket(phoneNumber, request.data?.signupTicket);
+
+    const existingUid = await findUserIdByPhone(phoneNumber);
+    const uid = existingUid ?? await createOrLoadPhoneUser(phoneNumber, request.data?.referralCode);
+    if (existingUid) {
+      await ensurePhoneUserDocs(existingUid, phoneNumber, request.data?.referralCode);
+    }
+
+    const token = await admin.auth().createCustomToken(uid, {
+      phone_verified: true,
+      auth_provider: "phone_otp",
+    });
+    return { token, isNewUser: !existingUid };
+  }
+);
 
 // ─── Helper: get all valid Expo push tokens for a user (multi-device) ─────────
 async function getUserTokens(userId: string): Promise<string[]> {
@@ -651,7 +1160,7 @@ export const onPostCompleted = onDocumentUpdated(
         },
       });
 
-      // ── Set pendingReview on the CAREGIVER (they review each dog + the owner) ──
+      // ── Set pendingReview on the CAREGIVER (they review the owner, with optional dog interaction notes) ──
       await admin.firestore().doc(`users/${caregiverId}`).update({
         pendingReview: {
           postId,
@@ -683,7 +1192,7 @@ export const onPostCompleted = onDocumentUpdated(
           caregiverId,
           caregiverTokens,
           "How did it go? ⭐",
-          `Leave a review for ${ownerName} and ${dogNameStr}!`,
+          `Leave a review for ${ownerName}. You can optionally add notes about ${dogNameStr}.`,
           { type: "review_prompt", postId },
         );
       }

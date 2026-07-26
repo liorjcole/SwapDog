@@ -6,18 +6,23 @@ import {
   collection,
   query,
   getDocs,
+  orderBy,
+  startAt,
+  endAt,
 } from 'firebase/firestore';
+import { geohashForLocation, geohashQueryBounds } from 'geofire-common';
 import { db } from '../config/firebase';
 import { User, GeoPoint, AccountStatus } from '../models/types';
 import { toDate } from '../utils/firestoreConverters';
 
 const parseUser = (id: string, data: Record<string, unknown>): User => ({
   id,
-  email: data.email as string,
+  email: (data.email as string | undefined) ?? '',
   displayName: data.displayName as string,
   photoURL: data.photoURL as string | undefined,
   bio: data.bio as string | undefined,
   location: data.location as GeoPoint | undefined,
+  locationGeohash: data.locationGeohash as string | undefined,
   locationName: data.locationName as string | undefined,
   pushToken: data.pushToken as string | undefined,
   pushTokens: data.pushTokens as string[] | undefined,
@@ -53,15 +58,43 @@ export const useUsers = () => {
   }, []);
 
   const updateUser = useCallback(async (id: string, data: Partial<User>): Promise<void> => {
-    await updateDoc(doc(db, 'users', id), { ...data, updatedAt: new Date() });
+    const locationGeohash = data.location
+      ? geohashForLocation([data.location.latitude, data.location.longitude])
+      : undefined;
+    await updateDoc(doc(db, 'users', id), {
+      ...data,
+      ...(locationGeohash ? { locationGeohash } : {}),
+      updatedAt: new Date(),
+    });
   }, []);
 
   const getUsersByLocation = useCallback(async (
     center: GeoPoint,
     radiusKm: number,
   ): Promise<User[]> => {
-    const snap = await getDocs(query(collection(db, 'users')));
-    const all = snap.docs.map((d) => parseUser(d.id, d.data() as Record<string, unknown>));
+    const snaps = await Promise.all(
+      geohashQueryBounds(
+        [center.latitude, center.longitude],
+        radiusKm * 1000,
+      ).map(([start, end]) =>
+        getDocs(query(
+          collection(db, 'users'),
+          orderBy('locationGeohash'),
+          startAt(start),
+          endAt(end),
+        )),
+      ),
+    );
+
+    const seen = new Set<string>();
+    const all = snaps.flatMap((snap) => snap.docs)
+      .filter((d) => {
+        if (seen.has(d.id)) return false;
+        seen.add(d.id);
+        return true;
+      })
+      .map((d) => parseUser(d.id, d.data() as Record<string, unknown>));
+
     return all.filter((u) => {
       if (!u.location) return false;
       const dLat = (u.location.latitude - center.latitude) * 111;

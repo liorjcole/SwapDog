@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { db } from '../../config/firebase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { spacing, borderRadius, typography, shadow } from '../../config/theme';
+import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 
 interface ContractScreenProps {
   /**
@@ -70,8 +71,15 @@ const ContractScreen: React.FC<ContractScreenProps> = ({
   signedDate,
   onSigned }) => {
   const { colors } = useTheme();
-  const { user, refreshUserProfile } = useAuthContext();
-  const scrollRef = useRef<ScrollView>(null);
+  const { user, userProfile, refreshUserProfile } = useAuthContext();
+  const {
+    scrollRef,
+    onScroll: onKeyboardScroll,
+    onLayout,
+    onContentSizeChange,
+    refFor,
+    scrollToInput,
+  } = useKeyboardScroll();
 
   const [reachedBottom, setReachedBottom] = useState(readOnly);
   const [fullName, setFullName] = useState('');
@@ -102,7 +110,8 @@ const ContractScreen: React.FC<ContractScreenProps> = ({
       // 2. Save a durable copy in signed-agreements (survives account deletion)
       await addDoc(collection(db, 'signed-agreements'), {
         userId: user.uid,
-        userEmail: user.email ?? '',
+        userEmail: userProfile?.email ?? '',
+        userPhoneNumber: userProfile?.phoneNumber ?? '',
         signedName: fullName.trim(),
         contractVersion: CONTRACT_VERSION,
         agreementSections: CONTRACT_SECTIONS.map(s => s.number + ' ' + s.title + ': ' + s.body),
@@ -135,10 +144,16 @@ const ContractScreen: React.FC<ContractScreenProps> = ({
       )}
 
       <ScrollView
-        automaticallyAdjustKeyboardInsets={true}
+        automaticallyAdjustKeyboardInsets={false}
         ref={scrollRef}
-        onScroll={handleScroll}
+        onScroll={(event) => {
+          handleScroll(event);
+          onKeyboardScroll(event);
+        }}
+        onLayout={onLayout}
+        onContentSizeChange={onContentSizeChange}
         scrollEventThrottle={16}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator
       >
@@ -177,7 +192,7 @@ const ContractScreen: React.FC<ContractScreenProps> = ({
         {/* ── Signature section ─────────────────────────────────────────── */}
         {readOnly ? (
           // Read-only: show signed name + date
-          <View style={[styles.signatureCard, { backgroundColor: colors.surface, ...shadow.md }]}>
+          <View ref={refFor('signatureName')} style={[styles.signatureCard, { backgroundColor: colors.surface, ...shadow.md }]}>
             <Text style={[styles.signatureLabel, { color: colors.textSecondary }]}>
               Digital Signature
             </Text>
@@ -217,6 +232,7 @@ const ContractScreen: React.FC<ContractScreenProps> = ({
               editable={reachedBottom}
               accessibilityLabel="Full legal name for digital signature"
               returnKeyType="done"
+              onFocus={() => scrollToInput('signatureName')}
             />
 
             <Text style={[styles.dateText, { color: colors.textSecondary }]}>

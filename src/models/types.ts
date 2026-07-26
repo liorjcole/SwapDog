@@ -36,6 +36,7 @@ export interface GeoPoint {
 export interface User {
   id: string;
   email: string;
+  phoneNumber?: string;
   displayName: string;
   photoURL?: string;
   bio?: string;
@@ -45,6 +46,7 @@ export interface User {
   subscribedAt?: unknown;
   freeAccessUntil?: Date;   // Promo code grants paywall bypass until this date
   location?: GeoPoint;
+  locationGeohash?: string;
   locationName?: string;
   pushToken?: string;
   pushTokens?: string[];
@@ -99,6 +101,7 @@ export interface Dog {
   isGoodWithKids?: boolean;
   isSpayedNeutered?: boolean;
   vaccinated?: boolean;
+  pottyTrained?: boolean;
   temperament?: string;
   /** Aggregate rating (1 decimal) written by recomputeDogAggregate CF */
   rating?: number;
@@ -123,7 +126,7 @@ export type CompensationType = 'points' | 'payment' | 'either';
 
 // ── Repeat scheduling for overnight add-on tasks ──────────────────────────────
 export interface RepeatSchedule {
-  /** 'daily' = every day, 'weekly' = one day per week, 'custom' = specific days */
+  /** 'daily' = every day, 'weekly' = legacy one day per week, 'custom' = selected weekdays */
   type: 'daily' | 'weekly' | 'custom' | 'specificDates';
   /** Day index for weekly (0=Sun, 1=Mon ... 6=Sat) */
   weeklyDay?: number;
@@ -146,7 +149,7 @@ export const formatRepeatLabel = (schedule: RepeatSchedule): string => {
     return 'Repeat weekly';
   }
   if (schedule.type === 'custom') {
-    return 'Repeat';
+    return 'Repeat weekly';
   }
   if (schedule.type === 'specificDates') {
     return 'Specific dates';
@@ -183,6 +186,7 @@ export interface SwapPost {
   posterName: string;
   posterPhotoURL?: string;
   posterLocation?: GeoPoint;
+  posterGeohash?: string;
   /** Full location label at post-creation time, e.g. "Montreal, Quebec, Canada". Optional; legacy posts won't have it. */
   posterLocationName?: string;
 
@@ -384,7 +388,7 @@ export interface Message {
   createdAt: Date;
   read: boolean;
   /** Optional message type for special messages (e.g. reschedule proposals) */
-  type?: 'text' | 'reschedule' | 'image' | 'help_request';
+  type?: 'text' | 'reschedule' | 'reschedule_request' | 'image' | 'help_request';
   /** Optional image URL for photo messages */
   imageURL?: string;
   /** Optional metadata for typed messages */
@@ -393,6 +397,10 @@ export interface Message {
     proposedStart?: string;  // ISO string
     proposedEnd?: string;    // ISO string
     helperId?: string;
+    ownerId?: string;
+    caregiverId?: string;
+    eventLabel?: string;
+    dateLabel?: string;
   };
 }
 
@@ -427,11 +435,12 @@ export interface Review {
 /** Pending review flag stored on the user doc */
 export interface PendingReview {
   postId: string;
-  /** 'owner' = you posted it, review the caregiver + nothing else
-   *  'caregiver' = you sat, review each dog then the owner */
+  /** 'owner' = you posted it, review the caregiver
+   *  'caregiver' = you sat, review the owner + dogs on the post */
   role: 'owner' | 'caregiver';
   otherUserId: string;
   otherUserName: string;
+  /** Dogs specifically listed on the post. These are automatically present. */
   dogIds: string[];
   dogNames: string[];
   createdAt: Date;

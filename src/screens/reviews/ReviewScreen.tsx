@@ -14,6 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useReviewFlow, ReviewFlowParams } from '../../hooks/useReviewFlow';
+import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import ReviewStepCard from '../../components/common/ReviewStepCard';
 import { spacing, borderRadius } from '../../config/theme';
 
@@ -37,10 +38,19 @@ const ReviewScreen: React.FC<Props> = ({ navigation, route }) => {
   const params = route.params;
   const flow = useReviewFlow(params);
   const {
+    scrollRef,
+    onScroll,
+    onLayout,
+    onContentSizeChange,
+    refFor,
+    scrollToInput,
+  } = useKeyboardScroll();
+  const {
     isLast,
     canSubmit,
     submitting,
     currentIdx,
+    hasReportedDogIssue,
     advanceStep,
     goToPrevStep,
     submitAllReviews,
@@ -70,9 +80,15 @@ const ReviewScreen: React.FC<Props> = ({ navigation, route }) => {
     const ok = await submitAllReviews();
     if (ok) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Thanks! 🎉', 'Your review has been submitted.', [
+      Alert.alert(
+        'Thanks! 🎉',
+        hasReportedDogIssue
+          ? 'Your review has been submitted. We recorded the issue you flagged and will review it with care.'
+          : 'Your review has been submitted.',
+        [
         { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+        ],
+      );
     } else {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     }
@@ -84,10 +100,19 @@ const ReviewScreen: React.FC<Props> = ({ navigation, route }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
+        ref={scrollRef}
+        onScroll={onScroll}
+        onLayout={onLayout}
+        onContentSizeChange={onContentSizeChange}
+        scrollEventThrottle={16}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <ReviewStepCard flow={flow} />
+        <ReviewStepCard
+          flow={flow}
+          noteRef={refFor('reviewNote')}
+          onNoteFocus={() => scrollToInput('reviewNote')}
+        />
 
         <TouchableOpacity
           style={[
@@ -111,6 +136,7 @@ const ReviewScreen: React.FC<Props> = ({ navigation, route }) => {
           </TouchableOpacity>
         )}
       </ScrollView>
+
     </KeyboardAvoidingView>
   );
 };

@@ -13,6 +13,7 @@ export interface DogForm {
   goodWithDogs: boolean;
   goodWithKids: boolean;
   vaccinated: boolean;
+  pottyTrained: boolean;
   photoURLs: string[];
   dogBio: string;
 }
@@ -28,6 +29,7 @@ export const blankDogForm = (): DogForm => ({
   goodWithDogs: false,
   goodWithKids: false,
   vaccinated: false,
+  pottyTrained: false,
   photoURLs: [],
   dogBio: '',
 });

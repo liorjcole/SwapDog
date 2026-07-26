@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, Alert, ScrollView } from 'react-native';
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth, db } from '../../config/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { AuthStackParamList } from '../../navigation/types';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -17,204 +15,193 @@ type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'SignIn'>;
 };
 
-const UNREGISTERED_CODES = new Set(['auth/user-not-found']);
-
 const SignInScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
-  const { signIn } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const insets = useSafeAreaInsets();
+  const { sendPhoneCode, verifyPhoneCode, completePhoneSignUp } = useAuth();
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [verificationPhone, setVerificationPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
 
-  const handleSignIn = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const timer = setInterval(() => {
+      setCooldown((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const handleSendCode = async () => {
+    if (!phoneNumber.trim()) {
+      Alert.alert('Error', 'Please enter your phone number');
       return;
     }
     setLoading(true);
     try {
-      await signIn(email.trim(), password);
+      const normalized = await sendPhoneCode(phoneNumber.trim());
+      setVerificationPhone(normalized);
+      setCode('');
+      setCodeSent(true);
+      setCooldown(30);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const code = (error as { code?: string })?.code ?? '';
-      if (UNREGISTERED_CODES.has(code)) {
-        // No account exists — redirect to sign-up with email pre-filled
-        Alert.alert(
-          "No account found",
-          "Let's create one!",
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.navigate('SignUp', { email: email.trim() }) },
-          ],
-        );
-      } else if (code === 'auth/invalid-credential') {
-        // Could be wrong password OR non-existent account.
-        // Query Firestore users collection directly — fetchSignInMethodsForEmail
-        // always returns [] when Firebase Email Enumeration Protection is on.
-        try {
-          // Check lowercase first, then original case (covers pre-normalization accounts)
-          const lowerEmail = email.trim().toLowerCase();
-          const usersQuery = query(
-            collection(db, 'users'),
-            where('email', '==', lowerEmail)
-          );
-          let snap = await getDocs(usersQuery);
-          if (snap.empty && lowerEmail !== email.trim()) {
-            // Retry with original case for old accounts stored before normalization
-            const retryQuery = query(
-              collection(db, 'users'),
-              where('email', '==', email.trim())
-            );
-            snap = await getDocs(retryQuery);
-          }
-          if (!snap.empty) {
-            // Account exists in Firestore — it's a wrong password
-            Alert.alert(
-              'Incorrect password',
-              'The password you entered is incorrect. Please try again or use Forgot Password below.'
-            );
-          } else {
-            // No account in Firestore — redirect to sign-up
-            Alert.alert(
-              "No account found",
-              "We don't have an account with that email. Let's create one!",
-              [
-                {
-                  text: 'Create Account',
-                  onPress: () => navigation.navigate('SignUp', { email: email.trim() }),
-                },
-                { text: 'Cancel', style: 'cancel' },
-              ],
-            );
-          }
-        } catch {
-          // Firestore query failed — safest fallback is wrong password
-          // (better to ask them to retry than to redirect to sign-up for an existing account)
-          Alert.alert(
-            'Sign in failed',
-            'Please check your email and password and try again.'
-          );
-        }
-      } else {
-        const { title, message } = getFriendlyAuthError(error);
-        Alert.alert(title, message);
-      }
+      const { title, message } = getFriendlyAuthError(error);
+      Alert.alert(title, message);
     } finally {
       setLoading(false);
     }
   };
 
-
-  const handleForgotPassword = async () => {
-    const trimmed = email.trim();
-    if (!trimmed) {
-      Alert.alert('Enter your email', 'Type your email address above, then tap Forgot Password.');
-      return;
-    }
+  const handleCreateAccount = async (verifiedPhone: string, signupTicket: string) => {
+    setVerifying(true);
     try {
-      // Send reset email directly — no Firestore lookup needed.
-      // Firestore rules require auth, but the user isn't signed in on this screen.
-      // Firebase silently succeeds for non-existent emails (Email Enumeration
-      // Protection), which is fine — we don't want to leak whether an account exists.
-      const lowerEmail = trimmed.toLowerCase();
-      await sendPasswordResetEmail(auth, lowerEmail);
+      await completePhoneSignUp(verifiedPhone, signupTicket);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
-        'Reset link sent!',
-        `If an account exists for ${lowerEmail}, we sent a password reset link.\n\nCheck your inbox (and spam/junk folder). Open the link to set a new password, then come back and sign in.`,
-      );
     } catch (error: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const code = (error as { code?: string })?.code ?? '';
-      if (code === 'auth/too-many-requests') {
-        Alert.alert('Too many attempts', 'Please wait a few minutes before trying again.');
-      } else if (code === 'auth/invalid-email') {
-        Alert.alert('Invalid email', 'Please enter a valid email address.');
-      } else {
-        Alert.alert('Error', 'Something went wrong. Please try again.');
-      }
+      const { title, message } = getFriendlyAuthError(error);
+      Alert.alert(title, message);
+    } finally {
+      setVerifying(false);
     }
   };
 
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView
-        automaticallyAdjustKeyboardInsets={true} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.logo} accessibilityElementsHidden>🐾</Text>
-        <Text style={[styles.title, { color: colors.text }]}>Sign in</Text>
-        <Text style={[styles.sub, { color: colors.textSecondary }]}>Sign in to WatchDog</Text>
+  const handleVerifyCode = async () => {
+    if (!code.trim()) {
+      Alert.alert('Error', 'Please enter the verification code');
+      return;
+    }
+    setVerifying(true);
+    try {
+      const result = await verifyPhoneCode(verificationPhone || phoneNumber.trim(), code.trim(), 'signIn');
+      if (result.status === 'verifiedNoAccount') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert(
+          'No account found',
+          "That phone number is verified. Create a new WatchDog account with it?",
+          [
+            {
+              text: 'Create Account',
+              onPress: () => {
+                void handleCreateAccount(result.phoneNumber, result.signupTicket);
+              },
+            },
+            { text: 'Cancel', style: 'cancel' },
+          ],
+        );
+        return;
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error: unknown) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      const { title, message } = getFriendlyAuthError(error);
+      Alert.alert(title, message);
+    } finally {
+      setVerifying(false);
+    }
+  };
 
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-          placeholder="Email"
-          placeholderTextColor={colors.textSecondary}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoComplete="email"
-          returnKeyType="next"
-          blurOnSubmit={false}
-          accessibilityLabel="Email address"
-          accessibilityRole="none"
-        />
-        <View style={styles.passwordWrap}>
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate('Splash');
+  };
+
+  return (
+    <View style={styles.container}>
+      <TouchableOpacity
+        onPress={handleBack}
+        accessibilityLabel="Back"
+        accessibilityRole="button"
+        accessibilityHint="Return to the previous screen"
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        style={[
+          styles.backButton,
+          styles.controlShadow,
+          {
+            top: insets.top + spacing.sm,
+            backgroundColor: 'rgba(0,0,0,0.28)',
+              borderColor: 'rgba(255,255,255,0.36)',
+            },
+          ]}
+      >
+        <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+      </TouchableOpacity>
+      <ScrollView
+        automaticallyAdjustKeyboardInsets={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Text style={[styles.title, styles.headingShadow, { color: '#FFFFFF' }]}>Sign in</Text>
+        <Text style={[styles.sub, styles.headingShadow, { color: 'rgba(255,255,255,0.96)' }]}>
+          {codeSent ? `Enter the code sent to ${verificationPhone}` : 'Sign in with your phone number'}
+        </Text>
+
+        {!codeSent ? (
           <TextInput
-            key={showPassword ? 'pw-visible' : 'pw-hidden'}
-            style={[styles.input, styles.passwordInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-            placeholder="Password"
+            style={[styles.input, styles.controlShadow, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+            placeholder="Phone number"
             placeholderTextColor={colors.textSecondary}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-            autoComplete="password"
-            returnKeyType="done"
-            onSubmitEditing={handleSignIn}
-            accessibilityLabel="Password"
+            value={phoneNumber}
+            onChangeText={setPhoneNumber}
+            keyboardType="phone-pad"
+            autoCapitalize="none"
+            autoComplete="tel"
+            textContentType="telephoneNumber"
+            accessibilityLabel="Phone number"
             accessibilityRole="none"
           />
-          <TouchableOpacity
-            style={styles.eyeBtn}
-            onPress={() => setShowPassword((v) => !v)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-            accessibilityRole="button"
-          >
-            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
+        ) : (
+          <TextInput
+            style={[styles.input, styles.controlShadow, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+            placeholder="Verification code"
+            placeholderTextColor={colors.textSecondary}
+            value={code}
+            onChangeText={setCode}
+            keyboardType="number-pad"
+            textContentType="oneTimeCode"
+            autoComplete="sms-otp"
+            returnKeyType="done"
+            onSubmitEditing={handleVerifyCode}
+            maxLength={10}
+            accessibilityLabel="Verification code"
+            accessibilityRole="none"
+          />
+        )}
 
         <TouchableOpacity
-          onPress={handleForgotPassword}
-          style={styles.forgotWrap}
-          accessibilityLabel="Forgot password"
-          accessibilityRole="link"
-        >
-          <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot Password?</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
-          onPress={handleSignIn}
-          disabled={loading}
-          accessibilityLabel={loading ? 'Signing in...' : 'Sign in'}
+          style={[styles.btn, styles.controlShadow, { backgroundColor: colors.primary, opacity: loading || verifying ? 0.7 : 1 }]}
+          onPress={codeSent ? handleVerifyCode : handleSendCode}
+          disabled={loading || verifying}
+          accessibilityLabel={codeSent ? 'Verify code' : 'Send verification code'}
           accessibilityRole="button"
           accessibilityHint="Double tap to sign in to your account"
         >
-          <Text style={styles.btnText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
+          <Text style={[styles.btnText, styles.buttonTextShadow]}>
+            {codeSent
+              ? (verifying ? 'Verifying...' : 'Verify & Sign In')
+              : (loading ? 'Sending code...' : 'Send Code')}
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => navigation.navigate('SignUp', {})}
-          accessibilityLabel="Create account"
-          accessibilityRole="link"
-          accessibilityHint="Go to sign up screen"
-        >
-          <Text style={[styles.link, { color: colors.primary }]}>Don't have an account? <Text style={styles.linkBold}>Sign Up</Text></Text>
-        </TouchableOpacity>
+        {codeSent ? (
+          <View style={styles.codeActions}>
+            <TouchableOpacity
+              onPress={handleSendCode}
+              disabled={loading || cooldown > 0}
+              accessibilityLabel="Resend verification code"
+              accessibilityRole="button"
+            >
+              <Text style={[styles.link, styles.textShadow, { color: cooldown > 0 ? colors.textSecondary : colors.primary }]}>
+                {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -222,8 +209,45 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flexGrow: 1, padding: spacing.lg, paddingTop: 120 },
-  logo: { fontSize: 58, textAlign: 'center', marginBottom: spacing.md },
+  backButton: {
+    position: 'absolute',
+    left: spacing.lg,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+    elevation: 2,
+  },
+  controlShadow: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 1,
+    shadowRadius: 40,
+    elevation: 24,
+  },
+  textShadow: {
+    textShadowColor: '#000000',
+    textShadowOffset: { width: 0, height: 8 },
+    textShadowRadius: 30,
+  },
+  headingShadow: {
+    textShadowColor: '#000000',
+    textShadowOffset: { width: 0, height: 10 },
+    textShadowRadius: 36,
+  },
+  buttonTextShadow: {
+    textShadowColor: '#000000',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 14,
+  },
+  content: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
   title: { ...typography.h2, textAlign: 'center', marginBottom: spacing.xs },
   sub: { ...typography.body, textAlign: 'center', marginBottom: spacing.xl },
   input: {
@@ -235,14 +259,12 @@ const styles = StyleSheet.create({
   btn: {
     padding: spacing.md,
     borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.42)',
     alignItems: 'center',
     marginBottom: spacing.md },
   btnText: { color: '#fff', ...typography.button },
-  passwordWrap: { position: 'relative', marginBottom: spacing.md },
-  passwordInput: { marginBottom: 0, paddingRight: 48 },
-  eyeBtn: { position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' },
-  forgotWrap: { alignItems: 'flex-end', marginBottom: spacing.md },
-  forgotText: { fontSize: 16, fontWeight: '600' },
+  codeActions: { gap: spacing.sm, marginBottom: spacing.md },
   link: { textAlign: 'center', fontSize: 17 },
   linkBold: { fontWeight: '700' } });
 

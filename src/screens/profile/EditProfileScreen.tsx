@@ -22,7 +22,7 @@ const cleanIgHandle = (raw: string): string => {
 
 const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ navigation }) => {
   const { colors } = useTheme();
-  const { scrollRef, onScroll, refFor, scrollToInput } = useKeyboardScroll();
+  const { scrollRef, onScroll, onLayout, onContentSizeChange, refFor, scrollToInput } = useKeyboardScroll();
   const { user, userProfile, refreshUserProfile } = useAuthContext();
   const { updateUser } = useUsers();
   const [displayName, setDisplayName] = useState(userProfile?.displayName ?? '');
@@ -75,8 +75,12 @@ const EditProfileScreen: React.FC<{ navigation: { goBack: () => void } }> = ({ n
     <ScrollView
         ref={scrollRef}
         onScroll={onScroll}
+        onLayout={onLayout}
+        onContentSizeChange={onContentSizeChange}
         scrollEventThrottle={16}
-        automaticallyAdjustKeyboardInsets={true} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
+        automaticallyAdjustKeyboardInsets={false}
+        keyboardShouldPersistTaps="handled"
+        style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
       <TouchableOpacity
         style={styles.photoPicker}
         onPress={pickImage}

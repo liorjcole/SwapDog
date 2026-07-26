@@ -7,7 +7,8 @@ import {
   StyleSheet,
   Platform,
   ActivityIndicator,
-  Animated } from 'react-native';
+  Animated,
+  KeyboardAvoidingView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -77,7 +78,10 @@ const ReferralCodeScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1, backgroundColor: colors.background }}
+    >
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
@@ -155,10 +159,10 @@ const ReferralCodeScreen: React.FC<Props> = ({ navigation }) => {
         </Animated.View>
 
         <Text style={[styles.footer, { color: colors.textSecondary }]}>
-          Don't have a code? Ask an existing WatchDog member to invite you.
+          Don{"'"}t have a code? Ask an existing WatchDog member to invite you.
         </Text>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 

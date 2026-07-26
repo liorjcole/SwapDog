@@ -14,6 +14,7 @@ import { db } from '../config/firebase';
 import { parsePost } from './useSwaps';
 import { useUsers } from './useUsers';
 import { useReviews } from './useReviews';
+import { useDogs } from './useDogs';
 import { ReviewFlowParams } from './useReviewFlow';
 import { resolvePostEndMs } from '../utils/dateHelpers';
 import { SwapPost } from '../models/types';
@@ -62,6 +63,7 @@ export const useLiveReviewTrigger = ({
   openGate,
 }: UseLiveReviewTriggerArgs): void => {
   const { getUser } = useUsers();
+  const { getDogsByOwner } = useDogs();
   const { hasReviewed } = useReviews();
 
   // Latest-value refs so the subscription effect can stay keyed on uid alone and
@@ -70,6 +72,8 @@ export const useLiveReviewTrigger = ({
   openGateRef.current = openGate;
   const getUserRef = useRef(getUser);
   getUserRef.current = getUser;
+  const getDogsByOwnerRef = useRef(getDogsByOwner);
+  getDogsByOwnerRef.current = getDogsByOwner;
   const hasReviewedRef = useRef(hasReviewed);
   hasReviewedRef.current = hasReviewed;
   const isGateOpenRef = useRef(isGateOpen);
@@ -138,6 +142,20 @@ export const useLiveReviewTrigger = ({
       const dogNames = post.dogNames ?? (post.dogName ? [post.dogName] : []);
       // Dog photos are denormalized on the post — no extra fetch needed.
       const dogPhotoURLs = post.dogPhotoURLs ?? (post.dogPhotoURL ? [post.dogPhotoURL] : []);
+      let otherUserDogOptions: ReviewFlowParams['otherUserDogOptions'] = [];
+      try {
+        const otherDogs = await getDogsByOwnerRef.current(otherUserId);
+        const postDogIdSet = new Set(dogIds);
+        otherUserDogOptions = otherDogs
+          .filter((dog) => !postDogIdSet.has(dog.id))
+          .map((dog) => ({
+            dogId: dog.id,
+            dogName: dog.name,
+            photoURL: dog.photoURLs?.[0],
+          }));
+      } catch (err) {
+        console.error('[LiveReview] getDogsByOwner failed:', err);
+      }
       // The live user doc is authoritative — the denormalized posterPhotoURL goes
       // stale on photo change and breaks on Storage token rotation. In the
       // caregiver flow the reviewed user IS the poster, so the snapshot is a
@@ -147,7 +165,7 @@ export const useLiveReviewTrigger = ({
         role === 'caregiver'
           ? (otherUserPhotoURLFromGet ?? post.posterPhotoURL)
           : otherUserPhotoURLFromGet;
-      return { postId: post.id, role, otherUserId, otherUserName, dogIds, dogNames, dogPhotoURLs, otherUserPhotoURL };
+      return { postId: post.id, role, otherUserId, otherUserName, dogIds, dogNames, dogPhotoURLs, otherUserDogOptions, otherUserPhotoURL };
     };
 
     const triggerReview = async (post: SwapPost): Promise<void> => {
@@ -156,7 +174,8 @@ export const useLiveReviewTrigger = ({
       triggeringRef.current.add(postId);
       try {
         const role = post.posterId === uid ? 'owner' : 'caregiver';
-        // Owner reviews the caregiver; caregiver reviews the owner (plus dogs).
+        // Owner reviews the caregiver; caregiver reviews the owner, then can
+        // optionally add dog-interaction notes.
         const myTarget = role === 'owner' ? 'caregiver' : 'owner';
         const alreadyReviewed = await hasReviewedRef.current(postId, uid, myTarget);
         if (alreadyReviewed) {
@@ -179,7 +198,7 @@ export const useLiveReviewTrigger = ({
             status: 'completed',
             updatedAt: serverTimestamp(),
           }).catch((err) =>
-            console.error('[LiveReview] Failed to mark post completed:', postId, err),
+            console.warn('[LiveReview] Failed to mark post completed:', postId, err),
           );
         }
 
@@ -292,4 +311,3 @@ export const useLiveReviewTrigger = ({
     };
   }, [user, requestOpen]);
 };
-

@@ -34,6 +34,10 @@ interface Props {
   nextDogNumber?: number;
   /** Called when animation completes */
   onFinish: () => void;
+  /** Optional override for non-onboarding flows that reuse this exact animation. */
+  titleText?: string;
+  /** Optional override for the bottom "next" message. */
+  bottomText?: string;
 }
 
 const ordinal = (n: number) => {
@@ -55,7 +59,7 @@ interface ConfettiPiece {
 }
 
 const DogAddedTransition: React.FC<Props> = ({
-  dogName, dogNumber, allDogs, mode, nextDogNumber, onFinish,
+  dogName, dogNumber, allDogs, mode, nextDogNumber, onFinish, titleText, bottomText: bottomTextOverride,
 }) => {
   // --- Confetti pieces ---
   const confetti = useRef<ConfettiPiece[]>(
@@ -188,9 +192,9 @@ const DogAddedTransition: React.FC<Props> = ({
   }, []);
 
   // Bottom text based on mode
-  const bottomText = mode === 'continue'
+  const bottomText = bottomTextOverride ?? (mode === 'continue'
     ? 'Confirm your account! ✨'
-    : `Now adding your ${ordinal(nextDogNumber ?? dogNumber + 1)} dog! 🐾`;
+    : `Now adding your ${ordinal(nextDogNumber ?? dogNumber + 1)} dog! 🐾`);
 
   return (
     <Animated.View style={[styles.overlay, { opacity: fadeOut }]}>
@@ -235,12 +239,12 @@ const DogAddedTransition: React.FC<Props> = ({
             },
           ]}
         >
-          🎉 You added {dogName}!
-          {showRoster && (
+          {titleText ?? `🎉 You added ${dogName}!`}
+          {!titleText && showRoster && (
             <>
               {'\n'}
               <Text style={styles.addedSubText}>
-                That's your {ordinal(dogNumber)} dog!
+                That{"'"}s your {ordinal(dogNumber)} dog!
               </Text>
             </>
           )}

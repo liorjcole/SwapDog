@@ -20,6 +20,7 @@ import PhotoCarousel from '../../components/common/PhotoCarousel';
 import Chip from '../../components/common/Chip';
 import { formatDogAge } from '../../utils/formatDogAge';
 import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
+import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 
 const MIN_CARE_DETAILS = 50;
 
@@ -34,6 +35,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
   const { getDogsByOwner } = useDogs();
   const { getUser } = useUsers();
   const { createSwap } = useSwaps();
+  const { scrollRef, onScroll, onLayout, onContentSizeChange, refFor, scrollToInput } = useKeyboardScroll();
 
   const [myDogs, setMyDogs] = useState<Dog[]>([]);
   const [receiver, setReceiver] = useState<User | null>(null);
@@ -154,7 +156,12 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
-        automaticallyAdjustKeyboardInsets={true}
+      ref={scrollRef}
+      onScroll={onScroll}
+      onLayout={onLayout}
+      onContentSizeChange={onContentSizeChange}
+      scrollEventThrottle={16}
+      automaticallyAdjustKeyboardInsets={false}
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
@@ -259,7 +266,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
           />
         </View>
         {offerPayment && (
-          <View style={styles.paymentInputRow}>
+          <View ref={refFor('paymentAmount')} style={styles.paymentInputRow}>
             <Text style={[styles.dollarSign, { color: colors.text }]}>$</Text>
             <TextInput
               style={[styles.paymentInput, { borderColor: colors.border, backgroundColor: colors.background, color: colors.text }]}
@@ -267,6 +274,7 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
               placeholderTextColor={colors.textSecondary}
               value={paymentAmount}
               onChangeText={setPaymentAmount}
+              onFocus={() => scrollToInput('paymentAmount')}
               keyboardType="decimal-pad"
               accessibilityLabel="Payment amount in dollars"
             returnKeyType="done"
@@ -380,48 +388,54 @@ const CreateSwapScreen: React.FC<Props> = ({ navigation, route }) => {
           Describe what the dog watcher needs to know — daily schedule, exercise requirements,
           food/feeding schedule, medications, special needs, behavioral notes
         </Text>
-        <TextInput
-          style={[
-            styles.careInput,
-            {
-              backgroundColor: colors.background,
-              borderColor: careDetails.trim().length > 0 && careDetails.trim().length < MIN_CARE_DETAILS
-                ? colors.error
-                : colors.border,
-              color: colors.text },
-          ]}
-          placeholder="e.g. Bella eats twice a day (7am and 6pm). She needs a 30-min walk every morning. Takes allergy medication in food..."
-          placeholderTextColor={colors.textSecondary}
-          value={careDetails}
-          onChangeText={setCareDetails}
-          multiline
-          inputAccessoryViewID={DONE_ACCESSORY_ID}
-          numberOfLines={6}
-          textAlignVertical="top"
-          accessibilityLabel="Care details for the dog watcher"
-        returnKeyType="done"
-          blurOnSubmit={true}
-                  />
+        <View ref={refFor('careDetails')}>
+          <TextInput
+            style={[
+              styles.careInput,
+              {
+                backgroundColor: colors.background,
+                borderColor: careDetails.trim().length > 0 && careDetails.trim().length < MIN_CARE_DETAILS
+                  ? colors.error
+                  : colors.border,
+                color: colors.text },
+            ]}
+            placeholder="e.g. Bella eats twice a day (7am and 6pm). She needs a 30-min walk every morning. Takes allergy medication in food..."
+            placeholderTextColor={colors.textSecondary}
+            value={careDetails}
+            onChangeText={setCareDetails}
+            onFocus={() => scrollToInput('careDetails')}
+            multiline
+            inputAccessoryViewID={DONE_ACCESSORY_ID}
+            numberOfLines={6}
+            textAlignVertical="top"
+            accessibilityLabel="Care details for the dog watcher"
+            returnKeyType="done"
+            blurOnSubmit={true}
+          />
+        </View>
         <CharCountHint current={careDetails.trim().length} min={MIN_CARE_DETAILS} />
       </View>
 
       {/* ── Section 5: Optional message ── */}
       <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>💬 Message (optional)</Text>
-        <TextInput
-          style={[styles.messageInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
-          placeholder="Say hi or add a personal note..."
-          placeholderTextColor={colors.textSecondary}
-          value={message}
-          onChangeText={setMessage}
-          multiline
-          inputAccessoryViewID={DONE_ACCESSORY_ID}
-          numberOfLines={3}
-          textAlignVertical="top"
-          accessibilityLabel="Optional message to the other user"
-        returnKeyType="done"
-                  blurOnSubmit={true}
-                  />
+        <View ref={refFor('message')}>
+          <TextInput
+            style={[styles.messageInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+            placeholder="Say hi or add a personal note..."
+            placeholderTextColor={colors.textSecondary}
+            value={message}
+            onChangeText={setMessage}
+            onFocus={() => scrollToInput('message')}
+            multiline
+            inputAccessoryViewID={DONE_ACCESSORY_ID}
+            numberOfLines={3}
+            textAlignVertical="top"
+            accessibilityLabel="Optional message to the other user"
+            returnKeyType="done"
+            blurOnSubmit={true}
+          />
+        </View>
       </View>
 
       <TouchableOpacity

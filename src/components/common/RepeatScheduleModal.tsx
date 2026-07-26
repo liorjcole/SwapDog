@@ -110,14 +110,18 @@ const RepeatScheduleModal: React.FC<Props> = ({
   useEffect(() => {
     if (visible) {
       if (currentSchedule) {
-        setRepeatType(currentSchedule.type);
+        const normalizedType = currentSchedule.type === 'weekly' ? 'custom' : currentSchedule.type;
+        const normalizedCustomDays = currentSchedule.type === 'weekly'
+          ? [currentSchedule.weeklyDay ?? 1]
+          : Array.from(currentSchedule.customDays ?? []);
+        setRepeatType(normalizedType);
         setWeeklyDay(currentSchedule.weeklyDay ?? 1);
-        setCustomDays(new Set(currentSchedule.customDays ?? []));
+        setCustomDays(new Set(normalizedCustomDays));
         setSelectedDates(new Set(currentSchedule.specificDates ?? []));
         originalRef.current = {
-          type: currentSchedule.type,
+          type: normalizedType,
           weeklyDay: currentSchedule.weeklyDay ?? 1,
-          customDays: Array.from(currentSchedule.customDays ?? []).sort(),
+          customDays: normalizedCustomDays.sort(),
           selectedDates: Array.from(currentSchedule.specificDates ?? []).sort(),
         };
       } else {
@@ -239,51 +243,13 @@ const RepeatScheduleModal: React.FC<Props> = ({
               </Text>
             </TouchableOpacity>
 
-            {/* Radio: Weekly */}
-            <TouchableOpacity
-              style={[styles.radioRow, repeatType === 'weekly' && { backgroundColor: colors.primary + '10' }]}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRepeatType('weekly'); setCustomDays(new Set()); }}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.radioLabel, { color: colors.text }]}>Repeat weekly</Text>
-              <Text style={[styles.radio, { color: repeatType === 'weekly' ? colors.primary : colors.textSecondary }]}>
-                {repeatType === 'weekly' ? '●' : '○'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Weekly day picker */}
-            {repeatType === 'weekly' && (
-              <View style={styles.dayChips}>
-                {ALL_DAYS.map(d => (
-                  <TouchableOpacity
-                    key={d}
-                    style={[
-                      styles.dayChip,
-                      { borderColor: colors.border, backgroundColor: colors.background },
-                      weeklyDay === d && { backgroundColor: colors.primary, borderColor: colors.primary },
-                    ]}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setWeeklyDay(d); }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[
-                      styles.dayChipText,
-                      { color: colors.text },
-                      weeklyDay === d && { color: '#fff', fontWeight: '700' },
-                    ]}>
-                      {DAY_LABELS[d].slice(0, 3)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
             {/* Radio: Custom */}
             <TouchableOpacity
               style={[styles.radioRow, repeatType === 'custom' && { backgroundColor: colors.primary + '10' }]}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRepeatType('custom'); }}
               activeOpacity={0.7}
             >
-              <Text style={[styles.radioLabel, { color: colors.text }]}>Repeat on select days</Text>
+              <Text style={[styles.radioLabel, { color: colors.text }]}>Repeat weekly</Text>
               <Text style={[styles.radio, { color: repeatType === 'custom' ? colors.primary : colors.textSecondary }]}>
                 {repeatType === 'custom' ? '●' : '○'}
               </Text>

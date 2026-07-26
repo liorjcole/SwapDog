@@ -15,6 +15,8 @@ import {
   Animated,
   Easing,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   Share,
   StyleSheet,
@@ -175,8 +177,12 @@ const InsufficientPointsModal: React.FC = () => {
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={handleClose}>
-      <View style={styles.overlay}>
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <View style={styles.overlay}>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
           {/* ── Warning screen ── */}
           {screen === 'warning' && (
             <>
@@ -300,8 +306,9 @@ const InsufficientPointsModal: React.FC = () => {
               </TouchableOpacity>
             </>
           )}
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

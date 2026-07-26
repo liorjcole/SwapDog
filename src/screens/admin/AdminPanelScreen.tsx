@@ -16,6 +16,7 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
   doc,
   updateDoc,
   collectionGroup,
@@ -36,6 +37,7 @@ interface PendingUser {
   id: string;
   displayName: string;
   email: string;
+  phoneNumber?: string;
   referralCount: number;
   bio?: string;
   photoURL?: string;
@@ -63,6 +65,16 @@ const AdminPanelScreen: React.FC = () => {
       const pendingUsers: PendingUser[] = await Promise.all(
         snap.docs.map(async (userDoc) => {
           const data = userDoc.data();
+          let phoneNumber: string | undefined;
+          try {
+            const privateSnap = await getDoc(doc(db, 'privateUsers', userDoc.id));
+            const privateData = privateSnap.data();
+            phoneNumber = typeof privateData?.phoneNumber === 'string'
+              ? privateData.phoneNumber
+              : undefined;
+          } catch {
+            phoneNumber = undefined;
+          }
 
           // Fetch dogs from top-level dogs collection filtered by ownerId
           let dogs: DogInfo[] = [];
@@ -94,6 +106,7 @@ const AdminPanelScreen: React.FC = () => {
             id: userDoc.id,
             displayName: data.displayName ?? 'Unnamed User',
             email: data.email ?? '',
+            phoneNumber,
             referralCount: 0,
             bio: data.bio ?? undefined,
             photoURL: data.photoURL ?? undefined,
@@ -204,7 +217,7 @@ const AdminPanelScreen: React.FC = () => {
 
   const renderItem = ({ item }: { item: PendingUser }) => (
     <View style={[styles.card, { backgroundColor: colors.surface, ...shadow.sm }]}>
-      {/* Header: avatar + name + email */}
+      {/* Header: avatar + name + contact */}
       <View style={styles.cardHeader}>
         <Image
           source={
@@ -217,7 +230,7 @@ const AdminPanelScreen: React.FC = () => {
         />
         <View style={styles.cardHeaderText}>
           <Text style={[styles.userName, { color: colors.text }]}>{item.displayName}</Text>
-          <Text style={[styles.userEmail, { color: colors.textSecondary }]}>{item.email}</Text>
+          <Text style={[styles.userEmail, { color: colors.textSecondary }]}>{item.phoneNumber || item.email}</Text>
             <Text style={[styles.userEmail, { color: colors.primary }]}>{item.referralCount} referral{item.referralCount !== 1 ? 's' : ''}</Text>
           <Text style={[styles.joinDate, { color: colors.textSecondary }]}>
             Joined {formatJoinDate(item.createdAt)}

@@ -1,5 +1,7 @@
 node_modules/
 .expo/
+.DS_Store
+artifacts/
 dist/
 *.jks
 *.p8

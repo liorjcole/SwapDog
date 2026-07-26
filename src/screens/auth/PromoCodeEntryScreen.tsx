@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Animated,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
@@ -76,7 +78,10 @@ const PromoCodeEntryScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1, backgroundColor: colors.background }}
+    >
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
@@ -162,7 +167,7 @@ const PromoCodeEntryScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={[styles.skip, { color: colors.textSecondary }]}>Skip for now</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -237,4 +242,3 @@ const styles = StyleSheet.create({
 });
 
 export default PromoCodeEntryScreen;
-

@@ -15,6 +15,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useReviewFlow, ReviewFlowParams } from '../../hooks/useReviewFlow';
+import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import ReviewStepCard from './ReviewStepCard';
 import { spacing, borderRadius } from '../../config/theme';
 
@@ -41,10 +42,19 @@ const MandatoryReviewGate: React.FC<Props> = ({ data, onComplete }) => {
   const insets = useSafeAreaInsets();
   const flow = useReviewFlow(data);
   const {
+    scrollRef,
+    onScroll,
+    onLayout,
+    onContentSizeChange,
+    refFor,
+    scrollToInput,
+  } = useKeyboardScroll();
+  const {
     isLast,
     canSubmit,
     submitting,
     currentIdx,
+    hasReportedDogIssue,
     advanceStep,
     goToPrevStep,
     submitAllReviews,
@@ -68,9 +78,15 @@ const MandatoryReviewGate: React.FC<Props> = ({ data, onComplete }) => {
     const ok = await submitAllReviews();
     if (ok) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Thanks! 🎉', 'Your review has been submitted.', [
+      Alert.alert(
+        'Thanks! 🎉',
+        hasReportedDogIssue
+          ? 'Your review has been submitted. We recorded the issue you flagged and will review it with care.'
+          : 'Your review has been submitted.',
+        [
         { text: 'OK', onPress: onComplete },
-      ]);
+        ],
+      );
     } else {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     }
@@ -84,10 +100,19 @@ const MandatoryReviewGate: React.FC<Props> = ({ data, onComplete }) => {
       >
         {/* No header/back/close affordance — the gate cannot be dismissed. */}
         <ScrollView
+          ref={scrollRef}
+          onScroll={onScroll}
+          onLayout={onLayout}
+          onContentSizeChange={onContentSizeChange}
+          scrollEventThrottle={16}
           contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
           keyboardShouldPersistTaps="handled"
         >
-          <ReviewStepCard flow={flow} />
+          <ReviewStepCard
+            flow={flow}
+            noteRef={refFor('reviewGateNote')}
+            onNoteFocus={() => scrollToInput('reviewGateNote')}
+          />
 
           <TouchableOpacity
             style={[
@@ -112,6 +137,7 @@ const MandatoryReviewGate: React.FC<Props> = ({ data, onComplete }) => {
             </TouchableOpacity>
           )}
         </ScrollView>
+
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -133,4 +159,3 @@ const styles = StyleSheet.create({
 });
 
 export default MandatoryReviewGate;
-

@@ -186,6 +186,7 @@ export function DraggablePhotoGrid({
     () =>
       Gesture.Pan()
         .activateAfterLongPress(LONG_PRESS_MS)
+        .minDistance(0)
         .onStart((e) => {
           'worklet';
           dragTranslateX.value = 0;
@@ -199,7 +200,7 @@ export function DraggablePhotoGrid({
           dragTranslateY.value = e.translationY;
           runOnJS(stableMove)(e.absoluteX, e.absoluteY);
         })
-        .onEnd(() => {
+        .onFinalize(() => {
           'worklet';
           dragScale.value = withSpring(1, { damping: 15 });
           dragTranslateX.value = withTiming(0, { duration: 200 });

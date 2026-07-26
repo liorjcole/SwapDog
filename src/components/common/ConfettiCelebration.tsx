@@ -46,6 +46,7 @@ const ConfettiCelebration: React.FC<Props> = ({ queue, onDismissAll }) => {
   const { colors } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
   const isMounted = useRef(true);
+  const dismissingFinalItem = useRef(false);
 
   const [pieces] = useState<ConfettiPiece[]>(() =>
     Array.from({ length: NUM_PIECES }, () => ({
@@ -118,6 +119,7 @@ const ConfettiCelebration: React.FC<Props> = ({ queue, onDismissAll }) => {
   useEffect(() => {
     if (!visible) return;
     isMounted.current = true;
+    dismissingFinalItem.current = false;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     runConfetti();
     return () => {
@@ -126,10 +128,13 @@ const ConfettiCelebration: React.FC<Props> = ({ queue, onDismissAll }) => {
   }, [visible, currentIndex]);
 
   const handleDismiss = () => {
+    if (dismissingFinalItem.current) return;
+
     isMounted.current = false;
     if (currentIndex < queue.length - 1) {
       setCurrentIndex((i) => i + 1);
     } else {
+      dismissingFinalItem.current = true;
       setCurrentIndex(0);
       onDismissAll();
     }

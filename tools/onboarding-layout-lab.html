@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WatchDog Onboarding Layout Lab</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --phone-w: 393px;
+      --phone-h: 852px;
+      --pink: #ff2d62;
+      --panel: #161b20;
+      --line: #2a3239;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0b0f12;
+      color: #f7f7f7;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: grid;
+      grid-template-columns: minmax(430px, 1fr) 420px;
+      gap: 18px;
+      padding: 18px;
+    }
+    .stage-wrap {
+      display: grid;
+      place-items: start center;
+      overflow: auto;
+      padding: 8px;
+    }
+    .phone {
+      position: relative;
+      width: var(--phone-w);
+      height: var(--phone-h);
+      overflow: hidden;
+      border-radius: 36px;
+      background:
+        linear-gradient(rgba(0,0,0,0.56), rgba(0,0,0,0.56)),
+        url("../assets/auth-video/intro-background.jpg"),
+        radial-gradient(circle at 30% 20%, #355133, #151917 70%);
+      background-size: cover;
+      background-position: center;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.12);
+    }
+    .phone::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      backdrop-filter: blur(9px);
+      pointer-events: none;
+    }
+    .safe {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .status {
+      position: absolute;
+      top: 23px;
+      left: 45px;
+      right: 35px;
+      display: flex;
+      justify-content: space-between;
+      font-weight: 800;
+      font-size: 17px;
+      color: rgba(255,255,255,0.92);
+    }
+    .progress {
+      position: absolute;
+      top: 76px;
+      left: 32px;
+      right: 32px;
+      height: 4px;
+      border-radius: 99px;
+      background: rgba(255,255,255,0.24);
+    }
+    .progress span {
+      display: block;
+      width: 86%;
+      height: 100%;
+      border-radius: inherit;
+      background: #fff;
+    }
+    .x {
+      position: absolute;
+      top: 92px;
+      left: 32px;
+      font-size: 38px;
+      line-height: 1;
+      opacity: 0.88;
+    }
+    .top-title {
+      position: absolute;
+      top: 103px;
+      left: 72px;
+      right: 24px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: 900;
+      text-shadow: 0 3px 10px rgba(0,0,0,0.8);
+      white-space: nowrap;
+    }
+    .back, .next {
+      position: absolute;
+      bottom: 42px;
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 36px;
+      font-weight: 700;
+      user-select: none;
+    }
+    .back {
+      left: 84px;
+      color: #fff;
+      border: 2px solid rgba(255,255,255,0.62);
+      background: rgba(0,0,0,0.18);
+    }
+    .next {
+      left: 50%;
+      top: 50%;
+      bottom: auto;
+      width: 86px;
+      height: 86px;
+      transform: translate(-50%, -50%);
+      color: #111;
+      font-size: 22px;
+      font-weight: 900;
+      background: #fff;
+    }
+    .asset {
+      position: absolute;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+      transform-origin: center;
+      outline: 1px dashed transparent;
+    }
+    .asset.selected {
+      outline-color: rgba(255,45,98,0.9);
+      filter: drop-shadow(0 0 10px rgba(255,45,98,0.55));
+    }
+    .asset img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      max-height: calc(100vh - 36px);
+      overflow: auto;
+    }
+    h1 {
+      font-size: 20px;
+      margin: 0 0 6px;
+    }
+    .hint {
+      color: #b8c0c8;
+      margin: 0 0 16px;
+      line-height: 1.4;
+      font-size: 14px;
+    }
+    .row {
+      border-top: 1px solid var(--line);
+      padding: 12px 0;
+    }
+    .row:first-of-type { border-top: 0; }
+    .row strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    label {
+      display: grid;
+      grid-template-columns: 74px 1fr 58px;
+      gap: 8px;
+      align-items: center;
+      margin: 7px 0;
+      font-size: 12px;
+      color: #cbd3da;
+    }
+    input[type="range"] { width: 100%; accent-color: var(--pink); }
+    input[type="number"] {
+      width: 58px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 5px;
+      color: #fff;
+      background: #0d1115;
+    }
+    button {
+      border: 0;
+      border-radius: 9px;
+      padding: 10px 12px;
+      background: var(--pink);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+    button.secondary { background: #2a3239; }
+    textarea {
+      width: 100%;
+      min-height: 260px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      color: #e9eef2;
+      background: #0d1115;
+      font: 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+  </style>
+</head>
+<body>
+  <main class="stage-wrap">
+    <section id="phone" class="phone" aria-label="iPhone preview">
+      <div class="safe">
+        <div class="status"><span>4:11</span><span>▮▮▮ 􀙇 77</span></div>
+        <div class="progress"><span></span></div>
+        <div class="x">×</div>
+        <div class="top-title">How WatchDog Works</div>
+        <div class="back">←</div>
+        <div class="next">Done</div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="panel">
+    <h1>Fourth Animation Layout Lab</h1>
+    <p class="hint">
+      Drag assets directly on the phone. Click an item, then use the sliders for exact position/size.
+      When it looks right, click <strong>Copy JSON</strong> and send me the output.
+    </p>
+    <button id="copy">Copy JSON</button>
+    <button id="reset" class="secondary">Reset</button>
+    <div id="controls"></div>
+    <textarea id="output" readonly></textarea>
+  </aside>
+
+  <script>
+    const phone = document.getElementById('phone');
+    const controls = document.getElementById('controls');
+    const output = document.getElementById('output');
+
+    const imageBase = '../assets/onboarding/';
+    const defaults = [
+      { id: 'earn', label: 'Earn points', src: 'earn-points-with-ease.png', x: 50, y: 25, w: 82, h: 6.4, visible: true },
+      { id: 'coin1', label: 'Coin 1', src: 'coin-angled-large.png', x: 50, y: 34, w: 10.7, h: 5.0, visible: true },
+      { id: 'coin2', label: 'Coin 2', src: 'coin-front-small.png', x: 50, y: 40, w: 7.4, h: 3.5, visible: true },
+      { id: 'working', label: 'Working text', src: 'working-from-home-points.png', x: 50, y: 49, w: 74, h: 9.2, visible: true },
+      { id: 'coin3', label: 'Coin 3', src: 'coin-front-large.png', x: 50, y: 60, w: 9.7, h: 4.6, visible: true },
+      { id: 'coin4', label: 'Coin 4', src: 'coin-angled-small.png', x: 50, y: 66, w: 7.9, h: 3.7, visible: true },
+      { id: 'park', label: 'Park text', src: 'heading-to-dog-park-points.png', x: 50, y: 72, w: 74, h: 9.2, visible: true },
+      { id: 'coin5', label: 'Coin 5', src: 'coin-front-large.png', x: 50, y: 83, w: 10.2, h: 4.8, visible: true },
+      { id: 'coin6', label: 'Coin 6', src: 'coin-angled-small.png', x: 50, y: 89, w: 8.1, h: 3.8, visible: true },
+    ];
+    let items = structuredClone(defaults);
+    let selected = 'earn';
+
+    function pctX(px) { return (px / phone.clientWidth) * 100; }
+    function pctY(px) { return (px / phone.clientHeight) * 100; }
+
+    function renderAssets() {
+      phone.querySelectorAll('.asset').forEach((el) => el.remove());
+      items.forEach((item) => {
+        if (!item.visible) return;
+        const el = document.createElement('div');
+        el.className = `asset${item.id === selected ? ' selected' : ''}`;
+        el.dataset.id = item.id;
+        el.style.width = `${item.w}%`;
+        el.style.height = `${item.h}%`;
+        el.style.left = `${item.x}%`;
+        el.style.top = `${item.y}%`;
+        el.style.transform = 'translate(-50%, -50%)';
+        const img = document.createElement('img');
+        img.src = imageBase + item.src;
+        img.alt = item.label;
+        el.appendChild(img);
+        phone.appendChild(el);
+      });
+      wireDrag();
+      renderControls();
+      writeOutput();
+    }
+
+    function wireDrag() {
+      document.querySelectorAll('.asset').forEach((el) => {
+        el.addEventListener('pointerdown', (event) => {
+          event.preventDefault();
+          selected = el.dataset.id;
+          const item = items.find((entry) => entry.id === selected);
+          const startX = event.clientX;
+          const startY = event.clientY;
+          const originX = item.x;
+          const originY = item.y;
+          el.setPointerCapture(event.pointerId);
+          renderAssets();
+          const activeEl = document.querySelector(`.asset[data-id="${selected}"]`);
+          activeEl.setPointerCapture(event.pointerId);
+          activeEl.addEventListener('pointermove', onMove);
+          activeEl.addEventListener('pointerup', onUp, { once: true });
+
+          function onMove(moveEvent) {
+            item.x = Math.max(-30, Math.min(130, originX + pctX(moveEvent.clientX - startX)));
+            item.y = Math.max(-30, Math.min(130, originY + pctY(moveEvent.clientY - startY)));
+            activeEl.style.left = `${item.x}%`;
+            activeEl.style.top = `${item.y}%`;
+            writeOutput();
+            syncControlValues();
+          }
+          function onUp() {
+            activeEl.removeEventListener('pointermove', onMove);
+            renderAssets();
+          }
+        });
+      });
+    }
+
+    function renderControls() {
+      controls.innerHTML = '';
+      items.forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.innerHTML = `
+          <strong>${item.id === selected ? '● ' : ''}${item.label}</strong>
+          ${range(item.id, 'x', 'X %', -30, 130, item.x)}
+          ${range(item.id, 'y', 'Y %', -30, 130, item.y)}
+          ${range(item.id, 'w', 'W %', 2, 130, item.w)}
+          ${range(item.id, 'h', 'H %', 2, 60, item.h)}
+        `;
+        row.addEventListener('click', () => {
+          selected = item.id;
+          renderAssets();
+        });
+        controls.appendChild(row);
+      });
+      controls.querySelectorAll('input').forEach((input) => {
+        input.addEventListener('input', () => {
+          const item = items.find((entry) => entry.id === input.dataset.id);
+          item[input.dataset.prop] = Number(input.value);
+          const twin = controls.querySelector(`input[type="number"][data-id="${input.dataset.id}"][data-prop="${input.dataset.prop}"]`);
+          if (twin && twin !== input) twin.value = input.value;
+          selected = input.dataset.id;
+          renderAssets();
+        });
+      });
+    }
+
+    function range(id, prop, label, min, max, value) {
+      return `
+        <label>
+          <span>${label}</span>
+          <input type="range" data-id="${id}" data-prop="${prop}" min="${min}" max="${max}" step="0.1" value="${value}">
+          <input type="number" data-id="${id}" data-prop="${prop}" min="${min}" max="${max}" step="0.1" value="${value}">
+        </label>
+      `;
+    }
+
+    function syncControlValues() {
+      items.forEach((item) => {
+        ['x', 'y', 'w', 'h'].forEach((prop) => {
+          controls.querySelectorAll(`[data-id="${item.id}"][data-prop="${prop}"]`).forEach((input) => {
+            input.value = item[prop].toFixed(1);
+          });
+        });
+      });
+    }
+
+    function writeOutput() {
+      output.value = JSON.stringify(items.map(({ id, x, y, w, h }) => ({
+        id,
+        x: Number(x.toFixed(2)),
+        y: Number(y.toFixed(2)),
+        w: Number(w.toFixed(2)),
+        h: Number(h.toFixed(2)),
+      })), null, 2);
+    }
+
+    document.getElementById('copy').addEventListener('click', async () => {
+      writeOutput();
+      await navigator.clipboard.writeText(output.value);
+    });
+    document.getElementById('reset').addEventListener('click', () => {
+      items = structuredClone(defaults);
+      selected = 'earn';
+      renderAssets();
+    });
+
+    renderAssets();
+  </script>
+</body>
+</html>

@@ -4,7 +4,9 @@ import { ReviewFlowParams } from '../hooks/useReviewFlow';
 export type AuthStackParamList = {
   Splash: undefined;
   SignIn: undefined;
-  SignUp: { email?: string };
+  SignUpIntro: undefined;
+  SignUp: { phoneNumber?: string };
+  LegacyAccountUpgrade: undefined;
   PromoCode: undefined;
 };
 
@@ -56,6 +58,7 @@ export type MessagesStackParamList = {
   ConversationsList: undefined;
   Chat: { conversationId: string; otherUserId: string };
   UserDetail: { userId: string };
+  DogDetail: { dogId: string };
   /** Layered anonymized reviews breakdown (UserDetail is reachable from Messages too) */
   ReviewsList: { userId: string; displayName: string; dogId?: string; dogName?: string };
 };
@@ -95,6 +98,7 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   Referral: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList>;
+  LegacyAccountUpgrade: undefined;
   Onboarding: NavigatorScreenParams<OnboardingStackParamList>;
   ConductStandards: undefined;
   WaitingApproval: undefined;

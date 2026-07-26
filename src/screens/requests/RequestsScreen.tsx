@@ -40,7 +40,7 @@ import { useReviews } from '../../hooks/useReviews';
 import { useCancelCommitment } from '../../hooks/useCancelCommitment';
 import { SwapPost } from '../../models/types';
 import { spacing, borderRadius, shadow } from '../../config/theme';
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, updateDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import EmptyStateView from '../../components/common/EmptyStateView';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -61,6 +61,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CAL_HEIGHT_MIN = 0; // full collapse — list fills the whole screen on scroll-up
 const CAL_HEIGHT_ESTIMATE = 380;     // initial guess until measured via onLayout
 const CAL_COLLAPSE_DURATION = 250;   // ms, matches Discover
+const CAL_EXPAND_PULL_THRESHOLD = -64; // require a deliberate pull-down before expanding
 
 
 
@@ -214,25 +215,54 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  const collapseCalendar = useCallback(() => {
+    if (calCollapsed.current) return;
+    calCollapsed.current = true;
+    Animated.timing(calHeightAnim, {
+      toValue: CAL_HEIGHT_MIN,
+      duration: CAL_COLLAPSE_DURATION,
+      useNativeDriver: false,
+    }).start();
+  }, [calHeightAnim]);
+
+  const expandCalendar = useCallback(() => {
+    if (!calCollapsed.current) return;
+    calCollapsed.current = false;
+    Animated.timing(calHeightAnim, {
+      toValue: calMaxHeight.current,
+      duration: CAL_COLLAPSE_DURATION,
+      useNativeDriver: false,
+    }).start();
+  }, [calHeightAnim]);
+
   // Drives the collapse from the active list's onScroll — verbatim Discover logic.
   const handleListScroll = (event: { nativeEvent?: { contentOffset?: { y?: number } } }) => {
     const y = event?.nativeEvent?.contentOffset?.y ?? 0;
-    if (y > 120 && !calCollapsed.current) {
-      calCollapsed.current = true;
-      Animated.timing(calHeightAnim, {
-        toValue: CAL_HEIGHT_MIN,
-        duration: CAL_COLLAPSE_DURATION,
-        useNativeDriver: false, // REQUIRED — height is a layout property
-      }).start();
-    } else if (y <= 2 && calCollapsed.current) {
-      calCollapsed.current = false;
-      Animated.timing(calHeightAnim, {
-        toValue: calMaxHeight.current,
-        duration: CAL_COLLAPSE_DURATION,
-        useNativeDriver: false,
-      }).start();
+    if (y > 120) {
+      collapseCalendar();
+    } else if (y <= CAL_EXPAND_PULL_THRESHOLD && calCollapsed.current) {
+      expandCalendar();
     }
   };
+
+  const schedulePanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => (
+        !calCollapsed.current
+        && gestureState.dy < -18
+        && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
+      ),
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy < -18) collapseCalendar();
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy < -18) collapseCalendar();
+      },
+      onPanResponderTerminate: (_, gestureState) => {
+        if (gestureState.dy < -18) collapseCalendar();
+      },
+    }),
+  ).current;
 
   // Pan responder for horizontal swipe to change month
   const calPanResponder = useRef(
@@ -252,6 +282,15 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const fetchPosts = useCallback(async () => {
     if (!user) return;
     try {
+      const effectiveStartMs = (p: SwapPost): number => {
+        if (!p.startDate) return Infinity;
+        const d = new Date(p.startDate);
+        if (p.startTime) applyTimeString(d, p.startTime);
+        else d.setHours(0, 0, 0, 0);
+        return d.getTime();
+      };
+      const byStart = (a: SwapPost, b: SwapPost) => effectiveStartMs(a) - effectiveStartMs(b);
+
       const [mine, accepted, completedSitter] = await Promise.all([
         getMyPosts(user.uid),
         getAcceptedPosts(user.uid),
@@ -270,26 +309,9 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         p.status === 'completed' ||
         (p.status === 'cancelled' && (p as any).lateCancelled)
       );
-      // Sort active: unclaimed first (earliest → latest start), then claimed (earliest → latest start).
-      // Mirrors the applyTimeString pattern used by isPostInProgress / EventProgressBar.
-      const effectiveStartMs = (p: SwapPost): number => {
-        if (!p.startDate) return Infinity; // guard: sort missing-date to end
-        const d = new Date(p.startDate);
-        if (p.startTime) applyTimeString(d, p.startTime);
-        else d.setHours(0, 0, 0, 0);
-        return d.getTime();
-      };
-      const byStart = (a: SwapPost, b: SwapPost) => effectiveStartMs(a) - effectiveStartMs(b);
-      const unclaimedActive = active.filter((p: SwapPost) => p.status !== 'claimed').sort(byStart);
-      const claimedActive   = active.filter((p: SwapPost) => p.status === 'claimed').sort(byStart);
-      // Sort archived: completed first, then by date
-      archived.sort((a, b) => {
-        if (a.status === 'completed' && b.status !== 'completed') return -1;
-        if (a.status !== 'completed' && b.status === 'completed') return 1;
-        return b.endDate.getTime() - a.endDate.getTime();
-      });
-      setMyPosts([...unclaimedActive, ...claimedActive]);
-      setArchivedPosts(archived);
+
+      setMyPosts(active.sort(byStart));
+      setArchivedPosts(archived.sort(byStart));
 
       // Check review status for completed posts
       const completedPosts = archived.filter((p) => p.status === 'completed' || (p.status === 'cancelled' && (p as any).lateCancelled));
@@ -318,7 +340,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
               status: 'completed',
               updatedAt: serverTimestamp(),
             }).catch((err) =>
-              console.error('[fetchPosts] Failed to mark post completed:', p.id, err)
+              console.warn('[fetchPosts] Failed to mark post completed:', p.id, err)
             )
           )
         );
@@ -434,6 +456,11 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         accessibilityRole="button"
         accessibilityLabel={`Your post for ${(item.dogNames && item.dogNames.length > 0) ? item.dogNames.join(' & ') : item.dogName}`}
       >
+        {item.careType === 'overnight' && (
+          <View style={styles.overnightBadge}>
+            <Text style={styles.overnightBadgeText}>🌙 Overnight</Text>
+          </View>
+        )}
 
         {isClaimed && (
           <View style={{ backgroundColor: '#FDCB6E', paddingVertical: 6, paddingHorizontal: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12, alignItems: 'center', marginTop: -spacing.md, marginHorizontal: -spacing.md }}>
@@ -450,7 +477,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
             </Text>
           </View>
         )}
-        <View style={[styles.cardHeader, isClaimed && { marginTop: spacing.sm }]}>
+        <View style={[styles.cardHeader, isClaimed && { marginTop: spacing.sm }, item.careType === 'overnight' && !isClaimed && styles.cardHeaderWithTopBadge]}>
           {(() => {
             const photos = (item.dogPhotoURLs && item.dogPhotoURLs.length > 0)
               ? item.dogPhotoURLs
@@ -626,6 +653,24 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                       }
                     } catch { /* keep fallback */ }
                   }
+                  let otherUserDogOptions: { dogId: string; dogName: string; photoURL?: string }[] = [];
+                  if (claimedByUid) {
+                    try {
+                      const dogsSnap = await getDocs(query(collection(db, 'dogs'), where('ownerId', '==', claimedByUid)));
+                      const postDogIdSet = new Set(item.dogIds ?? (item.dogId ? [item.dogId] : []));
+                      otherUserDogOptions = dogsSnap.docs
+                        .filter((dogDoc) => !postDogIdSet.has(dogDoc.id))
+                        .map((dogDoc) => {
+                          const dogData = dogDoc.data();
+                          const photoURLs = dogData?.photoURLs as string[] | undefined;
+                          return {
+                            dogId: dogDoc.id,
+                            dogName: (dogData?.name as string) ?? 'the dog',
+                            photoURL: photoURLs?.[0],
+                          };
+                        });
+                    } catch { /* optional dog follow-up can be omitted */ }
+                  }
                   // Navigate within the Requests stack — goBack() after submit
                   // returns to the Schedule list, not the Profile tab.
                   navigation.navigate('Review', {
@@ -636,6 +681,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                     dogIds: item.dogIds ?? (item.dogId ? [item.dogId] : []),
                     dogNames: item.dogNames ?? [item.dogName],
                     dogPhotoURLs: item.dogPhotoURLs ?? (item.dogPhotoURL ? [item.dogPhotoURL] : []),
+                    otherUserDogOptions,
                     otherUserPhotoURL,
                   });
                 }}
@@ -700,17 +746,21 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   // Sitter-only commitments (you're caring for someone's dog). Owner-side
   // claimed posts now live under My Posts with the gold claimed styling.
   const sitterCommitments = acceptedPosts.filter((p) => p.claimedBy === user?.uid);
+  // Owner-side calendar entries should only exist once a helper has actually
+  // taken the post. Open requests still belong in My Posts, but they are not
+  // scheduled care yet.
+  const takenOwnerPosts = myPosts.filter((p) => p.status === 'claimed' && !!p.claimedBy);
 
   /**
    * Dot presence for a calendar day:
-   *   red  = one of your own posts (My Posts) falls on this day
+   *   red  = one of your taken own posts falls on this day
    *   teal = one of your sitter commitments falls on this day
    * "Falls on" spans the full [startDate, endDate] range (multi-day overnights).
    */
   const getDotsForDate = (date: Date): { red: boolean; teal: boolean } => {
     let red = false;
     let teal = false;
-    for (const post of myPosts) {
+    for (const post of takenOwnerPosts) {
       if (overlapsDate(post, date)) { red = true; break; }
     }
     for (const post of sitterCommitments) {
@@ -720,19 +770,109 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   // Sitter commitments partitioned into upcoming/past, after the day filter.
+  const commitmentStartMs = (p: SwapPost): number => {
+    if (!p.startDate) return Infinity;
+    const d = new Date(p.startDate);
+    if (p.startTime) applyTimeString(d, p.startTime);
+    else d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  };
+  const byCommitmentStart = (a: SwapPost, b: SwapPost) => commitmentStartMs(a) - commitmentStartMs(b);
+
   const upcomingCommitments = filterByDay(sitterCommitments)
     .filter((p) => !isPostExpired(p))
-    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+    .sort(byCommitmentStart);
   const pastCommitments = filterByDay(sitterCommitments)
     .filter((p) => isPostExpired(p))
-    .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+    .sort(byCommitmentStart);
 
   // Completed caregiver commitments respect the active day filter.
   const completedToShow = filterByDay(completedCommitments)
-    .sort((a, b) => b.endDate.getTime() - a.endDate.getTime());
+    .sort(byCommitmentStart);
 
   // Banner events from shared hook (own lightweight fetch + 60s tick).
   const { liveEvents } = useHappeningNow();
+
+  const selectedDayPreviewEvents = selectedDay
+    ? [
+        ...takenOwnerPosts
+          .filter((post) => overlapsDate(post, selectedDay))
+          .map((post) => ({ post, kind: 'mine' as const })),
+        ...sitterCommitments
+          .filter((post) => overlapsDate(post, selectedDay))
+          .map((post) => ({ post, kind: 'commitment' as const })),
+      ].sort((a, b) => commitmentStartMs(a.post) - commitmentStartMs(b.post))
+    : [];
+
+  const renderSelectedDayPreview = () => {
+    if (!selectedDay || selectedDayPreviewEvents.length === 0) return null;
+
+    return (
+      <View style={[styles.selectedDayPreviewWrap, { backgroundColor: colors.background }]}>
+        {selectedDayPreviewEvents.map(({ post, kind }) => {
+          const accent = kind === 'mine' ? RED : TEAL;
+          const roleLabel = kind === 'mine' ? 'Your dog is being cared for' : "You're caring";
+          const dogNamesDisplay = post.dogNames?.length ? post.dogNames.join(' & ') : post.dogName;
+          const dogPhotos = post.dogPhotoURLs?.length
+            ? post.dogPhotoURLs
+            : post.dogPhotoURL
+              ? [post.dogPhotoURL]
+              : [];
+          const startStr = smartDate(post.startDate);
+          const endStr = smartDate(post.endDate);
+
+          return (
+            <TouchableOpacity
+              key={`${kind}-${post.id}`}
+              style={[
+                styles.selectedDayPreviewCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: accent,
+                  ...shadow.sm,
+                },
+              ]}
+              onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
+              accessibilityRole="button"
+              accessibilityLabel={`Open full details for ${dogNamesDisplay}`}
+            >
+              <View style={styles.selectedDayPreviewHeader}>
+                {dogPhotos.length > 0 ? (
+                  <View style={styles.previewDogPhotos}>
+                    {dogPhotos.map((url, idx) => (
+                      <Image
+                        key={`${url}-${idx}`}
+                        source={{ uri: url }}
+                        style={[
+                          styles.previewDogPhoto,
+                          { borderColor: accent },
+                          idx > 0 && { marginLeft: -10 },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                ) : (
+                  <View style={[styles.previewDogPlaceholder, { backgroundColor: accent + '18' }]}>
+                    <Text style={styles.dogThumbEmoji}>D</Text>
+                  </View>
+                )}
+                <View style={styles.previewInfo}>
+                  <Text style={[styles.previewRole, { color: accent }]}>{roleLabel}</Text>
+                  <Text style={[styles.previewDogName, { color: colors.text }]} numberOfLines={1}>
+                    {dogNamesDisplay}
+                  </Text>
+                  <Text style={[styles.previewMeta, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {isSameDay(post.startDate, post.endDate) ? startStr : `${startStr} - ${endStr}`} · {getCareTypeSummary(post)}
+                  </Text>
+                </View>
+                <Text style={[styles.previewChevron, { color: accent }]}>›</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
 
   // Toggle the calendar day filter: tap to select, tap the same day to clear.
   const handleDatePress = (date: Date) => {
@@ -804,7 +944,12 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           accessibilityLabel={`${roleLabel}: ${dogNamesDisplay} with ${otherName}`}
           accessibilityState={{ expanded: isExpanded }}
         >
-          <View style={styles.commitCardInner}>
+          {post.careType === 'overnight' && (
+            <View style={styles.overnightBadge}>
+              <Text style={styles.overnightBadgeText}>🌙 Overnight</Text>
+            </View>
+          )}
+          <View style={[styles.commitCardInner, post.careType === 'overnight' && styles.cardHeaderWithTopBadge]}>
             {/* Dog photo(s) */}
             {allDogPhotos.length > 0 && (
               <View style={styles.commitDogPhotos}>
@@ -995,6 +1140,24 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                   } catch { /* keep fallback */ }
                 }
                 if (!otherUserPhotoURL) otherUserPhotoURL = post.posterPhotoURL;
+                let otherUserDogOptions: { dogId: string; dogName: string; photoURL?: string }[] = [];
+                if (posterUid) {
+                  try {
+                    const dogsSnap = await getDocs(query(collection(db, 'dogs'), where('ownerId', '==', posterUid)));
+                    const postDogIdSet = new Set(post.dogIds ?? (post.dogId ? [post.dogId] : []));
+                    otherUserDogOptions = dogsSnap.docs
+                      .filter((dogDoc) => !postDogIdSet.has(dogDoc.id))
+                      .map((dogDoc) => {
+                        const dogData = dogDoc.data();
+                        const photoURLs = dogData?.photoURLs as string[] | undefined;
+                        return {
+                          dogId: dogDoc.id,
+                          dogName: (dogData?.name as string) ?? 'the dog',
+                          photoURL: photoURLs?.[0],
+                        };
+                      });
+                  } catch { /* optional dog follow-up can be omitted */ }
+                }
                 navigation.navigate('Review', {
                   postId: post.id,
                   role: 'caregiver' as const,
@@ -1003,6 +1166,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                   dogIds: post.dogIds ?? (post.dogId ? [post.dogId] : []),
                   dogNames: post.dogNames ?? [post.dogName],
                   dogPhotoURLs: post.dogPhotoURLs ?? (post.dogPhotoURL ? [post.dogPhotoURL] : []),
+                  otherUserDogOptions,
                   otherUserPhotoURL,
                 });
               }}
@@ -1147,7 +1311,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.calLegendItem}>
             <View style={[styles.calDot, { backgroundColor: TEAL }]} />
             <Text style={[styles.calLegendText, { color: colors.textSecondary }]}>
-              You're caring for someone's dog
+              {"You're caring for someone's dog"}
             </Text>
           </View>
           {selectedDay && (
@@ -1184,21 +1348,23 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   // Archive footer respects the active day filter.
   const archivedToShow = selectedDay ? filterByDay(archivedPosts) : archivedPosts;
 
-  // My Commitments list rows: upcoming commits, an optional Past divider, then
-  // dimmed past commits, and finally completed caregiver commitments with a
-  // Leave Review button — all flattened so a single FlatList drives the view.
+  // My Commitments list rows: upcoming commits first, then one archived block
+  // sorted by start date. Completed rows keep their review card treatment.
   type CommitRow =
     | { kind: 'commit'; post: SwapPost; dimmed: boolean }
     | { kind: 'divider' }
-    | { kind: 'completed-divider' }
     | { kind: 'completed-commit'; post: SwapPost };
+  type ArchivedCommitRow = Exclude<CommitRow, { kind: 'divider' }>;
+
+  const archivedCommitmentRows: ArchivedCommitRow[] = [
+    ...pastCommitments.map((post) => ({ kind: 'commit' as const, post, dimmed: true })),
+    ...completedToShow.map((post) => ({ kind: 'completed-commit' as const, post })),
+  ].sort((a, b) => commitmentStartMs(a.post) - commitmentStartMs(b.post));
 
   const commitRows: CommitRow[] = [
     ...upcomingCommitments.map((post) => ({ kind: 'commit' as const, post, dimmed: false })),
-    ...(pastCommitments.length > 0 ? [{ kind: 'divider' as const }] : []),
-    ...pastCommitments.map((post) => ({ kind: 'commit' as const, post, dimmed: true })),
-    ...(completedToShow.length > 0 ? [{ kind: 'completed-divider' as const }] : []),
-    ...completedToShow.map((post) => ({ kind: 'completed-commit' as const, post })),
+    ...(archivedCommitmentRows.length > 0 ? [{ kind: 'divider' as const }] : []),
+    ...archivedCommitmentRows,
   ];
 
 
@@ -1222,10 +1388,13 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       )}
 
+      <View style={{ flex: 1 }} {...schedulePanResponder.panHandlers}>
       {/* ── Collapsing calendar (height animates on list scroll) ── */}
       <Animated.View style={{ height: calHeightAnim, overflow: 'hidden' }}>
         {renderCalendar()}
       </Animated.View>
+
+      {renderSelectedDayPreview()}
 
       {/* ── Segmented tabs (pinned, context-themed) ── */}
       <View style={[styles.tabs, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -1336,16 +1505,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                 return (
                   <View style={[styles.pastDividerHeader, { borderTopColor: colors.border }]}>
                     <Text style={[styles.selectedDayTitle, { color: colors.textSecondary }]}>
-                      Past
-                    </Text>
-                  </View>
-                );
-              }
-              if (item.kind === 'completed-divider') {
-                return (
-                  <View style={[styles.pastDividerHeader, { borderTopColor: colors.border }]}>
-                    <Text style={[styles.selectedDayTitle, { color: colors.textSecondary }]}>
-                      Completed
+                      Archive
                     </Text>
                   </View>
                 );
@@ -1371,6 +1531,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
           />
       )}
       </View>
+      </View>
     </View>
   );
 };
@@ -1383,12 +1544,13 @@ const styles = StyleSheet.create({
   tab: { flex: 1, alignItems: 'center', paddingVertical: spacing.md },
   tabText: { fontSize: 15, fontWeight: '600' },
 
-  // My Posts list
-  list: { padding: spacing.md, paddingBottom: spacing.xl * 3 },
+// My Posts list
+  list: { padding: spacing.md, paddingBottom: spacing.xl * 3 + CAL_HEIGHT_ESTIMATE },
 
   // Card shared
   card: { borderRadius: borderRadius.lg, padding: spacing.md, marginBottom: spacing.md },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  cardHeaderWithTopBadge: { marginTop: 16 },
   headerInfo: { flex: 1 },
   posterName: { fontSize: 17, fontWeight: '700' },
   dateRange: { fontSize: 14, marginTop: 1 },
@@ -1412,6 +1574,18 @@ const styles = StyleSheet.create({
   compBadgeText: { fontSize: 15, fontWeight: '700' },
   statusBadge: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.full },
   statusBadgeText: { fontSize: 13, fontWeight: '700' },
+  overnightBadge: {
+    position: 'absolute',
+    top: -1,
+    left: -1,
+    backgroundColor: '#BFE7FF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderBottomRightRadius: 8,
+    borderTopLeftRadius: 10,
+    zIndex: 10,
+  },
+  overnightBadgeText: { fontSize: 12, fontWeight: '800', color: '#0B4F71', letterSpacing: 0.5 },
   cancelBtn: {
     borderWidth: 1.5,
     borderRadius: borderRadius.sm,
@@ -1463,6 +1637,32 @@ const styles = StyleSheet.create({
 
   // Calendar block (inside the collapsing Animated.View)
   calendarBlock: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
+  selectedDayPreviewWrap: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  selectedDayPreviewCard: {
+    borderWidth: 1.5,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  selectedDayPreviewHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  previewDogPhotos: { flexDirection: 'row', alignItems: 'center', minWidth: 44 },
+  previewDogPhoto: { width: 40, height: 40, borderRadius: 20, borderWidth: 1.5 },
+  previewDogPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewInfo: { flex: 1, minWidth: 0 },
+  previewRole: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  previewDogName: { fontSize: 16, fontWeight: '800', marginTop: 1 },
+  previewMeta: { fontSize: 13, fontWeight: '500', marginTop: 1 },
+  previewChevron: { fontSize: 30, fontWeight: '300', lineHeight: 32 },
 
   // Month nav header
   calMonthHeader: {

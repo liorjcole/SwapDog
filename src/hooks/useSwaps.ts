@@ -6,12 +6,17 @@ import {
   updateDoc,
   doc,
   query,
+  QueryConstraint,
   where,
+  orderBy,
+  startAt,
+  endAt,
   serverTimestamp,
   or,
   arrayUnion,
   arrayRemove,
 } from 'firebase/firestore';
+import { geohashForLocation, geohashQueryBounds } from 'geofire-common';
 import { db } from '../config/firebase';
 import {
   SwapRequest,
@@ -52,6 +57,7 @@ export const parsePost = (id: string, data: Record<string, unknown>): SwapPost =
   posterName: data.posterName as string,
   posterPhotoURL: data.posterPhotoURL as string | undefined,
   posterLocation: data.posterLocation as { latitude: number; longitude: number } | undefined,
+  posterGeohash: data.posterGeohash as string | undefined,
   posterLocationName: data.posterLocationName as string | undefined,
   dogId: data.dogId as string,
   dogName: data.dogName as string,
@@ -178,8 +184,13 @@ export const useSwaps = () => {
     const cleanData = Object.fromEntries(
       Object.entries(data as Record<string, unknown>).filter(([, v]) => v !== undefined)
     );
+    const posterLocation = data.posterLocation;
+    const posterGeohash = posterLocation
+      ? geohashForLocation([posterLocation.latitude, posterLocation.longitude])
+      : undefined;
     const ref = await addDoc(collection(db, 'swapPosts'), {
       ...cleanData,
+      ...(posterGeohash ? { posterGeohash } : {}),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -245,12 +256,32 @@ export const useSwaps = () => {
     location?: { latitude: number; longitude: number },
     radiusMiles = 25
   ): Promise<SwapPost[]> => {
-    const q = query(
-      collection(db, 'swapPosts'),
-      where('status', 'in', ['open', 'claimed'])
-    );
-    const snap = await getDocs(q);
-    const all = snap.docs
+    const baseConstraints: QueryConstraint[] = [where('status', 'in', ['open', 'claimed'])];
+
+    const snaps = location
+      ? await Promise.all(
+          geohashQueryBounds(
+            [location.latitude, location.longitude],
+            radiusMiles * 1609.344,
+          ).map(([start, end]) =>
+            getDocs(query(
+              collection(db, 'swapPosts'),
+              ...baseConstraints,
+              orderBy('posterGeohash'),
+              startAt(start),
+              endAt(end),
+            )),
+          ),
+        )
+      : [await getDocs(query(collection(db, 'swapPosts'), ...baseConstraints))];
+
+    const seen = new Set<string>();
+    const all = snaps.flatMap((snap) => snap.docs)
+      .filter((d) => {
+        if (seen.has(d.id)) return false;
+        seen.add(d.id);
+        return true;
+      })
       .map((d) => parsePost(d.id, d.data() as Record<string, unknown>))
       .filter((p) => {
         if (p.status === 'claimed') {
@@ -268,7 +299,7 @@ export const useSwaps = () => {
     if (!location) return all;
 
     return all.filter((p) => {
-      if (!p.posterLocation) return true; // include posts without location
+      if (!p.posterLocation) return false;
       return (
         distanceMiles(
           location.latitude, location.longitude,

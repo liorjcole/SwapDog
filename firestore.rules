@@ -28,7 +28,7 @@ service cloud.firestore {
       function isAllowedUserUpdate() {
         return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'email', 'displayName', 'photoURL', 'bio', 'instagramHandle',
-          'location', 'locationName', 'isOnboarded',
+          'location', 'locationGeohash', 'locationName', 'isOnboarded',
           'pushToken', 'pushTokens',
           'referredBy', 'referralCode', 'referralCodeUsed',
           'conductAgreedAt', 'contractSignedAt', 'contractSignedName',
@@ -71,6 +71,34 @@ service cloud.firestore {
         allow update: if request.auth != null && request.auth.uid == userId;
         allow delete: if request.auth != null && request.auth.uid == userId;
       }
+    }
+
+    // Private user data, such as phone numbers, must not live on public
+    // users/{uid} docs because member profile docs are readable by all signed-in
+    // users. Owners can read/write their own private doc; admin can read.
+    match /privateUsers/{userId} {
+      function hasOnlyPrivateUserFields() {
+        return request.resource.data.keys().hasOnly([
+          'phoneNumber',
+          'authProvider',
+          'createdAt',
+          'updatedAt'
+        ]);
+      }
+
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && hasOnlyPrivateUserFields();
+      allow update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'phoneNumber',
+          'authProvider',
+          'updatedAt'
+        ])
+        && hasOnlyPrivateUserFields();
+      allow delete: if false;
     }
 
     // Dogs: read if authenticated, write if owner or admin
@@ -150,6 +178,36 @@ service cloud.firestore {
     // SwapPosts (public bulletin board): any authenticated user can read open posts.
     // Only the poster can create/update their own posts.
     match /swapPosts/{postId} {
+      function isPostParticipant() {
+        return resource.data.posterId == request.auth.uid
+          || resource.data.claimedBy == request.auth.uid;
+      }
+
+      function isCompletingClaimedPost() {
+        return resource.data.status == 'claimed'
+          && request.resource.data.status == 'completed'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status',
+            'updatedAt'
+          ])
+          && isPostParticipant();
+      }
+
+      function isCaregiverReopeningPost() {
+        return resource.data.status == 'claimed'
+          && resource.data.claimedBy == request.auth.uid
+          && request.resource.data.posterId == resource.data.posterId
+          && request.resource.data.status == 'open'
+          && !('claimedBy' in request.resource.data)
+          && request.resource.data.respondedBy == []
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status',
+            'claimedBy',
+            'respondedBy',
+            'updatedAt'
+          ]);
+      }
+
       // Any authenticated user can read open posts (the area feed)
       allow read: if request.auth != null;
       // Only the poster can create a post
@@ -161,6 +219,12 @@ service cloud.firestore {
         && (
           // Poster updating their own post
           resource.data.posterId == request.auth.uid
+          // Owner or accepted caregiver can complete a claimed post. This powers
+          // review prompts without allowing client-side aggregate/user rewrites.
+          || isCompletingClaimedPost()
+          // Accepted caregiver can decline an owner reschedule. This reopens
+          // the post and clears stale helper requests without touching content.
+          || isCaregiverReopeningPost()
           // Sitter claiming: only status + claimedBy change, posterId unchanged
           || (
             request.resource.data.posterId == resource.data.posterId

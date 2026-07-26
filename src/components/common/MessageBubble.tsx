@@ -10,7 +10,7 @@ interface Props {
   isMe: boolean;
   createdAt: Date;
   /** Optional message type for special rendering */
-  type?: 'text' | 'reschedule' | 'image' | 'help_request';
+  type?: 'text' | 'reschedule' | 'reschedule_request' | 'image' | 'help_request';
   /** Optional image URL for photo messages */
   imageURL?: string;
   /** Callback when "Accept" is tapped on a help request */
@@ -21,11 +21,15 @@ interface Props {
   onRemoveRequest?: () => void;
   /** Whether this help request removal is in progress */
   removingRequest?: boolean;
+  /** Callbacks for caregiver response to an owner reschedule request */
+  onRescheduleWorks?: () => void;
+  onRescheduleCannot?: () => void;
+  rescheduleResponded?: boolean;
   /** Callback when user long-presses to unsend (only available within 1 min) */
   onUnsend?: () => void;
 }
 
-const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL, onAcceptHelp, helpAccepted, onRemoveRequest, removingRequest, onUnsend }) => {
+const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL, onAcceptHelp, helpAccepted, onRemoveRequest, removingRequest, onRescheduleWorks, onRescheduleCannot, rescheduleResponded, onUnsend }) => {
   const { colors } = useTheme();
 
   // Init to current value so an already-accepted offer never replays on mount.
@@ -115,6 +119,21 @@ const MessageBubble: React.FC<Props> = ({ text, isMe, createdAt, type, imageURL,
             </Text>
           </TouchableOpacity>
         )}
+        {type === 'reschedule_request' && !isMe && !rescheduleResponded && onRescheduleWorks && onRescheduleCannot && (
+          <View style={styles.rescheduleActions}>
+            <TouchableOpacity onPress={onRescheduleWorks} style={styles.worksBtn}>
+              <Text style={styles.worksBtnText}>Works for me!</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onRescheduleCannot} style={styles.cannotBtn}>
+              <Text style={styles.cannotBtnText}>Can{"'"}t make it</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {type === 'reschedule_request' && rescheduleResponded && (
+          <View style={styles.acceptedBadge}>
+            <Text style={styles.acceptedBadgeText}>Responded</Text>
+          </View>
+        )}
         <Text style={[styles.time, { color: isMe ? 'rgba(255,255,255,0.7)' : colors.textSecondary }]}>
           {timeStr}
         </Text>
@@ -154,8 +173,12 @@ const styles = StyleSheet.create({
   acceptedBadgeText: { color: '#00B894', fontSize: 15, fontWeight: '600' },
   removeRequestBtn: { marginTop: 8, backgroundColor: 'rgba(255,255,255,0.25)', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 8, alignItems: 'center' },
   removeRequestBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
+  rescheduleActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  worksBtn: { flex: 1, backgroundColor: '#00B894', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, alignItems: 'center' },
+  worksBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  cannotBtn: { flex: 1, backgroundColor: '#FF3B30', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, alignItems: 'center' },
+  cannotBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
 });
 
 
 export default MessageBubble;
-

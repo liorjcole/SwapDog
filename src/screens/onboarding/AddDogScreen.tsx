@@ -21,7 +21,7 @@ import Chip from '../../components/common/Chip';
 import DogAddedTransition from '../../components/onboarding/DogAddedTransition';
 import { DraggablePhotoGrid } from '../../components/common/DraggablePhotoGrid';
 import { useOnboarding } from '../../contexts/OnboardingContext';
-import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
+import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 
 const MAX_DOGS = 10;
 
@@ -37,6 +37,14 @@ const ordinalWord = (n: number): string => {
 };
 
 const MAX_PHOTOS = 10;
+const DOG_BIO_KEYBOARD_CLEARANCE = 72;
+
+const waitForNextPaint = () =>
+  new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      setTimeout(resolve, 0);
+    });
+  });
 
 type Props = {
   navigation: NativeStackNavigationProp<OnboardingStackParamList, 'AddDog'>;
@@ -50,7 +58,15 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const { createDog, deleteDog } = useDogs();
 
   const { dogForm: form, setDogForm: setForm, updateDogForm: set, savedDogs, savedCount, addSavedDog, removeSavedDog, popLastSavedDog, resetDogForm } = useOnboarding();
-  const scrollRef = useRef<ScrollView>(null);
+  const {
+    scrollRef,
+    onScroll,
+    onLayout,
+    onContentSizeChange,
+    refFor,
+    scrollToInput,
+    keyboardHeight,
+  } = useKeyboardScroll();
   const didNavigateForward = useRef(false);
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
@@ -146,19 +162,44 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     const remaining = MAX_PHOTOS - form.photoURLs.length;
     if (remaining <= 0) return;
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
-      allowsMultipleSelection: true,
-      selectionLimit: remaining,
-      quality: 0.8,
-    });
-    if (result.canceled || !result.assets?.length) return;
+    // Paint placeholders before opening the native picker. iOS can take a few
+    // seconds to prepare many selected images before this promise resolves.
+    setUploadingCount(remaining);
+    setUploadingPhoto(true);
+    await waitForNextPaint();
+
+    let result: ImagePicker.ImagePickerResult;
+    try {
+      result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images',
+        allowsMultipleSelection: true,
+        selectionLimit: remaining,
+        quality: 0.8,
+      });
+    } catch {
+      setUploadingCount(0);
+      setUploadingPhoto(false);
+      Alert.alert('Error', 'Failed to open your photo library. Please try again.');
+      return;
+    }
+    if (result.canceled || !result.assets?.length) {
+      setUploadingCount(0);
+      setUploadingPhoto(false);
+      return;
+    }
 
     const localUris = result.assets.map((a) => a.uri).slice(0, remaining);
 
-    // Show gray placeholder boxes immediately for the count of photos selected
+    if (localUris.length === 0) {
+      setUploadingCount(0);
+      setUploadingPhoto(false);
+      return;
+    }
+
+    // Adjust from the optimistic remaining-slot count to the actual selection.
     setUploadingCount(localUris.length);
     setUploadingPhoto(true);
+    await waitForNextPaint();
 
     const currentPhotos = [...form.photoURLs];
     for (const uri of localUris) {
@@ -180,6 +221,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       }
     }
 
+    setUploadingCount(0);
     setUploadingPhoto(false);
 
     if (currentPhotos.length >= MAX_PHOTOS) {
@@ -260,6 +302,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         isGoodWithDogs: form.goodWithDogs,
         isGoodWithKids: form.goodWithKids,
         vaccinated: form.vaccinated,
+        pottyTrained: form.pottyTrained,
         ...(form.dogBio.trim() ? { bio: form.dogBio.trim() } : {}) });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       return dogId;
@@ -373,8 +416,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         accessibilityRole="switch"
         accessibilityState={{ checked: value }}
       />
-    <KeyboardDoneBar />
-</View>
+    </View>
   );
 
   return (
@@ -382,10 +424,16 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
         ref={scrollRef}
+        onScroll={onScroll}
+        onLayout={onLayout}
+        onContentSizeChange={onContentSizeChange}
+        scrollEventThrottle={16}
         scrollEnabled={scrollEnabled}
-        automaticallyAdjustKeyboardInsets={true}
+        automaticallyAdjustKeyboardInsets={false}
         keyboardShouldPersistTaps="handled"
-        style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={[styles.content, { paddingBottom: spacing.lg + keyboardHeight }]}
+    >
       <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
         {savedCount === 0 ? 'Add your dog' : `Add your ${ordinalWord(savedCount + 1)} dog`}
       </Text>
@@ -398,7 +446,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       {savedCount === 0 && (
         <View style={[styles.multiDogHint, { backgroundColor: colors.primary + '12' }]}>
           <Text style={[styles.multiDogHintText, { color: colors.primary }]}>
-            🐾  Have multiple dogs? You'll be able to add them one at a time after this!
+            🐾  Have multiple dogs? You{"'"}ll be able to add them one at a time after this!
           </Text>
         </View>
       )}
@@ -428,7 +476,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         }}
       />
 
-      <View style={{ marginTop: 16 }}>
+      <View ref={refFor('dogName')} style={{ marginTop: 16 }}>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="Dog's name"
@@ -439,10 +487,11 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           returnKeyType="done"
           blurOnSubmit={true}
           autoCapitalize="words"
+          onFocus={() => scrollToInput('dogName')}
         />
       </View>
 
-            <View>
+      <View ref={refFor('dogBreed')}>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="Breed"
@@ -454,6 +503,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           autoCapitalize="words"
           accessibilityLabel="Dog's breed"
           returnKeyType="done"
+          onFocus={() => scrollToInput('dogBreed')}
         />
       </View>
 
@@ -508,7 +558,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={[styles.ageHint, { color: colors.textSecondary }]}>Months required for puppies under 1 year</Text>
       )}
 
-      <View>
+      <View ref={refFor('dogWeight')}>
         <Text style={[styles.label, { color: colors.text }]}>Weight (lbs)</Text>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
@@ -522,6 +572,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           keyboardType="number-pad"
           returnKeyType="done"
           accessibilityLabel="Dog weight in pounds"
+          onFocus={() => scrollToInput('dogWeight')}
         />
       </View>
       <TouchableOpacity
@@ -579,9 +630,10 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       <SwitchRow label="Good with other dogs" value={form.goodWithDogs} onChange={(v) => set('goodWithDogs', v)} />
       <SwitchRow label="Good with kids" value={form.goodWithKids} onChange={(v) => set('goodWithKids', v)} />
       <SwitchRow label="Vaccinated" value={form.vaccinated} onChange={(v) => set('vaccinated', v)} />
+      <SwitchRow label="Potty trained" value={form.pottyTrained} onChange={(v) => set('pottyTrained', v)} />
 
       {/* Dog bio / about field */}
-      <View>
+      <View ref={refFor('dogBio')}>
         <Text style={[styles.label, { color: colors.text, marginTop: spacing.md }]}>
           About {form.name.trim() || 'Your Dog'}
         </Text>
@@ -592,7 +644,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           value={form.dogBio}
           onChangeText={(v) => set('dogBio', v)}
           multiline
-          inputAccessoryViewID={DONE_ACCESSORY_ID}
           numberOfLines={4}
           textAlignVertical="top"
           maxLength={500}
@@ -601,6 +652,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
           autoCorrect={true}
           spellCheck={true}
           autoCapitalize="sentences"
+          onFocus={() => scrollToInput('dogBio', DOG_BIO_KEYBOARD_CLEARANCE)}
         />
         <CharCountHint current={form.dogBio.trim().length} min={20} max={500} />
       </View>

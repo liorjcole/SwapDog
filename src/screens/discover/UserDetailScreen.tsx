@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator, Linking, Modal, TextInput, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator, Linking, Modal, TextInput, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
@@ -50,6 +50,15 @@ const cleanIgHandle = (raw: string): string => {
   return s.replace(/^@/, '');
 };
 
+const getReviewFilterDescription = (filter: string, displayName: string): string | null => {
+  if (filter === 'owner') return `Reviews from when ${displayName} had another WatchDog member care for their pup.`;
+  if (filter === 'caregiver') return `Reviews from when ${displayName} cared for another WatchDog member's pup.`;
+  return null;
+};
+
+const formatDogEnergy = (energyLevel: Dog['energyLevel']): string =>
+  `${energyLevel.replace(/_/g, ' ')} energy`;
+
 const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
   const { userProfile: me } = useAuthContext();
@@ -73,6 +82,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { getReviewsForUser } = useReviews();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewFilter, setReviewFilter] = useState<string>('all');
+  const [expandedDogId, setExpandedDogId] = useState<string | null>(null);
   const { isFavorite, removeFavorite } = useFavorites();
   const isUserFavorited = isFavorite(userId);
 
@@ -164,6 +174,16 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const blocked = isBlockedByMe(userId);
+  const personReviews = reviews.filter((r) => r.targetType === 'owner' || r.targetType === 'caregiver');
+  const ownerReviews = personReviews.filter((r) => r.targetType === 'owner');
+  const caregiverReviews = personReviews.filter((r) => r.targetType === 'caregiver');
+  const visibleReviews = reviews.filter((r) => {
+    if (reviewFilter === 'all') return r.targetType === 'owner' || r.targetType === 'caregiver';
+    if (reviewFilter === 'owner') return r.targetType === 'owner';
+    if (reviewFilter === 'caregiver') return r.targetType === 'caregiver';
+    if (reviewFilter.startsWith('dog:')) return r.targetType === 'dog' && r.dogId === reviewFilter.replace('dog:', '');
+    return r.targetType === 'owner' || r.targetType === 'caregiver';
+  });
 
   const handleBlockToggle = () => {
     if (blocked) {
@@ -296,27 +316,94 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Dogs</Text>
         {dogs.map((dog) => (
-          <TouchableOpacity
+          <View
             key={dog.id}
-            style={[styles.dogCard, { backgroundColor: colors.surface, ...shadow.sm }]}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.navigate('DogDetail', { dogId: dog.id }); }}
-            accessibilityLabel={`${dog.name}, ${dog.breed}. Tap to view dog profile.`}
-            accessibilityRole="button"
+            style={[
+              styles.dogCard,
+              {
+                backgroundColor: colors.backgroundElevated,
+                borderWidth: StyleSheet.hairlineWidth,
+                borderColor: colors.border,
+                ...shadow.sm,
+              },
+            ]}
           >
-            <View style={styles.dogCardRow}>
-              {dog.photoURLs && dog.photoURLs.length > 0 ? (
-                <Image source={{ uri: dog.photoURLs[0] }} style={styles.dogPhoto} />
-              ) : (
-                <View style={[styles.dogPhotoPlaceholder, { backgroundColor: colors.primary + '22' }]}>
-                  <Text style={{ fontSize: 22 }}></Text>
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setExpandedDogId((current) => (current === dog.id ? null : dog.id));
+              }}
+              accessibilityLabel={`${expandedDogId === dog.id ? 'Collapse' : 'Expand'} ${dog.name}'s details`}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: expandedDogId === dog.id }}
+            >
+              <View style={styles.dogCardRow}>
+                {dog.photoURLs && dog.photoURLs.length > 0 ? (
+                  <Image source={{ uri: dog.photoURLs[0] }} style={styles.dogPhoto} />
+                ) : (
+                  <View style={[styles.dogPhotoPlaceholder, { backgroundColor: colors.primary + '22' }]}>
+                    <Text style={{ fontSize: 22 }}></Text>
+                  </View>
+                )}
+                <View style={styles.dogCardInfo}>
+                  <Text style={[styles.dogName, { color: colors.text }]}>{dog.name}</Text>
+                  <Text style={[styles.dogBreed, { color: colors.textSecondary }]}>{dog.breed} • {formatDogAge(dog.ageYears, dog.ageMonths)}{dog.weightLbs > 0 ? ` • ${dog.weightLbs} lbs` : ''}</Text>
                 </View>
-              )}
-              <View style={styles.dogCardInfo}>
-                <Text style={[styles.dogName, { color: colors.text }]}>{dog.name}</Text>
-                <Text style={[styles.dogBreed, { color: colors.textSecondary }]}>{dog.breed} • {formatDogAge(dog.ageYears, dog.ageMonths)}{dog.weightLbs > 0 ? ` • ${dog.weightLbs} lbs` : ''}</Text>
+                <Text style={[styles.dogExpandGlyph, { color: colors.textSecondary }]}>
+                  {expandedDogId === dog.id ? '⌄' : '›'}
+                </Text>
               </View>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+
+            {expandedDogId === dog.id && (
+              <View style={[styles.dogDetailsPanel, { borderTopColor: colors.border }]}>
+                <View style={styles.dogDetailsBubbleRow}>
+                  {[formatDogAge(dog.ageYears, dog.ageMonths), dog.sex, formatDogEnergy(dog.energyLevel), dog.weightLbs > 0 ? `${dog.weightLbs} lbs` : null]
+                    .filter((value): value is string => Boolean(value))
+                    .map((label) => (
+                      <View key={label} style={[styles.dogInfoBubble, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                        <Text style={[styles.dogInfoBubbleText, { color: colors.text }]}>{label}</Text>
+                      </View>
+                    ))}
+                </View>
+
+                <View style={styles.dogDetailsBubbleRow}>
+                  {[
+                    dog.isGoodWithDogs ? 'Good with dogs' : null,
+                    dog.isGoodWithKids ? 'Good with kids' : null,
+                    dog.isSpayedNeutered ? 'Spayed/Neutered' : null,
+                    dog.vaccinated ? 'Vaccinated' : null,
+                    dog.pottyTrained ? 'Potty trained' : null,
+                  ]
+                    .filter((value): value is string => Boolean(value))
+                    .map((label) => (
+                      <View key={label} style={[styles.dogTraitBubble, { backgroundColor: colors.primary + '18', borderColor: colors.primary }]}>
+                        <Text style={[styles.dogTraitBubbleText, { color: colors.primary }]}>{label}</Text>
+                      </View>
+                    ))}
+                </View>
+
+                {dog.bio ? (
+                  <Text style={[styles.dogDetailsText, { color: colors.text }]}>{dog.bio}</Text>
+                ) : null}
+                {dog.temperament ? (
+                  <Text style={[styles.dogDetailsText, { color: colors.text }]}>{dog.temperament}</Text>
+                ) : null}
+
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    navigation.navigate('DogDetail', { dogId: dog.id });
+                  }}
+                  style={styles.fullDogProfileBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${dog.name}'s full dog profile`}
+                >
+                  <Text style={styles.fullDogProfileText}>Open full dog profile</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         ))}
       </View>
 
@@ -336,12 +423,12 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               ]}
             >
               <Text style={[styles.filterText, { color: reviewFilter === 'all' ? colors.primary : colors.textSecondary }]}>
-                All ({reviews.length})
+                All ({personReviews.length})
               </Text>
             </TouchableOpacity>
 
             {/* "As Owner" filter */}
-            {reviews.some((r) => r.targetType === 'owner') && (
+            {ownerReviews.length > 0 && (
               <TouchableOpacity
                 onPress={() => setReviewFilter('owner')}
                 style={[
@@ -351,13 +438,13 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 ]}
               >
                 <Text style={[styles.filterText, { color: reviewFilter === 'owner' ? colors.primary : colors.textSecondary }]}>
-                  As Owner ({reviews.filter((r) => r.targetType === 'owner').length})
+                  As Owner ({ownerReviews.length})
                 </Text>
               </TouchableOpacity>
             )}
 
             {/* "As Caregiver" filter */}
-            {reviews.some((r) => r.targetType === 'caregiver') && (
+            {caregiverReviews.length > 0 && (
               <TouchableOpacity
                 onPress={() => setReviewFilter('caregiver')}
                 style={[
@@ -367,55 +454,59 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 ]}
               >
                 <Text style={[styles.filterText, { color: reviewFilter === 'caregiver' ? colors.primary : colors.textSecondary }]}>
-                  As Caregiver ({reviews.filter((r) => r.targetType === 'caregiver').length})
+                  As Caregiver ({caregiverReviews.length})
                 </Text>
               </TouchableOpacity>
             )}
 
-            {/* Per-dog filters */}
             {dogs.map((dog) => {
-              const dogRevs = reviews.filter((r) => r.targetType === 'dog' && r.dogId === dog.id);
-              if (dogRevs.length === 0) return null;
+              const dogReviews = reviews.filter((r) => r.targetType === 'dog' && r.dogId === dog.id);
+              if (dogReviews.length === 0) return null;
+              const key = `dog:${dog.id}`;
               return (
                 <TouchableOpacity
                   key={dog.id}
-                  onPress={() => setReviewFilter('dog:' + dog.id)}
+                  onPress={() => setReviewFilter(key)}
                   style={[
                     styles.filterChip,
-                    { borderColor: reviewFilter === 'dog:' + dog.id ? colors.primary : colors.border,
-                      backgroundColor: reviewFilter === 'dog:' + dog.id ? colors.primary + '15' : 'transparent' },
+                    { borderColor: reviewFilter === key ? colors.primary : colors.border,
+                      backgroundColor: reviewFilter === key ? colors.primary + '15' : 'transparent' },
                   ]}
                 >
-                  <Text style={[styles.filterText, { color: reviewFilter === 'dog:' + dog.id ? colors.primary : colors.textSecondary }]}>
-                    🐾 {dog.name} ({dogRevs.length})
+                  <Text style={[styles.filterText, { color: reviewFilter === key ? colors.primary : colors.textSecondary }]}>
+                    🐶 {dog.name} ({dogReviews.length})
                   </Text>
                 </TouchableOpacity>
               );
             })}
           </ScrollView>
         )}
+        {getReviewFilterDescription(reviewFilter, user.displayName ?? 'this member') ? (
+          <Text style={[styles.filterDescription, { color: colors.primary }]}>
+            {getReviewFilterDescription(reviewFilter, user.displayName ?? 'this member')}
+          </Text>
+        ) : null}
 
         {/* Filtered review list */}
-        {reviews.length === 0 ? (
+        {visibleReviews.length === 0 ? (
           <Text style={{ color: colors.textSecondary, fontSize: 16 }}>No reviews yet</Text>
         ) : (
-          reviews
-            .filter((r) => {
-              if (reviewFilter === 'all') return true;
-              if (reviewFilter === 'owner') return r.targetType === 'owner';
-              if (reviewFilter === 'caregiver') return r.targetType === 'caregiver';
-              if (reviewFilter.startsWith('dog:')) return r.targetType === 'dog' && r.dogId === reviewFilter.replace('dog:', '');
-              return true;
-            })
+          visibleReviews
             .map((rev) => (
-              <View key={rev.id} style={[styles.reviewCard, { backgroundColor: colors.surface }]}>
+              <View
+                key={rev.id}
+                style={[
+                  styles.reviewCard,
+                  {
+                    backgroundColor: colors.backgroundElevated,
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: colors.border,
+                    ...shadow.sm,
+                  },
+                ]}
+              >
                 <View style={styles.reviewHeader}>
                   <StarRating rating={Math.round(rev.rating)} size={16} />
-                  <Text style={[styles.reviewBadge, {
-                    color: rev.targetType === 'dog' ? '#FF9500' : rev.targetType === 'caregiver' ? '#34C759' : colors.primary,
-                  }]}>
-                    {rev.targetType === 'dog' ? ('🐾 ' + (rev.dogName ?? 'Dog')) : rev.targetType === 'caregiver' ? '🤝 Caregiver' : '👤 Owner'}
-                  </Text>
                 </View>
                 {(rev.note || rev.comment) ? (
                   <Text style={[styles.reviewNote, { color: colors.text }]}>{rev.note || rev.comment}</Text>
@@ -472,12 +563,16 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
       {/* Block Feedback Modal */}
       <Modal visible={showBlockFeedback} transparent animationType="fade">
-        <TouchableOpacity
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 }}
-          activeOpacity={1}
-          onPress={() => Keyboard.dismiss()}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
         >
-          <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 24, width: '100%', maxWidth: 340 }}>
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 }}
+            activeOpacity={1}
+            onPress={() => Keyboard.dismiss()}
+          >
+            <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 24, width: '100%', maxWidth: 340 }}>
             <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: 4 }}>
               ✅ Block Successful
             </Text>
@@ -513,9 +608,10 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 {blockFeedbackText.trim() ? 'Submit & Continue' : 'Skip'}
               </Text>
             </TouchableOpacity>
-                <KeyboardDoneBar />
-</View>
-        </TouchableOpacity>
+            <KeyboardDoneBar />
+            </View>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
@@ -548,10 +644,28 @@ const styles = StyleSheet.create({
   dogPhoto: { width: 50, height: 50, borderRadius: 25, marginRight: 12 },
   dogPhotoPlaceholder: { width: 50, height: 50, borderRadius: 25, marginRight: 12, alignItems: 'center', justifyContent: 'center' },
   dogCardInfo: { flex: 1 },
+  dogExpandGlyph: { fontSize: 26, fontWeight: '700', marginLeft: spacing.sm },
+  dogDetailsPanel: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
+  dogDetailsBubbleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
+  dogInfoBubble: { borderWidth: StyleSheet.hairlineWidth, borderRadius: borderRadius.full, paddingHorizontal: 12, paddingVertical: 7 },
+  dogInfoBubbleText: { fontSize: 14, fontWeight: '700', textTransform: 'capitalize' },
+  dogTraitBubble: { borderWidth: 1, borderRadius: borderRadius.full, paddingHorizontal: 12, paddingVertical: 7 },
+  dogTraitBubbleText: { fontSize: 14, fontWeight: '700' },
+  dogDetailsText: { fontSize: 15, lineHeight: 21, marginTop: spacing.xs },
+  fullDogProfileBtn: {
+    alignSelf: 'flex-end',
+    marginTop: spacing.xs,
+    backgroundColor: '#F0C040',
+    borderRadius: borderRadius.full,
+    paddingVertical: 9,
+    paddingHorizontal: spacing.md,
+  },
+  fullDogProfileText: { color: '#2B2100', fontSize: 14, fontWeight: '800' },
   // Reviews
   filterRow: { marginBottom: spacing.md },
   filterChip: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8 },
   filterText: { fontSize: 15, fontWeight: '600' },
+  filterDescription: { fontSize: 14, lineHeight: 19, marginTop: -spacing.xs, marginBottom: spacing.md },
   reviewCard: { padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.sm },
   reviewHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   reviewBadge: { fontSize: 14, fontWeight: '700' },

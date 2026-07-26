@@ -138,4 +138,3 @@ export const useSuperwall: UseSuperwallHook =
 
 export const usePlacement: UsePlacementHook =
   nativeSuperwall?.usePlacement ?? usePlacementDisabled;
-

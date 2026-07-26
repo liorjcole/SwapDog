@@ -11,7 +11,6 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Modal,
   Platform,
   ActivityIndicator,
@@ -37,11 +36,9 @@ import { useDiscoverLocation } from '../../hooks/useDiscoverLocation';
 import { useSwaps } from '../../hooks/useSwaps';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useBlocking } from '../../hooks/useBlocking';
-import { useMessaging } from '../../hooks/useMessaging';
 import { User, GeoPoint, SwapPost } from '../../models/types';
 import { calculateDistance, formatDistance } from '../../utils/calculateDistance';
 import { spacing, borderRadius, shadow, typography } from '../../config/theme';
-import EmptyStateView from '../../components/common/EmptyStateView';
 import ShimmerLoading from '../../components/common/ShimmerLoading';
 import PostCard from '../../components/common/PostCard';
 import { placesAutocomplete, placeDetails, newSessionToken, Prediction } from '../../utils/googlePlaces';
@@ -56,6 +53,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MAP_HEIGHT_DEFAULT = Math.round(SCREEN_HEIGHT * 0.27);
 const MAP_HEIGHT_MIN = Math.round(SCREEN_HEIGHT * 0.15);
 const MAP_HEIGHT_MAX = Math.round(SCREEN_HEIGHT * 0.50);
+const MAP_EXPAND_PULL_THRESHOLD = -64;
 
 const HANDLE_HEIGHT = 28;
 
@@ -64,6 +62,7 @@ const REGION_DEBOUNCE_MS = 600;
 
 // 3 preset radius options. Pinch-zoom updates radius dynamically beyond 10mi (capped at 30mi).
 const RADIUS_OPTIONS = [1, 5, 10] as const;
+const MIN_RADIUS_MILES = 1;
 const MAX_RADIUS_MILES = 30;
 type RadiusMiles = (typeof RADIUS_OPTIONS)[number];
 
@@ -156,6 +155,7 @@ const RadiusSelector: React.FC<RadiusSelectorProps> = memo(({ radiusMiles, onSel
     </View>
   );
 });
+RadiusSelector.displayName = 'RadiusSelector';
 
 
 
@@ -203,6 +203,7 @@ const UserRow: React.FC<UserRowProps> = memo(({ user, distanceMiles, dogCount, o
     </TouchableOpacity>
   );
 });
+UserRow.displayName = 'UserRow';
 
 // ─── Location Override Modal ──────────────────────────────────────────────────
 
@@ -374,6 +375,7 @@ const SectionHeaderRow: React.FC<SectionHeaderRowProps> = memo(({ item, onCreate
     </View>
   );
 });
+SectionHeaderRow.displayName = 'SectionHeaderRow';
 
 // ─── Feed sub-rows (memoized, own their own colors) ──────────────────────────
 
@@ -385,11 +387,13 @@ const FeedEmptyRow: React.FC<{ text: string }> = memo(({ text }) => {
     </View>
   );
 });
+FeedEmptyRow.displayName = 'FeedEmptyRow';
 
 const FeedDividerRow: React.FC = memo(() => {
   const { colors } = useTheme();
   return <View style={[styles.sectionDivider, { backgroundColor: colors.border }]} />;
 });
+FeedDividerRow.displayName = 'FeedDividerRow';
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
@@ -400,16 +404,19 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
   const { getAreaPosts } = useSwaps();
   const { favoriteIds } = useFavorites();
   const { hiddenUserIds } = useBlocking();
-  const { getOrCreateConversation, sendMessage } = useMessaging();
 
-  const { location, loading: locationLoading, setLocationOverride, clearLocationOverride } = useDiscoverLocation();
+  const {
+    location,
+    loading: locationLoading,
+    setLocationOverride,
+    clearLocationOverride,
+  } = useDiscoverLocation(userProfile?.location, userProfile?.locationName);
   const { liveEvents } = useHappeningNow();
+  const hasLiveEvents = liveEvents.length > 0;
 
   const [radiusMiles, setRadiusMiles] = useState<number>(5);
   const [nearbyUsers, setNearbyUsers] = useState<NearbyUser[]>([]);
   const [areaPosts, setAreaPosts] = useState<SwapPost[]>([]);
-  const [usersLoading, setUsersLoading] = useState(false);
-  const [postsLoading, setPostsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [mapViewHeight, setMapViewHeight] = useState(MAP_HEIGHT_DEFAULT);
@@ -418,9 +425,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
 
   // "Last known good" refs — once loaded, feed never goes blank during re-fetches
   const lastPostsRef = useRef<SwapPost[]>([]);
-  const lastUsersRef = useRef<NearbyUser[]>([]);
   const initialPostsDoneRef = useRef(false);
-  const initialUsersDoneRef = useRef(false);
 
   const mapRef = useRef<MapView>(null);
   const flatListRef = useRef<FlatList<FeedItem>>(null);
@@ -430,10 +435,42 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
   const isProgrammaticMoveRef = useRef(false);
   const regionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestFeedQueryKeyRef = useRef('');
+
+  const locationKey = useMemo(() => {
+    if (!location) return '';
+    const { latitude, longitude } = location.coords;
+    const source = location.isOverride ? 'override' : 'gps';
+    return `${latitude.toFixed(5)}:${longitude.toFixed(5)}:${source}:${location.label ?? ''}`;
+  }, [location]);
+
+  const feedQueryKey = useMemo(
+    () => (locationKey ? `${locationKey}:r=${radiusMiles.toFixed(1)}` : ''),
+    [locationKey, radiusMiles],
+  );
 
   // ── Animated map height ────────────────────────────────────────────────────
   const mapHeightAnim = useRef(new Animated.Value(MAP_HEIGHT_DEFAULT)).current;
   const committedMapHeight = useRef(MAP_HEIGHT_DEFAULT);
+  const mapMinHeightRef = useRef(MAP_HEIGHT_MIN);
+
+  useEffect(() => {
+    mapMinHeightRef.current = hasLiveEvents ? 0 : MAP_HEIGHT_MIN;
+  }, [hasLiveEvents]);
+
+  useEffect(() => {
+    latestFeedQueryKeyRef.current = feedQueryKey;
+  }, [feedQueryKey]);
+
+  useEffect(() => {
+    if (!locationKey) return;
+    lastPostsRef.current = [];
+    initialPostsDoneRef.current = false;
+    setAreaPosts([]);
+    setNearbyUsers([]);
+    setInitialLoadDone(false);
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [locationKey]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -443,14 +480,16 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
         mapHeightAnim.stopAnimation((val) => { committedMapHeight.current = val; });
       },
       onPanResponderMove: (_evt, gestureState) => {
-        const clamped = Math.max(MAP_HEIGHT_MIN, Math.min(MAP_HEIGHT_MAX, committedMapHeight.current + gestureState.dy));
+        const minHeight = mapMinHeightRef.current;
+        const clamped = Math.max(minHeight, Math.min(MAP_HEIGHT_MAX, committedMapHeight.current + gestureState.dy));
         mapHeightAnim.setValue(clamped);
       },
       onPanResponderRelease: (_evt, gestureState) => {
-        const clamped = Math.max(MAP_HEIGHT_MIN, Math.min(MAP_HEIGHT_MAX, committedMapHeight.current + gestureState.dy));
-        const midDown = (MAP_HEIGHT_MIN + MAP_HEIGHT_DEFAULT) / 2;
+        const minHeight = mapMinHeightRef.current;
+        const clamped = Math.max(minHeight, Math.min(MAP_HEIGHT_MAX, committedMapHeight.current + gestureState.dy));
+        const midDown = (minHeight + MAP_HEIGHT_DEFAULT) / 2;
         const midUp = (MAP_HEIGHT_DEFAULT + MAP_HEIGHT_MAX) / 2;
-        const snapTarget = clamped < midDown ? MAP_HEIGHT_MIN : clamped > midUp ? MAP_HEIGHT_MAX : MAP_HEIGHT_DEFAULT;
+        const snapTarget = clamped < midDown ? minHeight : clamped > midUp ? MAP_HEIGHT_MAX : MAP_HEIGHT_DEFAULT;
         committedMapHeight.current = snapTarget;
         Animated.spring(mapHeightAnim, { toValue: snapTarget, useNativeDriver: false, bounciness: 4 }).start();
       } }),
@@ -458,8 +497,8 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
 
   // ── Fetch nearby users ─────────────────────────────────────────────────────
   const fetchNearby = useCallback(async () => {
-    if (!location) return;
-    setUsersLoading(true);
+    if (!location || !feedQueryKey) return;
+    const requestKey = feedQueryKey;
     try {
       const radiusKm = radiusMiles * 1.60934;
       const all = await getUsersByLocation(location.coords, radiusKm);
@@ -473,46 +512,51 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
           ),
           dogCount: 0 }))
         .sort((a, b) => a.distanceMiles - b.distanceMiles);
+      if (latestFeedQueryKeyRef.current !== requestKey) return;
       setNearbyUsers(withDistance);
-      lastUsersRef.current = withDistance;
-    } catch { /* silent */ }
-    finally {
-      setUsersLoading(false);
-      if (!initialUsersDoneRef.current) {
-        initialUsersDoneRef.current = true;
-        if (initialPostsDoneRef.current) setInitialLoadDone(true);
-      }
+    } catch (err) {
+      console.warn('[Discover] Failed to fetch nearby users:', err);
     }
-  }, [location, radiusMiles, userProfile?.id, getUsersByLocation]);
+  }, [location, radiusMiles, userProfile?.id, getUsersByLocation, feedQueryKey]);
 
   // ── Fetch area posts ──────────────────────────────────────────────────────
   const fetchAreaPosts = useCallback(async () => {
-    if (!location) return;
-    setPostsLoading(true);
+    if (!location || !feedQueryKey) return;
+    const requestKey = feedQueryKey;
     try {
       const posts = await getAreaPosts(
         { latitude: location.coords.latitude, longitude: location.coords.longitude },
         radiusMiles,
       );
       const filtered = posts; // Include own posts in feed
+      if (latestFeedQueryKeyRef.current !== requestKey) return;
       setAreaPosts(filtered);
       lastPostsRef.current = filtered;
-    } catch { /* silent */ }
+    } catch (err) {
+      console.warn('[Discover] Failed to fetch area posts:', err);
+    }
     finally {
-      setPostsLoading(false);
+      if (latestFeedQueryKeyRef.current !== requestKey) return;
       if (!initialPostsDoneRef.current) {
         initialPostsDoneRef.current = true;
-        if (initialUsersDoneRef.current) setInitialLoadDone(true);
+        setInitialLoadDone(true);
       }
     }
-  }, [location, radiusMiles, userProfile?.id, getAreaPosts]);
+  }, [location, radiusMiles, getAreaPosts, feedQueryKey]);
 
   // ── Combined debounced fetch — prevents rapid re-fetches on radius changes ─────
   useEffect(() => {
     if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
     fetchDebounceRef.current = setTimeout(() => {
-      void fetchNearby();
+      if (!initialPostsDoneRef.current) {
+        void fetchAreaPosts().finally(() => {
+          void fetchNearby();
+        });
+        return;
+      }
+
       void fetchAreaPosts();
+      void fetchNearby();
     }, 300);
     return () => {
       if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current);
@@ -547,8 +591,15 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
         const ratio = CIRCLE_SIZE / heightToUse;
         const visibleRadiusMiles = (region.latitudeDelta / 2) * 69 * ratio;
         const rounded = Math.round(visibleRadiusMiles * 10) / 10;
+        const capped = Math.min(Math.max(rounded, MIN_RADIUS_MILES), MAX_RADIUS_MILES);
+
+        if (rounded < MIN_RADIUS_MILES && location) {
+          setRadiusMiles(MIN_RADIUS_MILES);
+          animateMapToRadius(location.coords.latitude, location.coords.longitude, MIN_RADIUS_MILES, mapViewHeight);
+          return;
+        }
+
         setRadiusMiles((prev) => {
-          const capped = Math.min(rounded, MAX_RADIUS_MILES);
           return Math.abs(capped - prev) >= 0.2 ? capped : prev;
         });
         // Recenter the map on the pin with the new zoom level so the radius
@@ -566,7 +617,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
         }
       }, REGION_DEBOUNCE_MS);
     },
-    [mapViewHeight, location],
+    [animateMapToRadius, mapViewHeight, location],
   );
 
   const handlePresetSelect = useCallback(
@@ -593,12 +644,10 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [fetchNearby, fetchAreaPosts]);
 
   const feedData: FeedItem[] = useMemo(() => {
-    const milesLabel = radiusMiles < 10 ? radiusMiles.toFixed(1) : Math.round(radiusMiles).toString();
     // Use last-known-good refs as fallback so the feed never goes blank
     // during subsequent location/radius changes after the initial load
     const rawPosts = areaPosts.length > 0 ? areaPosts : lastPostsRef.current;
     const displayPosts = rawPosts.filter(p => !hiddenUserIds.has(p.posterId));
-    const displayUsers = nearbyUsers.length > 0 ? nearbyUsers : lastUsersRef.current;
     const items: FeedItem[] = [];
 
     // Split posts: open first, claimed pinned to the bottom (card badge communicates state)
@@ -626,7 +675,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
     sortPosts(takenPosts).forEach((p) => items.push({ kind: 'post', id: p.id, post: p }));
 
     return items;
-  }, [areaPosts, nearbyUsers, radiusMiles, favoriteIds, hiddenUserIds]);
+  }, [areaPosts, favoriteIds, hiddenUserIds]);
 
   // ── Auto-collapse map when scrolling posts ──────────────────────────────────
   const lastScrollY = useRef(0);
@@ -634,13 +683,15 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
   const handleListScroll = (event: { nativeEvent: { contentOffset: { y: number } } }) => {
     const y = event.nativeEvent.contentOffset.y;
     lastScrollY.current = y;
+    const collapseTarget = hasLiveEvents ? 0 : MAP_HEIGHT_MIN;
+    const needsCollapse = !mapCollapsed.current || Math.abs(committedMapHeight.current - collapseTarget) > 1;
 
-    if (y > 10 && !mapCollapsed.current) {
+    if (y > 10 && needsCollapse) {
       // User scrolled down — collapse map once, smoothly
       mapCollapsed.current = true;
-      committedMapHeight.current = MAP_HEIGHT_MIN;
-      Animated.timing(mapHeightAnim, { toValue: MAP_HEIGHT_MIN, duration: 250, useNativeDriver: false }).start();
-    } else if (y <= 2 && mapCollapsed.current) {
+      committedMapHeight.current = collapseTarget;
+      Animated.timing(mapHeightAnim, { toValue: collapseTarget, duration: 250, useNativeDriver: false }).start();
+    } else if (y <= MAP_EXPAND_PULL_THRESHOLD && mapCollapsed.current) {
       // User scrolled back to top — restore once, smoothly
       mapCollapsed.current = false;
       committedMapHeight.current = MAP_HEIGHT_DEFAULT;
@@ -668,7 +719,6 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
   // Uses a module-level store instead of route params because params
   // don't reliably propagate through nested tab→stack navigators
   // when the Discover screen is already mounted.
-  const pendingHighlightRef = useRef<string | null>(null);
   const feedDataRef = useRef(feedData);
   feedDataRef.current = feedData;
 
@@ -885,7 +935,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation, route }) => {
       </View>
 
       {/* ── COMBINED FEED ── */}
-      {/* Show a clean loading indicator until the FIRST location+data fetch
+      {/* Show a clean loading indicator until the FIRST location+posts fetch
           completes. This eliminates the flash: empty feed → shimmer → data.
           After initialLoadDone, ref fallbacks ensure we never go blank again. */}
       {!initialLoadDone ? (
@@ -958,7 +1008,7 @@ const styles = StyleSheet.create({
   radiusChipText: { fontSize: 15, fontWeight: '600' },
 
   listLoadingContainer: { flex: 1, paddingTop: spacing.md },
-  list: { padding: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xl * 2 },
+  list: { padding: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xl * 2 + MAP_HEIGHT_DEFAULT },
 
   // Section headers
   sectionHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: 0, marginBottom: spacing.sm, gap: spacing.sm },

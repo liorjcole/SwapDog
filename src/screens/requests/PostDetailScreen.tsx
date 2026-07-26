@@ -23,11 +23,12 @@ import {
   StatusBar,
   SafeAreaView,
   TextInput,
+  KeyboardAvoidingView,
   Platform } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
-import { getDoc, doc, updateDoc, serverTimestamp, addDoc, collection } from 'firebase/firestore';
+import { getDoc, doc, updateDoc, serverTimestamp, addDoc, collection, deleteField } from 'firebase/firestore';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { db } from '../../config/firebase';
 import { RequestsStackParamList } from '../../navigation/types';
@@ -46,6 +47,7 @@ import { spacing, borderRadius, shadow, typography } from '../../config/theme';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useFavorites } from '../../hooks/useFavorites';
 import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
+import StarRating from '../../components/common/StarRating';
 
 const RED = '#FF2D55';
 const GREEN = '#00B894';
@@ -55,6 +57,11 @@ const CAROUSEL_HEIGHT = Math.round(Dimensions.get('window').height * 0.4);
 type Props = {
   navigation: NativeStackNavigationProp<RequestsStackParamList, 'PostDetail'>;
   route: RouteProp<RequestsStackParamList, 'PostDetail'>;
+};
+
+type RatingSummary = {
+  rating?: number;
+  reviewCount?: number;
 };
 
 // ─── Care Type Helpers ────────────────────────────────────────────────────────
@@ -287,6 +294,8 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalInitialIndex, setModalInitialIndex] = useState(0);
+  const [ownerRatingSummary, setOwnerRatingSummary] = useState<RatingSummary>({});
+  const [dogRatingSummaries, setDogRatingSummaries] = useState<Record<string, RatingSummary>>({});
 
   // "I Can Help" modal state (for points posts)
   const [helpModalVisible, setHelpModalVisible] = useState(false);
@@ -355,6 +364,47 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     };
     fetchPost();
   }, [postId, user?.uid]);
+
+  useEffect(() => {
+    if (!post) {
+      setOwnerRatingSummary({});
+      setDogRatingSummaries({});
+      return;
+    }
+
+    let cancelled = false;
+    const fetchRatingSummaries = async () => {
+      try {
+        const ownerSnap = await getDoc(doc(db, 'users', post.posterId));
+        if (!cancelled) {
+          const ownerData = ownerSnap.exists() ? ownerSnap.data() : null;
+          setOwnerRatingSummary(ownerData ? {
+            rating: ownerData.rating as number | undefined,
+            reviewCount: ownerData.reviewCount as number | undefined,
+          } : {});
+        }
+
+        const dogIds = (post.dogIds && post.dogIds.length > 0 ? post.dogIds : [post.dogId]).filter(Boolean);
+        const entries = await Promise.all(dogIds.map(async (dogId) => {
+          const dogSnap = await getDoc(doc(db, 'dogs', dogId));
+          const dogData = dogSnap.exists() ? dogSnap.data() : null;
+          return [dogId, dogData ? {
+            rating: dogData.rating as number | undefined,
+            reviewCount: dogData.reviewCount as number | undefined,
+          } : {}] as const;
+        }));
+        if (!cancelled) setDogRatingSummaries(Object.fromEntries(entries));
+      } catch {
+        if (!cancelled) {
+          setOwnerRatingSummary({});
+          setDogRatingSummaries({});
+        }
+      }
+    };
+
+    void fetchRatingSummaries();
+    return () => { cancelled = true; };
+  }, [post]);
 
   const handlePhotoPress = (index: number) => {
     setModalInitialIndex(index);
@@ -505,9 +555,22 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const isOvernight = post?.careType === 'overnight';
 
-  // ── Reschedule: validate, confirm mutual agreement, then apply directly ───
-  const handleReschedule = () => {
-    if (!post || !user) return;
+  const getAssignedCaregiverName = (): string => {
+    const caregiverId = post?.claimedBy;
+    if (!caregiverId) return 'sitter';
+    return post?.respondedBy?.find((r) => r.userId === caregiverId)?.userName ?? 'sitter';
+  };
+
+  const getRescheduleLabels = (start: Date, end: Date) => {
+    const dateStr = isOvernight
+      ? `${smartDate(start)} - ${smartDate(end)}`
+      : `${smartDate(start)}`;
+    const eventLabel = post ? `${getCareTypeLabel(post.careType)} for ${dogDisplayName}` : 'the booking';
+    return { dateStr, eventLabel };
+  };
+
+  const validateRescheduleDates = (): Date | null => {
+    if (!post || !user) return null;
 
     // For non-overnight, end date = start date (same day)
     const effectiveEnd = isOvernight ? rescheduleEnd : rescheduleStart;
@@ -517,29 +580,64 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     todayStart.setHours(0, 0, 0, 0);
     if (rescheduleStart < todayStart) {
       Alert.alert('Invalid date', 'Date cannot be in the past.');
-      return;
+      return null;
     }
     if (isOvernight && effectiveEnd <= rescheduleStart) {
       Alert.alert('Invalid dates', 'End date must be after the start date.');
-      return;
+      return null;
     }
+    return effectiveEnd;
+  };
 
-    // ── Mutual-agreement confirmation gate ──
+  const handleSendRescheduleToCaregiver = () => {
+    const effectiveEnd = validateRescheduleDates();
+    if (!effectiveEnd) return;
+    void applyReschedule(true, effectiveEnd);
+  };
+
+  const handleRepostForNewTime = () => {
+    const effectiveEnd = validateRescheduleDates();
+    if (!effectiveEnd || !post) return;
     Alert.alert(
-      'Is this a mutually agreed-upon change?',
-      'You should only reschedule after chatting with your dog\u2019s sitter and agreeing on the new date together. Changing it without their agreement could leave your dog without care.',
+      'Repost this time?',
+      'This removes the current sitter and clears old helper requests so the post can return to Discover.',
       [
-        { text: 'No', style: 'cancel' },
-        { text: 'Yes, we agreed', onPress: () => applyReschedule() },
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Repost', style: 'destructive', onPress: () => { void reopenPostForNewTime(effectiveEnd); } },
       ],
     );
   };
 
-  // ── Apply the reschedule directly: overwrite dates + FYI message to sitter ─
-  const applyReschedule = async () => {
+  const reopenPostForNewTime = async (effectiveEnd: Date) => {
+    if (!post || !user) return;
+    try {
+      await updateDoc(doc(db, 'swapPosts', post.id), {
+        startDate: rescheduleStart,
+        endDate: effectiveEnd,
+        status: 'open',
+        claimedBy: deleteField(),
+        respondedBy: [],
+        updatedAt: serverTimestamp(),
+      });
+      setPost((prev) => prev ? {
+        ...prev,
+        startDate: rescheduleStart,
+        endDate: effectiveEnd,
+        status: 'open',
+        claimedBy: undefined,
+        respondedBy: [],
+      } : prev);
+      setShowRescheduleModal(false);
+      Alert.alert('Reposted', 'Your post is back on Discover for the new time.');
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Could not repost this booking');
+    }
+  };
+
+  // ── Apply the reschedule directly, then ask sitter to confirm in chat ─
+  const applyReschedule = async (askCaregiver: boolean, effectiveEnd: Date) => {
     if (!post || !user) return;
 
-    const effectiveEnd = isOvernight ? rescheduleEnd : rescheduleStart;
     const sitterId = post.claimedBy;
     if (!sitterId) {
       Alert.alert('Error', 'No sitter assigned to this booking.');
@@ -553,28 +651,27 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         endDate: effectiveEnd,
         updatedAt: serverTimestamp() });
 
-      // FYI message to the sitter's chat thread (plain text, not a reschedule type)
       const convId = await getOrCreateConversation(user.uid, sitterId, post.id);
-      const dateStr = isOvernight
-        ? `${smartDate(rescheduleStart)} \u2013 ${smartDate(effectiveEnd)}`
-        : `${smartDate(rescheduleStart)}`;
-      const msgText = `\uD83D\uDCC5 The booking dates were updated to ${dateStr}.`;
-      await addDoc(collection(db, 'conversations', convId, 'messages'), {
-        conversationId: convId,
-        senderId: user.uid,
-        text: msgText,
-        read: false,
-        createdAt: serverTimestamp(),
-        type: 'text' });
-      await updateDoc(doc(db, 'conversations', convId), {
-        lastMessage: msgText,
-        lastMessageAt: serverTimestamp(),
-        updatedAt: serverTimestamp() });
+      const { dateStr, eventLabel } = getRescheduleLabels(rescheduleStart, effectiveEnd);
+      const ownerName = userProfile?.displayName ?? user.displayName ?? 'The owner';
+      const msgText = `WatchDog update: ${ownerName} rescheduled ${eventLabel} to ${dateStr}.`;
+      await sendMessage(convId, 'swapdog-team', msgText, askCaregiver ? {
+        type: 'reschedule_request',
+        metadata: {
+          postId: post.id,
+          ownerId: user.uid,
+          caregiverId: sitterId,
+          proposedStart: rescheduleStart.toISOString(),
+          proposedEnd: effectiveEnd.toISOString(),
+          eventLabel,
+          dateLabel: dateStr,
+        },
+      } : undefined);
 
       // Local state
       setPost((prev) => prev ? { ...prev, startDate: rescheduleStart, endDate: effectiveEnd } : prev);
       setShowRescheduleModal(false);
-      Alert.alert('Updated', 'The booking dates have been updated and your sitter has been notified.');
+      Alert.alert('Rescheduled', askCaregiver ? 'The new time was sent to your sitter.' : 'The booking dates have been updated.');
     } catch (err) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Could not update the booking dates');
     }
@@ -718,6 +815,26 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const offeredPoints = post.pointsOffered ?? post.pointsCost ?? 0;
+  const renderRatingSummary = (summary: RatingSummary) => {
+    const count = summary.reviewCount ?? 0;
+    const rating = summary.rating ?? 0;
+    if (!count || !Number.isFinite(rating)) {
+      return (
+        <View style={styles.rowRatingBlock}>
+          <Text style={[styles.rowNoReviews, { color: colors.textSecondary }]}>No reviews yet</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.rowRatingBlock}>
+        <StarRating rating={Math.round(rating)} size={16} />
+        <Text style={[styles.rowReviewCount, { color: colors.textSecondary }]}>
+          ({count} review{count !== 1 ? 's' : ''})
+        </Text>
+      </View>
+    );
+  };
 
   return (
     <>
@@ -740,8 +857,8 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             </Text>
             <Text style={[styles.helpModalSubtitle, { color: colors.textSecondary }]}>
               {post.totalPayment && post.paymentAmount
-                ? <>You'll earn <Text style={{ color: '#00B894', fontWeight: '700' }}>${`${post.totalPayment}`}</Text> if chosen!</>
-                : <>You'll earn <Text style={{ color: '#00B894', fontWeight: '700' }}>{offeredPoints} {offeredPoints === 1 ? 'point' : 'points'}</Text> if chosen!</>
+                ? <>You{"'"}ll earn <Text style={{ color: '#00B894', fontWeight: '700' }}>${`${post.totalPayment}`}</Text> if chosen!</>
+                : <>You{"'"}ll earn <Text style={{ color: '#00B894', fontWeight: '700' }}>{offeredPoints} {offeredPoints === 1 ? 'point' : 'points'}</Text> if chosen!</>
               }
             </Text>
 
@@ -774,10 +891,10 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           <View style={{ flex: 1, backgroundColor: colors.background }}>
             <SafeAreaView style={{ flex: 1 }}>
               <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-                <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800', marginBottom: 12 }}>{isOvernight ? 'Propose New Dates' : 'Propose New Date'}</Text>
+                <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800', marginBottom: 12 }}>Reschedule</Text>
 
                 <Text style={{ color: colors.textSecondary, fontSize: 14, lineHeight: 21, marginBottom: 20 }}>
-                  ⚠️ Message your dog’s confirmed sitter and agree on the new date together before changing it. Only update the date here once you’ve both confirmed — changing it without their agreement could leave your dog without care.
+                  Choose a new date, then ask your sitter to confirm or put the post back on Discover.
                 </Text>
 
                 <Text style={{ color: colors.textSecondary, fontSize: 15, fontWeight: '600', marginBottom: 6 }}>{isOvernight ? 'Start Date' : 'Date'}</Text>
@@ -838,17 +955,25 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 <View style={{ height: 20 }} />
 
                 <TouchableOpacity
-                  style={{ backgroundColor: '#FFD700', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 8 }}
-                  onPress={() => { setShowStartPicker(false); setShowEndPicker(false); handleReschedule(); }}
-                >
-                  <Text style={{ color: '#3D2E00', fontWeight: '700', fontSize: 18 }}>Submit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
                   style={{ paddingVertical: 12, alignItems: 'center' }}
                   onPress={() => { setShowStartPicker(false); setShowEndPicker(false); setShowRescheduleModal(false); }}
                 >
                   <Text style={{ color: colors.textSecondary, fontSize: 17 }}>Cancel</Text>
                 </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity
+                    style={{ flex: 1, backgroundColor: '#FFD700', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 8 }}
+                    onPress={() => { setShowStartPicker(false); setShowEndPicker(false); handleSendRescheduleToCaregiver(); }}
+                  >
+                    <Text style={{ color: '#3D2E00', fontWeight: '700', fontSize: 16 }} numberOfLines={1}>Ask {getAssignedCaregiverName()}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{ flex: 1, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 8 }}
+                    onPress={() => { setShowStartPicker(false); setShowEndPicker(false); handleRepostForNewTime(); }}
+                  >
+                    <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>Repost</Text>
+                  </TouchableOpacity>
+                </View>
               </ScrollView>
             </SafeAreaView>
           </View>
@@ -861,11 +986,16 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         onClose={() => setModalVisible(false)}
       />
 
-      <ScrollView
-        automaticallyAdjustKeyboardInsets={true}
-        style={[styles.container, { backgroundColor: colors.background }]}
-        contentContainerStyle={styles.content}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1, backgroundColor: colors.background }}
       >
+        <ScrollView
+          automaticallyAdjustKeyboardInsets={true}
+          keyboardShouldPersistTaps="handled"
+          style={[styles.container, { backgroundColor: colors.background }]}
+          contentContainerStyle={styles.content}
+        >
         {/* ── Photo Carousel (swipeable, all dog photos) ── */}
         <PhotoCarouselSection photos={allPhotos} onPhotoPress={handlePhotoPress} />
 
@@ -923,27 +1053,25 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         )}
 
 
-        {/* ── Interested Helpers (owner only) ── */}
+        {/* ── Interested / Approved Helper (owner only) ── */}
         {isOwner && respondents.length > 0 && (
-          <View style={styles.helpersSection}>
-            <View style={styles.helpersSectionHeader}>
+          <View style={[styles.helpersSection, post.status === 'claimed' && styles.helpersSectionApproved]}>
+            <View style={[styles.helpersSectionHeader, post.status === 'claimed' && styles.helpersSectionHeaderApproved]}>
               <Text style={styles.helpersSectionTitle}>
-                Interested Helpers ({respondents.length})
+                {post.status === 'claimed' ? 'Approved Helper' : `Interested Helpers (${respondents.length})`}
               </Text>
-              {post.status === 'claimed' && (
-                <View style={styles.claimedBadge}>
-                  <Text style={styles.claimedBadgeText}>APPROVED</Text>
-                </View>
-              )}
             </View>
 
-            {respondents.map((r) => {
+            {(post.status === 'claimed'
+              ? respondents.filter((r) => r.userId === post.claimedBy)
+              : respondents
+            ).map((r) => {
               const isApproved = post.claimedBy === r.userId;
               const isApproving = approvingId === r.userId;
 
 
               return (
-                <View key={r.userId} style={styles.helperRow}>
+                <View key={r.userId} style={[styles.helperRow, post.status === 'claimed' && styles.helperRowApproved]}>
                   <TouchableOpacity
                     onPress={() => navigation.navigate('UserDetail', { userId: r.userId })}
                     accessibilityRole="button"
@@ -954,7 +1082,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                       photoURL={r.userPhotoURL}
                       displayName={r.userName}
                       size={44}
-                      style={styles.helperAvatar}
+                      style={[styles.helperAvatar, isApproved && styles.helperAvatarApproved]}
                     />
                   </TouchableOpacity>
 
@@ -1026,6 +1154,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 Posted {smartDate(post.createdAt)}
               </Text>
             </View>
+            {renderRatingSummary(ownerRatingSummary)}
             <View style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: colors.primary, fontSize: 20, fontWeight: '600', marginLeft: 1 }}>›</Text>
             </View>
@@ -1058,6 +1187,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   <Text style={[styles.dogName, { color: colors.text }]}>{dName}</Text>
                   {dBreed ? <Text style={[styles.dogBreed, { color: colors.textSecondary }]}>{dBreed}</Text> : null}
                 </View>
+                {dId ? renderRatingSummary(dogRatingSummaries[dId] ?? {}) : null}
                 <View style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ color: colors.primary, fontSize: 20, fontWeight: '600', marginLeft: 1 }}>›</Text>
                 </View>
@@ -1371,7 +1501,8 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             <Text style={styles.deletePostBtnText}>Delete Post</Text>
           </TouchableOpacity>
         )}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Care photo full-screen preview */}
       <Modal visible={!!carePhotoPreview} transparent animationType="fade" onRequestClose={() => setCarePhotoPreview(null)}>
@@ -1457,6 +1588,9 @@ const styles = StyleSheet.create({
   posterName: { fontSize: 18, fontWeight: '700' },
   ownerLabel: { fontSize: 15, fontWeight: '400', color: '#999999' },
   postedAt: { fontSize: 14, marginTop: 2 },
+  rowRatingBlock: { width: 112, alignItems: 'center', justifyContent: 'center' },
+  rowReviewCount: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+  rowNoReviews: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
   statusBadge: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: borderRadius.full },
   statusBadgeText: { fontSize: 13, fontWeight: '700' },
 
@@ -1483,14 +1617,18 @@ const styles = StyleSheet.create({
 
   // Interested Helpers RED section
   helpersSection: { borderRadius: borderRadius.lg, marginBottom: spacing.md, marginHorizontal: spacing.md, marginTop: spacing.lg, overflow: 'hidden', borderWidth: 2, borderColor: RED, backgroundColor: 'rgba(255,45,85,0.06)', shadowColor: RED, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 6, elevation: 4 },
+  helpersSectionApproved: { borderColor: GREEN, backgroundColor: 'rgba(0,184,148,0.08)', shadowColor: GREEN },
   helpersSectionHeader: { backgroundColor: RED, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  helpersSectionHeaderApproved: { backgroundColor: GREEN },
   helpersSectionTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '800' },
   rescheduleBanner: { marginHorizontal: spacing.md, marginTop: spacing.sm, borderWidth: 1.5, borderRadius: borderRadius.lg, padding: spacing.md },
   claimedBadge: { backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 },
   claimedBadgeText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   helperRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,45,85,0.25)' },
+  helperRowApproved: { borderTopColor: 'rgba(0,184,148,0.25)' },
   helperAvatarTouchable: {},
   helperAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: RED },
+  helperAvatarApproved: { borderColor: GREEN },
   helperAvatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,45,85,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: RED },
   helperAvatarEmoji: { fontSize: 22 },
   helperInfo: { flex: 1 },

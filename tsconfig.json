@@ -4,11 +4,18 @@
     "strict": true,
     "skipLibCheck": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.d.ts", "expo-env.d.ts"],
-  // functions/ is a separate Cloud Functions package with its own tsconfig and
-  // node_modules; exclude it so an app-side compile doesn't pull in its deps.
-  "exclude": ["node_modules", "functions"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "functions"
+  ]
 }

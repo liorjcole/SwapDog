@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Alert,
-  ActivityIndicator, Linking, Keyboard,
+  ActivityIndicator, Linking, Keyboard, TextInput, Switch, LayoutAnimation,
+  NativeSyntheticEvent, NativeScrollEvent,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -16,16 +17,54 @@ import AvatarImage from '../../components/common/AvatarImage';
 import { useAuth } from '../../hooks/useAuth';
 import { useDogs } from '../../hooks/useDogs';
 import { getReferralCount } from '../../hooks/useReferrals';
-import { Dog } from '../../models/types';
+import { Dog, DogSex, EnergyLevel } from '../../models/types';
 import { spacing, borderRadius, typography, shadow } from '../../config/theme';
 import { formatDogAge } from '../../utils/formatDogAge';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { DraggablePhotoGrid } from '../../components/common/DraggablePhotoGrid';
 import StarRating from '../../components/common/StarRating';
+import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'Profile'>;
 };
+
+type DogDetailsDraft = {
+  name: string;
+  breed: string;
+  ageYears: number;
+  ageMonths: number;
+  weightLbs: string;
+  sex: DogSex;
+  energyLevel: EnergyLevel;
+  isGoodWithDogs: boolean;
+  isGoodWithKids: boolean;
+  vaccinated: boolean;
+  pottyTrained: boolean;
+  bio: string;
+};
+
+const draftFromDog = (dog: Dog): DogDetailsDraft => ({
+  name: dog.name ?? '',
+  breed: dog.breed ?? '',
+  ageYears: dog.ageYears ?? 0,
+  ageMonths: dog.ageMonths ?? 0,
+  weightLbs: dog.weightLbs > 0 ? String(dog.weightLbs) : '',
+  sex: dog.sex ?? DogSex.male,
+  energyLevel: dog.energyLevel ?? EnergyLevel.moderate,
+  isGoodWithDogs: dog.isGoodWithDogs ?? true,
+  isGoodWithKids: dog.isGoodWithKids ?? true,
+  vaccinated: dog.vaccinated ?? false,
+  pottyTrained: dog.pottyTrained ?? false,
+  bio: dog.bio ?? '',
+});
+
+const isDogDraftDirty = (dog: Dog, draft?: DogDetailsDraft): boolean => {
+  if (!draft) return false;
+  return JSON.stringify(draftFromDog(dog)) !== JSON.stringify(draft);
+};
+
+const STICKY_SAVE_BANNER_HEIGHT = 52;
 
 const cleanIgHandle = (raw: string): string => {
   let h = raw.trim();
@@ -43,12 +82,26 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const { userProfile, user, refreshUserProfile } = useAuthContext();
   const { signOut } = useAuth();
   const { getDogsByOwner, updateDog, deleteDog } = useDogs();
+  const {
+    scrollRef,
+    onScroll,
+    onLayout,
+    onContentSizeChange,
+    refFor,
+    scrollToInput,
+  } = useKeyboardScroll();
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [loading, setLoading] = useState(true);
   const [referralCount, setReferralCount] = useState(0);
   const [uploadingDogId, setUploadingDogId] = useState<string | null>(null);
   const [uploadingPhotoCount, setUploadingPhotoCount] = useState(0);
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  const [expandedDogId, setExpandedDogId] = useState<string | null>(null);
+  const [dogDrafts, setDogDrafts] = useState<Record<string, DogDetailsDraft>>({});
+  const [savingDogId, setSavingDogId] = useState<string | null>(null);
+  const [profileScrollY, setProfileScrollY] = useState(0);
+  const [dogDetailLayouts, setDogDetailLayouts] = useState<Record<string, { y: number; height: number }>>({});
+  const dogDetailRefs = useRef<Record<string, View | null>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -59,6 +112,120 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const refreshDogs = () => {
     if (!user) return;
     getDogsByOwner(user.uid).then(setDogs);
+  };
+
+  const toggleDogDetails = (dog: Dog) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedDogId((current) => {
+      const next = current === dog.id ? null : dog.id;
+      if (next) {
+        setDogDrafts((prev) => ({
+          ...prev,
+          [dog.id]: prev[dog.id] ?? draftFromDog(dog),
+        }));
+      }
+      return next;
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const updateDogDraft = (dogId: string, patch: Partial<DogDetailsDraft>) => {
+    setDogDrafts((prev) => ({
+      ...prev,
+      [dogId]: {
+        ...(prev[dogId] ?? draftFromDog(dogs.find((dog) => dog.id === dogId)!)),
+        ...patch,
+      },
+    }));
+  };
+
+  const handleProfileScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    onScroll(event);
+    setProfileScrollY(event.nativeEvent.contentOffset.y);
+  };
+
+  const measureDogDetails = (dogId: string) => {
+    const node = dogDetailRefs.current[dogId];
+    if (!node) return;
+    node.measureInWindow((_x, winY, _width, height) => {
+      const scrollNode = scrollRef.current as unknown as {
+        measureInWindow?: (callback: (x: number, y: number, width: number, height: number) => void) => void;
+      } | null;
+      scrollNode?.measureInWindow?.((_sx: number, scrollWinY: number) => {
+        setDogDetailLayouts((prev) => ({
+          ...prev,
+          [dogId]: {
+            y: profileScrollY + winY - scrollWinY,
+            height,
+          },
+        }));
+      });
+    });
+  };
+
+  const getStickySaveBannerTop = (dogId: string) => {
+    const layout = dogDetailLayouts[dogId];
+    if (!layout) return 0;
+    const maxTop = Math.max(0, layout.height - STICKY_SAVE_BANNER_HEIGHT - spacing.sm);
+    return Math.min(Math.max(profileScrollY - layout.y, 0), maxTop);
+  };
+
+  const handleSaveDogDetails = async (dog: Dog) => {
+    const draft = dogDrafts[dog.id];
+    if (!draft) return;
+
+    const name = draft.name.trim();
+    const breed = draft.breed.trim();
+    const weightLbs = parseInt(draft.weightLbs.replace(/[^0-9]/g, ''), 10);
+
+    if (!name) { Alert.alert('Required', 'Dog name is required'); return; }
+    if (!breed) { Alert.alert('Required', 'Breed is required'); return; }
+    if (!weightLbs || weightLbs <= 0) { Alert.alert('Required', "Please enter your dog's weight"); return; }
+
+    setSavingDogId(dog.id);
+    try {
+      await updateDog(dog.id, {
+        name,
+        breed,
+        ageYears: draft.ageYears,
+        ageMonths: draft.ageMonths,
+        weightLbs,
+        sex: draft.sex,
+        energyLevel: draft.energyLevel,
+        isGoodWithDogs: draft.isGoodWithDogs,
+        isGoodWithKids: draft.isGoodWithKids,
+        vaccinated: draft.vaccinated,
+        pottyTrained: draft.pottyTrained,
+        bio: draft.bio.trim(),
+      });
+      setDogs((prev) =>
+        prev.map((item) =>
+          item.id === dog.id
+            ? {
+                ...item,
+                name,
+                breed,
+                ageYears: draft.ageYears,
+                ageMonths: draft.ageMonths,
+                weightLbs,
+                sex: draft.sex,
+                energyLevel: draft.energyLevel,
+                isGoodWithDogs: draft.isGoodWithDogs,
+                isGoodWithKids: draft.isGoodWithKids,
+                vaccinated: draft.vaccinated,
+                pottyTrained: draft.pottyTrained,
+                bio: draft.bio.trim(),
+              }
+            : item,
+        ),
+      );
+      setDogDrafts((prev) => ({ ...prev, [dog.id]: { ...draft, name, breed, weightLbs: String(weightLbs), bio: draft.bio.trim() } }));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to save dog details');
+    } finally {
+      setSavingDogId(null);
+    }
   };
 
   const handleChangeProfilePhoto = async () => {
@@ -335,7 +502,20 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const hasContract = !!userProfile?.contractSignedAt;
 
   return (
-    <ScrollView scrollEnabled={scrollEnabled} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={{ paddingBottom: 16 }} bounces={false} overScrollMode="never">
+    <ScrollView
+      ref={scrollRef}
+      onScroll={handleProfileScroll}
+      onLayout={onLayout}
+      onContentSizeChange={onContentSizeChange}
+      scrollEventThrottle={16}
+      scrollEnabled={scrollEnabled}
+      automaticallyAdjustKeyboardInsets={false}
+      keyboardShouldPersistTaps="handled"
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={{ paddingBottom: 16 }}
+      bounces={false}
+      overScrollMode="never"
+    >
       <View style={[styles.header, { backgroundColor: colors.background }]}>
 
         {/* Name — above pfp */}
@@ -441,7 +621,13 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
         )}
         <Text style={[styles.sectionTitle, { color: colors.text }]}>My Dogs</Text>
-        {dogs.map((dog) => (
+        {dogs.map((dog) => {
+          const isExpanded = expandedDogId === dog.id;
+          const draft = dogDrafts[dog.id] ?? draftFromDog(dog);
+          const dirty = isDogDraftDirty(dog, draft);
+          const saving = savingDogId === dog.id;
+
+          return (
           <View key={dog.id} style={[styles.dogCard, { backgroundColor: colors.backgroundElevated, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, ...shadow.sm }]}>
 
             {/* X button to delete dog */}
@@ -454,17 +640,12 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
             >
               <Text style={styles.dogCardDeleteXText}>✕</Text>
             </TouchableOpacity>
-            {/* Info row — tap to edit */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate('EditDog', { dogId: dog.id })}
-              accessibilityLabel={`${dog.name}, ${dog.breed}. Tap to edit.`}
-              accessibilityRole="button"
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+            <View>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', paddingRight: 28 }}>
                 <Text style={[styles.dogName, { color: colors.text }]}>{dog.name}</Text>
                 <Text style={[styles.dogBreed, { color: colors.textSecondary, marginLeft: 8 }]}>{dog.breed} {'\u2022'} {formatDogAge(dog.ageYears, dog.ageMonths)}{dog.weightLbs > 0 ? ` • ${dog.weightLbs} lbs` : ''}</Text>
               </View>
-            </TouchableOpacity>
+            </View>
 
             {/* Photo gallery grid — draggable reorder */}
             <View style={{ marginTop: 14 }} />
@@ -495,19 +676,219 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               * Hold & drag to reorder
             </Text>
 
-            {/* Edit details — opens EditDogScreen with photos hidden (photos already handled above) */}
             <TouchableOpacity
-              onPress={() => navigation.navigate('EditDog', { dogId: dog.id, hidePhotos: true })}
-              style={styles.editDetailsBtn}
+              onPress={() => toggleDogDetails(dog)}
+              style={styles.expandDetailsBtn}
               accessibilityRole="button"
-              accessibilityLabel={`Edit ${dog.name}'s details`}
+              accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} ${dog.name}'s details`}
+              accessibilityState={{ expanded: isExpanded }}
             >
-              <Text style={[styles.editDetailsBtnText, { color: colors.primary }]}>
-                Edit {dog.name}'s details
+              <Text style={[styles.expandDetailsBtnText, { color: colors.primary }]}>
+                {isExpanded ? 'Collapse ˅' : 'Expand >'}
               </Text>
             </TouchableOpacity>
+
+            {isExpanded && (
+              <View
+                ref={(node) => { dogDetailRefs.current[dog.id] = node; }}
+                onLayout={() => measureDogDetails(dog.id)}
+                style={[styles.inlineDogDetails, dirty && { paddingTop: spacing.md + STICKY_SAVE_BANNER_HEIGHT }]}
+              >
+                {dirty && (
+                  <View
+                    style={[
+                      styles.saveChangesBanner,
+                      styles.saveChangesBannerSticky,
+                      {
+                        backgroundColor: colors.primary,
+                        top: getStickySaveBannerTop(dog.id),
+                      },
+                    ]}
+                  >
+                    <Text style={styles.saveChangesText}>Unsaved changes</Text>
+                    <TouchableOpacity
+                      style={styles.saveChangesButton}
+                      onPress={() => void handleSaveDogDetails(dog)}
+                      disabled={saving}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Save ${dog.name}'s changes`}
+                    >
+                      {saving ? (
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                      ) : (
+                        <Text style={styles.saveChangesButtonText}>Save Changes</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+                <View ref={refFor(`dog-${dog.id}-name`)}>
+                  <TextInput
+                    style={[styles.inlineInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    value={draft.name}
+                    onChangeText={(name) => updateDogDraft(dog.id, { name })}
+                    placeholder="Dog name"
+                    placeholderTextColor={colors.textSecondary}
+                    accessibilityLabel={`${dog.name} name`}
+                    returnKeyType="next"
+                    onFocus={() => scrollToInput(`dog-${dog.id}-name`)}
+                  />
+                </View>
+                <View ref={refFor(`dog-${dog.id}-breed`)}>
+                  <TextInput
+                    style={[styles.inlineInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    value={draft.breed}
+                    onChangeText={(breed) => updateDogDraft(dog.id, { breed })}
+                    placeholder="Breed"
+                    placeholderTextColor={colors.textSecondary}
+                    accessibilityLabel={`${dog.name} breed`}
+                    returnKeyType="done"
+                    onFocus={() => scrollToInput(`dog-${dog.id}-breed`)}
+                  />
+                </View>
+
+                <Text style={[styles.inlineLabel, { color: colors.text }]}>Age</Text>
+                <View style={styles.inlineTwoCol}>
+                  <View style={styles.inlineFieldGroup}>
+                    <Text style={[styles.inlineSubLabel, { color: colors.textSecondary }]}>Years</Text>
+                    <View style={styles.stepperRow}>
+                      <TouchableOpacity
+                        style={[styles.stepperBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                        onPress={() => updateDogDraft(dog.id, { ageYears: Math.max(0, draft.ageYears - 1), ageMonths: draft.ageYears - 1 <= 0 ? Math.max(1, draft.ageMonths) : draft.ageMonths })}
+                        accessibilityLabel="Decrease years"
+                      >
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>-</Text>
+                      </TouchableOpacity>
+                      <Text style={[styles.stepperValue, { color: colors.text }]}>{draft.ageYears}</Text>
+                      <TouchableOpacity
+                        style={[styles.stepperBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                        onPress={() => updateDogDraft(dog.id, { ageYears: Math.min(20, draft.ageYears + 1) })}
+                        accessibilityLabel="Increase years"
+                      >
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <View style={styles.inlineFieldGroup}>
+                    <Text style={[styles.inlineSubLabel, { color: colors.textSecondary }]}>Months</Text>
+                    <View style={styles.stepperRow}>
+                      <TouchableOpacity
+                        style={[styles.stepperBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                        onPress={() => updateDogDraft(dog.id, { ageMonths: Math.max(draft.ageYears === 0 ? 1 : 0, draft.ageMonths - 1) })}
+                        accessibilityLabel="Decrease months"
+                      >
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>-</Text>
+                      </TouchableOpacity>
+                      <Text style={[styles.stepperValue, { color: colors.text }]}>{draft.ageMonths}</Text>
+                      <TouchableOpacity
+                        style={[styles.stepperBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                        onPress={() => updateDogDraft(dog.id, { ageMonths: Math.min(11, draft.ageMonths + 1) })}
+                        accessibilityLabel="Increase months"
+                      >
+                        <Text style={[styles.stepperBtnText, { color: colors.text }]}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+
+                <Text style={[styles.inlineLabel, { color: colors.text }]}>Weight (lbs)</Text>
+                <View ref={refFor(`dog-${dog.id}-weight`)}>
+                  <TextInput
+                    style={[styles.inlineInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    value={draft.weightLbs}
+                    onChangeText={(weightLbs) => updateDogDraft(dog.id, { weightLbs: weightLbs.replace(/[^0-9]/g, '') })}
+                    placeholder="Estimated weight"
+                    placeholderTextColor={colors.textSecondary}
+                    keyboardType="number-pad"
+                    returnKeyType="done"
+                    onFocus={() => scrollToInput(`dog-${dog.id}-weight`)}
+                  />
+                </View>
+
+                <Text style={[styles.inlineLabel, { color: colors.text }]}>Sex</Text>
+                <View style={styles.inlineChipRow}>
+                  {([DogSex.male, DogSex.female] as DogSex[]).map((sex) => (
+                    <TouchableOpacity
+                      key={sex}
+                      style={[
+                        styles.inlineChip,
+                        {
+                          borderColor: draft.sex === sex ? colors.primary : colors.border,
+                          backgroundColor: draft.sex === sex ? colors.primary + '18' : colors.surface,
+                        },
+                      ]}
+                      onPress={() => updateDogDraft(dog.id, { sex })}
+                    >
+                      <Text style={[styles.inlineChipText, { color: draft.sex === sex ? colors.primary : colors.textSecondary }]}>{sex}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={[styles.inlineLabel, { color: colors.text }]}>Energy Level</Text>
+                <View style={styles.inlineChipRow}>
+                  {([EnergyLevel.low, EnergyLevel.moderate, EnergyLevel.high, EnergyLevel.very_high] as EnergyLevel[]).map((energyLevel) => (
+                    <TouchableOpacity
+                      key={energyLevel}
+                      style={[
+                        styles.inlineChip,
+                        {
+                          borderColor: draft.energyLevel === energyLevel ? colors.primary : colors.border,
+                          backgroundColor: draft.energyLevel === energyLevel ? colors.primary + '18' : colors.surface,
+                        },
+                      ]}
+                      onPress={() => updateDogDraft(dog.id, { energyLevel })}
+                    >
+                      <Text style={[styles.inlineChipText, { color: draft.energyLevel === energyLevel ? colors.primary : colors.textSecondary }]}>
+                        {energyLevel.replace('_', ' ')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <View style={styles.inlineSwitchRow}>
+                  <Text style={[styles.inlineSwitchLabel, { color: colors.text }]}>Good with other dogs</Text>
+                  <Switch value={draft.isGoodWithDogs} onValueChange={(isGoodWithDogs) => updateDogDraft(dog.id, { isGoodWithDogs })} trackColor={{ true: colors.primary }} />
+                </View>
+                <View style={styles.inlineSwitchRow}>
+                  <Text style={[styles.inlineSwitchLabel, { color: colors.text }]}>Good with kids</Text>
+                  <Switch value={draft.isGoodWithKids} onValueChange={(isGoodWithKids) => updateDogDraft(dog.id, { isGoodWithKids })} trackColor={{ true: colors.primary }} />
+                </View>
+                <View style={styles.inlineSwitchRow}>
+                  <Text style={[styles.inlineSwitchLabel, { color: colors.text }]}>Vaccinated</Text>
+                  <Switch value={draft.vaccinated} onValueChange={(vaccinated) => updateDogDraft(dog.id, { vaccinated })} trackColor={{ true: colors.primary }} />
+                </View>
+                <View style={styles.inlineSwitchRow}>
+                  <Text style={[styles.inlineSwitchLabel, { color: colors.text }]}>Potty trained</Text>
+                  <Switch value={draft.pottyTrained} onValueChange={(pottyTrained) => updateDogDraft(dog.id, { pottyTrained })} trackColor={{ true: colors.primary }} />
+                </View>
+
+                <Text style={[styles.inlineLabel, { color: colors.text }]}>About {draft.name.trim() || dog.name}</Text>
+                <View ref={refFor(`dog-${dog.id}-bio`)}>
+                  <TextInput
+                    style={[styles.inlineInput, styles.inlineBioInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    value={draft.bio}
+                    onChangeText={(bio) => updateDogDraft(dog.id, { bio })}
+                    placeholder="Personality, quirks, favorite things..."
+                    placeholderTextColor={colors.textSecondary}
+                    multiline
+                    textAlignVertical="top"
+                    maxLength={500}
+                    onFocus={() => scrollToInput(`dog-${dog.id}-bio`)}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={styles.fullDogProfileBtn}
+                  onPress={() => navigation.navigate('DogDetail', { dogId: dog.id })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${dog.name}'s full dog profile`}
+                >
+                  <Text style={styles.fullDogProfileBtnText}>Open full dog profile</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
-        ))}
+          );
+        })}
 
         {/* Add Another Dog button */}
         <TouchableOpacity
@@ -695,9 +1076,84 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   addAnotherDogBtnText: { fontSize: 17, fontWeight: '700' },
-  // "Edit {name}'s details" button on each dog card
-  editDetailsBtn: { alignSelf: 'flex-start', marginTop: spacing.sm, paddingVertical: 6 },
-  editDetailsBtnText: { fontSize: 15, fontWeight: '600' },
+  expandDetailsBtn: { alignSelf: 'flex-start', marginTop: spacing.sm, paddingVertical: 6 },
+  expandDetailsBtnText: { fontSize: 15, fontWeight: '700' },
+  inlineDogDetails: { marginTop: spacing.sm, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#444', position: 'relative' as const, overflow: 'hidden' as const },
+  fullDogProfileBtn: {
+    alignSelf: 'flex-end',
+    marginTop: spacing.xs,
+    backgroundColor: '#F0C040',
+    borderRadius: borderRadius.full,
+    paddingVertical: 9,
+    paddingHorizontal: spacing.md,
+  },
+  fullDogProfileBtnText: { color: '#2B2100', fontSize: 14, fontWeight: '800' },
+  inlineInput: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+    fontSize: 16,
+  },
+  inlineBioInput: { minHeight: 96, paddingTop: spacing.sm },
+  inlineLabel: { fontSize: 16, fontWeight: '700', marginBottom: spacing.sm },
+  inlineSubLabel: { fontSize: 14, marginBottom: spacing.xs },
+  inlineTwoCol: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+  inlineFieldGroup: { flex: 1 },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  stepperBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperBtnText: { fontSize: 20, lineHeight: 22 },
+  stepperValue: { fontSize: 20, fontWeight: '700', minWidth: 28, textAlign: 'center' },
+  inlineChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.md },
+  inlineChip: {
+    borderWidth: 1.5,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+  },
+  inlineChipText: { fontSize: 15, fontWeight: '700', textTransform: 'capitalize' },
+  inlineSwitchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  inlineSwitchLabel: { fontSize: 16, fontWeight: '500', flex: 1, paddingRight: spacing.md },
+  saveChangesBanner: {
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+  },
+  saveChangesBannerSticky: {
+    position: 'absolute' as const,
+    left: 0,
+    right: 0,
+    zIndex: 5,
+    elevation: 5,
+    marginTop: 0,
+  },
+  saveChangesText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  saveChangesButton: {
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    minWidth: 112,
+    alignItems: 'center',
+  },
+  saveChangesButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   // "View my profile" pill button above the My Dogs section
   viewMyProfileBtn: { alignSelf: 'flex-end', borderRadius: borderRadius.full, paddingVertical: 6, paddingHorizontal: spacing.md, marginBottom: spacing.md },
   viewMyProfileBtnText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },

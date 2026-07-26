@@ -10,6 +10,7 @@ import { useReviews } from '../../hooks/useReviews';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import StarRating from '../../components/common/StarRating';
 import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
+import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 
 type Props = {
   navigation: NativeStackNavigationProp<RequestsStackParamList, 'WriteReview'>;
@@ -20,6 +21,7 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
   const { user } = useAuthContext();
   const { createReview } = useReviews();
+  const { scrollRef, onScroll, onLayout, onContentSizeChange, refFor, scrollToInput } = useKeyboardScroll();
   const isLateCancellation = route.params?.lateCancellation === true;
   const [rating, setRating] = useState(isLateCancellation ? 1 : 0);
   const [comment, setComment] = useState(
@@ -60,14 +62,21 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
-        automaticallyAdjustKeyboardInsets={true} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        ref={scrollRef}
+        onScroll={onScroll}
+        onLayout={onLayout}
+        onContentSizeChange={onContentSizeChange}
+        scrollEventThrottle={16}
+        automaticallyAdjustKeyboardInsets={false}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled">
       {isLateCancellation && (
         <View style={{ backgroundColor: '#FF2D5520', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#FF2D5540' }}>
           <Text style={{ color: '#FF2D55', fontSize: 15, fontWeight: '700', textAlign: 'center', marginBottom: 4 }}>
             ⚠️ Late Cancellation
           </Text>
           <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: 'center' }}>
-            This caretaker canceled less than 24 hours before the scheduled care. A 1-star rating has been suggested — you can change it if you'd like.
+            This caretaker canceled less than 24 hours before the scheduled care. A 1-star rating has been suggested — you can change it if you{"'"}d like.
           </Text>
         </View>
       )}
@@ -76,19 +85,22 @@ const WriteReviewScreen: React.FC<Props> = ({ navigation, route }) => {
       <View style={styles.ratingContainer} accessibilityRole="adjustable" accessibilityLabel={`Selected rating: ${rating} of 5 stars`}>
         <StarRating rating={rating} onRate={setRating} size={40} />
       </View>
-      <TextInput
-        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-        placeholder="Share your experience... (optional)"
-        placeholderTextColor={colors.textSecondary}
-        value={comment}
-        onChangeText={setComment}
-        multiline
-        inputAccessoryViewID={DONE_ACCESSORY_ID}
-        numberOfLines={4}
-        accessibilityLabel="Review comment, optional"
-        returnKeyType="done"
-        blurOnSubmit={true}
-      />
+      <View ref={refFor('reviewComment')}>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+          placeholder="Share your experience... (optional)"
+          placeholderTextColor={colors.textSecondary}
+          value={comment}
+          onChangeText={setComment}
+          onFocus={() => scrollToInput('reviewComment')}
+          multiline
+          inputAccessoryViewID={DONE_ACCESSORY_ID}
+          numberOfLines={4}
+          accessibilityLabel="Review comment, optional"
+          returnKeyType="done"
+          blurOnSubmit={true}
+        />
+      </View>
       <TouchableOpacity
         style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
         onPress={handleSubmit}

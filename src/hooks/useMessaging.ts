@@ -7,6 +7,8 @@ import {
   query,
   where,
   orderBy,
+  limit,
+  limitToLast,
   serverTimestamp,
   updateDoc,
   deleteDoc,
@@ -38,6 +40,9 @@ const parseConversation = (id: string, data: Record<string, unknown>): Conversat
   createdAt: toDate(data.createdAt as Parameters<typeof toDate>[0]),
   updatedAt: toDate(data.updatedAt as Parameters<typeof toDate>[0]),
 });
+
+const conversationParticipantKey = (userIdA: string, userIdB: string): string =>
+  [userIdA, userIdB].sort().join('__');
 
 export const useMessaging = () => {
   const sendMessage = async (
@@ -71,7 +76,8 @@ export const useMessaging = () => {
   ): (() => void) => {
     const q = query(
       collection(db, 'conversations', convId, 'messages'),
-      orderBy('createdAt', 'asc')
+      orderBy('createdAt', 'asc'),
+      limitToLast(200)
     );
     return onSnapshot(
       q,
@@ -91,7 +97,9 @@ export const useMessaging = () => {
   const getConversations = async (userId: string): Promise<Conversation[]> => {
     const q = query(
       collection(db, 'conversations'),
-      where('participantIds', 'array-contains', userId)
+      where('participantIds', 'array-contains', userId),
+      orderBy('updatedAt', 'desc'),
+      limit(100)
     );
     const snap = await getDocs(q);
     return snap.docs
@@ -102,10 +110,8 @@ export const useMessaging = () => {
   /**
    * Subscribe to conversations for a user.
    *
-   * NOTE: Firestore does not allow combining array-contains with orderBy on a
-   * different field without a composite index. To avoid requiring a manually
-   * deployed index (which breaks the app until deployed), we query with
-   * array-contains only and sort the results client-side.
+   * Query is bounded and ordered by Firestore. Requires the deployed composite
+   * index on (participantIds array, updatedAt desc).
    */
   const subscribeToConversations = (
     userId: string,
@@ -113,17 +119,15 @@ export const useMessaging = () => {
   ): (() => void) => {
     const q = query(
       collection(db, 'conversations'),
-      where('participantIds', 'array-contains', userId)
-      // ⚠️ orderBy('updatedAt', 'desc') intentionally omitted — requires a
-      // composite index. Sorting is done client-side below instead.
+      where('participantIds', 'array-contains', userId),
+      orderBy('updatedAt', 'desc'),
+      limit(100)
     );
     return onSnapshot(
       q,
       (snap) => {
         const convs = snap.docs
-          .map((d) => parseConversation(d.id, d.data() as Record<string, unknown>))
-          // Sort most-recently-updated first (mirrors the removed orderBy)
-          .sort((a, b) => (b.updatedAt?.getTime() ?? 0) - (a.updatedAt?.getTime() ?? 0));
+          .map((d) => parseConversation(d.id, d.data() as Record<string, unknown>));
         cb(convs);
       },
       (error) => {
@@ -142,12 +146,23 @@ export const useMessaging = () => {
     userIdB: string,
     swapRequestId?: string
   ): Promise<string> => {
-    // Look for an existing conversation between these two participants
-    const q = query(
+    const participantKey = conversationParticipantKey(userIdA, userIdB);
+
+    const keyQuery = query(
       collection(db, 'conversations'),
-      where('participantIds', 'array-contains', userIdA)
+      where('participantKey', '==', participantKey),
+      limit(1)
     );
-    const snap = await getDocs(q);
+    const keySnap = await getDocs(keyQuery);
+    if (!keySnap.empty) return keySnap.docs[0].id;
+
+    // Legacy fallback for conversations created before participantKey existed.
+    const legacyQuery = query(
+      collection(db, 'conversations'),
+      where('participantIds', 'array-contains', userIdA),
+      limit(100)
+    );
+    const snap = await getDocs(legacyQuery);
     const existing = snap.docs.find((d) => {
       const participants = (d.data().participantIds as string[]) ?? [];
       return participants.includes(userIdB);
@@ -157,6 +172,7 @@ export const useMessaging = () => {
     // Create a new conversation
     const ref = await addDoc(collection(db, 'conversations'), {
       participantIds: [userIdA, userIdB],
+      participantKey,
       swapRequestId: swapRequestId ?? null,
       unreadCounts: { [userIdA]: 0, [userIdB]: 0 },
       createdAt: serverTimestamp(),
@@ -190,7 +206,9 @@ export const useMessaging = () => {
   ): (() => void) => {
     const q = query(
       collection(db, 'conversations'),
-      where('participantIds', 'array-contains', SYSTEM_SENDER_ID)
+      where('participantIds', 'array-contains', SYSTEM_SENDER_ID),
+      orderBy('updatedAt', 'desc'),
+      limit(100)
     );
     return onSnapshot(
       q,
@@ -244,18 +262,30 @@ export const sendSystemMessageToUser = async (
   userId: string,
   text: string,
 ): Promise<void> => {
-  // Find existing WatchDog Team conversation
+  const participantKey = conversationParticipantKey(userId, SYSTEM_SENDER_ID);
+
   const q = query(
     collection(db, 'conversations'),
-    where('participantIds', 'array-contains', userId),
+    where('participantKey', '==', participantKey),
+    limit(1),
   );
   const snap = await getDocs(q);
   let convId: string | null = null;
-  for (const d of snap.docs) {
-    const participants = (d.data().participantIds as string[]) ?? [];
-    if (participants.includes(SYSTEM_SENDER_ID)) {
-      convId = d.id;
-      break;
+  if (!snap.empty) {
+    convId = snap.docs[0].id;
+  } else {
+    const legacyQuery = query(
+      collection(db, 'conversations'),
+      where('participantIds', 'array-contains', userId),
+      limit(100),
+    );
+    const legacySnap = await getDocs(legacyQuery);
+    for (const d of legacySnap.docs) {
+      const participants = (d.data().participantIds as string[]) ?? [];
+      if (participants.includes(SYSTEM_SENDER_ID)) {
+        convId = d.id;
+        break;
+      }
     }
   }
 
@@ -263,6 +293,7 @@ export const sendSystemMessageToUser = async (
   if (!convId) {
     const ref = await addDoc(collection(db, 'conversations'), {
       participantIds: [userId, SYSTEM_SENDER_ID],
+      participantKey,
       swapRequestId: null,
       unreadCounts: { [userId]: 1 },
       lastMessage: text.slice(0, 100),
@@ -302,21 +333,22 @@ export const sendSystemMessageToUser = async (
  * it checks for an existing welcome conversation before creating one.
  */
 export const sendWelcomeMessageIfNeeded = async (userId: string): Promise<void> => {
+  const participantKey = conversationParticipantKey(userId, SYSTEM_SENDER_ID);
+
   // Check whether the welcome conversation already exists
   const q = query(
     collection(db, 'conversations'),
-    where('participantIds', 'array-contains', userId)
+    where('participantKey', '==', participantKey),
+    limit(1),
   );
   const snap = await getDocs(q);
-  const alreadyExists = snap.docs.some((d) => {
-    const participants = (d.data().participantIds as string[]) ?? [];
-    return participants.includes(SYSTEM_SENDER_ID);
-  });
+  const alreadyExists = !snap.empty;
   if (alreadyExists) return;
 
   // Create the welcome conversation
   const convRef = await addDoc(collection(db, 'conversations'), {
     participantIds: [userId, SYSTEM_SENDER_ID],
+    participantKey,
     swapRequestId: null,
     unreadCounts: { [userId]: 1 },
     lastMessage: 'Welcome to WatchDog! 🐾',

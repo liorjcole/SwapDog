@@ -2,14 +2,23 @@ export function getFriendlyAuthError(error: unknown): { title: string; message: 
   const code = (error as { code?: string })?.code ?? '';
   switch (code) {
     case 'auth/email-already-in-use':
+    case 'functions/already-exists':
       return {
-        title: 'Email Already Registered',
-        message: 'This email is already in use. Try signing in instead!',
+        title: 'Phone Number Already Registered',
+        message: 'This phone number is already in use. Try signing in instead!',
+      };
+    case 'auth/invalid-phone-number':
+    case 'functions/invalid-argument':
+      return {
+        title: 'Invalid Phone Number',
+        message: code === 'functions/invalid-argument'
+          ? 'Please check the phone number or verification code and try again.'
+          : 'Please enter a valid phone number.',
       };
     case 'auth/invalid-email':
       return {
-        title: 'Invalid Email',
-        message: 'Please enter a valid email address.',
+        title: 'Invalid Phone Number',
+        message: 'Please enter a valid phone number.',
       };
     case 'auth/weak-password':
       return {
@@ -18,16 +27,19 @@ export function getFriendlyAuthError(error: unknown): { title: string; message: 
       };
     case 'auth/wrong-password':
     case 'auth/invalid-credential':
+    case 'functions/permission-denied':
       return {
-        title: 'Incorrect Password',
-        message: 'The password you entered is incorrect. Please try again.',
+        title: 'Invalid Code',
+        message: 'The verification code is incorrect or expired. Please try again.',
       };
     case 'auth/user-not-found':
+    case 'functions/not-found':
       return {
         title: 'Account Not Found',
-        message: 'No account found with this email. Try signing up!',
+        message: 'No account found with this phone number. Try signing up!',
       };
     case 'auth/too-many-requests':
+    case 'functions/resource-exhausted':
       return {
         title: 'Too Many Attempts',
         message: 'Too many attempts. Please wait a moment and try again.',

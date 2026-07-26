@@ -177,7 +177,7 @@ const CelebrationScreen: React.FC<Props> = ({ navigation }) => {
 
         <View style={[styles.messageCard, { backgroundColor: colors.surface, ...shadow.lg }]}>
           <Text style={[styles.message, { color: colors.text }]}>
-            You've been approved to join our community of trusted pet lovers. We're so excited to have you!
+            You{"'"}ve been approved to join our community of trusted pet lovers. We{"'"}re so excited to have you!
           </Text>
         </View>
 

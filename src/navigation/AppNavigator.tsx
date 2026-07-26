@@ -8,6 +8,7 @@ import AuthNavigator from './AuthNavigator';
 import OnboardingNavigator from './OnboardingNavigator';
 import MainTabNavigator from './MainTabNavigator';
 import ConductStandardsScreen from '../screens/onboarding/ConductStandardsScreen';
+import LegacyAccountUpgradeScreen from '../screens/auth/LegacyAccountUpgradeScreen';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { sendWelcomeMessageIfNeeded } from '../hooks/useMessaging';
 import { registerForPushNotifications, savePushToken } from '../services/NotificationService';
@@ -80,12 +81,17 @@ const AppNavigator: React.FC = () => {
   const accountStatus = userProfile?.accountStatus ?? 'pending_referral';
   const conductAgreed = !!userProfile?.conductAgreedAt;
   const contractSigned = !!userProfile?.contractSignedAt;
+  const hasPhoneLogin = !!user?.phoneNumber || !!userProfile?.phoneNumber;
+  const needsLegacyAccountUpgrade = !!user && !!userProfile?.email && !hasPhoneLogin;
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
       {!user ? (
         // ── Unauthenticated: go straight to auth ──────────────────────────
         <Stack.Screen name="Auth" component={AuthNavigator} />
+      ) : needsLegacyAccountUpgrade ? (
+        // ── Signed in with a legacy email account: attach phone before app access
+        <Stack.Screen name="LegacyAccountUpgrade" component={LegacyAccountUpgradeScreen} />
       ) : !isOnboarded ? (
         // ── Authenticated, onboarding not complete ─────────────────────────
         <Stack.Screen name="Onboarding" component={OnboardingNavigator} />

@@ -47,11 +47,11 @@ const VettingCallScreen: React.FC = () => {
       <View style={[styles.messageCard, { backgroundColor: colors.surface, ...shadow.sm }]}>
         <Text style={[styles.message, { color: colors.textSecondary }]}>
           SwapDog is a selective community focused on the quality and trustworthiness of our members
-          — because your pet's happiness and safety is everything.
+          — because your pet{"'"}s happiness and safety is everything.
         </Text>
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
         <Text style={[styles.message, { color: colors.textSecondary }]}>
-          We'd love to have a brief{' '}
+          We{"'"}d love to have a brief{' '}
           <Text style={{ color: colors.primary, fontWeight: '600' }}>10-minute video call</Text> to
           get to know you, answer any questions, and make sure SwapDog is the right fit for both of
           us.

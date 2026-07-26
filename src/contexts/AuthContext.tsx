@@ -60,6 +60,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (!data) return null;
+        let privateData: Record<string, unknown> | undefined;
+        try {
+          const privateSnap = await getDoc(doc(db, 'privateUsers', uid));
+          privateData = privateSnap.data() as Record<string, unknown> | undefined;
+        } catch {
+          privateData = undefined;
+        }
 
         // Self-heal legacy broken photos: older onboarding saved a raw local
         // file:// URI that is unreadable from any other device. The original
@@ -79,11 +86,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         return {
           id: docSnap.id,
-          email: data.email,
+          email: data.email ?? '',
+          phoneNumber: privateData?.phoneNumber as string | undefined,
           displayName: data.displayName,
           photoURL,
           bio: data.bio,
           location: data.location,
+          locationGeohash: data.locationGeohash,
           locationName: data.locationName,
           pushToken: data.pushToken,
           pushTokens: data.pushTokens,

@@ -27,7 +27,7 @@ type Props = {
 
 const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
-  const { scrollRef, onScroll, refFor, scrollToInput } = useKeyboardScroll();
+  const { scrollRef, onScroll, onLayout, onContentSizeChange, refFor, scrollToInput } = useKeyboardScroll();
   const insets = useSafeAreaInsets();
   const { user } = useAuthContext();
   const { getDog, updateDog, createDog, deleteDog } = useDogs();
@@ -54,6 +54,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
   const [goodWithDogs, setGoodWithDogs] = useState(true);
   const [goodWithKids, setGoodWithKids] = useState(true);
   const [vaccinated, setVaccinated] = useState(false);
+  const [pottyTrained, setPottyTrained] = useState(false);
   const [dogBio, setDogBio] = useState('');
   const [showRefChart, setShowRefChart] = useState(false);
 
@@ -72,6 +73,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         if (d.isGoodWithDogs !== undefined) setGoodWithDogs(d.isGoodWithDogs);
         if (d.isGoodWithKids !== undefined) setGoodWithKids(d.isGoodWithKids);
         if (d.vaccinated !== undefined) setVaccinated(d.vaccinated);
+        if (d.pottyTrained !== undefined) setPottyTrained(d.pottyTrained);
         if ((d as any).bio) setDogBio((d as any).bio);
         setWeightLbs(d.weightLbs ?? 0);
       }
@@ -224,6 +226,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           isGoodWithDogs: goodWithDogs,
           isGoodWithKids: goodWithKids,
           vaccinated,
+          pottyTrained,
           ...(dogBio.trim() ? { bio: dogBio.trim() } : {}) });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         navigation.goBack();
@@ -240,6 +243,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           isGoodWithDogs: goodWithDogs,
           isGoodWithKids: goodWithKids,
           vaccinated,
+          pottyTrained,
           ...(dogBio.trim() ? { bio: dogBio.trim() } : {}) });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         navigation.goBack();
@@ -272,8 +276,12 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
     <ScrollView
         ref={scrollRef}
         onScroll={onScroll}
+        onLayout={onLayout}
+        onContentSizeChange={onContentSizeChange}
         scrollEventThrottle={16}
-        automaticallyAdjustKeyboardInsets={true} style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
+        automaticallyAdjustKeyboardInsets={false}
+        keyboardShouldPersistTaps="handled"
+        style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
 
       {isCreateMode && (
         <Text style={[styles.createTitle, { color: colors.text }]}>Add a New Dog 🐶</Text>
@@ -399,7 +407,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
       </View>
 
-      <View>
+      <View ref={refFor('weight')}>
         <Text style={[styles.label, { color: colors.text }]}>Weight (lbs)</Text>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
@@ -412,6 +420,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           }}
           keyboardType="number-pad"
           returnKeyType="done"
+          onFocus={() => scrollToInput('weight')}
         />
       </View>
       <TouchableOpacity
@@ -476,8 +485,12 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         <Text style={[styles.switchLabel, { color: colors.text }]}>Vaccinated</Text>
         <Switch value={vaccinated} onValueChange={setVaccinated} trackColor={{ true: colors.primary }} />
       </View>
+      <View style={styles.switchRow}>
+        <Text style={[styles.switchLabel, { color: colors.text }]}>Potty trained</Text>
+        <Switch value={pottyTrained} onValueChange={setPottyTrained} trackColor={{ true: colors.primary }} />
+      </View>
 
-      <View>
+      <View ref={refFor('dogBio')}>
         <Text style={[styles.label, { color: colors.text, marginTop: spacing.md }]}>
           About {name.trim() || 'Your Dog'}
         </Text>
@@ -497,6 +510,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
           autoCorrect={true}
           spellCheck={true}
           autoCapitalize="sentences"
+          onFocus={() => scrollToInput('dogBio')}
         />
         <CharCountHint current={dogBio.trim().length} min={20} max={500} />
       </View>

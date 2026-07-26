@@ -12,19 +12,16 @@
 import React, { useEffect, useLayoutEffect, useMemo, useState, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, Platform, Switch, Image, ActivityIndicator, Animated, Dimensions, Modal, KeyboardAvoidingView, LayoutAnimation, UIManager } from 'react-native';
+  Alert, Platform, Switch, Image, ActivityIndicator, Animated, Dimensions, Modal, KeyboardAvoidingView, LayoutAnimation, UIManager, InteractionManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Calendar, DateData } from 'react-native-calendars';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { RequestsStackParamList } from '../../navigation/types';
+import { DiscoverStackParamList, MainTabParamList, RequestsStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { setPendingHighlightPost } from '../../utils/highlightStore';
@@ -44,8 +41,19 @@ import ConfettiCelebration, { CelebrationItem } from '../../components/common/Co
 import Chip from '../../components/common/Chip';
 import { formatDogAge } from '../../utils/formatDogAge';
 import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
+import PostCard from '../../components/common/PostCard';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const RED = '#FF2D55';
+const POST_SUCCESS_NAVIGATION_DELAY_MS = 450;
+
+const isSameCalendarDay = (a: Date, b: Date): boolean =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
 
 
 const PRIMARY_CARE_OPTIONS: { type: 'overnight' | 'daySitting'; icon: string; label: string }[] = [
@@ -218,12 +226,20 @@ const buildTemplateFromForm = (
 });
 
 type Props = {
-  navigation: NativeStackNavigationProp<RequestsStackParamList, 'Requests'>;
+  navigation: NativeStackNavigationProp<DiscoverStackParamList & RequestsStackParamList, 'CreatePost'>;
 };
 
 const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
-  const { scrollRef: kbScrollRef, onScroll: kbOnScroll, refFor, scrollToInput } = useKeyboardScroll();
+  const {
+    scrollRef: kbScrollRef,
+    onScroll: kbOnScroll,
+    onLayout: kbOnLayout,
+    onContentSizeChange: kbOnContentSizeChange,
+    refFor,
+    scrollToInput,
+    keyboardHeight,
+  } = useKeyboardScroll();
 
   // ── Validation pulse animation ──
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -311,6 +327,7 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [celebrationQueue, setCelebrationQueue] = useState<CelebrationItem[]>([]);
+  const [successExitRequested, setSuccessExitRequested] = useState(false);
 
   // Care type
   const [primaryCareType, setPrimaryCareType] = useState<'overnight' | 'daySitting' | null>(null);
@@ -327,6 +344,64 @@ const CreatePostScreen: React.FC<Props> = ({ navigation }) => {
   // template so submit can diff for the update/keep prompt.
   const [sourceTemplateId, setSourceTemplateId] = useState<string | null>(null);
   const [sourceTemplateSnapshot, setSourceTemplateSnapshot] = useState<string | null>(null);
+  const successExitRequestedRef = useRef(false);
+  const successNavigationStartedRef = useRef(false);
+
+  const finishSuccessfulPost = useCallback(() => {
+    setCelebrationQueue([]);
+    setSubmitting(false);
+    setSourceTemplateId(null);
+    setSourceTemplateSnapshot(null);
+
+    if (newPostIdRef.current) {
+      setPendingHighlightPost(newPostIdRef.current);
+    }
+
+    if (!successExitRequestedRef.current) {
+      successExitRequestedRef.current = true;
+      void onPostCreated();
+      setSuccessExitRequested(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!successExitRequested || celebrationQueue.length > 0) return;
+
+    let navigationTimer: ReturnType<typeof setTimeout> | null = null;
+    const interaction = InteractionManager.runAfterInteractions(() => {
+      navigationTimer = setTimeout(() => {
+        if (successNavigationStartedRef.current) return;
+        successNavigationStartedRef.current = true;
+
+        const tabNav = navigation.getParent<BottomTabNavigationProp<MainTabParamList>>();
+        try {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.popToTop();
+          }
+        } catch {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          }
+        }
+
+        const openDiscover = () => {
+          tabNav?.navigate('DiscoverTab', { screen: 'Discover' });
+        };
+        requestAnimationFrame(openDiscover);
+        setTimeout(openDiscover, 120);
+      }, POST_SUCCESS_NAVIGATION_DELAY_MS);
+    });
+
+    return () => {
+      interaction.cancel();
+      if (navigationTimer) {
+        clearTimeout(navigationTimer);
+      }
+    };
+  }, [celebrationQueue.length, navigation, successExitRequested]);
+
   // Sitter's home: pickup or dropoff
   const [sitterTransport, setSitterTransport] = useState<'pickup' | 'dropoff' | null>(null);
   // Playtime — multi-session support (max 5 sessions)
@@ -540,6 +615,14 @@ const MAX_PLAY_SESSIONS = 5;
 
 
   // Dates — used for overnight (range) and daySitting/feeding (single)
+  const todayStart = () => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+  const localDateKey = (d: Date) => (
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  );
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -883,6 +966,13 @@ const MAX_PLAY_SESSIONS = 5;
   const [pointsOffered, setPointsOffered] = useState('');
   const [showPricingGuide, setShowPricingGuide] = useState(false);
 
+  const normalizePointInput = (value: string): string => {
+    const stripped = value.replace(/[^0-9.]/g, '');
+    const [whole = '', ...decimalParts] = stripped.split('.');
+    if (decimalParts.length === 0) return whole;
+    return `${whole}.${decimalParts.join('')}`;
+  };
+
   // Load saved addresses from AsyncStorage
   useEffect(() => {
     AsyncStorage.getItem('saved_addresses').then(val => {
@@ -971,14 +1061,19 @@ const MAX_PLAY_SESSIONS = 5;
     setAddOnCareTypes(new Set((post.addOnCareTypes ?? []).filter(t => ['feeding', 'dogWalking', 'playtime', 'medication'].includes(t)) as CareType[]));
     setCareDetails(post.careDetails ?? '');
     setCareAddress(post.careAddress ?? '');
-    if (post.compensationType === 'points' || post.compensationType === 'either') {
-      setOfferPoints(true);
-      setPointsOffered(String(post.pointsOffered ?? post.pointsCost ?? ''));
-    }
-    if (post.compensationType === 'payment' || post.compensationType === 'either') {
-      setOfferMoney(true);
-      setPaymentAmount(String(post.paymentAmount ?? ''));
-    }
+    const hasSavedPayment = post.paymentAmount != null && post.paymentAmount > 0;
+    const hasSavedPoints = (post.pointsOffered ?? post.pointsCost ?? 0) > 0;
+    const savedCompensationMode =
+      post.compensationType === 'payment' || (post.compensationType === 'either' && hasSavedPayment)
+        ? 'payment'
+        : post.compensationType === 'points' || hasSavedPoints
+          ? 'points'
+          : null;
+
+    setOfferPoints(savedCompensationMode === 'points');
+    setOfferMoney(savedCompensationMode === 'payment');
+    setPointsOffered(savedCompensationMode === 'points' ? String(post.pointsOffered ?? post.pointsCost ?? '') : '');
+    setPaymentAmount(savedCompensationMode === 'payment' ? String(post.paymentAmount ?? '') : '');
 
     // Stay-location preference. sitterTransport only applies when sitter's home.
     setOvernightLocation(post.overnightLocation ?? null);
@@ -1052,7 +1147,7 @@ const MAX_PLAY_SESSIONS = 5;
 
   // Prefill from a saved template AND record its identity + a normalized
   // snapshot, so submit can detect edits for the update/keep prompt.
-  const useTemplate = (t: PostTemplate) => {
+  const applyTemplate = (t: PostTemplate) => {
     prefillFromPost(t);
     setSourceTemplateId(t.id);
     setSourceTemplateSnapshot(normalizeTemplate(t));
@@ -1142,7 +1237,7 @@ const MAX_PLAY_SESSIONS = 5;
   // properly shows the alert before any animation starts.
   useLayoutEffect(() => {
     navigation.setOptions({
-      gestureEnabled: !hasAnyProgress(),
+      gestureEnabled: !hasAnyProgress() || postSucceededRef.current,
     });
   });
 
@@ -1194,6 +1289,23 @@ const MAX_PLAY_SESSIONS = 5;
         })}
       </View>
     );
+  };
+
+  const selectedFieldStyle = (selected: boolean) => ({
+    borderColor: selected ? RED : colors.border,
+    backgroundColor: selected ? `${RED}12` : 'transparent',
+  });
+  const completedSectionStyle = (completed: boolean) => ({
+    borderColor: completed ? RED : colors.border,
+    borderWidth: completed ? 2 : 1,
+    backgroundColor: completed ? `${RED}08` : colors.surface,
+  });
+  const selectedFieldTextColor = (selected: boolean) => selected ? RED : colors.textSecondary;
+  const selectedFieldValue = (selected: boolean, value: string, placeholder: string) =>
+    selected ? `✓ ${value}` : placeholder;
+  const numericValue = (value: string) => {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
   };
 
   const toggleDog = (dogId: string) => {
@@ -1425,6 +1537,11 @@ const MAX_PLAY_SESSIONS = 5;
     return parseFloat(amt.toFixed(2));
   }, [offerMoney, paymentAmount]);
 
+  const activeCompensationType = useMemo<Extract<CompensationType, 'points' | 'payment'>>(
+    () => (offerMoney ? 'payment' : 'points'),
+    [offerMoney],
+  );
+
   /** Breakdown label — flat amount for the whole job */
   const paymentBreakdownLabel = useMemo(() => {
     if (!offerMoney) return null;
@@ -1438,6 +1555,133 @@ const MAX_PLAY_SESSIONS = 5;
   const shortDate = (d: Date) =>
     d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
+  const repeatComplete = (schedule: RepeatSchedule | null) => primaryCareType !== 'overnight' || !!schedule;
+  const isFeedingSlotComplete = (slot: (typeof feedingSlots)[number]) =>
+    !!slot.time && repeatComplete(slot.repeatSchedule);
+  const isWalkSessionComplete = (session: WalkSession) =>
+    (session.flexible ? !!session.durationMins : !!session.startDate && !!session.endDate) &&
+    repeatComplete(session.repeatSchedule);
+  const isPlaySessionComplete = (session: PlaySession) =>
+    (session.flexible ? !!session.durationMins : !!session.startDate && !!session.endDate) &&
+    repeatComplete(session.repeatSchedule);
+  const isMedicationSlotComplete = (slot: (typeof medicationSlots)[number]) =>
+    !!slot.time && slot.details.trim().length >= 10 && repeatComplete(slot.repeatSchedule);
+  const careDetailsComplete = careDetails.trim().length > 0 || carePhotos.length > 0;
+  const dateSectionComplete =
+    startDateSelected &&
+    (careType !== 'overnight' || endDateSelected) &&
+    ((careType !== 'overnight' && careType !== 'daySitting') || (!!startTimeDate && !!endTimeDate));
+  const selectedServicesComplete =
+    (!addOnCareTypes.has('feeding') || feedingSlots.every(isFeedingSlotComplete)) &&
+    (!addOnCareTypes.has('dogWalking') || walkSessions.every(isWalkSessionComplete)) &&
+    (!addOnCareTypes.has('playtime') || playSessions.every(isPlaySessionComplete)) &&
+    (!addOnCareTypes.has('medication') || medicationSlots.every(isMedicationSlotComplete));
+  const compensationComplete =
+    activeCompensationType === 'payment'
+      ? numericValue(paymentAmount) > 0
+      : numericValue(pointsOffered) >= 0.1;
+
+  const previewPost = useMemo<SwapPost>(() => {
+    const fallbackDate = new Date();
+    const effectiveStart = startDateSelected ? startDate : fallbackDate;
+    const effectiveEnd = primaryCareType === 'overnight' && endDateSelected ? endDate : effectiveStart;
+    const dogIds = selectedDogs.map((dog) => dog.id);
+    const dogNames = selectedDogs.map((dog) => dog.name);
+    const dogBreeds = selectedDogs.map((dog) => dog.breed);
+    const dogPhotoURLs = selectedDogs
+      .map((dog) => dog.photoURLs?.[0])
+      .filter((url): url is string => Boolean(url));
+    const parsedPoints = activeCompensationType === 'points' ? parseFloat(pointsOffered) : 0;
+    const parsedPayment = activeCompensationType === 'payment' ? parseFloat(paymentAmount) : undefined;
+    const allSelectedDogIds = dogIds.length ? dogIds : [];
+
+    return {
+      id: 'preview-post',
+      posterId: user?.uid ?? 'preview-user',
+      posterName: userProfile?.displayName ?? user?.displayName ?? 'WatchDog User',
+      posterPhotoURL: userProfile?.photoURL ?? user?.photoURL ?? undefined,
+      dogId: dogIds[0] ?? 'preview-dog',
+      dogName: dogNames[0] ?? 'Select dogs',
+      dogBreed: dogBreeds[0],
+      dogPhotoURL: dogPhotoURLs[0],
+      dogIds: allSelectedDogIds.length ? allSelectedDogIds : undefined,
+      dogNames: dogNames.length ? dogNames : undefined,
+      dogBreeds: dogBreeds.length ? dogBreeds : undefined,
+      dogPhotoURLs: dogPhotoURLs.length ? dogPhotoURLs : undefined,
+      startDate: effectiveStart,
+      endDate: effectiveEnd,
+      careDetails: careDetails.trim(),
+      carePhotos: carePhotos.length ? carePhotos : undefined,
+      compensationType: activeCompensationType,
+      pointsCost: Number.isFinite(parsedPoints) ? parsedPoints : 0,
+      pointsOffered: activeCompensationType === 'points' && Number.isFinite(parsedPoints) ? parsedPoints : undefined,
+      paymentAmount: activeCompensationType === 'payment' && parsedPayment && Number.isFinite(parsedPayment) ? parsedPayment : undefined,
+      totalPayment,
+      careType: primaryCareType ?? undefined,
+      addOnCareTypes: Array.from(addOnCareTypes),
+      overnightLocation: (primaryCareType === 'overnight' || primaryCareType === 'daySitting') ? overnightLocation : null,
+      careAddress: careAddress.trim() || undefined,
+      sitterTransport: overnightLocation === 'sitters_home' ? sitterTransport ?? undefined : undefined,
+      startTime: (primaryCareType === 'overnight' || primaryCareType === 'daySitting') ? startTime : undefined,
+      endTime: (primaryCareType === 'overnight' || primaryCareType === 'daySitting') ? endTime : undefined,
+      feedingSlots: addOnCareTypes.has('feeding')
+        ? feedingSlots.map((slot) => ({
+            time: slot.time ? formatTime12(slot.time) : '',
+            repeatSchedule: primaryCareType === 'overnight' ? slot.repeatSchedule : null,
+            dogIds: slot.dogIds.length ? slot.dogIds : allSelectedDogIds,
+            instructions: slot.instructions.trim() || undefined,
+            photos: slot.photos.length ? slot.photos : undefined,
+          }))
+        : undefined,
+      walkSessions: addOnCareTypes.has('dogWalking')
+        ? walkSessions.map((session) => ({
+            flexible: session.flexible,
+            startTime: session.flexible ? null : (session.startDate ? formatTime12(session.startDate) : ''),
+            endTime: session.flexible ? null : (session.endDate ? formatTime12(session.endDate) : ''),
+            durationMins: session.flexible ? (session.durationMins ?? 0) : (session.startDate && session.endDate ? Math.max(0, timeToMins(session.endDate) - timeToMins(session.startDate)) : 0),
+            dogIds: session.dogIds.length ? session.dogIds : allSelectedDogIds,
+            repeatSchedule: primaryCareType === 'overnight' ? session.repeatSchedule : null,
+            instructions: session.instructions.trim() || undefined,
+            photos: session.photos.length ? session.photos : undefined,
+          }))
+        : undefined,
+      playSessions: addOnCareTypes.has('playtime')
+        ? playSessions.map((session, index) => ({
+            sessionNumber: index + 1,
+            flexible: session.flexible,
+            startTime: session.flexible ? null : (session.startDate ? formatTime12(session.startDate) : ''),
+            endTime: session.flexible ? null : (session.endDate ? formatTime12(session.endDate) : ''),
+            durationMins: session.flexible ? (session.durationMins ?? 0) : (session.startDate && session.endDate ? getPlayDurationMins(session) : 0),
+            repeatSchedule: primaryCareType === 'overnight' ? session.repeatSchedule : null,
+            dogIds: session.dogIds.length ? session.dogIds : allSelectedDogIds,
+            instructions: session.instructions.trim() || undefined,
+            photos: session.photos.length ? session.photos : undefined,
+          }))
+        : undefined,
+      medicationSlots: addOnCareTypes.has('medication')
+        ? medicationSlots.map((slot) => ({
+            time: slot.time ? formatTime12(slot.time) : '',
+            extraTimes: slot.extraTimes.map((extra) => extra.time ? formatTime12(extra.time) : ''),
+            details: slot.details.trim(),
+            repeatSchedule: primaryCareType === 'overnight' ? slot.repeatSchedule : null,
+            dogIds: slot.dogIds.length ? slot.dogIds : allSelectedDogIds,
+            photos: slot.photos.length ? slot.photos : undefined,
+          }))
+        : undefined,
+      status: 'open',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }, [activeCompensationType, addOnCareTypes, careAddress, careDetails, carePhotos, endDate, endDateSelected, feedingSlots, medicationSlots, overnightLocation, paymentAmount, playSessions, pointsOffered, primaryCareType, selectedDogs, sitterTransport, startDate, startDateSelected, startTime, endTime, totalPayment, user?.displayName, user?.photoURL, user?.uid, userProfile?.displayName, userProfile?.photoURL, walkSessions]);
+
+  const previewAssignedDogNames = useCallback((dogIds?: string[]) => {
+    if (!dogIds?.length) return selectedDogs.map((dog) => dog.name).join(', ');
+    const names = selectedDogs
+      .filter((dog) => dogIds.includes(dog.id))
+      .map((dog) => dog.name);
+    return names.length ? names.join(', ') : selectedDogs.map((dog) => dog.name).join(', ');
+  }, [selectedDogs]);
+
   const dogTitleHint = useMemo(() => {
     if (selectedDogs.length === 0) return '';
     if (selectedDogs.length === 1) return `Dog-sitting needed for ${selectedDogs[0].name}`;
@@ -1447,6 +1691,12 @@ const MAX_PLAY_SESSIONS = 5;
   }, [selectedDogs]);
 
   const validateAndSubmit = async () => {
+    if (submitting) return;
+    if (postSucceededRef.current) {
+      finishSuccessfulPost();
+      return;
+    }
+
     if (selectedDogs.length === 0) {
       showValidationAlert('Required', 'Please select at least one dog', 'dogs'); return;
     }
@@ -1474,17 +1724,58 @@ const MAX_PLAY_SESSIONS = 5;
       } catch { return { h: 9, m: 0 }; }
     };
 
-    // For overnight / daySitting: care starts on startDate at startTimeDate
-    // For add-on only (feeding/walk/playtime): no time fields, assume noon
-    const careStart = new Date(startDate);
-    if (careType === 'overnight' || careType === 'daySitting') {
-      if (startTimeDate) careStart.setHours(startTimeDate.getHours(), startTimeDate.getMinutes(), 0, 0);
-    } else {
-      careStart.setHours(12, 0, 0, 0); // add-on only — no time selected
+    const buildDateAtTime = (date: Date, time: Date): Date => {
+      const merged = new Date(date);
+      merged.setHours(time.getHours(), time.getMinutes(), 0, 0);
+      return merged;
+    };
+
+    // For primary stays, care starts on startDate at the selected arrival time.
+    // For add-on-only posts, use the earliest actual service time instead of
+    // assuming noon, otherwise a later-today feeding/walk can be falsely blocked.
+    const addOnStartCandidates: Date[] = [];
+    if (addOnCareTypes.has('feeding')) {
+      feedingSlots.forEach((slot) => {
+        if (slot.time) addOnStartCandidates.push(buildDateAtTime(startDate, slot.time));
+      });
+    }
+    if (addOnCareTypes.has('dogWalking')) {
+      walkSessions.forEach((session) => {
+        if (!session.flexible && session.startDate) addOnStartCandidates.push(buildDateAtTime(startDate, session.startDate));
+      });
+    }
+    if (addOnCareTypes.has('playtime')) {
+      playSessions.forEach((session) => {
+        if (!session.flexible && session.startDate) addOnStartCandidates.push(buildDateAtTime(startDate, session.startDate));
+      });
+    }
+    if (addOnCareTypes.has('medication')) {
+      medicationSlots.forEach((slot) => {
+        if (slot.time) addOnStartCandidates.push(buildDateAtTime(startDate, slot.time));
+        slot.extraTimes.forEach((extra) => {
+          if (extra.time) addOnStartCandidates.push(buildDateAtTime(startDate, extra.time));
+        });
+      });
     }
 
-    // Block if date/time has already passed
-    if (careStart < now) {
+    const careStart = (() => {
+      if ((careType === 'overnight' || careType === 'daySitting') && startTimeDate) {
+        return buildDateAtTime(startDate, startTimeDate);
+      }
+      if (addOnStartCandidates.length > 0) {
+        return addOnStartCandidates.reduce((earliest, candidate) => (
+          candidate.getTime() < earliest.getTime() ? candidate : earliest
+        ));
+      }
+      const fallback = new Date(startDate);
+      fallback.setHours(12, 0, 0, 0);
+      return fallback;
+    })();
+
+    // The selected start time must be in the future. Overnight may start today
+    // even if the arrival time selected is earlier than the current clock time.
+    const overnightStartsToday = careType === 'overnight' && isSameCalendarDay(startDate, now);
+    if (careStart < now && !overnightStartsToday) {
       showValidationAlert('Date has passed', "The date and time you selected has already passed. Please choose a future date.", 'dates');
       return;
     }
@@ -1522,12 +1813,17 @@ const MAX_PLAY_SESSIONS = 5;
         }
       }
     }
-    if (addOnCareTypes.has('dogWalking')) {
-      for (let i = 0; i < walkSessions.length; i++) {
-        if (!walkSessions[i].flexible) {
-          if (!walkSessions[i].startDate) {
-            showValidationAlert('Start Time Required', `Please set a start time for ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'}.`, 'walk-' + i);
-            return;
+	    if (addOnCareTypes.has('dogWalking')) {
+	      for (let i = 0; i < walkSessions.length; i++) {
+	        if (walkSessions[i].flexible) {
+	          if (!walkSessions[i].durationMins) {
+	            showValidationAlert('Duration Required', `Please choose how long ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'} should be.`, 'walk-' + i);
+	            return;
+	          }
+	        } else {
+	          if (!walkSessions[i].startDate) {
+	            showValidationAlert('Start Time Required', `Please set a start time for ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'}.`, 'walk-' + i);
+	            return;
           }
           if (!walkSessions[i].endDate) {
             showValidationAlert('End Time Required', `Please set an end time for ${walkSessions.length > 1 ? 'Walk #' + (i + 1) : 'your Walk'}.`, 'walk-' + i);
@@ -1540,12 +1836,17 @@ const MAX_PLAY_SESSIONS = 5;
         }
       }
     }
-    if (addOnCareTypes.has('playtime')) {
-      for (let i = 0; i < playSessions.length; i++) {
-        if (!playSessions[i].flexible) {
-          if (!playSessions[i].startDate) {
-            showValidationAlert('Start Time Required', `Please set a start time for ${playSessions.length > 1 ? 'Playtime #' + (i + 1) : 'Playtime'}.`, 'play-' + i);
-            return;
+	    if (addOnCareTypes.has('playtime')) {
+	      for (let i = 0; i < playSessions.length; i++) {
+	        if (playSessions[i].flexible) {
+	          if (!playSessions[i].durationMins) {
+	            showValidationAlert('Duration Required', `Please choose how long ${playSessions.length > 1 ? 'Playtime #' + (i + 1) : 'Playtime'} should be.`, 'play-' + i);
+	            return;
+	          }
+	        } else {
+	          if (!playSessions[i].startDate) {
+	            showValidationAlert('Start Time Required', `Please set a start time for ${playSessions.length > 1 ? 'Playtime #' + (i + 1) : 'Playtime'}.`, 'play-' + i);
+	            return;
           }
           if (!playSessions[i].endDate) {
             showValidationAlert('End Time Required', `Please set an end time for ${playSessions.length > 1 ? 'Playtime #' + (i + 1) : 'Playtime'}.`, 'play-' + i);
@@ -1654,7 +1955,7 @@ const MAX_PLAY_SESSIONS = 5;
       showValidationAlert('Required', 'Select at least one compensation type (points or money).', 'compensation');
       return;
     }
-    if (offerMoney) {
+    if (activeCompensationType === 'payment') {
       const amt = parseFloat(paymentAmount);
       if (!amt || amt <= 0) {
         showValidationAlert('Invalid Payment', 'Please enter a valid dollar amount', 'compensation'); return;
@@ -1849,7 +2150,7 @@ const MAX_PLAY_SESSIONS = 5;
         .filter((url): url is string => Boolean(url));
 
       // Build payment fields conditionally — flat amount for the whole job
-      const paymentFields = offerMoney
+      const paymentFields = activeCompensationType === 'payment'
         ? {
             paymentAmount: parseFloat(paymentAmount),
             totalPayment: totalPayment ?? undefined }
@@ -1862,7 +2163,7 @@ const MAX_PLAY_SESSIONS = 5;
         Promise.all(uris.map((uri, idx) =>
           ensureRemotePhotoURL(uri, `service-photos/${user.uid}/${kind}_${Date.now()}_${idx}.jpg`),
         ));
-      if (offerPoints) {
+      if (activeCompensationType === 'points') {
         careTypeFields.pointsOffered = parseFloat(pointsOffered);
       }
       if (addOnCareTypes.has('dogWalking')) {
@@ -1953,9 +2254,9 @@ const MAX_PLAY_SESSIONS = 5;
         dogNames,
         careDetails,
         {
-          compensationType: (offerPoints && offerMoney ? 'either' : offerMoney ? 'payment' : 'points') as CompensationType,
-          pointsOffered: offerPoints ? parseFloat(pointsOffered) : undefined,
-          paymentAmount: offerMoney ? parseFloat(paymentAmount) : undefined,
+          compensationType: activeCompensationType,
+          pointsOffered: activeCompensationType === 'points' ? parseFloat(pointsOffered) : undefined,
+          paymentAmount: activeCompensationType === 'payment' ? parseFloat(paymentAmount) : undefined,
         },
       );
       let pendingTemplateAction: { kind: 'add' | 'update'; template: PostTemplate } | null = null;
@@ -2001,8 +2302,8 @@ const MAX_PLAY_SESSIONS = 5;
         endDate: effectiveEnd,
         careDetails: careDetails.trim(),
         carePhotos: uploadedCarePhotos.length > 0 ? uploadedCarePhotos : undefined,
-        compensationType: (offerPoints && offerMoney ? 'either' : offerMoney ? 'payment' : 'points') as CompensationType,
-        pointsCost: offerPoints ? parseFloat(pointsOffered) : 0,
+        compensationType: activeCompensationType,
+        pointsCost: activeCompensationType === 'points' ? parseFloat(pointsOffered) : 0,
         ...paymentFields,
         ...careTypeFields,
         status: 'open' as const };
@@ -2029,24 +2330,25 @@ const MAX_PLAY_SESSIONS = 5;
         title: 'Successfully posted!',
         subtitle: 'Your request is now visible to the pet parents in your area.',
         emoji: '🐾',
+        buttonLabel: 'View in Discover',
       }]);
-      void onPostCreated();
 
-      // Persist the saved-template AFTER the post is created (best-effort) so a
-      // failed post never leaves an orphan template. Firestore rejects undefined,
-      // so deep-clean the blob first. The post is created regardless of this.
+      // Persist the saved-template in the background AFTER the post is created.
+      // This must not block the success path, because the post already exists.
       if (pendingTemplateAction) {
-        try {
-          const cleanTemplate = deepClean(pendingTemplateAction.template) as PostTemplate;
-          if (pendingTemplateAction.kind === 'add') {
-            await addPostTemplate(user.uid, cleanTemplate);
-          } else {
-            await updatePostTemplate(user.uid, userProfile?.postTemplates ?? [], cleanTemplate);
+        void (async () => {
+          try {
+            const cleanTemplate = deepClean(pendingTemplateAction.template) as PostTemplate;
+            if (pendingTemplateAction.kind === 'add') {
+              await addPostTemplate(user.uid, cleanTemplate);
+            } else {
+              await updatePostTemplate(user.uid, userProfile?.postTemplates ?? [], cleanTemplate);
+            }
+            await refreshUserProfile();
+          } catch {
+            // Best-effort; the post already succeeded.
           }
-          await refreshUserProfile();
-        } catch {
-          // Best-effort; the post already succeeded.
-        }
+        })();
       }
       // Reset source tracking so a follow-up post in this session starts fresh.
       setSourceTemplateId(null);
@@ -2112,9 +2414,14 @@ const MAX_PLAY_SESSIONS = 5;
           }
         }}
         scrollEventThrottle={16}
-        automaticallyAdjustKeyboardInsets={true}
+        automaticallyAdjustKeyboardInsets={false}
+        onLayout={kbOnLayout}
+        onContentSizeChange={kbOnContentSizeChange}
         style={[styles.container, { backgroundColor: colors.background }]}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: Math.max(spacing.md, keyboardHeight + spacing.xl) },
+        ]}
         keyboardShouldPersistTaps="handled"
         bounces={false}
         overScrollMode="never"
@@ -2299,18 +2606,18 @@ const MAX_PLAY_SESSIONS = 5;
           {/* ── My Home: Enter Address ── */}
           {(primaryCareType === 'overnight' || primaryCareType === 'daySitting') && overnightLocation === 'my_home' && (
             <View style={{ marginTop: 12 }}>
-              <TouchableOpacity
-                onPress={() => setShowAddressModal(true)}
-                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-                activeOpacity={0.7}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, color: careAddress ? colors.text : colors.textSecondary, fontWeight: careAddress ? '500' : '400' }}>
-                    {careAddress || '📍 Enter your home address'}
-                  </Text>
-                </View>
-                <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '600' }}>{careAddress ? 'Edit' : 'Add'}</Text>
-              </TouchableOpacity>
+	              <TouchableOpacity
+	                onPress={() => setShowAddressModal(true)}
+	                style={{ backgroundColor: careAddress.trim() ? `${RED}12` : colors.background, borderWidth: careAddress.trim() ? 1.5 : 1, borderColor: careAddress.trim() ? RED : colors.border, borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+	                activeOpacity={0.7}
+	              >
+	                <View style={{ flex: 1 }}>
+	                  <Text style={{ fontSize: 15, color: careAddress ? RED : colors.textSecondary, fontWeight: careAddress ? '700' : '400' }}>
+	                    {careAddress ? `✓ ${careAddress}` : '📍 Enter your home address'}
+	                  </Text>
+	                </View>
+	                <Text style={{ fontSize: 14, color: RED, fontWeight: '600' }}>{careAddress ? 'Edit' : 'Add'}</Text>
+	              </TouchableOpacity>
               <View style={{ backgroundColor: colors.background, borderRadius: 10, padding: 14, marginTop: 8 }}>
                 <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
                   🔒 Your address is kept private and only shared with an accepted caretaker.
@@ -2333,11 +2640,11 @@ const MAX_PLAY_SESSIONS = 5;
                     <TouchableOpacity
                       key={opt.value}
                       onPress={() => { setSitterTransport(opt.value); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                      style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: sel ? 2 : 1, borderColor: sel ? colors.primary : colors.border, backgroundColor: sel ? colors.primary + '18' : colors.background, alignItems: 'center' }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={{ fontSize: 14, color: sel ? colors.primary : colors.text, fontWeight: sel ? '700' : '500' }}>{opt.label}</Text>
-                    </TouchableOpacity>
+	                      style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: sel ? 2 : 1, borderColor: sel ? RED : colors.border, backgroundColor: sel ? `${RED}18` : colors.background, alignItems: 'center' }}
+	                      activeOpacity={0.7}
+	                    >
+	                      <Text style={{ fontSize: 14, color: sel ? RED : colors.text, fontWeight: sel ? '700' : '500' }}>{sel ? '✓ ' : ''}{opt.label}</Text>
+	                    </TouchableOpacity>
                   );
                 })}
               </View>
@@ -2345,18 +2652,18 @@ const MAX_PLAY_SESSIONS = 5;
               {/* Pickup selected — need user address */}
               {sitterTransport === 'pickup' && (
                 <View style={{ marginTop: 4 }}>
-                  <TouchableOpacity
-                    onPress={() => setShowAddressModal(true)}
-                    style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-                    activeOpacity={0.7}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 15, color: careAddress ? colors.text : colors.textSecondary, fontWeight: careAddress ? '500' : '400' }}>
-                        {careAddress || '📍 Enter your pickup address'}
-                      </Text>
-                    </View>
-                    <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '600' }}>{careAddress ? 'Edit' : 'Add'}</Text>
-                  </TouchableOpacity>
+	                  <TouchableOpacity
+	                    onPress={() => setShowAddressModal(true)}
+	                    style={{ backgroundColor: careAddress.trim() ? `${RED}12` : colors.background, borderWidth: careAddress.trim() ? 1.5 : 1, borderColor: careAddress.trim() ? RED : colors.border, borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+	                    activeOpacity={0.7}
+	                  >
+	                    <View style={{ flex: 1 }}>
+	                      <Text style={{ fontSize: 15, color: careAddress ? RED : colors.textSecondary, fontWeight: careAddress ? '700' : '400' }}>
+	                        {careAddress ? `✓ ${careAddress}` : '📍 Enter your pickup address'}
+	                      </Text>
+	                    </View>
+	                    <Text style={{ fontSize: 14, color: RED, fontWeight: '600' }}>{careAddress ? 'Edit' : 'Add'}</Text>
+	                  </TouchableOpacity>
                   <View style={{ backgroundColor: colors.background, borderRadius: 10, padding: 14, marginTop: 8 }}>
                     <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
                       🔒 Your address is kept private and only shared with an accepted caretaker.
@@ -2427,28 +2734,31 @@ const MAX_PLAY_SESSIONS = 5;
 
         {/* ── Date/Time section (always shows when any care type selected) ── */}
         {(primaryCareType !== null || addOnCareTypes.size > 0) && (
-              <Animated.View ref={validationRefFor('dates')} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'dates' ? pulseAnim : 1 }] }, pulsingSection === 'dates' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  📅 {careType === 'overnight' ? 'Dates & Times' : careType === 'daySitting' ? 'Date & Time' : 'Date'}
-                </Text>
+	              <Animated.View ref={validationRefFor('dates')} style={[styles.section, completedSectionStyle(dateSectionComplete), { transform: [{ scale: pulsingSection === 'dates' ? pulseAnim : 1 }] }, pulsingSection === 'dates' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
+	                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+	                  📅 {careType === 'overnight' ? 'Dates & Times' : careType === 'daySitting' ? 'Date & Time' : 'Date'}
+	                  {dateSectionComplete && <Text style={styles.cellCompletionCheck}> ✓</Text>}
+	                </Text>
                 {/* Single date for daySitting / add-on only */}
                 {careType !== 'overnight' && (
                   <>
-                    <TouchableOpacity
-                      style={[styles.dateButton, { borderColor: showStart ? colors.primary : colors.border }]}
-                      onPress={() => setShowStart((prev) => !prev)}
-                      accessibilityLabel={`Date: ${formatDate(startDate)}`}
-                      accessibilityRole="button"
-                    >
-                      <Text style={[styles.dateButtonLabel, { color: colors.textSecondary }]}>DATE</Text>
-                      <Text style={[styles.dateButtonValue, { color: startDateSelected ? colors.text : colors.textSecondary }]}>{startDateSelected ? formatDate(startDate) : 'No date selected!'}</Text>
-                    </TouchableOpacity>
+	                    <TouchableOpacity
+	                      style={[styles.dateButton, selectedFieldStyle(startDateSelected)]}
+	                      onPress={() => setShowStart((prev) => !prev)}
+	                      accessibilityLabel={startDateSelected ? `Date: ${formatDate(startDate)}` : 'Date: none selected'}
+	                      accessibilityRole="button"
+	                    >
+	                      <Text style={[styles.dateButtonLabel, { color: selectedFieldTextColor(startDateSelected) }]}>DATE</Text>
+	                      <Text style={[styles.dateButtonValue, { color: selectedFieldTextColor(startDateSelected) }]}>
+	                        {selectedFieldValue(startDateSelected, formatDate(startDate), 'No date selected!')}
+	                      </Text>
+	                    </TouchableOpacity>
                     {showStart && (
                       <DateTimePicker
                         value={startDate}
                         mode="date"
                         display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                        minimumDate={new Date()}
+                        minimumDate={todayStart()}
                         themeVariant="dark"
                         accentColor="#FF2D55"
                         onChange={(_: DateTimePickerEvent, d?: Date) => {
@@ -2464,20 +2774,20 @@ const MAX_PLAY_SESSIONS = 5;
                 {/* Unified range calendar for overnight */}
                 {careType === 'overnight' && (
                   <>
-                    <TouchableOpacity
-                      style={[styles.dateButton, { borderColor: showRangeCalendar ? colors.primary : colors.border }]}
-                      onPress={() => setShowRangeCalendar((prev) => !prev)}
-                      accessibilityLabel={`Dates: ${formatDate(startDate)} to ${formatDate(endDate)}`}
-                      accessibilityRole="button"
-                    >
-                      <Text style={[styles.dateButtonLabel, { color: colors.textSecondary }]}>DATES</Text>
-                      <Text style={[styles.dateButtonValue, { color: startDateSelected ? colors.text : colors.textSecondary }]}>
-                        {!startDateSelected
-                          ? 'No dates selected!'
-                          : endDateSelected
-                            ? `${formatDate(startDate)} →\n${formatDate(endDate)}`
-                            : formatDate(startDate)}
-                      </Text>
+	                    <TouchableOpacity
+	                      style={[styles.dateButton, selectedFieldStyle(startDateSelected && endDateSelected)]}
+	                      onPress={() => setShowRangeCalendar((prev) => !prev)}
+	                      accessibilityLabel={startDateSelected && endDateSelected ? `Dates: ${formatDate(startDate)} to ${formatDate(endDate)}` : 'Dates: none selected'}
+	                      accessibilityRole="button"
+	                    >
+	                      <Text style={[styles.dateButtonLabel, { color: selectedFieldTextColor(startDateSelected && endDateSelected) }]}>DATES</Text>
+	                      <Text style={[styles.dateButtonValue, { color: selectedFieldTextColor(startDateSelected && endDateSelected) }]}>
+	                        {!startDateSelected
+	                          ? 'No dates selected!'
+	                          : endDateSelected
+	                            ? `✓ ${formatDate(startDate)} →\n${formatDate(endDate)}`
+	                            : formatDate(startDate)}
+	                      </Text>
                     </TouchableOpacity>
 
                     {showRangeCalendar && (
@@ -2497,7 +2807,7 @@ const MAX_PLAY_SESSIONS = 5;
                         <Calendar
                           markingType="period"
                           markedDates={buildMarkedDates()}
-                          minDate={new Date().toISOString().split('T')[0]}
+                          minDate={localDateKey(new Date())}
                           enableSwipeMonths={true}
                           renderArrow={(direction: string) => (
                             <Ionicons
@@ -2559,28 +2869,32 @@ const MAX_PLAY_SESSIONS = 5;
                 {/* Time fields for overnight and day sitting — native spinner */}
                 {(careType === 'overnight' || careType === 'daySitting') && (careType !== 'overnight' || endDateSelected) && (
                   <View ref={refFor('startTime')}>
-                    <View style={styles.timeRow}>
-                      <TouchableOpacity
-                        style={[styles.timePickerButton, { borderColor: showStartTime ? colors.primary : colors.border }]}
-                        onPress={() => { setShowStartTime(prev => !prev); setShowEndTime(false); }}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
-                          Start Time{careType === 'overnight' ? ` (on ${shortDate(startDate)})` : ''}
-                        </Text>
-                        <Text style={[styles.timePickerValue, { color: startTimeDate ? colors.text : colors.textSecondary }]}>{startTime}</Text>
-                      </TouchableOpacity>
-                      <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
-                      <TouchableOpacity
-                        style={[styles.timePickerButton, { borderColor: showEndTime ? colors.primary : colors.border }]}
-                        onPress={() => { setShowEndTime(prev => !prev); setShowStartTime(false); }}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
-                          End Time{careType === 'overnight' ? ` (on ${shortDate(endDate)})` : ''}
-                        </Text>
-                        <Text style={[styles.timePickerValue, { color: endTimeDate ? colors.text : colors.textSecondary }]}>{endTime}</Text>
-                      </TouchableOpacity>
+	                    <View style={styles.timeRow}>
+	                      <TouchableOpacity
+	                        style={[styles.timePickerButton, selectedFieldStyle(!!startTimeDate)]}
+	                        onPress={() => { setShowStartTime(prev => !prev); setShowEndTime(false); }}
+	                        activeOpacity={0.7}
+	                      >
+	                        <Text style={[styles.timeFieldLabel, { color: selectedFieldTextColor(!!startTimeDate) }]}>
+	                          Start Time{careType === 'overnight' ? ` (on ${shortDate(startDate)})` : ''}
+	                        </Text>
+	                        <Text style={[styles.timePickerValue, { color: selectedFieldTextColor(!!startTimeDate) }]}>
+	                          {selectedFieldValue(!!startTimeDate, startTime, 'Select time!')}
+	                        </Text>
+	                      </TouchableOpacity>
+	                      <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
+	                      <TouchableOpacity
+	                        style={[styles.timePickerButton, selectedFieldStyle(!!endTimeDate)]}
+	                        onPress={() => { setShowEndTime(prev => !prev); setShowStartTime(false); }}
+	                        activeOpacity={0.7}
+	                      >
+	                        <Text style={[styles.timeFieldLabel, { color: selectedFieldTextColor(!!endTimeDate) }]}>
+	                          End Time{careType === 'overnight' ? ` (on ${shortDate(endDate)})` : ''}
+	                        </Text>
+	                        <Text style={[styles.timePickerValue, { color: selectedFieldTextColor(!!endTimeDate) }]}>
+	                          {selectedFieldValue(!!endTimeDate, endTime, 'Select time!')}
+	                        </Text>
+	                      </TouchableOpacity>
                     </View>
                     {showStartTime && (
                       <DebouncedTimePicker
@@ -2638,10 +2952,12 @@ const MAX_PLAY_SESSIONS = 5;
                     activeOpacity={0.7}
                   >
                     <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
-                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 }}>
-                      <Text style={{ fontSize: 22, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.5 }}>Services</Text>
-                      <Text style={{ fontSize: 18, color: colors.textSecondary, marginLeft: 8 }}>{servicesCollapsed ? '›' : '▾'}</Text>
-                    </View>
+	                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 }}>
+	                      <Text style={{ fontSize: 22, fontWeight: '700', color: selectedServicesComplete ? RED : colors.textSecondary, letterSpacing: 0.5 }}>
+	                        Services{selectedServicesComplete ? ' ✓' : ''}
+	                      </Text>
+	                      <Text style={{ fontSize: 18, color: selectedServicesComplete ? RED : colors.textSecondary, marginLeft: 8 }}>{servicesCollapsed ? '›' : '▾'}</Text>
+	                    </View>
                     <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
                     {servicesCollapsed && (
                       <View style={{ position: 'absolute', right: 0, flexDirection: 'row', alignItems: 'center', paddingRight: 4 }}>
@@ -2679,8 +2995,11 @@ const MAX_PLAY_SESSIONS = 5;
                 {/* ── Feeding Time (add-on) ── */}
             {addOnCareTypes.has('feeding') && (
               <>
-                {feedingSlots.map((slot, idx) => (
-                  <Animated.View key={slot.id} ref={validationRefFor('feeding-' + idx)} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === feedingSlots.length - 1 ? 0 : spacing.md, transform: [{ scale: pulsingSection === 'feeding-' + idx ? pulseAnim : 1 }] }, idx === feedingSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pulsingSection === 'feeding-' + idx && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
+	                {feedingSlots.map((slot, idx) => {
+	                  const isComplete = isFeedingSlotComplete(slot);
+	                  const repeatSubLabel = slot.repeatSchedule ? formatRepeatSubLabel(slot.repeatSchedule) : '';
+	                  return (
+	                  <Animated.View key={slot.id} ref={validationRefFor('feeding-' + idx)} style={[styles.section, completedSectionStyle(isComplete), { marginBottom: idx === feedingSlots.length - 1 ? 0 : spacing.md, transform: [{ scale: pulsingSection === 'feeding-' + idx ? pulseAnim : 1 }] }, idx === feedingSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pulsingSection === 'feeding-' + idx && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
                     {slot.time && (
                       <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '400', marginBottom: 4 }}>
                         {formatTime12(slot.time)}
@@ -2696,27 +3015,28 @@ const MAX_PLAY_SESSIONS = 5;
                         <Text style={{ color: colors.text, fontSize: 18, fontWeight: '600', marginRight: 8, width: 16 }}>
                           {collapsedFeedings.has(idx) ? '›' : '▾'}
                         </Text>
-                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
-                          🍽️ {idx === 0 ? 'Feeding' : `Feeding #${idx + 1}`}
-                        </Text>
-                      </TouchableOpacity>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        {primaryCareType === 'overnight' && (
-                          <TouchableOpacity
-                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                            onPress={() => openRepeatModal('feeding', idx)}
-                            activeOpacity={0.7}
-                          >
-                            <View style={{ alignItems: 'center' }}>
-                            <Text style={{ fontSize: 15, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.textSecondary }}>
-                              {slot.repeatSchedule ? '✓ ' + formatRepeatLabel(slot.repeatSchedule) : (primaryCareType === 'overnight' ? 'Select days' : 'Repeat this?')}
-                            </Text>
-                              {slot.repeatSchedule && formatRepeatSubLabel(slot.repeatSchedule) && (
-                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, textAlign: 'center' }}>
-                                  {formatRepeatSubLabel(slot.repeatSchedule)}
-                                </Text>
-                              )}
-                            </View>
+	                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
+	                          🍽️ {idx === 0 ? 'Feeding' : `Feeding #${idx + 1}`}
+	                        </Text>
+	                        {isComplete && <Text style={styles.cellCompletionCheck}>✓</Text>}
+	                      </TouchableOpacity>
+	                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+	                        {primaryCareType === 'overnight' && (
+	                          <TouchableOpacity
+	                            style={[styles.repeatChip, selectedFieldStyle(!!slot.repeatSchedule)]}
+	                            onPress={() => openRepeatModal('feeding', idx)}
+	                            activeOpacity={0.7}
+	                          >
+	                            <View style={{ alignItems: 'center' }}>
+	                            <Text style={[styles.repeatChipText, { color: selectedFieldTextColor(!!slot.repeatSchedule) }]} numberOfLines={1}>
+	                              {selectedFieldValue(!!slot.repeatSchedule, slot.repeatSchedule ? formatRepeatLabel(slot.repeatSchedule) : '', 'Select days')}
+	                            </Text>
+	                              {repeatSubLabel && (
+	                                <Text style={[styles.repeatChipSubText, { color: selectedFieldTextColor(!!slot.repeatSchedule) }]} numberOfLines={1}>
+	                                  {repeatSubLabel}
+	                                </Text>
+	                              )}
+	                            </View>
                           </TouchableOpacity>
                         )}
                         <TouchableOpacity
@@ -2753,17 +3073,19 @@ const MAX_PLAY_SESSIONS = 5;
                           : [...current, dogId];
                         updateFeedingSlot(idx, 'dogIds', updated);
                       }}
-                    />
-                    <TouchableOpacity
-                      style={[styles.timePickerButton, { borderColor: slot.showPicker ? colors.primary : colors.border, alignSelf: 'stretch' }]}
-                      onPress={() => updateFeedingSlot(idx, 'showPicker', !slot.showPicker)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
-                        {feedingSlots.length > 1 ? `Feeding ${idx + 1} Time` : 'Feeding Time'}
-                      </Text>
-                      <Text style={[styles.timePickerValue, { color: slot.time ? colors.text : colors.textSecondary }]}>{slot.time ? formatTime12(slot.time) : 'Select time!'}</Text>
-                    </TouchableOpacity>
+	                    />
+	                    <TouchableOpacity
+	                      style={[styles.timePickerButton, selectedFieldStyle(!!slot.time), { alignSelf: 'stretch' }]}
+	                      onPress={() => updateFeedingSlot(idx, 'showPicker', !slot.showPicker)}
+	                      activeOpacity={0.7}
+	                    >
+	                      <Text style={[styles.timeFieldLabel, { color: selectedFieldTextColor(!!slot.time) }]}>
+	                        {feedingSlots.length > 1 ? `Feeding ${idx + 1} Time` : 'Feeding Time'}
+	                      </Text>
+	                      <Text style={[styles.timePickerValue, { color: selectedFieldTextColor(!!slot.time) }]}>
+	                        {selectedFieldValue(!!slot.time, slot.time ? formatTime12(slot.time) : '', 'Select time!')}
+	                      </Text>
+	                    </TouchableOpacity>
                     {slot.showPicker && (
                       <DebouncedTimePicker
                         value={slot.time || new Date()}
@@ -2783,26 +3105,35 @@ const MAX_PLAY_SESSIONS = 5;
                       </Text>
                     </TouchableOpacity>
                     {slot.showInstructions && (
-                      <>
+                      <View ref={refFor(`feedingInstructions-${idx}`)}>
                         <TextInput
-                          style={[styles.careInput, {
-                            backgroundColor: colors.background,
-                            borderColor: colors.border,
-                            color: colors.text,
-                            minHeight: 70,
-                            marginTop: 4,
+	                          style={[styles.careInput, {
+	                            backgroundColor: colors.background,
+	                            borderColor: slot.instructions.trim() ? RED : colors.border,
+	                            borderWidth: slot.instructions.trim() ? 1.5 : 1,
+	                            color: colors.text,
+	                            minHeight: 70,
+	                            marginTop: 4,
                           }]}
                           placeholder="Add specific instructions for this feeding..."
                           placeholderTextColor={colors.textSecondary}
                           value={slot.instructions}
                           onChangeText={(text) => updateFeedingSlot(idx, 'instructions', text)}
+                          onFocus={() => scrollToInput(`feedingInstructions-${idx}`)}
                           multiline
                           inputAccessoryViewID={DONE_ACCESSORY_ID}
                           numberOfLines={3}
                           textAlignVertical="top"
                           returnKeyType="done"
-                          blurOnSubmit={true}
-                        />
+	                          blurOnSubmit={true}
+	                        />
+	                        {slot.instructions.trim() ? (
+	                          <Text style={styles.optionalCompleteText}>✓ Instructions added</Text>
+	                        ) : null}
+	                      </View>
+                    )}
+                    {slot.showInstructions && (
+                      <>
                         {/* Photos */}
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                           {slot.photos.map((uri, pIdx) => (
@@ -2830,8 +3161,9 @@ const MAX_PLAY_SESSIONS = 5;
 
                     </>
                     )}
-                  </Animated.View>
-                ))}
+	                  </Animated.View>
+	                  );
+	                })}
 
                 {/* Add another feeding — outside cards */}
                 <TouchableOpacity
@@ -2855,17 +3187,19 @@ const MAX_PLAY_SESSIONS = 5;
         {/* ── Walk Time (add-on) — multi-session ── */}
             {addOnCareTypes.has('dogWalking') && (
               <>
-                {walkSessions.map((ws, wIdx) => {
-                  const wsStartTime = ws.startDate ? formatTime12(ws.startDate) : 'Select time!';
-                  const wsEndTime = ws.endDate ? formatTime12(ws.endDate) : 'Select time!';
-                  const wsStartMins = ws.startDate ? ws.startDate.getHours() * 60 + ws.startDate.getMinutes() : 0;
+	                {walkSessions.map((ws, wIdx) => {
+	                  const isComplete = isWalkSessionComplete(ws);
+	                  const repeatSubLabel = ws.repeatSchedule ? formatRepeatSubLabel(ws.repeatSchedule) : '';
+	                  const wsStartTime = ws.startDate ? formatTime12(ws.startDate) : 'Select time!';
+	                  const wsEndTime = ws.endDate ? formatTime12(ws.endDate) : 'Select time!';
+	                  const wsStartMins = ws.startDate ? ws.startDate.getHours() * 60 + ws.startDate.getMinutes() : 0;
                   const wsEndMins = ws.endDate ? ws.endDate.getHours() * 60 + ws.endDate.getMinutes() : 0;
                   const wsDurMins = (ws.startDate && ws.endDate && wsEndMins > wsStartMins) ? wsEndMins - wsStartMins : 0;
-                  const wsDurText = wsDurMins >= 60
-                    ? `${Math.floor(wsDurMins / 60)}h ${wsDurMins % 60 > 0 ? `${wsDurMins % 60}m` : ''} walk`.trim()
-                    : `${wsDurMins}m walk`;
-                  return (
-                  <Animated.View key={ws.id} ref={validationRefFor('walk-' + wIdx)} style={[styles.section, { backgroundColor: colors.surface, marginBottom: wIdx === walkSessions.length - 1 ? 0 : spacing.md, transform: [{ scale: pulsingSection === 'walk-' + wIdx ? pulseAnim : 1 }] }, wIdx === walkSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pulsingSection === 'walk-' + wIdx && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
+	                  const wsDurText = wsDurMins >= 60
+	                    ? `${Math.floor(wsDurMins / 60)}h ${wsDurMins % 60 > 0 ? `${wsDurMins % 60}m` : ''} walk`.trim()
+	                    : `${wsDurMins}m walk`;
+	                  return (
+	                  <Animated.View key={ws.id} ref={validationRefFor('walk-' + wIdx)} style={[styles.section, completedSectionStyle(isComplete), { marginBottom: wIdx === walkSessions.length - 1 ? 0 : spacing.md, transform: [{ scale: pulsingSection === 'walk-' + wIdx ? pulseAnim : 1 }] }, wIdx === walkSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pulsingSection === 'walk-' + wIdx && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
                     {ws.startDate && (
                       <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '400', marginBottom: 4 }}>
                         {wsStartTime}{ws.endDate ? ` – ${wsEndTime}` : ''}
@@ -2881,27 +3215,28 @@ const MAX_PLAY_SESSIONS = 5;
                         <Text style={{ color: colors.text, fontSize: 18, fontWeight: '600', marginRight: 8, width: 16 }}>
                           {collapsedWalks.has(wIdx) ? '›' : '▾'}
                         </Text>
-                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
-                          🐕 {wIdx === 0 ? 'Walk' : `Walk #${wIdx + 1}`}
-                        </Text>
-                      </TouchableOpacity>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        {primaryCareType === 'overnight' && (
-                          <TouchableOpacity
-                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                            onPress={() => openRepeatModal('walk', wIdx)}
-                            activeOpacity={0.7}
-                          >
-                            <View style={{ alignItems: 'center' }}>
-                            <Text style={{ fontSize: 15, fontWeight: '600', color: ws.repeatSchedule ? '#34C759' : colors.textSecondary }}>
-                              {ws.repeatSchedule ? '✓ ' + formatRepeatLabel(ws.repeatSchedule) : (primaryCareType === 'overnight' ? 'Select days' : 'Repeat this?')}
-                            </Text>
-                              {ws.repeatSchedule && formatRepeatSubLabel(ws.repeatSchedule) && (
-                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, textAlign: 'center' }}>
-                                  {formatRepeatSubLabel(ws.repeatSchedule)}
-                                </Text>
-                              )}
-                            </View>
+	                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
+	                          🐕 {wIdx === 0 ? 'Walk' : `Walk #${wIdx + 1}`}
+	                        </Text>
+	                        {isComplete && <Text style={styles.cellCompletionCheck}>✓</Text>}
+	                      </TouchableOpacity>
+	                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+	                        {primaryCareType === 'overnight' && (
+	                          <TouchableOpacity
+	                            style={[styles.repeatChip, selectedFieldStyle(!!ws.repeatSchedule)]}
+	                            onPress={() => openRepeatModal('walk', wIdx)}
+	                            activeOpacity={0.7}
+	                          >
+	                            <View style={{ alignItems: 'center' }}>
+	                            <Text style={[styles.repeatChipText, { color: selectedFieldTextColor(!!ws.repeatSchedule) }]} numberOfLines={1}>
+	                              {selectedFieldValue(!!ws.repeatSchedule, ws.repeatSchedule ? formatRepeatLabel(ws.repeatSchedule) : '', 'Select days')}
+	                            </Text>
+	                              {repeatSubLabel && (
+	                                <Text style={[styles.repeatChipSubText, { color: selectedFieldTextColor(!!ws.repeatSchedule) }]} numberOfLines={1}>
+	                                  {repeatSubLabel}
+	                                </Text>
+	                              )}
+	                            </View>
                           </TouchableOpacity>
                         )}
                         <TouchableOpacity
@@ -2942,44 +3277,48 @@ const MAX_PLAY_SESSIONS = 5;
 
                     {/* Flexible hours toggle */}
                     <TouchableOpacity
-                      style={[
-                        styles.dailyToggle,
-                        { borderColor: ws.flexible ? colors.primary : colors.border,
-                          backgroundColor: ws.flexible ? colors.primary + '15' : colors.background,
-                          marginBottom: 12 },
-                      ]}
+	                      style={[
+	                        styles.dailyToggle,
+	                        { borderColor: ws.flexible ? RED : colors.border,
+	                          backgroundColor: ws.flexible ? `${RED}15` : colors.background,
+	                          marginBottom: 12 },
+	                      ]}
                       onPress={() => updateWalkSession(wIdx, { flexible: !ws.flexible })}
                       activeOpacity={0.7}
                     >
                       <Text style={{ fontSize: 17 }}>{ws.flexible ? '⏱️' : '🕐'}</Text>
-                      <Text style={[
-                        styles.dailyToggleText,
-                        { color: ws.flexible ? colors.primary : colors.textSecondary },
-                      ]}>
-                        {ws.flexible ? 'Flexible hours — any time of day' : 'Are walk hours flexible?'}
-                      </Text>
+	                      <Text style={[
+	                        styles.dailyToggleText,
+	                        { color: ws.flexible ? RED : colors.textSecondary },
+	                      ]}>
+	                        {ws.flexible ? '✓ Flexible hours — any time of day' : 'Are walk hours flexible?'}
+	                      </Text>
                     </TouchableOpacity>
 
                     {!ws.flexible ? (
                       <>
-                    <View style={styles.timeRow}>
-                      <TouchableOpacity
-                        style={[styles.timePickerButton, { borderColor: ws.showStart ? colors.primary : colors.border }]}
-                        onPress={() => updateWalkSession(wIdx, { showStart: !ws.showStart, showEnd: false })}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
-                        <Text style={[styles.timePickerValue, { color: ws.startDate ? colors.text : colors.textSecondary }]}>{wsStartTime}</Text>
-                      </TouchableOpacity>
-                      <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
-                      <TouchableOpacity
-                        style={[styles.timePickerButton, { borderColor: ws.showEnd ? colors.primary : colors.border }]}
-                        onPress={() => updateWalkSession(wIdx, { showEnd: !ws.showEnd, showStart: false })}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>End Time</Text>
-                        <Text style={[styles.timePickerValue, { color: ws.endDate ? colors.text : colors.textSecondary }]}>{wsEndTime}</Text>
-                      </TouchableOpacity>
+	                    <View style={styles.timeRow}>
+	                      <TouchableOpacity
+	                        style={[styles.timePickerButton, selectedFieldStyle(!!ws.startDate)]}
+	                        onPress={() => updateWalkSession(wIdx, { showStart: !ws.showStart, showEnd: false })}
+	                        activeOpacity={0.7}
+	                      >
+	                        <Text style={[styles.timeFieldLabel, { color: selectedFieldTextColor(!!ws.startDate) }]}>Start Time</Text>
+	                        <Text style={[styles.timePickerValue, { color: selectedFieldTextColor(!!ws.startDate) }]}>
+	                          {selectedFieldValue(!!ws.startDate, wsStartTime, 'Select time!')}
+	                        </Text>
+	                      </TouchableOpacity>
+	                      <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
+	                      <TouchableOpacity
+	                        style={[styles.timePickerButton, selectedFieldStyle(!!ws.endDate)]}
+	                        onPress={() => updateWalkSession(wIdx, { showEnd: !ws.showEnd, showStart: false })}
+	                        activeOpacity={0.7}
+	                      >
+	                        <Text style={[styles.timeFieldLabel, { color: selectedFieldTextColor(!!ws.endDate) }]}>End Time</Text>
+	                        <Text style={[styles.timePickerValue, { color: selectedFieldTextColor(!!ws.endDate) }]}>
+	                          {selectedFieldValue(!!ws.endDate, wsEndTime, 'Select time!')}
+	                        </Text>
+	                      </TouchableOpacity>
                     </View>
                     {ws.showStart && (
                       <DebouncedTimePicker
@@ -3009,25 +3348,25 @@ const MAX_PLAY_SESSIONS = 5;
                           How long should this walk be?
                         </Text>
                         <View style={styles.durationRow}>
-                          {[15, 30, 60, 90, 120].map((mins) => (
-                            <TouchableOpacity
-                              key={mins}
-                              style={[
-                                styles.durationPill,
-                                { borderColor: colors.border, backgroundColor: colors.background },
-                                ws.durationMins === mins && { backgroundColor: colors.primary, borderColor: colors.primary },
-                              ]}
-                              onPress={() => updateWalkSession(wIdx, { durationMins: mins })}
-                            >
-                              <Text style={[
-                                styles.durationPillText,
-                                { color: colors.text },
-                                ws.durationMins === mins && { color: '#fff', fontWeight: '700' },
-                              ]}>
-                                {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
+	                          {[15, 30, 60, 90, 120].map((mins) => (
+	                            <TouchableOpacity
+	                              key={mins}
+	                              style={[
+	                                styles.durationPill,
+	                                { borderColor: colors.border, backgroundColor: colors.background },
+	                                ws.durationMins === mins && { backgroundColor: colors.primary, borderColor: colors.primary },
+	                              ]}
+	                              onPress={() => updateWalkSession(wIdx, { durationMins: mins })}
+	                            >
+	                              <Text style={[
+	                                styles.durationPillText,
+	                                { color: colors.text },
+	                                ws.durationMins === mins && { color: '#fff', fontWeight: '700' },
+	                              ]}>
+	                                {ws.durationMins === mins ? '✓ ' : ''}{mins >= 60 ? `${mins / 60}h` : `${mins}m`}
+	                              </Text>
+	                            </TouchableOpacity>
+	                          ))}
                         </View>
                       </>
                     )}
@@ -3044,26 +3383,35 @@ const MAX_PLAY_SESSIONS = 5;
                       </Text>
                     </TouchableOpacity>
                     {ws.showInstructions && (
-                      <>
+                      <View ref={refFor(`walkInstructions-${wIdx}`)}>
                         <TextInput
-                          style={[styles.careInput, {
-                            backgroundColor: colors.background,
-                            borderColor: colors.border,
-                            color: colors.text,
-                            minHeight: 70,
-                            marginTop: 4,
+	                          style={[styles.careInput, {
+	                            backgroundColor: colors.background,
+	                            borderColor: ws.instructions.trim() ? RED : colors.border,
+	                            borderWidth: ws.instructions.trim() ? 1.5 : 1,
+	                            color: colors.text,
+	                            minHeight: 70,
+	                            marginTop: 4,
                           }]}
                           placeholder="Add specific instructions for this walk..."
                           placeholderTextColor={colors.textSecondary}
                           value={ws.instructions}
                           onChangeText={(text) => updateWalkSession(wIdx, { instructions: text })}
+                          onFocus={() => scrollToInput(`walkInstructions-${wIdx}`)}
                           multiline
                           inputAccessoryViewID={DONE_ACCESSORY_ID}
                           numberOfLines={3}
                           textAlignVertical="top"
                           returnKeyType="done"
-                          blurOnSubmit={true}
-                        />
+	                          blurOnSubmit={true}
+	                        />
+	                        {ws.instructions.trim() ? (
+	                          <Text style={styles.optionalCompleteText}>✓ Instructions added</Text>
+	                        ) : null}
+	                      </View>
+                    )}
+                    {ws.showInstructions && (
+                      <>
                         {/* Photos */}
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                           {ws.photos.map((uri: string, pIdx: number) => (
@@ -3119,8 +3467,11 @@ const MAX_PLAY_SESSIONS = 5;
         {/* ── Playtime (add-on) — multi-session ── */}
             {addOnCareTypes.has('playtime') && (
               <>
-                {playSessions.map((pSession, pIdx) => (
-                  <Animated.View key={pSession.id} ref={validationRefFor('play-' + pIdx)} style={[styles.section, { backgroundColor: colors.surface, marginBottom: pIdx === playSessions.length - 1 ? 0 : spacing.md, transform: [{ scale: pulsingSection === 'play-' + pIdx ? pulseAnim : 1 }] }, pIdx === playSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pulsingSection === 'play-' + pIdx && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
+	                {playSessions.map((pSession, pIdx) => {
+	                  const isComplete = isPlaySessionComplete(pSession);
+	                  const repeatSubLabel = pSession.repeatSchedule ? formatRepeatSubLabel(pSession.repeatSchedule) : '';
+	                  return (
+	                  <Animated.View key={pSession.id} ref={validationRefFor('play-' + pIdx)} style={[styles.section, completedSectionStyle(isComplete), { marginBottom: pIdx === playSessions.length - 1 ? 0 : spacing.md, transform: [{ scale: pulsingSection === 'play-' + pIdx ? pulseAnim : 1 }] }, pIdx === playSessions.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pulsingSection === 'play-' + pIdx && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
                     {pSession.startDate && (
                       <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '400', marginBottom: 4 }}>
                         {formatTime12(pSession.startDate)}{pSession.endDate ? ` – ${formatTime12(pSession.endDate)}` : ''}
@@ -3136,27 +3487,28 @@ const MAX_PLAY_SESSIONS = 5;
                         <Text style={{ color: colors.text, fontSize: 18, fontWeight: '600', marginRight: 8, width: 16 }}>
                           {collapsedPlay.has(pIdx) ? '›' : '▾'}
                         </Text>
-                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
-                          🎾 {pIdx === 0 ? 'Playtime' : `Playtime #${pIdx + 1}`}
-                        </Text>
-                      </TouchableOpacity>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        {primaryCareType === 'overnight' && (
-                          <TouchableOpacity
-                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                            onPress={() => openRepeatModal('play', pIdx)}
-                            activeOpacity={0.7}
-                          >
-                            <View style={{ alignItems: 'center' }}>
-                            <Text style={{ fontSize: 15, fontWeight: '600', color: pSession.repeatSchedule ? '#34C759' : colors.textSecondary }}>
-                              {pSession.repeatSchedule ? '✓ ' + formatRepeatLabel(pSession.repeatSchedule) : (primaryCareType === 'overnight' ? 'Select days' : 'Repeat this?')}
-                            </Text>
-                              {pSession.repeatSchedule && formatRepeatSubLabel(pSession.repeatSchedule) && (
-                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, textAlign: 'center' }}>
-                                  {formatRepeatSubLabel(pSession.repeatSchedule)}
-                                </Text>
-                              )}
-                            </View>
+	                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
+	                          🎾 {pIdx === 0 ? 'Playtime' : `Playtime #${pIdx + 1}`}
+	                        </Text>
+	                        {isComplete && <Text style={styles.cellCompletionCheck}>✓</Text>}
+	                      </TouchableOpacity>
+	                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+	                        {primaryCareType === 'overnight' && (
+	                          <TouchableOpacity
+	                            style={[styles.repeatChip, selectedFieldStyle(!!pSession.repeatSchedule)]}
+	                            onPress={() => openRepeatModal('play', pIdx)}
+	                            activeOpacity={0.7}
+	                          >
+	                            <View style={{ alignItems: 'center' }}>
+	                            <Text style={[styles.repeatChipText, { color: selectedFieldTextColor(!!pSession.repeatSchedule) }]} numberOfLines={1}>
+	                              {selectedFieldValue(!!pSession.repeatSchedule, pSession.repeatSchedule ? formatRepeatLabel(pSession.repeatSchedule) : '', 'Select days')}
+	                            </Text>
+	                              {repeatSubLabel && (
+	                                <Text style={[styles.repeatChipSubText, { color: selectedFieldTextColor(!!pSession.repeatSchedule) }]} numberOfLines={1}>
+	                                  {repeatSubLabel}
+	                                </Text>
+	                              )}
+	                            </View>
                           </TouchableOpacity>
                         )}
                         <TouchableOpacity
@@ -3197,53 +3549,57 @@ const MAX_PLAY_SESSIONS = 5;
 
                     {/* Flexible hours toggle */}
                     <TouchableOpacity
-                      style={[
-                        styles.dailyToggle,
-                        { borderColor: pSession.flexible ? colors.primary : colors.border,
-                          backgroundColor: pSession.flexible ? colors.primary + '15' : colors.background,
-                          marginBottom: 12 },
-                      ]}
+	                      style={[
+	                        styles.dailyToggle,
+	                        { borderColor: pSession.flexible ? RED : colors.border,
+	                          backgroundColor: pSession.flexible ? `${RED}15` : colors.background,
+	                          marginBottom: 12 },
+	                      ]}
                       onPress={() => updatePlaySession(pIdx, { flexible: !pSession.flexible })}
                       activeOpacity={0.7}
                     >
                       <Text style={{ fontSize: 17 }}>{pSession.flexible ? '⏱️' : '🕐'}</Text>
-                      <Text style={[
-                        styles.dailyToggleText,
-                        { color: pSession.flexible ? colors.primary : colors.textSecondary },
-                      ]}>
-                        {pSession.flexible ? 'Flexible hours — any time of day' : 'Are playtime hours flexible?'}
-                      </Text>
+	                      <Text style={[
+	                        styles.dailyToggleText,
+	                        { color: pSession.flexible ? RED : colors.textSecondary },
+	                      ]}>
+	                        {pSession.flexible ? '✓ Flexible hours — any time of day' : 'Are playtime hours flexible?'}
+	                      </Text>
                     </TouchableOpacity>
 
                     {!pSession.flexible ? (
                       <>
-                        {/* Fixed time: start → end with spinners */}
-                        <View style={styles.timeRow}>
-                          <TouchableOpacity
-                            style={[styles.timePickerButton, { borderColor: pSession.showStart ? colors.primary : colors.border }]}
-                            onPress={() => {
-                              updatePlaySession(pIdx, { showStart: !pSession.showStart, showEnd: false });
-                              // Close other sessions' pickers
+	                        {/* Fixed time: start → end with spinners */}
+	                        <View style={styles.timeRow}>
+	                          <TouchableOpacity
+	                            style={[styles.timePickerButton, selectedFieldStyle(!!pSession.startDate)]}
+	                            onPress={() => {
+	                              updatePlaySession(pIdx, { showStart: !pSession.showStart, showEnd: false });
+	                              // Close other sessions' pickers
                               playSessions.forEach((_, oIdx) => { if (oIdx !== pIdx) updatePlaySession(oIdx, { showStart: false, showEnd: false }); });
-                            }}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>Start Time</Text>
-                            <Text style={[styles.timePickerValue, { color: pSession.startDate ? colors.text : colors.textSecondary }]}>{pSession.startDate ? formatTime12(pSession.startDate) : 'Select time!'}</Text>
-                          </TouchableOpacity>
-                          <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
-                          <TouchableOpacity
-                            style={[styles.timePickerButton, { borderColor: pSession.showEnd ? colors.primary : colors.border }]}
-                            onPress={() => {
-                              updatePlaySession(pIdx, { showEnd: !pSession.showEnd, showStart: false });
-                              playSessions.forEach((_, oIdx) => { if (oIdx !== pIdx) updatePlaySession(oIdx, { showStart: false, showEnd: false }); });
-                            }}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>End Time</Text>
-                            <Text style={[styles.timePickerValue, { color: pSession.endDate ? colors.text : colors.textSecondary }]}>{pSession.endDate ? formatTime12(pSession.endDate) : 'Select time!'}</Text>
-                          </TouchableOpacity>
-                        </View>
+	                            }}
+	                            activeOpacity={0.7}
+	                          >
+	                            <Text style={[styles.timeFieldLabel, { color: selectedFieldTextColor(!!pSession.startDate) }]}>Start Time</Text>
+	                            <Text style={[styles.timePickerValue, { color: selectedFieldTextColor(!!pSession.startDate) }]}>
+	                              {selectedFieldValue(!!pSession.startDate, pSession.startDate ? formatTime12(pSession.startDate) : '', 'Select time!')}
+	                            </Text>
+	                          </TouchableOpacity>
+	                          <Text style={[styles.timeSeparator, { color: colors.textSecondary }]}>→</Text>
+	                          <TouchableOpacity
+	                            style={[styles.timePickerButton, selectedFieldStyle(!!pSession.endDate)]}
+	                            onPress={() => {
+	                              updatePlaySession(pIdx, { showEnd: !pSession.showEnd, showStart: false });
+	                              playSessions.forEach((_, oIdx) => { if (oIdx !== pIdx) updatePlaySession(oIdx, { showStart: false, showEnd: false }); });
+	                            }}
+	                            activeOpacity={0.7}
+	                          >
+	                            <Text style={[styles.timeFieldLabel, { color: selectedFieldTextColor(!!pSession.endDate) }]}>End Time</Text>
+	                            <Text style={[styles.timePickerValue, { color: selectedFieldTextColor(!!pSession.endDate) }]}>
+	                              {selectedFieldValue(!!pSession.endDate, pSession.endDate ? formatTime12(pSession.endDate) : '', 'Select time!')}
+	                            </Text>
+	                          </TouchableOpacity>
+	                        </View>
                         {pSession.showStart && (
                           <DebouncedTimePicker
                             value={pSession.startDate || new Date()}
@@ -3271,9 +3627,9 @@ const MAX_PLAY_SESSIONS = 5;
                           How long should this play session be?
                         </Text>
                         <View style={styles.durationRow}>
-                          {[15, 30, 60, 90, 120].map((mins) => (
-                            <TouchableOpacity
-                              key={mins}
+	                          {[15, 30, 60, 90, 120].map((mins) => (
+	                            <TouchableOpacity
+	                              key={mins}
                               style={[
                                 styles.durationPill,
                                 { borderColor: colors.border, backgroundColor: colors.background },
@@ -3281,15 +3637,15 @@ const MAX_PLAY_SESSIONS = 5;
                               ]}
                               onPress={() => updatePlaySession(pIdx, { durationMins: mins })}
                             >
-                              <Text style={[
-                                styles.durationPillText,
-                                { color: colors.text },
-                                pSession.durationMins === mins && { color: '#fff', fontWeight: '700' },
-                              ]}>
-                                {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
+	                              <Text style={[
+	                                styles.durationPillText,
+	                                { color: colors.text },
+	                                pSession.durationMins === mins && { color: '#fff', fontWeight: '700' },
+	                              ]}>
+	                                {pSession.durationMins === mins ? '✓ ' : ''}{mins >= 60 ? `${mins / 60}h` : `${mins}m`}
+	                              </Text>
+	                            </TouchableOpacity>
+	                          ))}
                         </View>
                       </>
                     )}
@@ -3306,26 +3662,35 @@ const MAX_PLAY_SESSIONS = 5;
                       </Text>
                     </TouchableOpacity>
                     {pSession.showInstructions && (
-                      <>
+                      <View ref={refFor(`playInstructions-${pIdx}`)}>
                         <TextInput
-                          style={[styles.careInput, {
-                            backgroundColor: colors.background,
-                            borderColor: colors.border,
-                            color: colors.text,
-                            minHeight: 70,
-                            marginTop: 4,
+	                          style={[styles.careInput, {
+	                            backgroundColor: colors.background,
+	                            borderColor: pSession.instructions.trim() ? RED : colors.border,
+	                            borderWidth: pSession.instructions.trim() ? 1.5 : 1,
+	                            color: colors.text,
+	                            minHeight: 70,
+	                            marginTop: 4,
                           }]}
                           placeholder="Add specific instructions for this playtime..."
                           placeholderTextColor={colors.textSecondary}
                           value={pSession.instructions}
                           onChangeText={(text) => updatePlaySession(pIdx, { instructions: text })}
+                          onFocus={() => scrollToInput(`playInstructions-${pIdx}`)}
                           multiline
                           inputAccessoryViewID={DONE_ACCESSORY_ID}
                           numberOfLines={3}
                           textAlignVertical="top"
                           returnKeyType="done"
-                          blurOnSubmit={true}
-                        />
+	                          blurOnSubmit={true}
+	                        />
+	                        {pSession.instructions.trim() ? (
+	                          <Text style={styles.optionalCompleteText}>✓ Instructions added</Text>
+	                        ) : null}
+	                      </View>
+                    )}
+                    {pSession.showInstructions && (
+                      <>
                         {/* Photos */}
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                           {pSession.photos.map((uri: string, pPhotoIdx: number) => (
@@ -3353,8 +3718,9 @@ const MAX_PLAY_SESSIONS = 5;
 
                     </>
                     )}
-                  </Animated.View>
-                ))}
+	                  </Animated.View>
+	                  );
+	                })}
 
                 {/* Add another playtime — outside cards */}
                 {playSessions.length < MAX_PLAY_SESSIONS && (
@@ -3381,8 +3747,12 @@ const MAX_PLAY_SESSIONS = 5;
         {/* ── Medication (add-on) ── */}
             {addOnCareTypes.has('medication') && (
               <>
-                {medicationSlots.map((slot, idx) => (
-                  <Animated.View key={slot.id} ref={validationRefFor('med-' + idx)} style={[styles.section, { backgroundColor: colors.surface, marginBottom: idx === medicationSlots.length - 1 ? 0 : spacing.md, transform: [{ scale: pulsingSection === 'med-' + idx ? pulseAnim : 1 }] }, idx === medicationSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pulsingSection === 'med-' + idx && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
+	                {medicationSlots.map((slot, idx) => {
+	                  const isComplete = isMedicationSlotComplete(slot);
+	                  const detailsComplete = slot.details.trim().length >= 10;
+	                  const repeatSubLabel = slot.repeatSchedule ? formatRepeatSubLabel(slot.repeatSchedule) : '';
+	                  return (
+	                  <Animated.View key={slot.id} ref={validationRefFor('med-' + idx)} style={[styles.section, completedSectionStyle(isComplete), { marginBottom: idx === medicationSlots.length - 1 ? 0 : spacing.md, transform: [{ scale: pulsingSection === 'med-' + idx ? pulseAnim : 1 }] }, idx === medicationSlots.length - 1 && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, pulsingSection === 'med-' + idx && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
                     {/* Header: arrow + title + repeat daily + ✕ — all inline centered */}
                     {slot.time && (
                       <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '400', marginBottom: 4 }}>
@@ -3398,27 +3768,28 @@ const MAX_PLAY_SESSIONS = 5;
                         <Text style={{ color: colors.text, fontSize: 18, fontWeight: '600', marginRight: 8, width: 16 }}>
                           {collapsedMeds.has(idx) ? '›' : '▾'}
                         </Text>
-                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
-                          💊 {idx === 0 ? 'Medication' : `Medication #${idx + 1}`}
-                        </Text>
-                      </TouchableOpacity>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        {primaryCareType === 'overnight' && (
-                          <TouchableOpacity
-                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                            onPress={() => openRepeatModal('medication', idx)}
-                            activeOpacity={0.7}
-                          >
-                            <View style={{ alignItems: 'center' }}>
-                            <Text style={{ fontSize: 15, fontWeight: '600', color: slot.repeatSchedule ? '#34C759' : colors.textSecondary }}>
-                              {slot.repeatSchedule ? '✓ ' + formatRepeatLabel(slot.repeatSchedule) : (primaryCareType === 'overnight' ? 'Select days' : 'Repeat this?')}
-                            </Text>
-                              {slot.repeatSchedule && formatRepeatSubLabel(slot.repeatSchedule) && (
-                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, textAlign: 'center' }}>
-                                  {formatRepeatSubLabel(slot.repeatSchedule)}
-                                </Text>
-                              )}
-                            </View>
+	                        <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
+	                          💊 {idx === 0 ? 'Medication' : `Medication #${idx + 1}`}
+	                        </Text>
+	                        {isComplete && <Text style={styles.cellCompletionCheck}>✓</Text>}
+	                      </TouchableOpacity>
+	                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+	                        {primaryCareType === 'overnight' && (
+	                          <TouchableOpacity
+	                            style={[styles.repeatChip, selectedFieldStyle(!!slot.repeatSchedule)]}
+	                            onPress={() => openRepeatModal('medication', idx)}
+	                            activeOpacity={0.7}
+	                          >
+	                            <View style={{ alignItems: 'center' }}>
+	                            <Text style={[styles.repeatChipText, { color: selectedFieldTextColor(!!slot.repeatSchedule) }]} numberOfLines={1}>
+	                              {selectedFieldValue(!!slot.repeatSchedule, slot.repeatSchedule ? formatRepeatLabel(slot.repeatSchedule) : '', 'Select days')}
+	                            </Text>
+	                              {repeatSubLabel && (
+	                                <Text style={[styles.repeatChipSubText, { color: selectedFieldTextColor(!!slot.repeatSchedule) }]} numberOfLines={1}>
+	                                  {repeatSubLabel}
+	                                </Text>
+	                              )}
+	                            </View>
                           </TouchableOpacity>
                         )}
                         <TouchableOpacity
@@ -3459,17 +3830,19 @@ const MAX_PLAY_SESSIONS = 5;
                       />
                     )}
 
-                    {/* Time picker */}
-                    <TouchableOpacity
-                      style={[styles.timePickerButton, { borderColor: slot.showPicker ? colors.primary : colors.border, alignSelf: 'stretch' }]}
-                      onPress={() => updateMedicationSlot(idx, 'showPicker', !slot.showPicker)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
-                        {medicationSlots.length > 1 ? `Medication ${idx + 1} Time` : 'Medication Time'}
-                      </Text>
-                      <Text style={[styles.feedingTimePreview, { color: slot.time ? colors.text : colors.textSecondary }]}>{slot.time ? formatTime12(slot.time) : 'Select time!'}</Text>
-                    </TouchableOpacity>
+	                    {/* Time picker */}
+	                    <TouchableOpacity
+	                      style={[styles.timePickerButton, selectedFieldStyle(!!slot.time), { alignSelf: 'stretch' }]}
+	                      onPress={() => updateMedicationSlot(idx, 'showPicker', !slot.showPicker)}
+	                      activeOpacity={0.7}
+	                    >
+	                      <Text style={[styles.timeFieldLabel, { color: selectedFieldTextColor(!!slot.time) }]}>
+	                        {medicationSlots.length > 1 ? `Medication ${idx + 1} Time` : 'Medication Time'}
+	                      </Text>
+	                      <Text style={[styles.feedingTimePreview, { color: selectedFieldTextColor(!!slot.time) }]}>
+	                        {selectedFieldValue(!!slot.time, slot.time ? formatTime12(slot.time) : '', 'Select time!')}
+	                      </Text>
+	                    </TouchableOpacity>
                     {slot.showPicker && (
                       <DebouncedTimePicker
                         value={slot.time || new Date()}
@@ -3480,17 +3853,19 @@ const MAX_PLAY_SESSIONS = 5;
                     {/* Extra medication times */}
                     {slot.extraTimes.map((et, etIdx) => (
                       <View key={etIdx} style={{ marginTop: 8 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <TouchableOpacity
-                            style={[styles.timePickerButton, { borderColor: et.showPicker ? colors.primary : colors.border, flex: 1 }]}
-                            onPress={() => toggleMedExtraTimePicker(idx, etIdx)}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={[styles.timeFieldLabel, { color: colors.textSecondary }]}>
-                              Time {etIdx + 2}
-                            </Text>
-                            <Text style={[styles.feedingTimePreview, { color: colors.text }]}>{formatTime12(et.time)}</Text>
-                          </TouchableOpacity>
+	                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+	                          <TouchableOpacity
+	                            style={[styles.timePickerButton, selectedFieldStyle(!!et.time), { flex: 1 }]}
+	                            onPress={() => toggleMedExtraTimePicker(idx, etIdx)}
+	                            activeOpacity={0.7}
+	                          >
+	                            <Text style={[styles.timeFieldLabel, { color: selectedFieldTextColor(!!et.time) }]}>
+	                              Time {etIdx + 2}
+	                            </Text>
+	                            <Text style={[styles.feedingTimePreview, { color: selectedFieldTextColor(!!et.time) }]}>
+	                              {selectedFieldValue(!!et.time, formatTime12(et.time), 'Select time!')}
+	                            </Text>
+	                          </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() => removeMedExtraTime(idx, etIdx)}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -3520,28 +3895,32 @@ const MAX_PLAY_SESSIONS = 5;
                     </TouchableOpacity>
 
                     {/* Medication details text field */}
-                    <TextInput
-                      style={[styles.careInput, {
-                        backgroundColor: colors.background,
-                        borderColor: colors.border,
-                        color: colors.text,
-                        minHeight: 70,
-                        marginTop: 8,
-                      }]}
-                      placeholder="Specify medication details (e.g. 1 pill of Apoquel with food, apply ear drops to both ears...)"
-                      placeholderTextColor={colors.textSecondary}
-                      value={slot.details}
-                      onChangeText={(text) => updateMedicationSlot(idx, 'details', text)}
-                      multiline
-                      inputAccessoryViewID={DONE_ACCESSORY_ID}
-                      numberOfLines={3}
-                      textAlignVertical="top"
-                      returnKeyType="done"
-                      blurOnSubmit={true}
-                    />
-                    <Text style={{ fontSize: 12, color: slot.details.trim().length >= 10 ? '#00B894' : colors.textSecondary, marginTop: 4, marginLeft: 4 }}>
-                      {slot.details.trim().length}/10 characters minimum
-                    </Text>
+                    <View ref={refFor(`medicationDetails-${idx}`)}>
+	                      <TextInput
+	                        style={[styles.careInput, {
+	                          backgroundColor: colors.background,
+	                          borderColor: detailsComplete ? RED : colors.border,
+	                          borderWidth: detailsComplete ? 1.5 : 1,
+	                          color: colors.text,
+	                          minHeight: 70,
+	                          marginTop: 8,
+                        }]}
+                        placeholder="Specify medication details (e.g. 1 pill of Apoquel with food, apply ear drops to both ears...)"
+                        placeholderTextColor={colors.textSecondary}
+                        value={slot.details}
+                        onChangeText={(text) => updateMedicationSlot(idx, 'details', text)}
+                        onFocus={() => scrollToInput(`medicationDetails-${idx}`)}
+                        multiline
+                        inputAccessoryViewID={DONE_ACCESSORY_ID}
+                        numberOfLines={3}
+                        textAlignVertical="top"
+                        returnKeyType="done"
+	                        blurOnSubmit={true}
+	                      />
+	                    </View>
+	                    <Text style={{ fontSize: 12, color: detailsComplete ? RED : colors.textSecondary, marginTop: 4, marginLeft: 4 }}>
+	                      {detailsComplete ? '✓ ' : ''}{slot.details.trim().length}/10 characters minimum
+	                    </Text>
 
                     {/* Medication Photos */}
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
@@ -3568,8 +3947,9 @@ const MAX_PLAY_SESSIONS = 5;
 
                     </>
                     )}
-                  </Animated.View>
-                ))}
+	                  </Animated.View>
+	                  );
+	                })}
 
                 {/* Add another medication — outside cards */}
                 <TouchableOpacity
@@ -3600,25 +3980,28 @@ const MAX_PLAY_SESSIONS = 5;
             activeOpacity={0.7}
           >
             <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 }}>
-              <Text style={{ fontSize: 22, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.5 }}>📋 Other Info</Text>
-              <Text style={{ fontSize: 18, color: colors.textSecondary, marginLeft: 8 }}>{careDetailsCollapsed ? '›' : '▾'}</Text>
-            </View>
+	            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 22, borderWidth: careDetailsComplete ? 1.5 : 1, borderColor: careDetailsComplete ? RED : colors.border, backgroundColor: careDetailsComplete ? `${RED}12` : colors.surface }}>
+	              <Text style={{ fontSize: 22, fontWeight: '700', color: careDetailsComplete ? RED : colors.textSecondary, letterSpacing: 0.5 }}>
+	                📋 Other Info{careDetailsComplete ? ' ✓' : ''}
+	              </Text>
+	              <Text style={{ fontSize: 18, color: careDetailsComplete ? RED : colors.textSecondary, marginLeft: 8 }}>{careDetailsCollapsed ? '›' : '▾'}</Text>
+	            </View>
             <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
           </TouchableOpacity>
 
           {!careDetailsCollapsed && (
-        <Animated.View ref={(node: View | null) => { refFor('careDetails')(node); validationRefFor('careDetails')(node); }} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'careDetails' ? pulseAnim : 1 }] }, pulsingSection === 'careDetails' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
+	        <Animated.View ref={(node: View | null) => { refFor('careDetails')(node); validationRefFor('careDetails')(node); }} style={[styles.section, completedSectionStyle(careDetailsComplete), { transform: [{ scale: pulsingSection === 'careDetails' ? pulseAnim : 1 }] }, pulsingSection === 'careDetails' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
               <Text style={[styles.careHint, { color: colors.textSecondary }]}>
                 Any other info the caretaker should know: behavioral notes, quirks your pup has, etc.
               </Text>
               <TextInput
                 style={[
                   styles.careInput,
-                  {
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                    color: colors.text },
+	                  {
+	                    backgroundColor: colors.background,
+	                    borderColor: careDetails.trim() ? RED : colors.border,
+	                    borderWidth: careDetails.trim() ? 1.5 : 1,
+	                    color: colors.text },
                 ]}
                 placeholder="e.g. Bella is a big dog with a lot of energy and likes to jump! Please make sure you are physically able to handle this!"
                 placeholderTextColor={colors.textSecondary}
@@ -3633,12 +4016,15 @@ const MAX_PLAY_SESSIONS = 5;
                 blurOnSubmit={true}
                 autoCorrect={true}
                 spellCheck={true}
-                autoCapitalize="sentences"
-                onFocus={() => scrollToInput('careDetails')}
-              />
+	                autoCapitalize="sentences"
+	                onFocus={() => scrollToInput('careDetails')}
+	              />
+	              {careDetails.trim() ? (
+	                <Text style={styles.optionalCompleteText}>✓ Notes added</Text>
+	              ) : null}
 
-              <View style={{ backgroundColor: 'rgba(255, 59, 48, 0.1)', borderRadius: 10, padding: 12, marginTop: 12, borderWidth: 1, borderColor: 'rgba(255, 59, 48, 0.3)' }}>
-                <Text style={{ fontSize: 13, color: '#FF3B30', lineHeight: 18 }}>⚠️ Don't put sensitive info here (like how to get into your home). This will be shared with all pup parents in your area as part of your post.</Text>
+	              <View style={{ backgroundColor: 'rgba(255, 59, 48, 0.1)', borderRadius: 10, padding: 12, marginTop: 12, borderWidth: 1, borderColor: 'rgba(255, 59, 48, 0.3)' }}>
+                <Text style={{ fontSize: 13, color: '#FF3B30', lineHeight: 18 }}>⚠️ Don{"'"}t put sensitive info here (like how to get into your home). This will be shared with all pup parents in your area as part of your post.</Text>
               </View>
 
               <View style={{ height: 16 }} />
@@ -3689,16 +4075,18 @@ const MAX_PLAY_SESSIONS = 5;
           activeOpacity={0.7}
         >
           <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 }}>
-            <Text style={{ fontSize: 22, fontWeight: '700', color: colors.textSecondary, letterSpacing: 0.5 }}>Compensation</Text>
-            <Text style={{ fontSize: 18, color: colors.textSecondary, marginLeft: 8 }}>{compensationCollapsed ? '›' : '▾'}</Text>
-          </View>
+	          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 22, borderWidth: compensationComplete ? 1.5 : 1, borderColor: compensationComplete ? RED : colors.border, backgroundColor: compensationComplete ? `${RED}12` : colors.surface }}>
+	            <Text style={{ fontSize: 22, fontWeight: '700', color: compensationComplete ? RED : colors.textSecondary, letterSpacing: 0.5 }}>
+	              Compensation{compensationComplete ? ' ✓' : ''}
+	            </Text>
+	            <Text style={{ fontSize: 18, color: compensationComplete ? RED : colors.textSecondary, marginLeft: 8 }}>{compensationCollapsed ? '›' : '▾'}</Text>
+	          </View>
           <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
         </TouchableOpacity>
 
         {/* ── Compensation ── */}
         {!compensationCollapsed && (
-            <Animated.View ref={validationRefFor('compensation')} style={[styles.section, { backgroundColor: colors.surface, transform: [{ scale: pulsingSection === 'compensation' ? pulseAnim : 1 }] }, pulsingSection === 'compensation' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
+	            <Animated.View ref={validationRefFor('compensation')} style={[styles.section, completedSectionStyle(compensationComplete), { transform: [{ scale: pulsingSection === 'compensation' ? pulseAnim : 1 }] }, pulsingSection === 'compensation' && { shadowColor: '#FF2D55', shadowOpacity: glowAnim, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8 }]}>
 
               {/* Recommended points — only when points toggle is ON */}
               {offerPoints && recommendedPoints.total > 0 && (
@@ -3711,7 +4099,7 @@ const MAX_PLAY_SESSIONS = 5;
                     >
                       {recommendedPoints.total} points
                     </Text>
-                    {' '}based on the care you've selected… but it's up to you!
+                    {' '}based on the care you{"'"}ve selected… but it{"'"}s up to you!
                   </Text>
 
                   {/* Expandable pricing guide */}
@@ -3879,31 +4267,33 @@ const MAX_PLAY_SESSIONS = 5;
               {/* Points input */}
               {offerPoints && (
                 <>
-                  <View style={{ height: 16 }} />
-                  <View style={{ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, marginBottom: 16 }} />
-                  <Text style={[styles.pointsInputLabel, { color: colors.text }]}>
-                    How many points do you want to offer?
-                  </Text>
-                  <View style={{ height: 8 }} />
-                  <View ref={refFor('points')} style={styles.pointsInputRow}>
-                    <TextInput
-                      style={[styles.pointsInput, { borderColor: '#FFFFFF', backgroundColor: colors.background, color: colors.text }]}
-                      placeholder="e.g. 5"
-                      placeholderTextColor={colors.textSecondary}
-                      value={pointsOffered}
-                      onChangeText={(t) => setPointsOffered(t.replace(/[^0-9]/g, ''))}
-                      keyboardType="number-pad"
-                      accessibilityLabel="Points offered"
-                      returnKeyType="done"
-                      inputAccessoryViewID={DONE_ACCESSORY_ID}
-                      onFocus={() => scrollToInput('points')}
-                    />
-                    <Text style={[styles.pointsUnit, { color: colors.textSecondary }]}>points</Text>
+                  <View ref={refFor('points')}>
+                    <View style={{ height: 16 }} />
+                    <View style={{ borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, marginBottom: 16 }} />
+                    <Text style={[styles.pointsInputLabel, { color: colors.text }]}>
+                      How many points do you want to offer?
+                    </Text>
+                    <View style={{ height: 8 }} />
+                    <View style={styles.pointsInputRow}>
+	                      <TextInput
+	                        style={[styles.pointsInput, { borderColor: compensationComplete ? RED : colors.border, backgroundColor: compensationComplete ? `${RED}12` : colors.background, color: compensationComplete ? RED : colors.text }]}
+	                        placeholder="e.g. 5"
+                        placeholderTextColor={colors.textSecondary}
+                        value={pointsOffered}
+                        onChangeText={(t) => setPointsOffered(normalizePointInput(t))}
+                        keyboardType="decimal-pad"
+                        accessibilityLabel="Points offered"
+                        returnKeyType="done"
+                        inputAccessoryViewID={DONE_ACCESSORY_ID}
+                        onFocus={() => scrollToInput('points')}
+                      />
+                      <Text style={[styles.pointsUnit, { color: colors.textSecondary }]}>points</Text>
+                    </View>
                   </View>
 
                   {/* Insufficient points warning */}
                   {(() => {
-                    const pts = parseInt(pointsOffered, 10);
+                    const pts = parseFloat(pointsOffered);
                     const balance = userProfile?.points ?? 0;
                     if (pts > 0 && pts > balance) {
                       return (
@@ -3922,22 +4312,24 @@ const MAX_PLAY_SESSIONS = 5;
 
               {offerMoney && (
                 <>
-                  <View ref={refFor('payment')} style={styles.paymentInputRow}>
-                    <Text style={[styles.dollarSign, { color: colors.text }]}>$</Text>
-                    <TextInput
-                      style={[styles.paymentInput, { borderColor: colors.border, backgroundColor: colors.background, color: colors.text }]}
-                      placeholder="0.00"
-                      placeholderTextColor={colors.textSecondary}
-                      value={paymentAmount}
-                      onChangeText={setPaymentAmount}
-                      keyboardType="decimal-pad"
-                      accessibilityLabel="Payment amount in dollars"
-                      returnKeyType="done"
-                      onFocus={() => scrollToInput('payment')}
-                    />
-                    <Text style={[styles.rateUnitLabel, { color: colors.textSecondary }]}>
-                      for the job
-                    </Text>
+                  <View ref={refFor('payment')}>
+                    <View style={styles.paymentInputRow}>
+                      <Text style={[styles.dollarSign, { color: colors.text }]}>$</Text>
+	                      <TextInput
+	                        style={[styles.paymentInput, { borderColor: compensationComplete ? RED : colors.border, backgroundColor: compensationComplete ? `${RED}12` : colors.background, color: compensationComplete ? RED : colors.text }]}
+                        placeholder="0.00"
+                        placeholderTextColor={colors.textSecondary}
+                        value={paymentAmount}
+                        onChangeText={setPaymentAmount}
+                        keyboardType="decimal-pad"
+                        accessibilityLabel="Payment amount in dollars"
+                        returnKeyType="done"
+                        onFocus={() => scrollToInput('payment')}
+                      />
+                      <Text style={[styles.rateUnitLabel, { color: colors.textSecondary }]}>
+                        for the job
+                      </Text>
+                    </View>
                   </View>
 
                   {paymentBreakdownLabel ? (
@@ -3985,148 +4377,104 @@ const MAX_PLAY_SESSIONS = 5;
             </TouchableOpacity>
             <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Preview</Text>
           </View>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
-            {/* Post card preview */}
-            <View style={[styles.section, { backgroundColor: colors.surface, borderWidth: 1.5, borderColor: '#FF2D55' + '80' }]}>
-              {/* YOUR POST badge */}
-              <View style={{ position: 'absolute', top: -1, right: -1, backgroundColor: '#FF2D55', paddingHorizontal: 10, paddingVertical: 4, borderBottomLeftRadius: 8, borderTopRightRadius: 12, zIndex: 10 }}>
-                <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 }}>YOUR POST</Text>
-              </View>
-              {/* Dog photos + names */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                {selectedDogs.length > 1 ? (
-                  <View style={{ flexDirection: 'row', marginRight: 10 }}>
-                    {selectedDogs.map((dog, i) => (
-                      dog.photoURLs?.[0] ? (
-                        <Image key={dog.id} source={{ uri: dog.photoURLs[0] }} style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: colors.border, marginRight: i < selectedDogs.length - 1 ? -8 : 0, zIndex: selectedDogs.length - i }} />
-                      ) : (
-                        <View key={dog.id} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FF2D5512', alignItems: 'center', justifyContent: 'center', marginRight: i < selectedDogs.length - 1 ? -8 : 0, zIndex: selectedDogs.length - i }}>
-                          <Text style={{ fontSize: 20 }}>🐶</Text>
-                        </View>
-                      )
-                    ))}
-                  </View>
-                ) : selectedDogs[0]?.photoURLs?.[0] ? (
-                  <Image source={{ uri: selectedDogs[0].photoURLs[0] }} style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: colors.border, marginRight: 10 }} />
-                ) : (
-                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FF2D5512', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-                    <Text style={{ fontSize: 20 }}>🐶</Text>
-                  </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }} numberOfLines={1}>
-                    {selectedDogs.map(d => d.name).join(' & ') || 'Select dogs'}
-                  </Text>
-                  <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                    {startDateSelected ? shortDate(startDate) : 'No date'}
-                    {primaryCareType === 'overnight' && endDateSelected ? ` – ${shortDate(endDate)}` : ''}
-                  </Text>
-                </View>
-                {/* Compensation badge */}
-                {(offerPoints || offerMoney) && (
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }} numberOfLines={1}>
-                    💰 {offerPoints && pointsOffered ? `${pointsOffered} points` : ''}
-                    {offerPoints && offerMoney && pointsOffered && paymentAmount ? ' or ' : ''}
-                    {offerMoney && paymentAmount ? `$${paymentAmount}` : ''}
-                  </Text>
-                )}
-              </View>
-
-              {/* Care type */}
-              <View style={{ borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 8 }}>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
-                  {getCareTypeLabel(primaryCareType ?? '')}
-                </Text>
-                {(primaryCareType === 'overnight' || primaryCareType === 'daySitting') && startTimeDate && endTimeDate && (
-                  <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 2 }}>
-                    🕐  {formatTime12(startTimeDate)} – {formatTime12(endTimeDate)}
-                  </Text>
-                )}
-
-                {/* Services summary */}
-                {addOnCareTypes.has('feeding') && (
-                  <View style={{ marginTop: 6 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>🍽️ Feeding × {feedingSlots.length}</Text>
-                    {feedingSlots.filter(s => s.time).map((slot, i) => (
-                      <Text key={i} style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
-                        {formatTime12(slot.time)}{slot.repeatSchedule ? '  ·  ' + (slot.repeatSchedule.type === 'daily' ? 'daily' : slot.repeatSchedule.type === 'specificDates' ? 'specific dates' : 'custom') : ''}
-                      </Text>
-                    ))}
-                  </View>
-                )}
-                {addOnCareTypes.has('dogWalking') && (
-                  <View style={{ marginTop: 6 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>🐕 Walk × {walkSessions.length}</Text>
-                    {walkSessions.filter(ws => ws.startDate || ws.endDate || ws.flexible).map((ws, i) => (
-                      <Text key={i} style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
-                        {ws.flexible ? 'Flexible hours' : `${ws.startDate ? formatTime12(ws.startDate) : '?'} – ${ws.endDate ? formatTime12(ws.endDate) : '?'}`}
-                      </Text>
-                    ))}
-                  </View>
-                )}
-                {addOnCareTypes.has('playtime') && (
-                  <View style={{ marginTop: 6 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>🎾 Playtime × {playSessions.length}</Text>
-                    {playSessions.filter(ps => ps.startDate || ps.endDate || ps.flexible).map((ps, i) => (
-                      <Text key={i} style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
-                        {ps.flexible ? 'Flexible hours' : `${ps.startDate ? formatTime12(ps.startDate) : '?'} – ${ps.endDate ? formatTime12(ps.endDate) : '?'}`}
-                      </Text>
-                    ))}
-                  </View>
-                )}
-                {addOnCareTypes.has('medication') && (
-                  <View style={{ marginTop: 6 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>💊 Medication × {medicationSlots.length}</Text>
-                    {medicationSlots.filter(s => s.time).map((slot, i) => (
-                      <Text key={i} style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 8, marginTop: 1 }}>
-                        {formatTime12(slot.time)}{slot.details ? `  ·  ${slot.details.slice(0, 40)}${slot.details.length > 40 ? '…' : ''}` : ''}
-                      </Text>
-                    ))}
-                  </View>
-                )}
-
-                {/* Care details — separated by thin line like Discover feed */}
-                {careDetails.trim().length > 0 && (
-                  <View style={{ marginTop: 10 }}>
-                    <View style={{ height: 8 }} />
-                    <View style={{ height: 0.5, backgroundColor: colors.border }} />
-                    <View style={{ height: 8 }} />
-                    <Text style={{ fontSize: 17, color: colors.textSecondary, fontStyle: 'italic' }} numberOfLines={3}>
-                      "{careDetails}"
-                    </Text>
-                  </View>
-                )}
-
-
-              </View>
-            </View>
-
-
-            <Text style={{ textAlign: 'center', color: colors.textSecondary, fontSize: 13, marginTop: 16, fontStyle: 'italic' }}>
-              This is how your post will appear to other pup parents
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+            <Text style={{ color: colors.text, fontSize: 17, fontWeight: '700', textAlign: 'center', marginBottom: 6 }}>
+              This is how your post will appear in Discover.
             </Text>
+
+            <PostCard
+              post={previewPost}
+              onPress={() => {}}
+              currentUserId={user?.uid}
+            />
+
+            <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: 18 }} />
+
+            <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800', marginBottom: 4 }}>
+              What people see after tapping
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 14, lineHeight: 19, marginBottom: 14 }}>
+              This is the fuller post-details view people will use to decide if they can help.
+            </Text>
+
+            <View style={[styles.previewDetailsPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.previewDetailsTitle, { color: colors.text }]}>
+                {previewPost.dogNames?.join(' & ') ?? previewPost.dogName}
+              </Text>
+              <Text style={[styles.previewDetailsMeta, { color: colors.textSecondary }]}>
+                {primaryCareType === 'overnight'
+                  ? `${shortDate(previewPost.startDate)} - ${shortDate(previewPost.endDate)} · Overnight`
+                  : `${shortDate(previewPost.startDate)}${previewPost.startTime ? ` · ${previewPost.startTime}${previewPost.endTime ? ` - ${previewPost.endTime}` : ''}` : ''}`}
+              </Text>
+
+              <View style={[styles.previewDetailDivider, { backgroundColor: colors.border }]} />
+
+              <Text style={[styles.previewDetailSectionTitle, { color: colors.text }]}>Care</Text>
+              <Text style={[styles.previewDetailLine, { color: colors.textSecondary }]}>
+                {getCareTypeLabel(previewPost.careType ?? '')}
+                {previewPost.overnightLocation === 'my_home' ? ' · At your home' : ''}
+                {previewPost.overnightLocation === 'sitters_home' ? " · At sitter's home" : ''}
+                {previewPost.overnightLocation === 'no_preference' ? ' · No location preference' : ''}
+              </Text>
+              {previewPost.careAddress ? (
+                <Text style={[styles.previewDetailLine, { color: colors.textSecondary }]}>
+                  Address: {previewPost.careAddress}
+                </Text>
+              ) : null}
+
+              {(previewPost.feedingSlots?.length || previewPost.walkSessions?.length || previewPost.playSessions?.length || previewPost.medicationSlots?.length) ? (
+                <>
+                  <View style={[styles.previewDetailDivider, { backgroundColor: colors.border }]} />
+                  <Text style={[styles.previewDetailSectionTitle, { color: colors.text }]}>Details</Text>
+                  {previewPost.feedingSlots?.map((slot, index) => (
+                    <Text key={`feeding-${index}`} style={[styles.previewDetailLine, { color: colors.textSecondary }]}>
+                      Feeding {index + 1}: {slot.time || 'Time TBD'}{slot.repeatSchedule ? ` · ${formatRepeatLabel(slot.repeatSchedule)}` : ''}{previewAssignedDogNames(slot.dogIds) ? ` · ${previewAssignedDogNames(slot.dogIds)}` : ''}
+                    </Text>
+                  ))}
+                  {previewPost.walkSessions?.map((session, index) => (
+                    <Text key={`walk-${index}`} style={[styles.previewDetailLine, { color: colors.textSecondary }]}>
+                      Walk {index + 1}: {session.flexible ? `Flexible · ${formatDuration(session.durationMins ?? 0)}` : `${session.startTime || 'Start TBD'} - ${session.endTime || 'End TBD'}`}{session.repeatSchedule ? ` · ${formatRepeatLabel(session.repeatSchedule)}` : ''}{previewAssignedDogNames(session.dogIds) ? ` · ${previewAssignedDogNames(session.dogIds)}` : ''}
+                    </Text>
+                  ))}
+                  {previewPost.playSessions?.map((session, index) => (
+                    <Text key={`play-${index}`} style={[styles.previewDetailLine, { color: colors.textSecondary }]}>
+                      Playtime {index + 1}: {session.flexible ? `Flexible · ${formatDuration(session.durationMins ?? 0)}` : `${session.startTime || 'Start TBD'} - ${session.endTime || 'End TBD'}`}{session.repeatSchedule ? ` · ${formatRepeatLabel(session.repeatSchedule)}` : ''}{previewAssignedDogNames(session.dogIds) ? ` · ${previewAssignedDogNames(session.dogIds)}` : ''}
+                    </Text>
+                  ))}
+                  {previewPost.medicationSlots?.map((slot, index) => (
+                    <Text key={`medication-${index}`} style={[styles.previewDetailLine, { color: colors.textSecondary }]}>
+                      Medication {index + 1}: {slot.time || 'Time TBD'}{slot.extraTimes?.length ? `, ${slot.extraTimes.join(', ')}` : ''}{slot.repeatSchedule ? ` · ${formatRepeatLabel(slot.repeatSchedule)}` : ''}{previewAssignedDogNames(slot.dogIds) ? ` · ${previewAssignedDogNames(slot.dogIds)}` : ''}
+                    </Text>
+                  ))}
+                </>
+              ) : null}
+
+              {previewPost.careDetails ? (
+                <>
+                  <View style={[styles.previewDetailDivider, { backgroundColor: colors.border }]} />
+                  <Text style={[styles.previewDetailSectionTitle, { color: colors.text }]}>Notes</Text>
+                  <Text style={[styles.previewDetailNote, { color: colors.textSecondary }]}>
+                    {previewPost.careDetails}
+                  </Text>
+                </>
+              ) : null}
+
+              <View style={[styles.previewDetailDivider, { backgroundColor: colors.border }]} />
+              <Text style={[styles.previewDetailSectionTitle, { color: colors.text }]}>Compensation</Text>
+              <Text style={[styles.previewDetailLine, { color: colors.textSecondary }]}>
+                {previewPost.compensationType === 'points'
+                  ? `${previewPost.pointsOffered ?? previewPost.pointsCost} points`
+                  : previewPost.compensationType === 'payment'
+                    ? `$${previewPost.totalPayment ?? previewPost.paymentAmount ?? 0} for the job`
+                    : `${previewPost.pointsOffered ?? previewPost.pointsCost} points or $${previewPost.totalPayment ?? previewPost.paymentAmount ?? 0}`}
+              </Text>
+            </View>
           </ScrollView>
         </View>
       </Modal>
       <ConfettiCelebration
         queue={celebrationQueue}
-        onDismissAll={() => {
-          setCelebrationQueue([]);
-          // 1. Write highlight ID to module-level store FIRST
-          //    (route params don't reliably reach already-mounted screens
-          //    through nested tab → stack → screen navigators)
-          if (newPostIdRef.current) {
-            setPendingHighlightPost(newPostIdRef.current);
-          }
-          // 2. Capture tab navigator BEFORE popping (ref stays valid)
-          const tabNav = navigation.getParent<any>();
-          // 3. Pop CreatePost off whichever stack we're in
-          navigation.goBack();
-          // 4. Switch to DiscoverTab (no route params — store handles it)
-          if (tabNav) {
-            tabNav.navigate('DiscoverTab');
-          }
-        }}
+        onDismissAll={finishSuccessfulPost}
       />
       <RepeatScheduleModal
         visible={repeatModalVisible}
@@ -4338,7 +4686,7 @@ const MAX_PLAY_SESSIONS = 5;
                       {expanded && (
                         <View style={{ paddingHorizontal: 14, paddingBottom: 14 }}>
                           <TouchableOpacity
-                            onPress={() => useTemplate(t)}
+                            onPress={() => applyTemplate(t)}
                             activeOpacity={0.85}
                             style={{ backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginBottom: 12 }}
                           >
@@ -4378,18 +4726,50 @@ const styles = StyleSheet.create({
   content: { padding: spacing.md, paddingBottom: spacing.md },
   pageTitle: { ...typography.h3, marginBottom: spacing.xs },
   pageSubtitle: { fontSize: 15, marginBottom: spacing.md, lineHeight: 18 },
-  section: {
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.xl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    elevation: 1 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: spacing.sm },
+	  section: {
+	    borderRadius: borderRadius.lg,
+	    padding: spacing.md,
+	    marginBottom: spacing.xl,
+	    shadowColor: '#000',
+	    shadowOffset: { width: 0, height: 1 },
+	    shadowOpacity: 0.06,
+	    shadowRadius: 2,
+	    elevation: 1 },
+	  sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: spacing.sm },
+  cellCompletionCheck: {
+    color: RED,
+    fontSize: 20,
+    fontWeight: '900',
+    marginLeft: 8,
+  },
+  repeatChip: {
+    minWidth: 112,
+    maxWidth: 160,
+    borderWidth: 1,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  repeatChipText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  repeatChipSubText: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  optionalCompleteText: {
+    color: RED,
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 4,
+    marginTop: 4,
+  },
 
-  // Dog multi-select
+	  // Dog multi-select
   dogSelectHint: { fontSize: 15, marginBottom: spacing.sm, fontStyle: 'italic' },
   dogGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   dogCard: { width: '47%', borderRadius: borderRadius.md, overflow: 'hidden', position: 'relative' },
@@ -4636,6 +5016,38 @@ const styles = StyleSheet.create({
   // Submit
   submitBtn: { padding: spacing.md, borderRadius: borderRadius.md, alignItems: 'center', marginTop: spacing.sm },
   submitBtnText: { color: '#fff', ...typography.button },
+  previewDetailsPanel: {
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+  },
+  previewDetailsTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 3,
+  },
+  previewDetailsMeta: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  previewDetailDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: spacing.md,
+  },
+  previewDetailSectionTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  previewDetailLine: {
+    fontSize: 15,
+    lineHeight: 21,
+    marginBottom: 4,
+  },
+  previewDetailNote: {
+    fontSize: 15,
+    lineHeight: 21,
+  },
 
   // Feeding time picker
   feedingPickerRow: { marginTop: 8 },

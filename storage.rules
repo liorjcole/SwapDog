@@ -41,6 +41,17 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');
     }
 
+    // Per-service photos attached to feeding, walks, play, and medication.
+    // These are uploaded while creating/editing a post, before the post document
+    // exists, so writes are scoped to the uploader's uid in the path.
+    match /service-photos/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
     // User profile photos — any authenticated user can read; only that user can write
     match /users/{userId}/{allPaths=**} {
       allow read: if request.auth != null;
