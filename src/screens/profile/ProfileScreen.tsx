@@ -558,7 +558,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         <View style={{ flexDirection: 'row', marginTop: spacing.sm, width: '100%', gap: 10 }}>
           {/* Points box */}
           <TouchableOpacity
-            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center' }}
+            style={{ flex: 1, backgroundColor: colors.backgroundElevated, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center', ...shadow.sm }}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.navigate('PointsHistory'); }}
             accessibilityLabel={`${(userProfile?.points ?? 0).toFixed(1)} points. Tap to see history.`}
             accessibilityRole="button"
@@ -570,7 +570,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
 
           {/* Reviews box — tap to open the layered anonymized reviews breakdown */}
           <TouchableOpacity
-            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center' }}
+            style={{ flex: 1, backgroundColor: colors.backgroundElevated, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center', ...shadow.sm }}
             onPress={() => {
               if (!user?.uid) return;
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
