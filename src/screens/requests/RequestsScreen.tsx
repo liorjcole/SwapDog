@@ -19,7 +19,6 @@ import {
   StyleSheet,
   RefreshControl,
   Image,
-  Alert,
   Dimensions,
   PanResponder,
   Animated,
@@ -40,15 +39,15 @@ import { useReviews } from '../../hooks/useReviews';
 import { useCancelCommitment } from '../../hooks/useCancelCommitment';
 import { SwapPost } from '../../models/types';
 import { spacing, borderRadius, shadow } from '../../config/theme';
-import { collection, doc, getDoc, getDocs, query, updateDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import EmptyStateView from '../../components/common/EmptyStateView';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { cancelSwapReminders } from '../../services/ReminderService';
 import EventProgressBar from '../../components/common/EventProgressBar';
 import HappeningNowBanner from '../../components/common/HappeningNowBanner';
 import { useHappeningNow } from '../../hooks/useHappeningNow';
 import { getCareTypeIcon } from '../../utils/careTypeHelpers';
+import { completeBookingSecure } from '../../services/secureOperations';
 
 // ── Context accent tokens ─────────────────────────────────────────────────────
 const RED = '#FF2D55';   // My Posts / your dog being cared for (= colors.primary)
@@ -57,7 +56,7 @@ const TEAL = '#2DD4BF';  // My Commitments / you caring for someone's dog
 // ── Collapsing-calendar tuning (mirrors the Discover map-collapse) ────────────
 // Height animates between MAX (measured calendar height) and MIN (fully
 // collapsed). useNativeDriver MUST be false — height is a layout property.
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CAL_HEIGHT_MIN = 0; // full collapse — list fills the whole screen on scroll-up
 const CAL_HEIGHT_ESTIMATE = 380;     // initial guess until measured via onLayout
 const CAL_COLLAPSE_DURATION = 250;   // ms, matches Discover
@@ -112,7 +111,6 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-// SCREEN_WIDTH + SCREEN_HEIGHT destructured above (module scope)
 const CAL_H_PADDING = spacing.md * 2;
 const CELL_WIDTH = Math.floor((SCREEN_WIDTH - CAL_H_PADDING) / 7);
 
@@ -141,10 +139,32 @@ function overlapsDate(post: SwapPost, date: Date): boolean {
 const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user } = useAuthContext();
-  const { getMyPosts, cancelPost, getAcceptedPosts, getCompletedCommitments, isPostExpired, isStartExpiredNoHelper } = useSwaps();
+  const {
+    getMyPosts,
+    getAcceptedPosts,
+    getCompletedCommitments,
+    isPostExpired,
+    isStartExpiredNoHelper,
+  } = useSwaps();
   const { hasReviewed } = useReviews();
   const { cancelCommitment } = useCancelCommitment();
   const { getOrCreateConversation } = useMessaging();
+  const fetchHelpersRef = useRef({
+    getMyPosts,
+    getAcceptedPosts,
+    getCompletedCommitments,
+    isPostExpired,
+    isStartExpiredNoHelper,
+    hasReviewed,
+  });
+  fetchHelpersRef.current = {
+    getMyPosts,
+    getAcceptedPosts,
+    getCompletedCommitments,
+    isPostExpired,
+    isStartExpiredNoHelper,
+    hasReviewed,
+  };
 
   const [tab, setTab] = useState<TabType>('mine');
   const [expandedCommitId, setExpandedCommitId] = useState<string | null>(null);
@@ -281,6 +301,14 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
 
   const fetchPosts = useCallback(async () => {
     if (!user) return;
+    const {
+      getMyPosts: fetchMyPosts,
+      getAcceptedPosts: fetchAcceptedPosts,
+      getCompletedCommitments: fetchCompletedCommitments,
+      isPostExpired: checkPostExpired,
+      isStartExpiredNoHelper: checkStartExpiredNoHelper,
+      hasReviewed: checkReviewed,
+    } = fetchHelpersRef.current;
     try {
       const effectiveStartMs = (p: SwapPost): number => {
         if (!p.startDate) return Infinity;
@@ -292,35 +320,35 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
       const byStart = (a: SwapPost, b: SwapPost) => effectiveStartMs(a) - effectiveStartMs(b);
 
       const [mine, accepted, completedSitter] = await Promise.all([
-        getMyPosts(user.uid),
-        getAcceptedPosts(user.uid),
-        getCompletedCommitments(user.uid),
+        fetchMyPosts(user.uid),
+        fetchAcceptedPosts(user.uid),
+        fetchCompletedCommitments(user.uid),
       ]);
-      const nonCancelled = mine.filter((p: any) => p.status !== 'cancelled' || (p as any).lateCancelled);
+      const nonCancelled = mine.filter((p) => p.status !== 'cancelled' || p.lateCancelled);
       const active = nonCancelled.filter((p: SwapPost) =>
-        !isPostExpired(p) &&
-        !isStartExpiredNoHelper(p) &&     // hide start-expired unclaimed posts from active
+        !checkPostExpired(p) &&
+        !checkStartExpiredNoHelper(p) &&     // hide start-expired unclaimed posts from active
         p.status !== 'completed' &&
         p.status !== 'cancelled'
       );
       const archived = nonCancelled.filter((p: SwapPost) =>
-        isPostExpired(p) ||
-        isStartExpiredNoHelper(p) ||      // start-expired unclaimed → Archive
+        checkPostExpired(p) ||
+        checkStartExpiredNoHelper(p) ||      // start-expired unclaimed → Archive
         p.status === 'completed' ||
-        (p.status === 'cancelled' && (p as any).lateCancelled)
+        (p.status === 'cancelled' && p.lateCancelled)
       );
 
       setMyPosts(active.sort(byStart));
       setArchivedPosts(archived.sort(byStart));
 
       // Check review status for completed posts
-      const completedPosts = archived.filter((p) => p.status === 'completed' || (p.status === 'cancelled' && (p as any).lateCancelled));
+      const completedPosts = archived.filter((p) => p.status === 'completed' || (p.status === 'cancelled' && p.lateCancelled));
       if (user && completedPosts.length > 0) {
         const reviewed = new Set<string>();
         await Promise.all(
           completedPosts.map(async (p) => {
             try {
-              const done = await hasReviewed(p.id, user.uid, 'caregiver');
+              const done = await checkReviewed(p.id, user.uid, 'caregiver');
               if (done) reviewed.add(p.id);
             } catch {}
           })
@@ -332,14 +360,11 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
       // owner OR sitter). Any of those whose end datetime has passed should
       // transition to 'completed' so the Cloud Function (onPostCompleted) fires
       // and writes pendingReview to both participants' user docs.
-      const expiredClaimed = accepted.filter((p) => isPostExpired(p));
+      const expiredClaimed = accepted.filter((p) => checkPostExpired(p));
       if (expiredClaimed.length > 0) {
         await Promise.all(
           expiredClaimed.map((p) =>
-            updateDoc(doc(db, 'swapPosts', p.id), {
-              status: 'completed',
-              updatedAt: serverTimestamp(),
-            }).catch((err) =>
+            completeBookingSecure(p.id).catch((err) =>
               console.warn('[fetchPosts] Failed to mark post completed:', p.id, err)
             )
           )
@@ -363,7 +388,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         await Promise.all(
           myCompletedCommitments.map(async (p) => {
             try {
-              const done = await hasReviewed(p.id, user.uid, 'owner');
+              const done = await checkReviewed(p.id, user.uid, 'owner');
               if (done) reviewed.add(p.id);
             } catch { /* non-fatal */ }
           })
@@ -383,34 +408,6 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
   // Commitment reminders (1h/10min) are now scheduled server-side
   // (onHelpConfirmed → scheduleReminders, processReminders cron). The old
   // sitter-side local scheduling was removed to avoid duplicate/mistimed pushes.
-
-  // ── Cancel post ───────────────────────────────────────────────────────────
-  const handleCancel = async (postId: string) => {
-    Alert.alert('Cancel Post', 'Remove your post from the area feed?', [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Cancel Post',
-        style: 'destructive',
-        onPress: async () => {
-          const postToCancel = myPosts.find((p) => p.id === postId);
-          if (postToCancel) {
-            const allIds = [
-              ...(postToCancel.reminderNotificationIds ?? []),
-              ...(postToCancel.sitterReminderNotificationIds ?? []),
-            ];
-            if (allIds.length > 0) {
-              cancelSwapReminders(allIds).catch((e) =>
-                console.warn('[RequestsScreen] cancelSwapReminders failed:', e),
-              );
-            }
-          }
-          await cancelPost(postId);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          fetchPosts();
-        },
-      },
-    ]);
-  };
 
   const compensationLabel = (post: SwapPost): string => {
     if (post.compensationType === 'points') {
@@ -437,8 +434,6 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
 
   // ── My Posts card ─────────────────────────────────────────────────────────
   const renderMyPost = ({ item }: { item: SwapPost }) => {
-    const startStr = smartDate(item.startDate);
-    const endStr = smartDate(item.endDate, { includeYear: true });
     const isOpen = item.status === 'open';
     const isClaimed = item.status === 'claimed';
     const interestedCount = item.respondedBy?.length ?? 0;
@@ -553,7 +548,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
     const isUnclaimedExpired =
       !item.claimedBy &&
       item.status !== 'completed' &&
-      !((item as any).lateCancelled) &&
+      !item.lateCancelled &&
       (isStartExpiredNoHelper(item) || isPostExpired(item));
 
     return (
@@ -571,7 +566,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
             </Text>
           </View>
         )}
-        {!isCompleted && item.status === 'cancelled' && (item as any).lateCancelled && (
+        {!isCompleted && item.status === 'cancelled' && item.lateCancelled && (
           <View style={{ backgroundColor: '#FF2D5520', paddingVertical: 5, paddingHorizontal: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12, alignItems: 'center', marginTop: -spacing.md, marginHorizontal: -spacing.md }}>
             <Text style={{ color: '#FF2D55', fontSize: 14, fontWeight: '700', letterSpacing: 0.5 }}>
               LATE CANCELLED
@@ -615,18 +610,18 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Review button for completed OR late-cancelled posts */}
-        {(isCompleted || (item.status === 'cancelled' && (item as any).lateCancelled)) && (
+        {(isCompleted || (item.status === 'cancelled' && item.lateCancelled)) && (
           <View style={{ marginTop: 8 }}>
             {isReviewed ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8 }}>
                 <Text style={{ color: '#00B894', fontSize: 16, fontWeight: '600' }}>✓ Reviewed</Text>
               </View>
-            ) : (item.status === 'cancelled' && (item as any).lateCancelled) ? (
+            ) : item.status === 'cancelled' && item.lateCancelled ? (
               <TouchableOpacity
                 style={{ backgroundColor: '#FF2D55', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
                 onPress={() => navigation.navigate('WriteReview', {
                   swapRequestId: item.id,
-                  revieweeId: (item as any).acceptedSitterId ?? '',
+                  revieweeId: item.claimedBy ?? '',
                   reviewRole: 'owner',
                   lateCancellation: true,
                 })}
@@ -645,7 +640,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                   let otherUserPhotoURL: string | undefined;
                   if (claimedByUid) {
                     try {
-                      const snap = await getDoc(doc(db, 'users', claimedByUid));
+                      const snap = await getDoc(doc(db, 'publicProfiles', claimedByUid));
                       const d = snap.data();
                       if (d) {
                         otherUserName = (d.displayName as string) || otherUserName;
@@ -1060,7 +1055,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
     const startStr = smartDate(post.startDate);
     const endStr = smartDate(post.endDate, { includeYear: true });
     const isReviewed = reviewedCaregiverPostIds.has(post.id);
-    const isLateCancelled = (post as any).lateCancelled as boolean | undefined;
+    const isLateCancelled = post.lateCancelled;
 
     const dogPhotos = (post.dogPhotoURLs && post.dogPhotoURLs.length > 0)
       ? post.dogPhotoURLs
@@ -1131,7 +1126,7 @@ const RequestsScreen: React.FC<Props> = ({ navigation }) => {
                 let otherUserPhotoURL: string | undefined;
                 if (posterUid) {
                   try {
-                    const snap = await getDoc(doc(db, 'users', posterUid));
+                    const snap = await getDoc(doc(db, 'publicProfiles', posterUid));
                     const d = snap.data();
                     if (d) {
                       otherUserName = (d.displayName as string) || otherUserName;

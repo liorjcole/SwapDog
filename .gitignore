@@ -14,6 +14,7 @@ web-build/
 .env.local
 GoogleService-Info.plist
 google-services.json
+!firebase-config/GoogleService-Info.plist
 
 # One-time cleanup scripts (sensitive — contain Firebase config, not for CI).
 # Ignore scripts/ contents (scripts/* so specific files can be re-included).

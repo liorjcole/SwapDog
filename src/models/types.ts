@@ -44,6 +44,8 @@ export interface User {
   subscriptionStatus?: 'active' | 'expired' | 'cancelled';
   subscriptionPlan?: 'monthly';
   subscribedAt?: unknown;
+  subscriptionExpiresAt?: Date;
+  subscriptionAutoRenews?: boolean;
   freeAccessUntil?: Date;   // Promo code grants paywall bypass until this date
   location?: GeoPoint;
   locationGeohash?: string;
@@ -51,6 +53,7 @@ export interface User {
   pushToken?: string;
   pushTokens?: string[];
   isOnboarded: boolean;
+  profileSetupComplete?: boolean;
   createdAt: Date;
   updatedAt: Date;
   rating?: number;
@@ -226,6 +229,8 @@ export interface SwapPost {
   totalPayment?: number;
   /** Number of hours or days used for calculation */
   totalUnits?: number;
+  /** Server-controlled visibility flag when a points booking cannot be funded. */
+  pointsDisabled?: boolean;
 
 
   // Care type system (Wave 19B)
@@ -264,6 +269,8 @@ export interface SwapPost {
   status: PostStatus;
   /** userId of the sitter who claimed the post */
   claimedBy?: string;
+  lateCancelled?: boolean;
+  lateCancelledBy?: 'owner' | 'sitter';
 
   // ── Reschedule proposal fields ──
   /** Proposed new start date (original startDate stays unchanged until accepted) */

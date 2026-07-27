@@ -1,11 +1,9 @@
 /**
- * Firestore & Storage security-rules tests (audit P0 lockdown).
+ * Firestore and Storage security regression tests.
  *
- * Run with: `npm test` in this folder (boots the Firestore + Storage emulators
- * via firebase-tools, then runs jest). Requires a JRE for the emulators.
- *
- * Each block proves a positive (legitimate client write still works) AND a
- * negative (the intended tampering/abuse path is now denied) case.
+ * These tests intentionally model hostile authenticated accounts. A passing
+ * suite proves that public projections remain usable while private source data
+ * and privileged state transitions are denied to clients.
  */
 const fs = require('fs');
 const path = require('path');
@@ -14,11 +12,24 @@ const {
   assertFails,
   assertSucceeds,
 } = require('@firebase/rules-unit-testing');
-const { doc, setDoc, updateDoc, deleteField } = require('firebase/firestore');
-const { ref, uploadBytes } = require('firebase/storage');
+const {
+  doc,
+  setDoc,
+  updateDoc,
+  getDoc,
+  addDoc,
+  collection,
+  serverTimestamp,
+} = require('firebase/firestore');
+const {
+  ref,
+  uploadBytes,
+  getBytes,
+  deleteObject,
+} = require('firebase/storage');
 
 const PROJECT_ID = 'swapdog-rules-test';
-const IMG = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]); // tiny fake jpeg
+const IMG = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
 const IMG_META = { contentType: 'image/jpeg' };
 
 let testEnv;
@@ -47,220 +58,604 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
 });
 
-// Seed a doc bypassing rules (server/admin context).
 async function seed(collectionPath, id, data) {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), collectionPath, id), data);
   });
 }
 
-const baseUser = (overrides = {}) => ({
-  email: 'a@b.com',
-  displayName: 'Alice',
+const activeUser = (overrides = {}) => ({
+  email: 'private@example.com',
+  displayName: 'Member',
   accountStatus: 'active',
-  points: 10,
-  rating: 4,
-  reviewCount: 3,
   isOnboarded: true,
+  subscriptionStatus: 'active',
+  subscriptionExpiresAt: new Date('2099-01-01T00:00:00.000Z'),
+  points: 5,
+  rating: 4,
+  reviewCount: 2,
+  location: { latitude: 40.7128, longitude: -74.006 },
+  pushTokens: ['ExponentPushToken[private]'],
+  createdAt: new Date(),
+  updatedAt: new Date(),
   ...overrides,
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// /users — field allow-list
-// ─────────────────────────────────────────────────────────────────────────────
-describe('users update — field allow-list', () => {
+async function seedActiveUsers(...ids) {
+  for (const id of ids) {
+    await seed('users', id, activeUser({
+      displayName: id[0].toUpperCase() + id.slice(1),
+      email: `${id}@example.com`,
+    }));
+  }
+}
+
+describe('private users and public profile projections', () => {
   beforeEach(async () => {
-    await seed('users', 'alice', baseUser());
+    await seedActiveUsers('alice', 'mallory');
+    await seed('publicProfiles', 'alice', {
+      displayName: 'Alice',
+      photoURL: 'https://example.com/alice.jpg',
+      location: { latitude: 40.71, longitude: -74.01 },
+      locationGeohash: 'dr5re',
+      accountStatus: 'active',
+      isOnboarded: true,
+    });
+    await seed('privateUsers', 'alice', {
+      phoneNumber: '+12125550100',
+      pushTokens: ['ExponentPushToken[private]'],
+    });
   });
 
-  const aliceDb = () => testEnv.authenticatedContext('alice').firestore();
-
-  test('owner CAN update legitimate profile fields', async () => {
-    await assertSucceeds(
-      updateDoc(doc(aliceDb(), 'users', 'alice'), {
-        displayName: 'Alice 2',
-        bio: 'hello',
-        photoURL: 'https://x/p.jpg',
-        instagramHandle: 'alice',
-        location: { latitude: 1, longitude: 2 },
-        locationName: 'NYC',
-        pushTokens: ['t1'],
-        updatedAt: new Date(),
-      }),
-    );
+  test('owner can read private account source', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(getDoc(doc(db, 'users', 'alice')));
+    await assertSucceeds(getDoc(doc(db, 'privateUsers', 'alice')));
   });
 
-  test('owner CAN run onboarding lifecycle (pending_approval -> active)', async () => {
-    await seed('users', 'newbie', baseUser({ accountStatus: 'pending_approval' }));
+  test('another active user cannot read private account source or push data', async () => {
+    const db = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(getDoc(doc(db, 'users', 'alice')));
+    await assertFails(getDoc(doc(db, 'privateUsers', 'alice')));
+  });
+
+  test('another active user can read only the public profile projection', async () => {
+    const db = testEnv.authenticatedContext('mallory').firestore();
+    await assertSucceeds(getDoc(doc(db, 'publicProfiles', 'alice')));
+  });
+
+  test('expired member cannot use member-only public projections', async () => {
+    await seed('users', 'expired', activeUser({
+      subscriptionStatus: 'expired',
+      subscriptionExpiresAt: new Date('2020-01-01T00:00:00.000Z'),
+    }));
+    const db = testEnv.authenticatedContext('expired').firestore();
+    await assertFails(getDoc(doc(db, 'publicProfiles', 'alice')));
+  });
+
+  test('active members cannot read a stale projection for an expired user', async () => {
+    await seed('users', 'expired', activeUser({
+      subscriptionStatus: 'expired',
+      subscriptionExpiresAt: new Date('2020-01-01T00:00:00.000Z'),
+    }));
+    await seed('publicProfiles', 'expired', {
+      displayName: 'Expired',
+      accountStatus: 'active',
+      isOnboarded: true,
+    });
+    const db = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(getDoc(doc(db, 'publicProfiles', 'expired')));
+  });
+
+  test('client cannot create a forged user profile', async () => {
     const db = testEnv.authenticatedContext('newbie').firestore();
-    await assertSucceeds(
-      updateDoc(doc(db, 'users', 'newbie'), {
-        accountStatus: 'active',
-        conductAgreedAt: new Date(),
-        contractSignedAt: new Date(),
-        isOnboarded: true,
-        updatedAt: new Date(),
-      }),
-    );
+    await assertFails(setDoc(doc(db, 'users', 'newbie'), activeUser({
+      points: 999999,
+      accountStatus: 'active',
+      freeAccessUntil: new Date('2099-01-01'),
+    })));
   });
 
-  test('owner CAN clear pendingReview (review-gate release)', async () => {
-    await seed('users', 'alice', baseUser({ pendingReview: { otherUserId: 'bob' } }));
-    await assertSucceeds(
-      updateDoc(doc(aliceDb(), 'users', 'alice'), { pendingReview: deleteField() }),
-    );
+  test('profile identity and aggregate fields require the server', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(updateDoc(doc(db, 'users', 'alice'), {
+      displayName: 'Alice Updated',
+      bio: 'A dog parent in New York.',
+      updatedAt: new Date(),
+    }));
+    await assertFails(updateDoc(doc(db, 'users', 'alice'), { accountStatus: 'suspended' }));
+    await assertFails(updateDoc(doc(db, 'users', 'alice'), { isOnboarded: false }));
+    await assertFails(updateDoc(doc(db, 'users', 'alice'), { points: 1000 }));
+    await assertFails(updateDoc(doc(db, 'users', 'alice'), { contractSignedAt: new Date() }));
   });
 
-  test('owner CANNOT write its own rating', async () => {
-    await assertFails(updateDoc(doc(aliceDb(), 'users', 'alice'), { rating: 5 }));
+  test('owner can still save private onboarding location fields', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(updateDoc(doc(db, 'users', 'alice'), {
+      location: { latitude: 40.7, longitude: -74 },
+      locationGeohash: 'dr5rs',
+      locationName: 'New York',
+      updatedAt: new Date(),
+    }));
   });
 
-  test('owner CANNOT write its own reviewCount', async () => {
-    await assertFails(updateDoc(doc(aliceDb(), 'users', 'alice'), { reviewCount: 999 }));
-  });
-
-  test('owner CANNOT write its own points', async () => {
-    await assertFails(updateDoc(doc(aliceDb(), 'users', 'alice'), { points: 100000 }));
-  });
-
-  test('owner CANNOT set isAdmin', async () => {
-    await assertFails(updateDoc(doc(aliceDb(), 'users', 'alice'), { isAdmin: true }));
-  });
-
-  test('owner CANNOT sneak a denied field alongside allowed fields', async () => {
-    await assertFails(
-      updateDoc(doc(aliceDb(), 'users', 'alice'), { displayName: 'ok', points: 5000 }),
-    );
-  });
-
-  test('suspended user CANNOT un-ban itself (accountStatus)', async () => {
-    await seed('users', 'banned', baseUser({ accountStatus: 'suspended' }));
-    const db = testEnv.authenticatedContext('banned').firestore();
-    await assertFails(updateDoc(doc(db, 'users', 'banned'), { accountStatus: 'active' }));
-  });
-
-  test('user CANNOT write another user doc', async () => {
-    await seed('users', 'bob', baseUser());
-    await assertFails(updateDoc(doc(aliceDb(), 'users', 'bob'), { displayName: 'hax' }));
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// /reviews — validation + immutability
-// ─────────────────────────────────────────────────────────────────────────────
-describe('reviews — validation', () => {
-  const aliceDb = () => testEnv.authenticatedContext('alice').firestore();
-  const validReview = (overrides = {}) => ({
-    reviewerId: 'alice',
-    revieweeId: 'bob',
-    targetType: 'owner',
-    rating: 5,
-    postId: 'p1',
-    ...overrides,
-  });
-
-  test('valid review IS allowed', async () => {
-    await assertSucceeds(setDoc(doc(aliceDb(), 'reviews', 'r1'), validReview()));
-  });
-
-  test('rating below 1 is rejected', async () => {
-    await assertFails(setDoc(doc(aliceDb(), 'reviews', 'r2'), validReview({ rating: 0 })));
-  });
-
-  test('rating above 5 is rejected', async () => {
-    await assertFails(setDoc(doc(aliceDb(), 'reviews', 'r3'), validReview({ rating: 6 })));
-  });
-
-  test('non-integer rating is rejected', async () => {
-    await assertFails(setDoc(doc(aliceDb(), 'reviews', 'r4'), validReview({ rating: 4.5 })));
-  });
-
-  test('self-review (reviewer == reviewee) is rejected', async () => {
-    await assertFails(setDoc(doc(aliceDb(), 'reviews', 'r5'), validReview({ revieweeId: 'alice' })));
-  });
-
-  test('spoofed reviewerId is rejected', async () => {
-    await assertFails(setDoc(doc(aliceDb(), 'reviews', 'r6'), validReview({ reviewerId: 'bob' })));
-  });
-
-  test('reviews are immutable (no update)', async () => {
-    await seed('reviews', 'r7', validReview());
-    await assertFails(updateDoc(doc(aliceDb(), 'reviews', 'r7'), { rating: 1 }));
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Storage — chat-images participant scoping & dog-photo owner scoping
-// ─────────────────────────────────────────────────────────────────────────────
-describe('storage — chat-images scoping', () => {
-  beforeEach(async () => {
-    await seed('conversations', 'conv1', { participantIds: ['alice', 'bob'] });
-  });
-
-  test('participant CAN write a chat image', async () => {
-    const storage = testEnv.authenticatedContext('alice').storage();
-    await assertSucceeds(
-      uploadBytes(ref(storage, 'chat-images/conv1/p.jpg'), IMG, IMG_META),
-    );
-  });
-
-  test('participant CAN read a chat image', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await uploadBytes(ref(ctx.storage(), 'chat-images/conv1/p.jpg'), IMG, IMG_META);
+  test('dog profile writes require the server', async () => {
+    await seed('dogs', 'aliceDog', {
+      ownerId: 'alice',
+      name: 'Skye',
+      breed: 'Lab',
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
-    const storage = testEnv.authenticatedContext('bob').storage();
-    const { getBytes } = require('firebase/storage');
-    await assertSucceeds(getBytes(ref(storage, 'chat-images/conv1/p.jpg')));
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(addDoc(collection(db, 'dogs'), {
+      ownerId: 'alice',
+      name: 'Forged',
+      breed: 'Lab',
+      rating: 5,
+      reviewCount: 100,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+    await assertFails(updateDoc(doc(db, 'dogs', 'aliceDog'), {
+      bio: 'Bypass server moderation',
+      updatedAt: new Date(),
+    }));
   });
 
-  test('non-participant CANNOT write a chat image', async () => {
-    const storage = testEnv.authenticatedContext('mallory').storage();
-    await assertFails(
-      uploadBytes(ref(storage, 'chat-images/conv1/p.jpg'), IMG, IMG_META),
-    );
+  test('push token writes require the server', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(updateDoc(doc(db, 'privateUsers', 'alice'), {
+      pushToken: 'ExponentPushToken[new]',
+      pushTokens: ['ExponentPushToken[new]'],
+      updatedAt: new Date(),
+    }));
+    await assertFails(updateDoc(doc(db, 'users', 'alice'), {
+      pushTokens: ['ExponentPushToken[public]'],
+    }));
+    await assertFails(updateDoc(doc(db, 'privateUsers', 'alice'), {
+      pushTokens: [123],
+      updatedAt: new Date(),
+    }));
   });
 
-  test('non-participant CANNOT read a chat image', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await uploadBytes(ref(ctx.storage(), 'chat-images/conv1/p.jpg'), IMG, IMG_META);
-    });
-    const storage = testEnv.authenticatedContext('mallory').storage();
-    const { getBytes } = require('firebase/storage');
-    await assertFails(getBytes(ref(storage, 'chat-images/conv1/p.jpg')));
+  test('favorites enforce active targets and a fixed schema', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(setDoc(doc(db, 'users', 'alice', 'favorites', 'mallory'), {
+      notifyOnPost: true,
+      createdAt: new Date(),
+    }));
+    await assertFails(setDoc(doc(db, 'users', 'alice', 'favorites', 'alice'), {
+      notifyOnPost: true,
+      createdAt: new Date(),
+    }));
+    await assertFails(setDoc(doc(db, 'users', 'alice', 'favorites', 'mallory'), {
+      notifyOnPost: true,
+      injected: 'unexpected',
+      createdAt: new Date(),
+    }));
   });
 });
 
-describe('storage — dog-photo owner scoping', () => {
+describe('private booking source and public discovery projection', () => {
+  const privatePost = {
+    posterId: 'alice',
+    posterName: 'Alice',
+    status: 'open',
+    careAddress: '123 Private Street',
+    careDetails: 'Alarm code 1234',
+    medicationSlots: [{ time: '8:00 AM', details: 'Private medication instructions' }],
+    respondedBy: [],
+    startDate: new Date(Date.now() + 86_400_000),
+    endDate: new Date(Date.now() + 172_800_000),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
   beforeEach(async () => {
+    await seedActiveUsers('alice', 'bob', 'mallory');
+    await seed('swapPosts', 'post1', privatePost);
+    await seed('publicSwapPosts', 'post1', {
+      posterId: 'alice',
+      posterName: 'Alice',
+      status: 'open',
+      startDate: privatePost.startDate,
+      endDate: privatePost.endDate,
+      createdAt: privatePost.createdAt,
+      updatedAt: privatePost.updatedAt,
+    });
+  });
+
+  test('unrelated member cannot read address or instructions', async () => {
+    const db = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(getDoc(doc(db, 'swapPosts', 'post1')));
+    await assertSucceeds(getDoc(doc(db, 'publicSwapPosts', 'post1')));
+  });
+
+  test('owner and accepted caregiver can read full post', async () => {
+    const aliceDb = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(getDoc(doc(aliceDb, 'swapPosts', 'post1')));
+
+    await seed('swapPosts', 'claimedPost', {
+      ...privatePost,
+      status: 'claimed',
+      claimedBy: 'bob',
+    });
+    const bobDb = testEnv.authenticatedContext('bob').firestore();
+    await assertSucceeds(getDoc(doc(bobDb, 'swapPosts', 'claimedPost')));
+  });
+
+  test('suspended participants cannot read private bookings', async () => {
+    await seed('users', 'suspended', activeUser({ accountStatus: 'suspended' }));
+    await seed('swapPosts', 'suspendedPost', {
+      ...privatePost,
+      posterId: 'suspended',
+    });
+    const db = testEnv.authenticatedContext('suspended').firestore();
+    await assertFails(getDoc(doc(db, 'swapPosts', 'suspendedPost')));
+  });
+
+  test('attacker cannot self-claim or change private care data', async () => {
+    const db = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(updateDoc(doc(db, 'swapPosts', 'post1'), {
+      status: 'claimed',
+      claimedBy: 'mallory',
+      careAddress: 'Attacker controlled address',
+      medicationSlots: [{ time: '8:00 AM', details: 'Do not administer' }],
+    }));
+  });
+
+  test('owner cannot bypass server approval by setting claimedBy', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(updateDoc(doc(db, 'swapPosts', 'post1'), {
+      status: 'claimed',
+      claimedBy: 'mallory',
+      updatedAt: new Date(),
+    }));
+  });
+
+  test('clients cannot create bookings directly', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(addDoc(collection(db, 'swapPosts'), {
+      ...privatePost,
+      posterId: 'alice',
+      dogId: 'dog1',
+    }));
+  });
+
+  test('owner cannot cancel an open booking without the server', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(updateDoc(doc(db, 'swapPosts', 'post1'), {
+      status: 'cancelled',
+      updatedAt: new Date(),
+    }));
+  });
+
+  test('claimed booking cannot be cancelled or reopened directly', async () => {
+    await seed('swapPosts', 'claimedLocked', {
+      posterId: 'alice',
+      status: 'claimed',
+      claimedBy: 'mallory',
+      respondedBy: [{ userId: 'mallory' }],
+      startDate: new Date('2099-01-02T00:00:00.000Z'),
+      endDate: new Date('2099-01-03T00:00:00.000Z'),
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+    const aliceDb = testEnv.authenticatedContext('alice').firestore();
+    const malloryDb = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(updateDoc(doc(aliceDb, 'swapPosts', 'claimedLocked'), {
+      status: 'cancelled',
+    }));
+    await assertFails(updateDoc(doc(malloryDb, 'swapPosts', 'claimedLocked'), {
+      status: 'open',
+      claimedBy: null,
+      respondedBy: [],
+    }));
+    await assertFails(updateDoc(doc(aliceDb, 'swapPosts', 'claimedLocked'), {
+      status: 'completed',
+      updatedAt: new Date(),
+    }));
+  });
+
+  test('participants cannot complete an expired booking without the server', async () => {
+    await seed('swapPosts', 'expiredClaimed', {
+      posterId: 'alice',
+      status: 'claimed',
+      claimedBy: 'bob',
+      startDate: new Date('2020-01-01T00:00:00.000Z'),
+      endDate: new Date('2020-01-02T00:00:00.000Z'),
+      createdAt: new Date('2020-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2020-01-01T00:00:00.000Z'),
+    });
+    const aliceDb = testEnv.authenticatedContext('alice').firestore();
+    const bobDb = testEnv.authenticatedContext('bob').firestore();
+    await assertFails(updateDoc(doc(aliceDb, 'swapPosts', 'expiredClaimed'), {
+      status: 'completed',
+      updatedAt: new Date(),
+    }));
+    await assertFails(updateDoc(doc(bobDb, 'swapPosts', 'expiredClaimed'), {
+      status: 'completed',
+      updatedAt: new Date(),
+    }));
+  });
+
+  test('owner cannot bypass server content checks by editing care instructions', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(updateDoc(doc(db, 'swapPosts', 'post1'), {
+      careDetails: 'Updated private instructions',
+      updatedAt: new Date(),
+    }));
+  });
+
+  test('owner can edit compensation on an open post', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(updateDoc(doc(db, 'swapPosts', 'post1'), {
+      compensationType: 'payment',
+      paymentAmount: 25,
+      totalPayment: 25,
+      updatedAt: new Date(),
+    }));
+  });
+
+  test('owner cannot write invalid compensation values', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(updateDoc(doc(db, 'swapPosts', 'post1'), {
+      pointsOffered: 1_000_000,
+      updatedAt: new Date(),
+    }));
+    await assertFails(updateDoc(doc(db, 'swapPosts', 'post1'), {
+      paymentAmount: -1,
+      updatedAt: new Date(),
+    }));
+  });
+});
+
+describe('conversation and message integrity', () => {
+  beforeEach(async () => {
+    await seedActiveUsers('alice', 'bob', 'mallory');
+    await seed('conversations', 'conv1', {
+      participantIds: ['alice', 'bob'],
+      participantKey: 'alice__bob',
+      swapRequestId: null,
+      unreadCounts: { alice: 2, bob: 3 },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  });
+
+  test('clients cannot write messages directly, including forged system messages', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(addDoc(collection(db, 'conversations', 'conv1', 'messages'), {
+      conversationId: 'conv1',
+      senderId: 'alice',
+      text: 'Hello',
+      read: false,
+      createdAt: serverTimestamp(),
+    }));
+    await assertFails(addDoc(collection(db, 'conversations', 'conv1', 'messages'), {
+      conversationId: 'conv1',
+      senderId: 'swapdog-team',
+      text: 'Forged system message',
+      read: false,
+      createdAt: serverTimestamp(),
+    }));
+  });
+
+  test('participant cannot add a victim to an existing conversation', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(updateDoc(doc(db, 'conversations', 'conv1'), {
+      participantIds: ['alice', 'bob', 'mallory'],
+    }));
+  });
+
+  test('client cannot create any conversation directly', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(addDoc(collection(db, 'conversations'), {
+      participantIds: ['alice', 'bob'],
+      participantKey: 'alice__bob',
+      swapRequestId: null,
+      unreadCounts: { alice: 0, bob: 0 },
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+    await assertFails(addDoc(collection(db, 'conversations'), {
+      participantIds: ['alice', 'swapdog-team'],
+      participantKey: 'alice__swapdog-team',
+      swapRequestId: null,
+      unreadCounts: { alice: 0 },
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+    await assertFails(addDoc(collection(db, 'conversations'), {
+      participantIds: ['alice', 'bob', 'mallory'],
+      participantKey: 'alice__bob__mallory',
+      swapRequestId: null,
+      unreadCounts: {},
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
+  test('suspended participants cannot read conversations or messages', async () => {
+    await seed('users', 'alice', activeUser({ accountStatus: 'suspended' }));
+    await seed('conversations/conv1/messages', 'message1', {
+      conversationId: 'conv1',
+      senderId: 'bob',
+      text: 'Private message',
+      createdAt: new Date(),
+    });
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(getDoc(doc(db, 'conversations', 'conv1')));
+    await assertFails(getDoc(doc(db, 'conversations', 'conv1', 'messages', 'message1')));
+  });
+
+  test('a deterministic block stops new messages in either direction', async () => {
+    await seed('blocks', 'bob_alice', {
+      blockerId: 'bob',
+      blockedId: 'alice',
+      createdAt: new Date(),
+    });
+    const aliceDb = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(addDoc(collection(aliceDb, 'conversations', 'conv1', 'messages'), {
+      conversationId: 'conv1',
+      senderId: 'alice',
+      text: 'This must not be delivered',
+      read: false,
+      createdAt: serverTimestamp(),
+    }));
+  });
+
+  test('participant can clear only their own unread count', async () => {
+    const aliceDb = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(updateDoc(doc(aliceDb, 'conversations', 'conv1'), {
+      'unreadCounts.alice': 0,
+    }));
+    await assertFails(updateDoc(doc(aliceDb, 'conversations', 'conv1'), {
+      'unreadCounts.bob': 0,
+    }));
+    await assertFails(updateDoc(doc(aliceDb, 'conversations', 'conv1'), {
+      lastMessage: 'Tampered preview',
+    }));
+  });
+});
+
+describe('server-only business and legal records', () => {
+  beforeEach(async () => {
+    await seedActiveUsers('alice', 'bob');
+    await seed('swapPosts', 'completedPost', {
+      posterId: 'alice',
+      claimedBy: 'bob',
+      status: 'completed',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    await seed('referral_codes', 'code1', {
+      code: 'ABCDEFGH',
+      createdBy: 'alice',
+      usedCount: 0,
+      usedBy: [],
+      maxUses: 10,
+      isActive: true,
+    });
+  });
+
+  test('clients cannot create fabricated reviews', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(setDoc(doc(db, 'reviews', 'fake'), {
+      reviewerId: 'alice',
+      revieweeId: 'bob',
+      targetType: 'caregiver',
+      rating: 5,
+      postId: 'completedPost',
+      createdAt: serverTimestamp(),
+    }));
+  });
+
+  test('clients cannot create or mutate legacy swap bookings', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(addDoc(collection(db, 'swapRequests'), {
+      requesterId: 'alice',
+      receiverId: 'bob',
+      requesterDogIds: [],
+      receiverDogIds: [],
+      startDate: new Date(),
+      endDate: new Date(),
+      status: 'accepted',
+      pointsCost: -100,
+      paymentType: 'points',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+    await seed('swapRequests', 'legacySwap', {
+      requesterId: 'alice',
+      receiverId: 'bob',
+      status: 'pending',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    await assertFails(updateDoc(doc(db, 'swapRequests', 'legacySwap'), {
+      status: 'accepted',
+      updatedAt: new Date(),
+    }));
+  });
+
+  test('clients cannot mutate referral counters or forge agreements', async () => {
+    const db = testEnv.authenticatedContext('bob').firestore();
+    await assertFails(updateDoc(doc(db, 'referral_codes', 'code1'), {
+      usedCount: -100,
+      usedBy: [],
+    }));
+    await assertFails(setDoc(doc(db, 'signed-agreements', 'alice-forged'), {
+      userId: 'alice',
+      signedName: 'Forged',
+      contractVersion: '1.0',
+      signedAt: serverTimestamp(),
+    }));
+  });
+});
+
+describe('storage ownership and deletion', () => {
+  beforeEach(async () => {
+    await seedActiveUsers('alice', 'mallory');
     await seed('dogs', 'dog1', { ownerId: 'alice' });
+    await seed('conversations', 'conv1', {
+      participantIds: ['alice', 'mallory'],
+      participantKey: 'alice__mallory',
+      swapRequestId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
   });
 
-  test('owner CAN write to its own temp path (new dog)', async () => {
+  test('dog owner can upload and delete their own photo', async () => {
     const storage = testEnv.authenticatedContext('alice').storage();
-    await assertSucceeds(
-      uploadBytes(ref(storage, 'dogs/temp_alice_1700000000/p.jpg'), IMG, IMG_META),
-    );
+    const photoRef = ref(storage, 'dogs/dog1/p.jpg');
+    await assertSucceeds(uploadBytes(photoRef, IMG, IMG_META));
+    await assertSucceeds(deleteObject(photoRef));
   });
 
-  test('user CANNOT write to another user temp path', async () => {
+  test('non-owner cannot overwrite or delete a dog photo', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await uploadBytes(ref(ctx.storage(), 'dogs/dog1/p.jpg'), IMG, IMG_META);
+    });
     const storage = testEnv.authenticatedContext('mallory').storage();
-    await assertFails(
-      uploadBytes(ref(storage, 'dogs/temp_alice_1700000000/p.jpg'), IMG, IMG_META),
-    );
+    await assertFails(uploadBytes(ref(storage, 'dogs/dog1/p.jpg'), IMG, IMG_META));
+    await assertFails(deleteObject(ref(storage, 'dogs/dog1/p.jpg')));
   });
 
-  test('owner CAN write to its own existing dog path', async () => {
+  test('members cannot read temporary or expired-owner dog photos', async () => {
+    await seed('users', 'expired', activeUser({
+      subscriptionStatus: 'expired',
+      subscriptionExpiresAt: new Date('2020-01-01T00:00:00.000Z'),
+    }));
+    await seed('dogs', 'expiredDog', { ownerId: 'expired' });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await uploadBytes(ref(ctx.storage(), 'dogs/temp_expired_123/p.jpg'), IMG, IMG_META);
+      await uploadBytes(ref(ctx.storage(), 'dogs/expiredDog/p.jpg'), IMG, IMG_META);
+    });
+    const storage = testEnv.authenticatedContext('mallory').storage();
+    await assertFails(getBytes(ref(storage, 'dogs/temp_expired_123/p.jpg')));
+    await assertFails(getBytes(ref(storage, 'dogs/expiredDog/p.jpg')));
+  });
+
+  test('conversation participants can use chat images', async () => {
     const storage = testEnv.authenticatedContext('alice').storage();
-    await assertSucceeds(
-      uploadBytes(ref(storage, 'dogs/dog1/p.jpg'), IMG, IMG_META),
-    );
+    const photoRef = ref(storage, 'chat-images/conv1/p.jpg');
+    await assertSucceeds(uploadBytes(photoRef, IMG, IMG_META));
+    await assertSucceeds(getBytes(photoRef));
+    await assertSucceeds(deleteObject(photoRef));
   });
 
-  test('non-owner CANNOT write to an existing dog path', async () => {
-    const storage = testEnv.authenticatedContext('mallory').storage();
-    await assertFails(
-      uploadBytes(ref(storage, 'dogs/dog1/p.jpg'), IMG, IMG_META),
-    );
+  test('suspended participants cannot use chat images', async () => {
+    await seed('users', 'alice', activeUser({ accountStatus: 'suspended' }));
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await uploadBytes(ref(ctx.storage(), 'chat-images/conv1/p.jpg'), IMG, IMG_META);
+    });
+    const storage = testEnv.authenticatedContext('alice').storage();
+    const photoRef = ref(storage, 'chat-images/conv1/p.jpg');
+    await assertFails(getBytes(photoRef));
+    await assertFails(uploadBytes(photoRef, IMG, IMG_META));
+    await assertFails(deleteObject(photoRef));
   });
 });
-

@@ -10,6 +10,10 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { getFriendlyAuthError } from '../../utils/authErrors';
+import {
+  clearDeferredSignUpIntro,
+  deferSignUpIntro,
+} from '../../utils/signUpIntroFlow';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'SignIn'>;
@@ -58,16 +62,15 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleCreateAccount = async (verifiedPhone: string, signupTicket: string) => {
-    setVerifying(true);
     try {
+      await deferSignUpIntro();
       await completePhoneSignUp(verifiedPhone, signupTicket);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: unknown) {
+      await clearDeferredSignUpIntro().catch(() => undefined);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const { title, message } = getFriendlyAuthError(error);
       Alert.alert(title, message);
-    } finally {
-      setVerifying(false);
     }
   };
 
@@ -80,22 +83,10 @@ const SignInScreen: React.FC<Props> = ({ navigation }) => {
     try {
       const result = await verifyPhoneCode(verificationPhone || phoneNumber.trim(), code.trim(), 'signIn');
       if (result.status === 'verifiedNoAccount') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert(
-          'No account found',
-          "That phone number is verified. Create a new WatchDog account with it?",
-          [
-            {
-              text: 'Create Account',
-              onPress: () => {
-                void handleCreateAccount(result.phoneNumber, result.signupTicket);
-              },
-            },
-            { text: 'Cancel', style: 'cancel' },
-          ],
-        );
+        await handleCreateAccount(result.phoneNumber, result.signupTicket);
         return;
       }
+      await clearDeferredSignUpIntro().catch(() => undefined);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

@@ -102,7 +102,7 @@ const InsufficientPointsModal: React.FC = () => {
     // User has points again — re-enable any paused posts
     getMyPosts(user.uid).then((posts) => {
       for (const p of posts) {
-        if ((p as any).pointsDisabled) {
+        if (p.pointsDisabled) {
           updateDoc(doc(db, 'swapPosts', p.id), { pointsDisabled: false, updatedAt: serverTimestamp() })
             .catch(() => { /* non-fatal */ });
         }

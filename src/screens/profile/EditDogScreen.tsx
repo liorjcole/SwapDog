@@ -6,8 +6,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../../config/firebase';
 import { ProfileStackParamList } from '../../navigation/types';
 import { useTheme } from '../../contexts/ThemeContext';
 import CharCountHint from '../../components/common/CharCountHint';
@@ -19,6 +17,7 @@ import { spacing, borderRadius, typography } from '../../config/theme';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Chip from '../../components/common/Chip';
 import KeyboardDoneBar, { DONE_ACCESSORY_ID } from '../../components/common/KeyboardDoneBar';
+import { uploadPhotoToStorage } from '../../utils/uploadHelper';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'EditDog'>;
@@ -74,7 +73,7 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
         if (d.isGoodWithKids !== undefined) setGoodWithKids(d.isGoodWithKids);
         if (d.vaccinated !== undefined) setVaccinated(d.vaccinated);
         if (d.pottyTrained !== undefined) setPottyTrained(d.pottyTrained);
-        if ((d as any).bio) setDogBio((d as any).bio);
+        if (d.bio) setDogBio(d.bio);
         setWeightLbs(d.weightLbs ?? 0);
       }
       setLoading(false);
@@ -106,12 +105,8 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
     for (const uri of localUris) {
       try {
         const tempId = dogId ?? `temp_${user?.uid ?? 'anon'}_${Date.now()}`;
-        const response = await fetch(uri);
-        if (!response) throw new Error('Failed to read image file');
-        const blob = await response.blob();
-        const fileRef = storageRef(storage, `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
-        await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
-        const downloadURL = await getDownloadURL(fileRef);
+        const storagePath = `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+        const downloadURL = await uploadPhotoToStorage(uri, storagePath);
         newURLs.push(downloadURL);
       } catch {
         Alert.alert('Error', 'One photo failed to upload. You can try adding it again.');
@@ -177,12 +172,8 @@ const EditDogScreen: React.FC<Props> = ({ navigation, route }) => {
     setUploadingPhoto(true);
     try {
       const tempId = dogId ?? `temp_${user?.uid ?? 'anon'}_${Date.now()}`;
-      const response = await fetch(uri);
-      if (!response) throw new Error('Failed to read image file');
-      const blob = await response.blob();
-      const fileRef = storageRef(storage, `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
-      await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
-      const downloadURL = await getDownloadURL(fileRef);
+      const storagePath = `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+      const downloadURL = await uploadPhotoToStorage(uri, storagePath);
       setPhotoURLs((prev) => {
         const updated = [...prev];
         // Replace the local URI with the real download URL

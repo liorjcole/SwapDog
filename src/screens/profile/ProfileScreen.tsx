@@ -1,15 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Alert,
-  ActivityIndicator, Linking, Keyboard, TextInput, Switch, LayoutAnimation,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert,
+  ActivityIndicator, Linking, TextInput, Switch, LayoutAnimation,
   NativeSyntheticEvent, NativeScrollEvent,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
-import { uploadPhotoToStorage, ensureRemotePhotoURL } from '../../utils/uploadHelper';
+import {
+  deletePhotoFromStorage,
+  ensureRemotePhotoURL,
+  uploadPhotoToStorage,
+} from '../../utils/uploadHelper';
 import * as ImagePicker from 'expo-image-picker';
-import { auth } from '../../config/firebase';
 import { ProfileStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -24,6 +27,10 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { DraggablePhotoGrid } from '../../components/common/DraggablePhotoGrid';
 import StarRating from '../../components/common/StarRating';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
+import {
+  deleteMyAccountSecure,
+  updateMyProfileSecure,
+} from '../../services/secureOperations';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'Profile'>;
@@ -100,6 +107,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const [dogDrafts, setDogDrafts] = useState<Record<string, DogDetailsDraft>>({});
   const [savingDogId, setSavingDogId] = useState<string | null>(null);
   const [profileScrollY, setProfileScrollY] = useState(0);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [dogDetailLayouts, setDogDetailLayouts] = useState<Record<string, { y: number; height: number }>>({});
   const dogDetailRefs = useRef<Record<string, View | null>>({});
 
@@ -107,12 +115,12 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
     if (!user) return;
     getDogsByOwner(user.uid).then(setDogs).finally(() => setLoading(false));
     getReferralCount(user.uid).then(setReferralCount);
-  }, [user]);
+  }, [getDogsByOwner, user]);
 
-  const refreshDogs = () => {
+  const refreshDogs = useCallback(() => {
     if (!user) return;
     getDogsByOwner(user.uid).then(setDogs);
-  };
+  }, [getDogsByOwner, user]);
 
   const toggleDogDetails = (dog: Dog) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -244,12 +252,10 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         Alert.alert('Error', 'Failed to upload photo.');
         return;
       }
-      const { updateDoc, doc, serverTimestamp } = await import('firebase/firestore');
-      const { db } = await import('../../config/firebase');
-      await updateDoc(doc(db, 'users', user.uid), { photoURL: downloadURL, updatedAt: serverTimestamp() });
+      await updateMyProfileSecure({ photoURL: downloadURL });
       await refreshUserProfile();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Failed to update photo.');
     }
   };
@@ -258,35 +264,8 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       refreshDogs();
-    }, [user])
+    }, [refreshDogs])
   );
-
-  /**
-   * Delete a photo from Firebase Storage via REST API DELETE request.
-   * Non-fatal — if storage delete fails we still remove from Firestore.
-   */
-  const deletePhotoFromStorage = async (photoURL: string): Promise<void> => {
-    try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) return;
-      // Extract encoded object path from Firebase Storage URL
-      // URL format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media&token=...
-      const match = photoURL.match(/\/o\/([^?]+)/);
-      if (!match) return;
-      const encodedPath = match[1];
-      const bucket = 'swapdog-d0cfe.firebasestorage.app';
-      const deleteUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}`;
-      const token = await currentUser.getIdToken();
-      await fetch(deleteUrl, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      console.log('[PhotoDelete] Deleted from storage:', encodedPath);
-    } catch (err) {
-      // Non-fatal — continue with Firestore update even if storage delete fails
-      console.warn('[PhotoDelete] Storage delete failed (continuing):', err);
-    }
-  };
 
   const handleAddDogPhoto = async (dogId: string, currentPhotos: string[]) => {
     const remaining = 10 - currentPhotos.length;
@@ -326,95 +305,9 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
     setUploadingPhotoCount(0);
   };
 
-  // ─── Photo Action Sheet ───────────────────────────────────────────────────
+  // ─── Delete Photo ─────────────────────────────────────────────────────────
 
-  /** Opens iOS-style action sheet on photo tap. */
-  const handlePhotoActionSheet = (dog: Dog, index: number) => {
-    Alert.alert('Manage Photo', '', [
-      {
-        text: '\u2702\ufe0f Crop Photo',
-        onPress: () => { void handleCropPhoto(dog, index); },
-      },
-      {
-        text: '\ud83d\udcf7 Replace Photo',
-        onPress: () => { void handleReplacePhoto(dog, index); },
-      },
-      {
-        text: '\ud83d\uddd1\ufe0f Delete Photo',
-        style: 'destructive',
-        onPress: () => handleDeletePhotoBadge(dog, index),
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
-
-  /**
-   * Crop Photo: pick a new image with cropping, upload and replace at index.
-   * React Native cannot re-crop an existing remote URL, so we let the user
-   * pick a new version and crop it (Hinge/Bumble pattern).
-   */
-  const handleCropPhoto = async (dog: Dog, index: number) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
-      allowsEditing: true,
-      aspect: [1, 1] as [number, number],
-      quality: 0.8,
-    });
-    if (result.canceled || !result.assets[0]) return;
-    setUploadingDogId(dog.id);
-    try {
-      const uri = result.assets[0].uri;
-      const storagePath = `dogs/${dog.id}/${Date.now()}.jpg`;
-      const downloadURL = await uploadPhotoToStorage(uri, storagePath);
-      // Best-effort: delete old photo from storage
-      await deletePhotoFromStorage(dog.photoURLs[index]);
-      const newPhotos = [...dog.photoURLs];
-      newPhotos[index] = downloadURL;
-      await updateDog(dog.id, { photoURLs: newPhotos });
-      refreshDogs();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      console.error('[PhotoUpload] handleCropPhoto error:', err);
-      Alert.alert('Upload Failed', msg);
-    } finally {
-      setUploadingDogId(null);
-    }
-  };
-
-  /**
-   * Replace Photo: same flow as crop — picker with editing, upload, replace at index.
-   */
-  const handleReplacePhoto = async (dog: Dog, index: number) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
-      allowsEditing: true,
-      aspect: [1, 1] as [number, number],
-      quality: 0.8,
-    });
-    if (result.canceled || !result.assets[0]) return;
-    setUploadingDogId(dog.id);
-    try {
-      const uri = result.assets[0].uri;
-      const storagePath = `dogs/${dog.id}/${Date.now()}.jpg`;
-      const downloadURL = await uploadPhotoToStorage(uri, storagePath);
-      // Best-effort: delete old photo from storage
-      await deletePhotoFromStorage(dog.photoURLs[index]);
-      const newPhotos = [...dog.photoURLs];
-      newPhotos[index] = downloadURL;
-      await updateDog(dog.id, { photoURLs: newPhotos });
-      refreshDogs();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      console.error('[PhotoUpload] handleReplacePhoto error:', err);
-      Alert.alert('Upload Failed', msg);
-    } finally {
-      setUploadingDogId(null);
-    }
-  };
-
-  // ─── Delete Photo (X badge + action sheet Delete option) ─────────────────
-
-  /** Shows confirmation alert before deleting a photo (called from X badge and action sheet). */
+  /** Shows confirmation alert before deleting a photo. */
   const handleDeleteDog = (dogId: string, dogName: string) => {
     Alert.alert(
       'Delete Dog',
@@ -480,6 +373,47 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
     ]);
+  };
+
+  const handleDeleteAccount = () => {
+    if (deletingAccount) return;
+    Alert.alert(
+      'Delete account permanently?',
+      'Your profile, dogs, posts, messages, photos, and personal data will be deleted. '
+      + 'This cannot be undone.',
+      [
+        { text: 'Keep Account', style: 'cancel' },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Final confirmation',
+              'Delete your WatchDog account and all associated data now?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete My Account',
+                  style: 'destructive',
+                  onPress: async () => {
+                    setDeletingAccount(true);
+                    try {
+                      await deleteMyAccountSecure();
+                    } catch (error) {
+                      setDeletingAccount(false);
+                      Alert.alert(
+                        'Could Not Delete Account',
+                        error instanceof Error ? error.message : 'Please try again.',
+                      );
+                    }
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
   };
 
   const handleCommunityStandards = () => {
@@ -958,6 +892,18 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         accessibilityHint="Signs you out of your WatchDog account"
       >
         <Text style={{ color: '#FF0000', fontSize: 17, fontWeight: '600', textDecorationLine: 'underline' }}>Sign Out</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={handleDeleteAccount}
+        disabled={deletingAccount}
+        style={{ alignItems: 'center', marginBottom: 36, paddingVertical: 8 }}
+        accessibilityLabel="Delete account"
+        accessibilityRole="button"
+        accessibilityState={{ disabled: deletingAccount }}
+      >
+        <Text style={{ color: '#FF0000', fontSize: 15, fontWeight: '600' }}>
+          {deletingAccount ? 'Deleting Account...' : 'Delete Account'}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );

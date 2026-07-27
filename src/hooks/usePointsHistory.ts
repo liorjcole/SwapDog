@@ -3,8 +3,6 @@ import {
   query,
   orderBy,
   getDocs,
-  addDoc,
-  serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -59,20 +57,5 @@ export const usePointsHistory = () => {
     return snap.docs.map((d) => parseEntry(d.id, d.data() as Record<string, unknown>));
   };
 
-  /**
-   * Record a new points history entry.
-   * Call this alongside addPoints / deductPoints to keep history in sync.
-   */
-  const recordEntry = async (
-    userId: string,
-    entry: Omit<PointsHistoryEntry, 'id' | 'createdAt'>,
-  ): Promise<void> => {
-    const ref = collection(db, 'users', userId, 'pointsHistory');
-    await addDoc(ref, {
-      ...entry,
-      createdAt: serverTimestamp(),
-    });
-  };
-
-  return { getHistory, recordEntry };
+  return { getHistory };
 };

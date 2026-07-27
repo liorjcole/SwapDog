@@ -15,6 +15,7 @@ import { getFriendlyAuthError } from '../../utils/authErrors';
 import { validateReferralCode } from '../../hooks/useReferrals';
 import { REFERRAL_STORAGE_KEY } from './ReferralCodeScreen';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
+import { clearDeferredSignUpIntro } from '../../utils/signUpIntroFlow';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'SignUp'>;
@@ -48,6 +49,10 @@ const SignUpScreen: React.FC<Props> = ({ navigation, route }) => {
     scrollToInput,
     keyboardHeight,
   } = useKeyboardScroll();
+
+  useEffect(() => {
+    clearDeferredSignUpIntro().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     let mounted = true;

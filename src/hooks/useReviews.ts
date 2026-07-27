@@ -1,18 +1,17 @@
 import {
   collection,
-  addDoc,
   getDocs,
   query,
   where,
   orderBy,
-  serverTimestamp,
-  doc,
-  updateDoc,
-  deleteField,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Review, ReviewTargetType } from '../models/types';
 import { toDate } from '../utils/firestoreConverters';
+import {
+  clearPendingReviewSecure,
+  submitReviewSecure,
+} from '../services/secureOperations';
 
 // ─── Firestore → Review parser ───────────────────────────────────────────────
 const parseReview = (id: string, data: Record<string, unknown>): Review => ({
@@ -48,19 +47,9 @@ export const useReviews = () => {
     rating: number;
     note?: string;
   }): Promise<string> => {
-    const payload = { ...data, createdAt: serverTimestamp() };
-    const ref = await addDoc(collection(db, 'reviews'), payload);
-    // Backup for disaster recovery
-    try {
-      await addDoc(collection(db, 'reviews_backup'), {
-        ...payload,
-        originalId: ref.id,
-        backedUpAt: serverTimestamp(),
-      });
-    } catch {
-      // Non-fatal
-    }
-    return ref.id;
+    const { reviewerId: _reviewerId, reviewerName: _reviewerName, ...input } = data;
+    const result = await submitReviewSecure(input);
+    return result.reviewId;
   };
 
   /**
@@ -111,10 +100,8 @@ export const useReviews = () => {
   /**
    * Clear the pending review flag from a user doc.
    */
-  const clearPendingReview = async (userId: string): Promise<void> => {
-    await updateDoc(doc(db, 'users', userId), {
-      pendingReview: deleteField(),
-    });
+  const clearPendingReview = async (_userId: string): Promise<void> => {
+    await clearPendingReviewSecure();
   };
 
   // Legacy compat wrapper

@@ -1,123 +1,124 @@
 #!/usr/bin/env node
-/*
- * Build-time validation for the sign-in carousel slides.
- *
- * Discovers slides from the SLIDES table in src/screens/auth/SplashScreen.tsx
- * (the source of truth) and asserts, per slide, the contract every slideN.html
- * must honour so a non-compliant export can never merge:
- *
- *   1. 540x1173 design frame present, tagged with a single data-slide-root.
- *   2. window.__slide contract implemented, exporting a numeric durationMs
- *      that matches the slide's durationMs in SplashScreen.tsx.
- *   3. Zero external network requests (no http(s) URLs other than the SVG
- *      xmlns namespace) — fonts, images and video must be embedded/bundled.
- *   4. File weight within the per-slide budget.
- *   5. Single-play timeline — no `infinite` animations.
- *
- * Lightweight by design: a string/DOM check with no headless-browser or npm
- * dependency, so it runs anywhere Node does. Exits non-zero on any failure.
- */
 'use strict';
+
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const SPLASH = path.join(ROOT, 'src/screens/auth/SplashScreen.tsx');
-const SLIDE_DIR = path.join(ROOT, 'assets/signin-animations');
-const BUDGET_BYTES = Math.round(1.6 * 1024 * 1024); // ~1.6 MB per slide
+const INTRO_SOURCE = path.join(ROOT, 'src/screens/auth/SignUpIntroScreen.tsx');
+const EXPECTED_STEPS = [
+  {
+    videoConstant: 'ONBOARDING_VIDEO_1',
+    video: 'assets/onboarding/onboarding1-hevc-alpha.mov',
+    titleConstant: 'POST_REQUEST_TITLE',
+    title: 'assets/onboarding/post-pet-care-request.png',
+    durationSeconds: 6,
+  },
+  {
+    videoConstant: 'ONBOARDING_VIDEO_2',
+    video: 'assets/onboarding/onboarding2-hevc-alpha.mov',
+    titleConstant: 'BLAST_TO_OWNERS_TITLE',
+    title: 'assets/onboarding/blast-to-pet-owners.png',
+    durationSeconds: 10,
+  },
+  {
+    videoConstant: 'ONBOARDING_VIDEO_3',
+    video: 'assets/onboarding/onboarding3-cropped-upscaled-hevc-alpha.mov',
+    titleConstant: 'CHAT_CONFIRM_TITLE',
+    title: 'assets/onboarding/chat-confirm-helping-hand.png',
+    durationSeconds: 6,
+  },
+  {
+    videoConstant: 'ONBOARDING_VIDEO_4',
+    video: 'assets/onboarding/onboarding4-hevc-alpha.mov',
+    titleConstant: 'TRADE_POINTS_TITLE',
+    title: 'assets/onboarding/trade-points-not-money.png',
+    durationSeconds: 8,
+  },
+];
 
-function parseSlides(src) {
-  // Matches: require('.../slideN.html'), durationMs: 12345
-  const re = /require\(['"][^'"]*\/(slide[^'"/]+\.html)['"]\)\s*,\s*durationMs:\s*(\d+)/g;
-  const out = [];
-  let m;
-  while ((m = re.exec(src)) !== null) {
-    out.push({ file: m[1], durationMs: Number(m[2]) });
-  }
-  return out;
+const source = fs.readFileSync(INTRO_SOURCE, 'utf8');
+const failures = [];
+
+function relativeRequirePattern(relativePath) {
+  const fromSource = path.relative(path.dirname(INTRO_SOURCE), path.join(ROOT, relativePath));
+  const normalized = fromSource.split(path.sep).join('/');
+  return normalized.startsWith('.') ? normalized : `./${normalized}`;
 }
 
-function externalRequests(html) {
-  const urls = html.match(/https?:\/\/[^"'() \t\r\n]+/g) || [];
-  // The SVG xmlns namespace is a declaration, never a network fetch.
-  return urls.filter((u) => !/^https?:\/\/www\.w3\.org\//.test(u));
+function inspectVideo(relativePath) {
+  const absolutePath = path.join(ROOT, relativePath);
+  const result = spawnSync('ffprobe', [
+    '-v', 'error',
+    '-select_streams', 'v:0',
+    '-show_entries', 'stream=codec_name,width,height,duration',
+    '-of', 'json',
+    absolutePath,
+  ], { encoding: 'utf8' });
+  if (result.status !== 0 || !result.stdout) {
+    return { error: 'ffprobe could not inspect the video' };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(result.stdout);
+  } catch {
+    return { error: 'ffprobe returned invalid JSON' };
+  }
+  return parsed?.streams?.[0] ?? { error: 'video stream is missing' };
 }
 
-function checkSlide(slide) {
-  const failures = [];
-  const file = path.join(SLIDE_DIR, slide.file);
-  if (!fs.existsSync(file)) {
-    return [`${slide.file}: file not found`];
-  }
-  const html = fs.readFileSync(file, 'utf8');
-  const bytes = Buffer.byteLength(html);
-
-  // 1. Design frame + single scene root.
-  if (!/width:540px;height:1173px/.test(html)) {
-    failures.push('missing 540x1173 design frame');
-  }
-  const roots = (html.match(/data-slide-root/g) || []).length;
-  if (roots !== 1) {
-    failures.push(`expected exactly one data-slide-root, found ${roots}`);
-  }
-
-  // 2. Contract implemented with a matching durationMs.
-  if (!/window\.__slide\s*=/.test(html)) {
-    failures.push('window.__slide contract not implemented');
-  }
-  for (const member of ['durationMs', 'play', 'pause', 'seek', 'setRate', 'onFrame']) {
-    if (!new RegExp(member + '\\s*:').test(html) && !new RegExp(member + '\\s*=').test(html)) {
-      failures.push(`contract missing member: ${member}`);
+for (const step of EXPECTED_STEPS) {
+  for (const relativePath of [step.video, step.title]) {
+    const absolutePath = path.join(ROOT, relativePath);
+    if (!fs.existsSync(absolutePath)) {
+      failures.push(`${relativePath}: file not found`);
+    } else if (fs.statSync(absolutePath).size === 0) {
+      failures.push(`${relativePath}: file is empty`);
     }
   }
-  const dm = html.match(/var DURATION\s*=\s*(\d+)/);
-  if (!dm) {
-    failures.push('no `var DURATION = <ms>` in contract');
-  } else if (Number(dm[1]) !== slide.durationMs) {
-    failures.push(`durationMs mismatch: HTML ${dm[1]} vs SplashScreen ${slide.durationMs}`);
-  }
 
-  // 3. Zero external network requests.
-  const ext = externalRequests(html);
-  if (ext.length) {
-    failures.push(`external network request(s): ${[...new Set(ext)].join(', ')}`);
-  }
+  const videoRequire = `const ${step.videoConstant} = require('${relativeRequirePattern(step.video)}');`;
+  const titleRequire = `const ${step.titleConstant} = require('${relativeRequirePattern(step.title)}');`;
+  if (!source.includes(videoRequire)) failures.push(`${step.videoConstant}: source require is missing`);
+  if (!source.includes(titleRequire)) failures.push(`${step.titleConstant}: source require is missing`);
 
-  // 4. Weight budget.
-  if (bytes > BUDGET_BYTES) {
-    failures.push(`over budget: ${(bytes / 1024).toFixed(0)}KB > ${(BUDGET_BYTES / 1024).toFixed(0)}KB`);
+  if (fs.existsSync(path.join(ROOT, step.video))) {
+    const video = inspectVideo(step.video);
+    if (video.error) {
+      failures.push(`${step.video}: ${video.error}`);
+    } else {
+      if (video.codec_name !== 'hevc') {
+        failures.push(`${step.video}: expected HEVC, found ${video.codec_name ?? 'unknown'}`);
+      }
+      if (!(Number(video.width) > 0) || !(Number(video.height) > 0)) {
+        failures.push(`${step.video}: invalid dimensions`);
+      }
+      if (Math.abs(Number(video.duration) - step.durationSeconds) > 0.15) {
+        failures.push(
+          `${step.video}: expected ${step.durationSeconds}s, found ${video.duration ?? 'unknown'}s`,
+        );
+      }
+    }
   }
+}
 
-  // 5. Finite single-play timeline.
-  if (/\binfinite\b/.test(html)) {
-    failures.push('contains `infinite` animation(s) — slides must be single-play');
-  }
-
-  return failures.map((f) => `${slide.file}: ${f}`).concat(
-    failures.length ? [] : [`${slide.file}: OK (${(bytes / 1024).toFixed(0)}KB, ${slide.durationMs}ms)`]
+for (const step of EXPECTED_STEPS) {
+  const stepPattern = new RegExp(
+    `title:\\s*${step.titleConstant},[\\s\\S]{0,100}video:\\s*${step.videoConstant},`,
   );
+  if (!stepPattern.test(source)) {
+    failures.push(`${step.videoConstant}: missing from INTRO_STEPS in the expected order`);
+  }
 }
 
-function main() {
-  const slides = parseSlides(fs.readFileSync(SPLASH, 'utf8'));
-  if (!slides.length) {
-    console.error('No slides found in SplashScreen.tsx SLIDES table.');
-    process.exit(2);
-  }
-  let ok = true;
-  const lines = [];
-  for (const slide of slides) {
-    const results = checkSlide(slide);
-    for (const r of results) {
-      const pass = / OK \(/.test(r);
-      if (!pass) ok = false;
-      lines.push(`${pass ? 'PASS' : 'FAIL'}  ${r}`);
-    }
-  }
-  console.log(lines.join('\n'));
-  console.log(ok ? '\nAll sign-in slides valid.' : '\nSign-in slide validation FAILED.');
-  process.exit(ok ? 0 : 1);
+if (failures.length > 0) {
+  console.error(failures.map((failure) => `FAIL  ${failure}`).join('\n'));
+  console.error('\nSign-up intro validation FAILED.');
+  process.exit(1);
 }
 
-main();
-
+console.log(`PASS  ${EXPECTED_STEPS.length} intro steps reference valid bundled media.`);
+console.log('PASS  All intro videos are readable HEVC files with expected durations.');
+console.log('PASS  Every title and video is wired into INTRO_STEPS.');
+console.log('\nSign-up intro assets valid.');

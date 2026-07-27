@@ -13,8 +13,11 @@ export type AuthStackParamList = {
 export type OnboardingStackParamList = {
   ProfileSetup: undefined;
   AddDog: undefined;
+  DeferredSignUpIntro: undefined;
   Paywall: undefined;
   LocationSetup: undefined;
+  ConductStandards: undefined;
+  Contract: undefined;
 };
 
 export type ApprovalStackParamList = {

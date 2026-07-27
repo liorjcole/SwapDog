@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { getAuth } from 'firebase/auth';
+import { getFirebaseAppCheckToken } from '../config/appCheck';
 
 /**
  * Upload a local image URI to Firebase Storage via REST API + expo-file-system.
@@ -19,18 +20,20 @@ export async function uploadPhotoToStorage(
   const user = auth.currentUser;
   if (!user) throw new Error('Not authenticated');
 
-  const token = await user.getIdToken();
+  const [token, appCheckToken] = await Promise.all([
+    user.getIdToken(),
+    getFirebaseAppCheckToken(),
+  ]);
   const bucket = 'swapdog-d0cfe.firebasestorage.app';
   const encodedPath = encodeURIComponent(storagePath);
   const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?name=${encodedPath}`;
-
-  console.log('[uploadHelper] Uploading to:', uploadUrl);
 
   const uploadResult = await FileSystem.uploadAsync(uploadUrl, localUri, {
     httpMethod: 'POST',
     uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
     headers: {
       Authorization: `Bearer ${token}`,
+      'X-Firebase-AppCheck': appCheckToken,
       'Content-Type': 'image/jpeg',
     },
   });
@@ -40,7 +43,7 @@ export async function uploadPhotoToStorage(
   }
 
   if (uploadResult.status !== 200) {
-    throw new Error(`Upload failed (${uploadResult.status}): ${uploadResult.body}`);
+    throw new Error(`Upload failed (${uploadResult.status})`);
   }
 
   const data = JSON.parse(uploadResult.body) as { downloadTokens?: string };
@@ -50,7 +53,6 @@ export async function uploadPhotoToStorage(
   }
 
   const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media&token=${downloadToken}`;
-  console.log('[uploadHelper] Download URL:', downloadURL);
   return downloadURL;
 }
 
@@ -70,4 +72,31 @@ export async function ensureRemotePhotoURL(
 ): Promise<string> {
   if (!uri || /^https?:\/\//.test(uri)) return uri;
   return uploadPhotoToStorage(uri, storagePath);
+}
+
+export async function deletePhotoFromStorage(photoURL: string): Promise<void> {
+  const auth = getAuth();
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+
+  const match = photoURL.match(/\/o\/([^?]+)/);
+  if (!match?.[1]) return;
+
+  const [token, appCheckToken] = await Promise.all([
+    user.getIdToken(),
+    getFirebaseAppCheckToken(),
+  ]);
+  const bucket = 'swapdog-d0cfe.firebasestorage.app';
+  const deleteUrl =
+    `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${match[1]}`;
+  const response = await fetch(deleteUrl, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'X-Firebase-AppCheck': appCheckToken,
+    },
+  });
+  if (!response || (!response.ok && response.status !== 404)) {
+    throw new Error(`Storage delete failed (${response?.status ?? 'no response'})`);
+  }
 }

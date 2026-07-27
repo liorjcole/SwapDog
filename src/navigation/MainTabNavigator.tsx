@@ -12,10 +12,11 @@ import {
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useMessaging } from '../hooks/useMessaging';
-import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, getDoc, getDocs, deleteField } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { shareReferral } from '../utils/shareReferral';
 import { ensureReferralCode } from '../hooks/useReferrals';
+import { clearPendingReferralRewardSecure } from '../services/secureOperations';
 import InsufficientPointsModal from '../components/common/InsufficientPointsModal';
 import ConfettiCelebration, { CelebrationItem } from '../components/common/ConfettiCelebration';
 import MandatoryReviewGate from '../components/common/MandatoryReviewGate';
@@ -306,10 +307,7 @@ const MainTabNavigator: React.FC = () => {
         ]);
 
         // Clear the pending reward flag so it doesn't show again
-        await updateDoc(doc(db, 'users', user.uid), {
-          pendingReferralReward: deleteField(),
-          updatedAt: serverTimestamp(),
-        });
+        await clearPendingReferralRewardSecure();
       } catch (err) {
         console.error('[ReferralReward] Check failed:', err);
       }
@@ -351,7 +349,7 @@ const MainTabNavigator: React.FC = () => {
           (async (): Promise<string | undefined> => {
             if (!pendingOtherUserId) return undefined;
             try {
-              const otherSnap = await getDoc(doc(db, 'users', pendingOtherUserId));
+              const otherSnap = await getDoc(doc(db, 'publicProfiles', pendingOtherUserId));
               const otherData = otherSnap.data();
               return (otherData?.photoURL as string | undefined) ?? undefined;
             } catch {

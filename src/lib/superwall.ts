@@ -112,11 +112,8 @@ const useSuperwallDisabled: UseSuperwallHook = <T = PublicSuperwallStore>(
 const usePlacementDisabled: UsePlacementHook = (
   _callbacks?: usePlacementCallbacks,
 ): UsePlacementResult => {
-  const registerPlacement = async ({ feature }: RegisterPlacementArgs): Promise<void> => {
-    // Superwall is disabled, so no paywall can be presented. Run the gated feature to
-    // let the user through — keeps onboarding functional in a degraded build instead of
-    // stranding them on a spinner.
-    feature?.();
+  const registerPlacement = async (_args: RegisterPlacementArgs): Promise<void> => {
+    throw new Error('Superwall is unavailable on this build');
   };
   return { registerPlacement, state: { status: 'idle' } };
 };

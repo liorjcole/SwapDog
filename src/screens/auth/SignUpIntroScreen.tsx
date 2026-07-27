@@ -25,6 +25,10 @@ type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'SignUpIntro'>;
 };
 
+type SignUpIntroExperienceProps = {
+  onBack: () => void;
+  onComplete: () => void;
+};
 const ONBOARDING_VIDEO_1 = require('../../../assets/onboarding/onboarding1-hevc-alpha.mov');
 const ONBOARDING_VIDEO_2 = require('../../../assets/onboarding/onboarding2-hevc-alpha.mov');
 const ONBOARDING_VIDEO_3 = require('../../../assets/onboarding/onboarding3-cropped-upscaled-hevc-alpha.mov');
@@ -195,7 +199,10 @@ const setupIntroVideoPlayer = (videoPlayer: VideoPlayer) => {
   pausePlayerSafely(videoPlayer);
 };
 
-const SignUpIntroScreen: React.FC<Props> = ({ navigation }) => {
+export const SignUpIntroExperience: React.FC<SignUpIntroExperienceProps> = ({
+  onBack,
+  onComplete,
+}) => {
   const insets = useSafeAreaInsets();
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const backgroundFade = useRef(new Animated.Value(0)).current;
@@ -206,7 +213,6 @@ const SignUpIntroScreen: React.FC<Props> = ({ navigation }) => {
   const titleScale = useRef(new Animated.Value(TITLE_START_SCALE)).current;
   const animationOpacity = useRef(new Animated.Value(0)).current;
   const finalCtaOpacity = useRef(new Animated.Value(0)).current;
-  const finalCtaLift = useRef(new Animated.Value(0)).current;
   const exitOpacity = useRef(new Animated.Value(1)).current;
   const progress = useRef(new Animated.Value(0)).current;
   const totalProgress = useRef(new Animated.Value(0)).current;
@@ -319,30 +325,19 @@ const SignUpIntroScreen: React.FC<Props> = ({ navigation }) => {
       readyBackdropAnimationRef.current.start();
     }, READY_BACKDROP_DELAY_MS);
     if (stepIndex === INTRO_STEPS.length - 1) {
-      Animated.parallel([
-        Animated.timing(finalCtaOpacity, {
-          toValue: 1,
-          duration: 360,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.spring(finalCtaLift, {
-          toValue: 1,
-          damping: 14,
-          mass: 0.85,
-          stiffness: 92,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      Animated.timing(finalCtaOpacity, {
+        toValue: 1,
+        duration: 360,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start();
     } else {
       finalCtaOpacity.setValue(0);
-      finalCtaLift.setValue(0);
     }
     startReadyPulse();
   }, [
     clearReadyBackdropTimer,
     coinBurstProgress,
-    finalCtaLift,
     finalCtaOpacity,
     progress,
     pulseScale,
@@ -421,7 +416,6 @@ const SignUpIntroScreen: React.FC<Props> = ({ navigation }) => {
     readyBackdropAnimationRef.current?.stop();
     readyBackdropOpacity.setValue(0);
     finalCtaOpacity.setValue(0);
-    finalCtaLift.setValue(0);
     coinBurstAnimationRef.current?.stop();
     coinBurstProgress.setValue(0);
     phaseRef.current = 'video';
@@ -504,7 +498,6 @@ const SignUpIntroScreen: React.FC<Props> = ({ navigation }) => {
     coinBurstAnimationRef.current?.stop();
     coinBurstProgress.setValue(0);
     finalCtaOpacity.setValue(0);
-    finalCtaLift.setValue(0);
     titleTranslateY.setValue(0);
     titleScale.setValue(TITLE_START_SCALE);
     totalProgress.setValue(totalProgressStart);
@@ -583,6 +576,9 @@ const SignUpIntroScreen: React.FC<Props> = ({ navigation }) => {
   const resetArrowForNextStep = useCallback((onComplete: () => void) => {
     pulseAnimationRef.current?.stop();
     pulseScale.setValue(1);
+    clearReadyBackdropTimer();
+    readyBackdropAnimationRef.current?.stop();
+    readyBackdropAnimationRef.current = undefined;
     Animated.parallel([
       Animated.timing(progress, {
         toValue: 0,
@@ -601,7 +597,7 @@ const SignUpIntroScreen: React.FC<Props> = ({ navigation }) => {
         onComplete();
       }
     });
-  }, [progress, pulseScale, readyBackdropOpacity]);
+  }, [clearReadyBackdropTimer, progress, pulseScale, readyBackdropOpacity]);
 
   const restartVideoFromStoppedProgress = useCallback((playbackRate: number) => {
     clearStepTimer();
@@ -722,7 +718,6 @@ const SignUpIntroScreen: React.FC<Props> = ({ navigation }) => {
     coinBurstProgress.setValue(0);
     animationOpacity.setValue(0);
     finalCtaOpacity.setValue(0);
-    finalCtaLift.setValue(0);
     progress.setValue(0);
     pulseScale.setValue(1);
     pausedProgressRef.current = 0;
@@ -781,11 +776,7 @@ const SignUpIntroScreen: React.FC<Props> = ({ navigation }) => {
     if (isExiting) {
       return;
     }
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    navigation.navigate('Splash');
+    onBack();
   };
 
   const handleContinue = () => {
@@ -813,7 +804,7 @@ const SignUpIntroScreen: React.FC<Props> = ({ navigation }) => {
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) {
-        navigation.navigate('SignUp', {});
+        onComplete();
       }
     });
   };
@@ -859,19 +850,6 @@ const SignUpIntroScreen: React.FC<Props> = ({ navigation }) => {
     outputRange: [1, 0],
   });
   const footerBottomPadding = insets.bottom + spacing.xl;
-  const finalButtonLiftDistance = (
-    screenHeight / 2
-    - footerBottomPadding
-    - styles.nextButtonShell.height / 2
-  );
-  const finalButtonTranslateY = finalCtaLift.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -finalButtonLiftDistance],
-  });
-  const finalButtonGrowScale = finalCtaLift.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.7],
-  });
   const activePlayer = getStepPlayer(activeStepIndex);
   const isThirdStep = activeStepIndex === THIRD_STEP_INDEX;
   const isPointsEaseStep = activeStepIndex === FOURTH_STEP_INDEX;
@@ -1280,8 +1258,7 @@ const SignUpIntroScreen: React.FC<Props> = ({ navigation }) => {
             {
               opacity: buttonOpacity,
               transform: [
-                { translateY: finalButtonTranslateY },
-                { scale: Animated.multiply(pulseScale, finalButtonGrowScale) },
+                { scale: pulseScale },
               ],
             },
           ]}
@@ -1360,6 +1337,19 @@ const SignUpIntroScreen: React.FC<Props> = ({ navigation }) => {
   );
 };
 
+const SignUpIntroScreen: React.FC<Props> = ({ navigation }) => (
+  <SignUpIntroExperience
+    onBack={() => {
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+        return;
+      }
+      navigation.navigate('Splash');
+    }}
+    onComplete={() => navigation.navigate('SignUp', {})}
+  />
+);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1400,7 +1390,8 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     overflow: 'hidden',
-    zIndex: 3,
+    zIndex: 30,
+    elevation: 30,
     backgroundColor: 'rgba(255,255,255,0.22)',
   },
   totalProgressFill: {

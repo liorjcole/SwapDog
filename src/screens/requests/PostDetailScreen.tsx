@@ -28,7 +28,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
-import { getDoc, doc, updateDoc, serverTimestamp, addDoc, collection, deleteField } from 'firebase/firestore';
+import { getDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { db } from '../../config/firebase';
 import { RequestsStackParamList } from '../../navigation/types';
@@ -40,6 +40,10 @@ import ConfettiCelebration, { CelebrationItem } from '../../components/common/Co
 import { smartDate, isSameDay as isSameDayUtil, formatTimeLower, hasEventStarted } from '../../utils/dateHelpers';
 import { useSwaps, parsePost } from '../../hooks/useSwaps';
 import { useCancelCommitment } from '../../hooks/useCancelCommitment';
+import {
+  reopenPostSecure,
+  rescheduleClaimedPostSecure,
+} from '../../services/secureOperations';
 import { useUserPhoto } from '../../hooks/useUserPhoto';
 import { useMessaging } from '../../hooks/useMessaging';
 import { SwapPost, RepeatSchedule, formatRepeatLabel } from '../../models/types';
@@ -375,7 +379,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     let cancelled = false;
     const fetchRatingSummaries = async () => {
       try {
-        const ownerSnap = await getDoc(doc(db, 'users', post.posterId));
+        const ownerSnap = await getDoc(doc(db, 'publicProfiles', post.posterId));
         if (!cancelled) {
           const ownerData = ownerSnap.exists() ? ownerSnap.data() : null;
           setOwnerRatingSummary(ownerData ? {
@@ -460,7 +464,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       setHelpModalVisible(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      navigation.navigate('Chat' as any, { conversationId: convId, otherUserId: post.posterId });
+      navigation.navigate('Chat', { conversationId: convId, otherUserId: post.posterId });
     } catch (err: unknown) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Failed to respond');
     } finally {
@@ -504,7 +508,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      navigation.navigate('Chat' as any, { conversationId: convId, otherUserId: post.posterId });
+      navigation.navigate('Chat', { conversationId: convId, otherUserId: post.posterId });
     } catch (err: unknown) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Failed to send message');
     } finally {
@@ -518,7 +522,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     setClaiming(true);
     try {
       const convId = await getOrCreateConversation(user.uid, responderId, post.id);
-      navigation.navigate('Chat' as any, { conversationId: convId, otherUserId: responderId });
+      navigation.navigate('Chat', { conversationId: convId, otherUserId: responderId });
     } catch (err: unknown) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Could not open chat');
     } finally {
@@ -611,13 +615,9 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const reopenPostForNewTime = async (effectiveEnd: Date) => {
     if (!post || !user) return;
     try {
-      await updateDoc(doc(db, 'swapPosts', post.id), {
+      await reopenPostSecure(post.id, {
         startDate: rescheduleStart,
         endDate: effectiveEnd,
-        status: 'open',
-        claimedBy: deleteField(),
-        respondedBy: [],
-        updatedAt: serverTimestamp(),
       });
       setPost((prev) => prev ? {
         ...prev,
@@ -645,11 +645,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     }
 
     try {
-      // Direct overwrite — status stays 'claimed', no proposal fields written
-      await updateDoc(doc(db, 'swapPosts', post.id), {
-        startDate: rescheduleStart,
-        endDate: effectiveEnd,
-        updatedAt: serverTimestamp() });
+      await rescheduleClaimedPostSecure(post.id, rescheduleStart, effectiveEnd);
 
       const convId = await getOrCreateConversation(user.uid, sitterId, post.id);
       const { dateStr, eventLabel } = getRescheduleLabels(rescheduleStart, effectiveEnd);
@@ -753,24 +749,31 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     }
 
     try {
-      const updates: Record<string, any> = { updatedAt: serverTimestamp() };
+      const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
+      const localUpdates: Partial<SwapPost> = {};
 
       if (post.compensationType === 'points') {
         updates.pointsOffered = numVal;
         updates.pointsCost = numVal;
+        localUpdates.pointsOffered = numVal;
+        localUpdates.pointsCost = numVal;
       } else if (post.compensationType === 'payment') {
         updates.paymentAmount = numVal;
         updates.totalPayment = numVal;
+        localUpdates.paymentAmount = numVal;
+        localUpdates.totalPayment = numVal;
       } else {
         // 'either' — update points value
         updates.pointsOffered = numVal;
         updates.pointsCost = numVal;
+        localUpdates.pointsOffered = numVal;
+        localUpdates.pointsCost = numVal;
       }
 
       await updateDoc(doc(db, 'swapPosts', post.id), updates);
 
       // Update local state
-      setPost((prev) => prev ? { ...prev, ...updates, updatedAt: new Date() } : prev);
+      setPost((prev) => prev ? { ...prev, ...localUpdates, updatedAt: new Date() } : prev);
       setEditingComp(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
@@ -1244,9 +1247,9 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
 
           {/* Overnight location preference */}
-          {(post.careType === 'overnight' || post.careType === 'daySitting') && (post as any).overnightLocation && (
+          {(post.careType === 'overnight' || post.careType === 'daySitting') && post.overnightLocation && (
             <Text style={[styles.careDetailLine, { color: colors.textSecondary, fontWeight: '400', fontSize: 16, marginTop: 4 }]}>
-              📍  {(post as any).overnightLocation === 'my_home' ? "Owner's home" : (post as any).overnightLocation === 'sitters_home' ? "Sitter's home" : 'No preference'}
+              📍  {post.overnightLocation === 'my_home' ? "Owner's home" : post.overnightLocation === 'sitters_home' ? "Sitter's home" : 'No preference'}
             </Text>
           )}
           {/* ── Add-on care breakdown ── */}
@@ -1261,7 +1264,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   {post.feedingSlots.map((slot, i) => (
                     <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
                       <Text style={{ fontSize: 15, color: colors.textSecondary }}>
-                        {slot.time}{(slot as any).repeatSchedule ? '  ·  ' + formatRepeatLabel((slot as any).repeatSchedule) : (slot as any).daily ? '  ·  Repeat daily' : ''}
+                        {slot.time}{slot.repeatSchedule ? '  ·  ' + formatRepeatLabel(slot.repeatSchedule) : slot.daily ? '  ·  Repeat daily' : ''}
                         {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                           ? `  ·  ${resolveDogNames(slot.dogIds, post)}`
                           : ''}
@@ -1278,7 +1281,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   {post.medicationSlots.map((slot, i) => (
                     <View key={i} style={{ marginLeft: 12, marginBottom: 2 }}>
                       <Text style={{ fontSize: 15, color: colors.textSecondary }}>
-                        {slot.time}{(slot as any).repeatSchedule ? '  ·  ' + formatRepeatLabel((slot as any).repeatSchedule) : (slot as any).daily ? '  ·  Repeat daily' : ''}
+                        {slot.time}{slot.repeatSchedule ? '  ·  ' + formatRepeatLabel(slot.repeatSchedule) : slot.daily ? '  ·  Repeat daily' : ''}
                         {slot.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                           ? `  \u00b7  ${resolveDogNames(slot.dogIds, post)}`
                           : ''}
@@ -1307,7 +1310,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                         <Text style={{ fontSize: 15, color: colors.textSecondary }}>
                           {ws.flexible
                             ? `Flexible · ${durLabel}`
-                            : `${ws.startTime} – ${ws.endTime}  (${durLabel})`}{(ws as any).repeatSchedule ? '  ·  ' + formatRepeatLabel((ws as any).repeatSchedule) : (ws as any).repeatDaily ? '  ·  Repeat daily' : ''}
+                            : `${ws.startTime} – ${ws.endTime}  (${durLabel})`}{ws.repeatSchedule ? '  ·  ' + formatRepeatLabel(ws.repeatSchedule) : ws.repeatDaily ? '  ·  Repeat daily' : ''}
                           {ws.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                             ? `  ·  ${resolveDogNames(ws.dogIds, post)}`
                             : ''}
@@ -1333,7 +1336,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                           {ps.flexible
                             ? `Flexible · ${durLabel}`
                             : `${ps.startTime} – ${ps.endTime}  (${durLabel})`}
-                          {(ps as any).repeatSchedule ? '  ·  ' + formatRepeatLabel((ps as any).repeatSchedule) : (ps as any).repeatDaily ? '  ·  Repeat daily' : ''}
+                          {ps.repeatSchedule ? '  ·  ' + formatRepeatLabel(ps.repeatSchedule) : ps.repeatDaily ? '  ·  Repeat daily' : ''}
                           {ps.dogIds.length > 0 && post.dogNames && post.dogNames.length > 1
                             ? `  ·  ${resolveDogNames(ps.dogIds, post)}`
                             : ''}
@@ -1439,7 +1442,7 @@ const PostDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 onPress={async () => {
                   try {
                     const convId = await getOrCreateConversation(user!.uid, post.posterId, post.id);
-                    navigation.navigate('Chat' as any, { conversationId: convId, otherUserId: post.posterId });
+                    navigation.navigate('Chat', { conversationId: convId, otherUserId: post.posterId });
                   } catch {
                     Alert.alert('Error', 'Could not open conversation');
                   }

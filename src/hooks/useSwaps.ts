@@ -1,6 +1,5 @@
 import {
   collection,
-  addDoc,
   getDocs,
   getDoc,
   updateDoc,
@@ -14,9 +13,8 @@ import {
   serverTimestamp,
   or,
   arrayUnion,
-  arrayRemove,
 } from 'firebase/firestore';
-import { geohashForLocation, geohashQueryBounds } from 'geofire-common';
+import { geohashQueryBounds } from 'geofire-common';
 import { db } from '../config/firebase';
 import {
   SwapRequest,
@@ -28,6 +26,15 @@ import {
   PostTemplate,
 } from '../models/types';
 import { toDate } from '../utils/firestoreConverters';
+import {
+  addPostResponseSecure,
+  approvePostHelperSecure,
+  cancelCommitmentSecure,
+  createPostSecure,
+  createSwapRequestSecure,
+  removePostResponseSecure,
+  respondToPostCounterSecure,
+} from '../services/secureOperations';
 
 // ─── Legacy SwapRequest parser ────────────────────────────────────────────────
 const parseSwap = (id: string, data: Record<string, unknown>): SwapRequest => ({
@@ -78,14 +85,17 @@ export const parsePost = (id: string, data: Record<string, unknown>): SwapPost =
   paymentRate: data.paymentRate as SwapPost['paymentRate'],
   totalPayment: data.totalPayment as number | undefined,
   totalUnits: data.totalUnits as number | undefined,
+  pointsDisabled: data.pointsDisabled as boolean | undefined,
   status: (data.status as PostStatus) ?? 'open',
   claimedBy: data.claimedBy as string | undefined,
+  lateCancelled: data.lateCancelled as boolean | undefined,
+  lateCancelledBy: data.lateCancelledBy as 'owner' | 'sitter' | undefined,
   rescheduleProposedStart: data.rescheduleProposedStart ? toDate(data.rescheduleProposedStart as Parameters<typeof toDate>[0]) : undefined,
   rescheduleProposedEnd: data.rescheduleProposedEnd ? toDate(data.rescheduleProposedEnd as Parameters<typeof toDate>[0]) : undefined,
   rescheduleNote: data.rescheduleNote as string | undefined,
   rescheduleProposedBy: data.rescheduleProposedBy as string | undefined,
   respondedBy: (() => {
-    const raw = data.respondedBy as Array<Record<string, unknown>> | undefined;
+    const raw = data.respondedBy as Record<string, unknown>[] | undefined;
     if (!raw) return undefined;
     return raw.map((r) => ({
       userId: r.userId as string,
@@ -141,12 +151,8 @@ export const useSwaps = () => {
   const createSwap = async (
     data: Omit<SwapRequest, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<string> => {
-    const ref = await addDoc(collection(db, 'swapRequests'), {
-      ...data,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    return ref.id;
+    const result = await createSwapRequestSecure(data);
+    return result.swapRequestId;
   };
 
   const getSwapsByUser = async (userId: string): Promise<SwapRequest[]> => {
@@ -158,43 +164,14 @@ export const useSwaps = () => {
     return snap.docs.map((d) => parseSwap(d.id, d.data() as Record<string, unknown>));
   };
 
-  const updateSwapStatus = async (id: string, status: SwapStatus): Promise<void> => {
-    await updateDoc(doc(db, 'swapRequests', id), { status, updatedAt: serverTimestamp() });
-  };
-
-  const updateSwapSitterPreference = async (
-    id: string,
-    sitterPreference: SitterPreference,
-    status: SwapStatus
-  ): Promise<void> => {
-    await updateDoc(doc(db, 'swapRequests', id), {
-      sitterPreference,
-      status,
-      updatedAt: serverTimestamp(),
-    });
-  };
-
   // ── NEW: Public post ops ──────────────────────────────────────────────────
 
   /** Create a new public post visible to everyone in the poster's area */
   const createPost = async (
     data: Omit<SwapPost, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<string> => {
-    // Firestore rejects undefined field values — strip them before writing
-    const cleanData = Object.fromEntries(
-      Object.entries(data as Record<string, unknown>).filter(([, v]) => v !== undefined)
-    );
-    const posterLocation = data.posterLocation;
-    const posterGeohash = posterLocation
-      ? geohashForLocation([posterLocation.latitude, posterLocation.longitude])
-      : undefined;
-    const ref = await addDoc(collection(db, 'swapPosts'), {
-      ...cleanData,
-      ...(posterGeohash ? { posterGeohash } : {}),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    return ref.id;
+    const result = await createPostSecure(data);
+    return result.postId;
   };
 
   /** Check if a post's end date/time has passed.
@@ -265,7 +242,7 @@ export const useSwaps = () => {
             radiusMiles * 1609.344,
           ).map(([start, end]) =>
             getDocs(query(
-              collection(db, 'swapPosts'),
+              collection(db, 'publicSwapPosts'),
               ...baseConstraints,
               orderBy('posterGeohash'),
               startAt(start),
@@ -273,7 +250,7 @@ export const useSwaps = () => {
             )),
           ),
         )
-      : [await getDocs(query(collection(db, 'swapPosts'), ...baseConstraints))];
+      : [await getDocs(query(collection(db, 'publicSwapPosts'), ...baseConstraints))];
 
     const seen = new Set<string>();
     const all = snaps.flatMap((snap) => snap.docs)
@@ -286,13 +263,13 @@ export const useSwaps = () => {
       .filter((p) => {
         if (p.status === 'claimed') {
           // Drop claimed posts ~1 min after their event ends (display-only; Firestore status unchanged)
-          return !isPostExpired(p, 60) && !((p as any).pointsDisabled);
+          return !isPostExpired(p, 60) && !p.pointsDisabled;
         }
         return (
           p.status === 'open' &&
           !isPostExpired(p) &&
           !isStartExpiredNoHelper(p) && // exclude start-expired posts with no helper
-          !((p as any).pointsDisabled)
+          !p.pointsDisabled
         );
       }); // keep open + claimed; exclude completed/expired/cancelled/points-disabled
 
@@ -367,19 +344,12 @@ export const useSwaps = () => {
 
   /** Mark a post as claimed by a sitter */
   const claimPost = async (postId: string, sitterId: string): Promise<void> => {
-    await updateDoc(doc(db, 'swapPosts', postId), {
-      status: 'claimed' as PostStatus,
-      claimedBy: sitterId,
-      updatedAt: serverTimestamp(),
-    });
+    await approvePostHelperSecure(postId, sitterId);
   };
 
   /** Cancel a post (poster only) */
   const cancelPost = async (postId: string): Promise<void> => {
-    await updateDoc(doc(db, 'swapPosts', postId), {
-      status: 'cancelled' as PostStatus,
-      updatedAt: serverTimestamp(),
-    });
+    await cancelCommitmentSecure(postId);
   };
 
   /** Add a responder to a post's respondedBy array (guards against duplicates).
@@ -390,30 +360,8 @@ export const useSwaps = () => {
     responder: { userId: string; userName: string; userPhotoURL?: string },
     counterPoints?: number
   ): Promise<void> => {
-    // Server-side duplicate guard: read the doc first
-    const postSnap = await getDoc(doc(db, 'swapPosts', postId));
-    if (postSnap.exists()) {
-      const data = postSnap.data() as Record<string, unknown>;
-      const existing = (data.respondedBy as Array<Record<string, unknown>> | undefined) ?? [];
-      if (existing.some((r) => r.userId === responder.userId)) {
-        // Already responded — skip the write
-        return;
-      }
-    }
-    const entry: Record<string, unknown> = {
-      userId: responder.userId,
-      userName: responder.userName,
-      userPhotoURL: responder.userPhotoURL ?? null,
-      respondedAt: new Date(),
-    };
-    if (counterPoints !== undefined) {
-      entry.counterPoints = counterPoints;
-      entry.counterStatus = 'pending';
-    }
-    await updateDoc(doc(db, 'swapPosts', postId), {
-      respondedBy: arrayUnion(entry),
-      updatedAt: serverTimestamp(),
-    });
+    void responder;
+    await addPostResponseSecure(postId, counterPoints);
   };
 
   /**
@@ -425,55 +373,35 @@ export const useSwaps = () => {
     responderId: string,
     accept: boolean
   ): Promise<void> => {
-    const postSnap = await getDoc(doc(db, 'swapPosts', postId));
-    if (!postSnap.exists()) throw new Error('Post not found');
-    const data = postSnap.data() as Record<string, unknown>;
-    const existing = (data.respondedBy as Array<Record<string, unknown>> | undefined) ?? [];
-    const entry = existing.find((r) => r.userId === responderId);
-    if (!entry) throw new Error('Responder not found');
-
-    // Remove old entry and re-add with updated counterStatus
-    const updatedEntry = { ...entry, counterStatus: accept ? 'accepted' : 'declined' };
-    await updateDoc(doc(db, 'swapPosts', postId), {
-      respondedBy: arrayRemove(entry),
-      updatedAt: serverTimestamp(),
-    });
-    await updateDoc(doc(db, 'swapPosts', postId), {
-      respondedBy: arrayUnion(updatedEntry),
-      updatedAt: serverTimestamp(),
-    });
+    await respondToPostCounterSecure(postId, responderId, accept);
   };
 
 
   /** Remove a responder from a post's respondedBy array */
   const removeResponder = async (postId: string, userId: string): Promise<void> => {
-    const postSnap = await getDoc(doc(db, 'swapPosts', postId));
-    if (!postSnap.exists()) return;
-    const data = postSnap.data() as Record<string, unknown>;
-    const existing = (data.respondedBy as Array<Record<string, unknown>> | undefined) ?? [];
-    const entry = existing.find((r) => r.userId === userId);
-    if (!entry) return; // not in the list
-    await updateDoc(doc(db, 'swapPosts', postId), {
-      respondedBy: arrayRemove(entry),
-      updatedAt: serverTimestamp(),
-    });
+    await removePostResponseSecure(postId, userId);
   };
 
   /** Fetch open posts where the given user has responded (Pending tab) */
   const getPendingPosts = async (userId: string): Promise<SwapPost[]> => {
-    // Firestore doesn't support querying inside array-of-maps directly,
-    // so we fetch all open posts and filter client-side.
-    const q = query(
-      collection(db, 'swapPosts'),
-      where('status', '==', 'open')
+    const responseSnap = await getDocs(query(
+      collection(db, 'postResponses'),
+      where('responderId', '==', userId),
+      where('status', '==', 'pending'),
+    ));
+    const postSnaps = await Promise.all(
+      responseSnap.docs.map((response) =>
+        getDoc(doc(db, 'publicSwapPosts', String(response.data().postId))),
+      ),
     );
-    const snap = await getDocs(q);
-    const all = snap.docs.map((d) => parsePost(d.id, d.data() as Record<string, unknown>));
-    return all.filter(
-      (p) =>
-        p.posterId !== userId &&
-        (p.respondedBy ?? []).some((r) => r.userId === userId)
-    ).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return postSnaps
+      .filter((postDoc) => postDoc.exists())
+      .map((postDoc) => parsePost(
+        postDoc.id,
+        postDoc.data() as Record<string, unknown>,
+      ))
+      .filter((post) => post.status === 'open' && post.posterId !== userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   };
 
   /**
@@ -482,11 +410,7 @@ export const useSwaps = () => {
    * - Records claimedBy = helperId
    */
   const approveHelper = async (postId: string, helperId: string): Promise<void> => {
-    await updateDoc(doc(db, 'swapPosts', postId), {
-      status: 'claimed' as PostStatus,
-      claimedBy: helperId,
-      updatedAt: serverTimestamp(),
-    });
+    await approvePostHelperSecure(postId, helperId);
   };
 
   /**
@@ -573,8 +497,6 @@ export const useSwaps = () => {
     // Legacy
     createSwap,
     getSwapsByUser,
-    updateSwapStatus,
-    updateSwapSitterPreference,
     // New posts
     createPost,
     getAreaPosts,

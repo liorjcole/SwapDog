@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../config/firebase';
 import { User } from '../models/types';
 import { toDate } from '../utils/firestoreConverters';
 import { REFERRAL_STORAGE_KEY } from '../screens/auth/ReferralCodeScreen';
+import { updateMyProfileSecure } from '../services/secureOperations';
 
 
 interface AuthContextType {
@@ -78,7 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (photoURL && !photoURL.startsWith('http')) {
           photoURL = '';
           try {
-            await updateDoc(docRef, { photoURL: '' });
+            await updateMyProfileSecure({ photoURL: '' });
           } catch {
             // Non-fatal: a later open will retry the cleanup.
           }
@@ -94,9 +95,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           location: data.location,
           locationGeohash: data.locationGeohash,
           locationName: data.locationName,
-          pushToken: data.pushToken,
-          pushTokens: data.pushTokens,
+          pushToken: privateData?.pushToken as string | undefined,
+          pushTokens: privateData?.pushTokens as string[] | undefined,
           isOnboarded: data.isOnboarded ?? false,
+          profileSetupComplete: data.profileSetupComplete ?? false,
           createdAt: toDate(data.createdAt),
           updatedAt: toDate(data.updatedAt),
           rating: data.rating,
@@ -110,6 +112,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           contractSignedAt: data.contractSignedAt ? toDate(data.contractSignedAt) : undefined,
           vettingScheduledAt: data.vettingScheduledAt ? toDate(data.vettingScheduledAt) : undefined,
           freeAccessUntil: data.freeAccessUntil ? toDate(data.freeAccessUntil) : undefined,
+          subscriptionStatus: data.subscriptionStatus,
+          subscriptionPlan: data.subscriptionPlan,
+          subscriptionExpiresAt: data.subscriptionExpiresAt
+            ? toDate(data.subscriptionExpiresAt)
+            : undefined,
+          subscriptionAutoRenews: data.subscriptionAutoRenews,
           instagramHandle: data.instagramHandle,
           hiddenReusePostIds: data?.hiddenReusePostIds ?? [],
           postTemplates: data?.postTemplates ?? [],

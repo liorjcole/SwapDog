@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  collection, query, where, onSnapshot, addDoc, deleteDoc, getDocs,
+  collection, query, where, onSnapshot, deleteDoc, doc, setDoc,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -49,7 +49,7 @@ export const useBlocking = () => {
 
   const blockUser = async (userId: string) => {
     if (!uid || uid === userId) return;
-    await addDoc(collection(db, 'blocks'), {
+    await setDoc(doc(db, 'blocks', `${uid}_${userId}`), {
       blockerId: uid,
       blockedId: userId,
       createdAt: serverTimestamp(),
@@ -58,14 +58,7 @@ export const useBlocking = () => {
 
   const unblockUser = async (userId: string) => {
     if (!uid) return;
-    const q = query(
-      collection(db, 'blocks'),
-      where('blockerId', '==', uid),
-      where('blockedId', '==', userId),
-    );
-    const snap = await getDocs(q);
-    const deletes = snap.docs.map((d) => deleteDoc(d.ref));
-    await Promise.all(deletes);
+    await deleteDoc(doc(db, 'blocks', `${uid}_${userId}`));
   };
 
   return { blockUser, unblockUser, isBlockedByMe, hiddenUserIds };

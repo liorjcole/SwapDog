@@ -11,11 +11,10 @@ import {
   Alert,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { spacing, borderRadius, typography, shadow } from '../../config/theme';
+import { acceptConductStandardsSecure } from '../../services/secureOperations';
 
 const STANDARDS = [
   {
@@ -97,11 +96,7 @@ const ConductStandardsScreen: React.FC<ConductStandardsScreenProps> = ({
     if (!user) return;
     setLoading(true);
     try {
-      await updateDoc(doc(db, 'users', user.uid), {
-        conductAgreedAt: serverTimestamp(),
-        accountStatus: 'pending_approval',
-        updatedAt: serverTimestamp(),
-      });
+      await acceptConductStandardsSecure();
       await refreshUserProfile();
       onAgreed?.();
     } catch (err) {

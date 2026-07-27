@@ -1,9 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { SPLASH_COLOR } from '../config/theme';
-import { db } from '../config/firebase';
+import { registerPushTokenSecure } from './secureOperations';
 
 // Track which conversation the user is currently viewing
 let activeConversationId: string | null = null;
@@ -65,8 +64,7 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
 
   if (!projectId) {
-    // Return a mock token in development when no projectId is configured
-    return 'ExponentPushToken[mock-dev-token]';
+    return null;
   }
 
   try {
@@ -78,11 +76,8 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
 };
 
 export const savePushToken = async (userId: string, token: string): Promise<void> => {
-  // Save to both pushToken (legacy single) and pushTokens (array for multi-device)
-  await updateDoc(doc(db, 'users', userId), {
-    pushToken: token,
-    pushTokens: arrayUnion(token),
-  });
+  void userId;
+  await registerPushTokenSecure(token);
 };
 
 export const scheduleLocalNotification = async (

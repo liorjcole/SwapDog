@@ -3,18 +3,17 @@ import {
   Animated, View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import * as Haptics from 'expo-haptics';
 import { OnboardingStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { db } from '../../config/firebase';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
 import { ensureRemotePhotoURL } from '../../utils/uploadHelper';
 import { validateReferralCode, redeemReferralCode } from '../../hooks/useReferrals';
 import AuthVideoBackground from '../../components/auth/AuthVideoBackground';
+import { updateMyProfileSecure } from '../../services/secureOperations';
 
 type Props = {
   navigation: NativeStackNavigationProp<OnboardingStackParamList, 'ProfileSetup'>;
@@ -43,6 +42,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
   } = useKeyboardScroll();
   const { user } = useAuthContext();
   const { displayName, setDisplayName, bio, setBio, instagramHandle, setInstagramHandle, photoURL, setPhotoURL } = useOnboarding();
+  const trimmedBioLength = bio.trim().length;
   const [friendReferralCode, setFriendReferralCode] = useState('');
   const [showReferralField, setShowReferralField] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -83,6 +83,10 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleNext = async () => {
     if (!displayName.trim()) { Alert.alert('Required', 'Please enter your name'); return; }
+    if (trimmedBioLength < 20) {
+      Alert.alert('Required', 'Please write at least 20 characters about yourself');
+      return;
+    }
     if (!photoURL) {
       Alert.alert('Photo Required', 'Please add a profile photo so other dog parents can see who you are');
       return;
@@ -106,7 +110,6 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
     setLoading(true);
     try {
       // Validate + redeem friend's referral code if entered
-      let referredBy: string | null = null;
       const trimmedCode = friendReferralCode.trim();
       if (trimmedCode) {
         const codeResult = await validateReferralCode(trimmedCode);
@@ -120,7 +123,6 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
           setLoading(false);
           return;
         }
-        referredBy = codeResult.createdBy;
         // Redeem the code (increments usage, sets referredBy on user doc)
         await redeemReferralCode(trimmedCode, user.uid);
       }
@@ -144,15 +146,12 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         }
       }
 
-      await setDoc(doc(db, 'users', user.uid), {
+      await updateMyProfileSecure({
         displayName: displayName.trim(),
         bio: bio.trim(),
         instagramHandle: cleanIgHandle(instagramHandle) || '',
         photoURL: finalPhotoURL,
-        isOnboarded: false,
-        ...(referredBy ? { referredBy } : {}),
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
+      });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       navigation.navigate('AddDog');
     } catch (error: unknown) {
@@ -195,7 +194,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         )}
         <Text style={[styles.photoHint, { color: colors.primary }]}>Add Your Profile Photo</Text>
         <Text style={[styles.photoSubHint, { color: colors.textSecondary }]}>
-          (This is a photo of YOU not your pup!)
+          THIS IS A PHOTO OF YOU!{'\n'}(not your pup)
         </Text>
       </TouchableOpacity>
 
@@ -213,7 +212,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
       </View>
       <View ref={refFor('bio')}>
         <TextInput
-          style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+          style={[styles.input, styles.textArea, styles.bioInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="Tell the community about yourself (why someone should trust you with their pup and why they'd like you to look after theirs!)"
           placeholderTextColor={colors.textSecondary}
           value={bio}
@@ -226,9 +225,18 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
           spellCheck={true}
           autoCapitalize="sentences"
           textContentType="none"
-          accessibilityLabel="Bio, optional"
+          accessibilityLabel="About yourself, minimum 20 characters"
           onFocus={() => scrollToInput('bio')}
         />
+        <Text
+          style={[
+            styles.fieldHint,
+            { color: trimmedBioLength >= 20 ? colors.primary : colors.textSecondary },
+          ]}
+          accessibilityLiveRegion="polite"
+        >
+          Minimum 20 characters ({trimmedBioLength}/20)
+        </Text>
       </View>
       <View ref={refFor('ig')}>
         <TextInput
@@ -305,6 +313,7 @@ const styles = StyleSheet.create({
   photoSubHint: { fontSize: 14, fontWeight: '600', marginTop: 4, textAlign: 'center' },
   fieldHint: { fontSize: 14, marginTop: 4, marginBottom: 8, paddingHorizontal: 4 },
   input: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md, fontSize: 17 },
+  bioInput: { marginBottom: 0 },
   textArea: { minHeight: 140, textAlignVertical: 'top', paddingTop: spacing.sm },
   referralLink: { alignSelf: 'center', paddingVertical: spacing.sm, marginBottom: spacing.md },
   referralLinkText: { fontSize: 16, textDecorationLine: 'underline' },

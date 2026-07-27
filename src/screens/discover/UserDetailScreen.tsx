@@ -117,7 +117,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const convId = await getOrCreateConversation(me.id, user.id);
-      navigation.navigate('Chat' as any, { conversationId: convId, otherUserId: user.id });
+      navigation.navigate('Chat', { conversationId: convId, otherUserId: user.id });
     } catch (err: unknown) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Failed to open conversation');
     } finally {
@@ -158,9 +158,7 @@ const UserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         const feedbackRef = doc(db, 'blockReports', `${me?.id || 'unknown'}_${userId}_${Date.now()}`);
         await setDoc(feedbackRef, {
           reporterId: me?.id || 'unknown',
-          reporterName: me?.displayName || 'Unknown',
-          blockedUserId: userId,
-          blockedUserName: blockedUserName,
+          reportedUserId: userId,
           reason: feedback.trim(),
           createdAt: serverTimestamp(),
         });

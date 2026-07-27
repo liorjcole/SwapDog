@@ -6,9 +6,6 @@ import {
   query,
   where,
   onSnapshot,
-  doc,
-  updateDoc,
-  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { parsePost } from './useSwaps';
@@ -18,6 +15,7 @@ import { useDogs } from './useDogs';
 import { ReviewFlowParams } from './useReviewFlow';
 import { resolvePostEndMs } from '../utils/dateHelpers';
 import { SwapPost } from '../models/types';
+import { completeBookingSecure } from '../services/secureOperations';
 
 // Re-scan cadence: backstop for the precise per-commitment timers below, in case
 // a timer was dropped (e.g. the JS timer queue was throttled in the background).
@@ -48,9 +46,9 @@ interface UseLiveReviewTriggerArgs {
  *    mirroring getAcceptedPosts so the set stays fresh app-wide.
  *  - Each commitment gets a precise setTimeout at its resolved end instant, plus
  *    an AppState 'active' re-check and a low-frequency safety scan as backstops.
- *  - On end: open the gate locally (instant for the in-app party) AND write
- *    status:'completed' so the onPostCompleted CF backfills pendingReview for the
- *    other party / cold-start path.
+ *  - On end: open the gate locally (instant for the in-app party) AND ask the
+ *    server to complete the booking so onPostCompleted backfills pendingReview
+ *    for the other party / cold-start path.
  *
  * Dedupe is three-way so a post is never prompted twice across this live path and
  * the on-open pendingReview path: an in-session handled set, a durable hasReviewed
@@ -191,13 +189,10 @@ export const useLiveReviewTrigger = ({
         // AppState path, not on the next 30s tick (avoids a tight retry loop).
         handledRef.current.add(postId);
 
-        // Backfill for the other party / cold-start: idempotent — the CF only
-        // fires on the claimed→completed transition.
+        // Backfill for the other party / cold-start. The callable verifies the
+        // participant and server clock; the trigger is transition-idempotent.
         if (post.status !== 'completed') {
-          updateDoc(doc(db, 'swapPosts', postId), {
-            status: 'completed',
-            updatedAt: serverTimestamp(),
-          }).catch((err) =>
+          completeBookingSecure(postId).catch((err) =>
             console.warn('[LiveReview] Failed to mark post completed:', postId, err),
           );
         }
@@ -300,14 +295,15 @@ export const useLiveReviewTrigger = ({
       if (state === 'active') evaluateNow();
     });
     const safetyInterval = setInterval(evaluateNow, SAFETY_SCAN_MS);
+    const timers = timersRef.current;
 
     return () => {
       unsubPoster();
       unsubHelper();
       appStateSub.remove();
       clearInterval(safetyInterval);
-      for (const timer of timersRef.current.values()) clearTimeout(timer);
-      timersRef.current.clear();
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
     };
   }, [user, requestOpen]);
 };

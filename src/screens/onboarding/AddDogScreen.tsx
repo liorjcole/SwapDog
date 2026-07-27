@@ -1,13 +1,11 @@
-import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useState, useRef, useCallback, useLayoutEffect } from 'react';
+import { useFocusEffect, useIsFocused, usePreventRemove } from '@react-navigation/native';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch,
   Image, Platform, ActivityIndicator, Linking, Animated as RNAnimated, LayoutAnimation,
   Dimensions, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../../config/firebase';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { OnboardingStackParamList } from '../../navigation/types';
@@ -22,6 +20,8 @@ import DogAddedTransition from '../../components/onboarding/DogAddedTransition';
 import { DraggablePhotoGrid } from '../../components/common/DraggablePhotoGrid';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
+import { shouldShowDeferredSignUpIntro } from '../../utils/signUpIntroFlow';
+import { uploadPhotoToStorage } from '../../utils/uploadHelper';
 
 const MAX_DOGS = 10;
 
@@ -55,9 +55,20 @@ type Props = {
 const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user } = useAuthContext();
-  const { createDog, deleteDog } = useDogs();
+  const { createDog, updateDog, deleteDog } = useDogs();
 
-  const { dogForm: form, setDogForm: setForm, updateDogForm: set, savedDogs, savedCount, addSavedDog, removeSavedDog, popLastSavedDog, resetDogForm } = useOnboarding();
+  const {
+    dogForm: form,
+    currentDogId,
+    setCurrentDogId,
+    updateDogForm: set,
+    savedDogs,
+    savedCount,
+    addSavedDog,
+    removeSavedDog,
+    popLastSavedDog,
+    resetDogForm,
+  } = useOnboarding();
   const {
     scrollRef,
     onScroll,
@@ -68,17 +79,41 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     keyboardHeight,
   } = useKeyboardScroll();
   const didNavigateForward = useRef(false);
+  const saveInFlight = useRef(false);
+  const backPromptVisible = useRef(false);
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingCount, setUploadingCount] = useState(0);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
+  const [transitionMode, setTransitionMode] = useState<'addAnother' | 'continue'>('addAnother');
   const [showRefChart, setShowRefChart] = useState(false);
+  const [showTransition, setShowTransition] = useState(false);
+
+  const continueAfterDogSetup = useCallback(async () => {
+    const showDeferredIntro = await shouldShowDeferredSignUpIntro().catch(() => false);
+    navigation.navigate(showDeferredIntro ? 'DeferredSignUpIntro' : 'Paywall');
+  }, [navigation]);
+
+  const hasCurrentDogProgress = Boolean(
+    form.name.trim()
+    || form.breed.trim()
+    || form.photoURLs.length
+    || form.weightLbs
+    || form.dogBio.trim()
+    || form.ageYears
+    || form.ageMonths !== 1
+    || form.goodWithDogs
+    || form.goodWithKids
+    || form.vaccinated
+    || form.pottyTrained
+  );
 
   // Custom back: go to previous dog instead of ProfileSetup
   const doGoBack = useCallback(() => {
     if (savedCount > 0) {
-      const popped = popLastSavedDog();
-      if (popped?.id) {
-        deleteDog(popped.id).catch(() => {});
-      }
+      popLastSavedDog();
       setTimeout(() => {
         scrollRef.current?.scrollTo({ y: 0, animated: false });
       }, 50);
@@ -88,30 +123,64 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     } else {
       navigation.goBack();
     }
-  }, [savedCount, popLastSavedDog, deleteDog, navigation]);
+  }, [savedCount, popLastSavedDog, navigation, scrollRef]);
 
   const handleBack = useCallback(() => {
+    if (loading || uploadingPhoto) {
+      Alert.alert('Please wait', 'Your dog’s information is still being saved.');
+      return;
+    }
+
     if (savedCount > 0) {
+      if (!hasCurrentDogProgress) {
+        doGoBack();
+        return;
+      }
+      if (backPromptVisible.current) return;
+      backPromptVisible.current = true;
+
       // Warn that unsaved progress on the current dog will be lost
       Alert.alert(
         'Lose progress?',
         'Any progress on this dog will be lost if you go back. Don\'t worry — your saved dogs are safe, and you can edit all info on any dog from your profile at any time!',
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Go Back', style: 'destructive', onPress: doGoBack },
-        ]
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => {
+              backPromptVisible.current = false;
+            },
+          },
+          {
+            text: 'Go Back',
+            style: 'destructive',
+            onPress: () => {
+              backPromptVisible.current = false;
+              doGoBack();
+            },
+          },
+        ],
+        {
+          cancelable: true,
+          onDismiss: () => {
+            backPromptVisible.current = false;
+          },
+        },
       );
     } else {
       navigation.goBack();
     }
-  }, [savedCount, doGoBack, navigation]);
+  }, [loading, uploadingPhoto, savedCount, hasCurrentDogProgress, doGoBack, navigation]);
 
-  const [showTransition, setShowTransition] = useState(false);
+  usePreventRemove(isFocused && savedCount > 0 && !showTransition, () => {
+    handleBack();
+  });
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: !showTransition,
-      headerLeft: savedCount > 0 ? () => (
+      gestureEnabled: !showTransition && !loading && !uploadingPhoto,
+      headerLeft: savedCount > 0 || loading || uploadingPhoto ? () => (
         <TouchableOpacity
           onPress={handleBack}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -121,39 +190,20 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       ) : undefined,
     });
-  }, [navigation, savedCount, handleBack, colors.primary, showTransition]);
-
-  // Intercept swipe-back gesture too
-  useEffect(() => {
-    if (savedCount === 0) return;
-    const unsub = navigation.addListener('beforeRemove', (e) => {
-      e.preventDefault();
-      handleBack();
-    });
-    return unsub;
-  }, [navigation, savedCount, handleBack]);
+  }, [navigation, savedCount, handleBack, showTransition, loading, uploadingPhoto]);
 
   /** Track y-offsets of inputs so we can scroll to them on focus */
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [uploadingCount, setUploadingCount] = useState(0);
-  const [scrollEnabled, setScrollEnabled] = useState(true);
-  const [transitionMode, setTransitionMode] = useState<'addAnother' | 'continue'>('addAnother');
-
   // When user navigates back from Paywall, undo the Continue action:
   // pop the last saved dog so the form shows it as the current dog (not duplicated)
   useFocusEffect(useCallback(() => {
     if (didNavigateForward.current) {
       didNavigateForward.current = false;
-      const popped = popLastSavedDog();
-      if (popped?.id) {
-        // Delete from Firestore so it doesn't duplicate when they hit Continue again
-        deleteDog(popped.id).catch(() => {});
-      }
+      popLastSavedDog();
       setTimeout(() => {
         scrollRef.current?.scrollTo({ y: 0, animated: false });
       }, 50);
     }
-  }, [popLastSavedDog, deleteDog]));
+  }, [popLastSavedDog, scrollRef]));
   const [transitionDogName, setTransitionDogName] = useState('');
 
 
@@ -161,12 +211,6 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   const pickPhoto = async () => {
     const remaining = MAX_PHOTOS - form.photoURLs.length;
     if (remaining <= 0) return;
-
-    // Paint placeholders before opening the native picker. iOS can take a few
-    // seconds to prepare many selected images before this promise resolves.
-    setUploadingCount(remaining);
-    setUploadingPhoto(true);
-    await waitForNextPaint();
 
     let result: ImagePicker.ImagePickerResult;
     try {
@@ -196,7 +240,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
-    // Adjust from the optimistic remaining-slot count to the actual selection.
+    // Only show placeholders after selection, with one per selected photo.
     setUploadingCount(localUris.length);
     setUploadingPhoto(true);
     await waitForNextPaint();
@@ -205,12 +249,8 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     for (const uri of localUris) {
       try {
         const tempId = `temp_${user?.uid ?? 'anon'}_${Date.now()}`;
-        const response = await fetch(uri);
-        if (!response) throw new Error('Failed to read image file');
-        const blob = await response.blob();
-        const fileRef = storageRef(storage, `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
-        await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
-        const downloadURL = await getDownloadURL(fileRef);
+        const storagePath = `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+        const downloadURL = await uploadPhotoToStorage(uri, storagePath);
         currentPhotos.push(downloadURL);
         // Each photo lands immediately — update grid + decrement placeholder
         set('photoURLs', currentPhotos.slice(0, MAX_PHOTOS));
@@ -252,12 +292,8 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     // Upload cropped photo in background
     try {
       const tempId = `temp_${user?.uid ?? 'anon'}_${Date.now()}`;
-      const response = await fetch(croppedUri);
-      if (!response) throw new Error('Failed to read cropped image');
-      const blob = await response.blob();
-      const fileRef = storageRef(storage, `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
-      await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
-      const downloadURL = await getDownloadURL(fileRef);
+      const storagePath = `dogs/${tempId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+      const downloadURL = await uploadPhotoToStorage(croppedUri, storagePath);
       set('photoURLs', form.photoURLs.map((u: string, i: number) => i === index ? downloadURL : u));
     } catch {
       Alert.alert('Error', 'Failed to upload cropped photo. Please try again.');
@@ -266,6 +302,10 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const saveDog = async (): Promise<string | null> => {
+    if (uploadingPhoto) {
+      Alert.alert('Please wait', 'Your selected photos are still loading.');
+      return null;
+    }
     if (!form.name.trim() || !form.breed.trim()) {
       Alert.alert('Required', 'Please fill in name and breed');
       return null;
@@ -287,9 +327,12 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       return null;
     }
     if (!user) return null;
+    if (saveInFlight.current) return null;
+
+    saveInFlight.current = true;
     setLoading(true);
     try {
-      const dogId = await createDog({
+      const dogData = {
         ownerId: user.uid,
         name: form.name.trim(),
         breed: form.breed.trim(),
@@ -303,13 +346,24 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         isGoodWithKids: form.goodWithKids,
         vaccinated: form.vaccinated,
         pottyTrained: form.pottyTrained,
-        ...(form.dogBio.trim() ? { bio: form.dogBio.trim() } : {}) });
+        ...(form.dogBio.trim() ? { bio: form.dogBio.trim() } : {}),
+      };
+
+      let dogId = currentDogId;
+      if (dogId) {
+        await updateDog(dogId, dogData);
+      } else {
+        dogId = await createDog(dogData);
+        setCurrentDogId(dogId);
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       return dogId;
     } catch (error: unknown) {
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to add dog');
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to save dog');
       return null;
     } finally {
+      saveInFlight.current = false;
       setLoading(false);
     }
   };
@@ -319,7 +373,13 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     const dogId = await saveDog();
     if (dogId) {
       const justSavedName = form.name.trim();
-      addSavedDog({ id: dogId, name: justSavedName, breed: form.breed, photoURL: form.photoURLs[0], formSnapshot: { ...form } });
+      addSavedDog({
+        id: dogId,
+        name: justSavedName,
+        breed: form.breed,
+        photoURL: form.photoURLs[0],
+        formSnapshot: { ...form, photoURLs: [...form.photoURLs] },
+      });
       setTransitionDogName(justSavedName);
       setTransitionMode('continue');
       setShowTransition(true);
@@ -345,7 +405,13 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
     const dogId = await saveDog();
     if (dogId) {
       const justSavedName = form.name.trim();
-      addSavedDog({ id: dogId, name: justSavedName, breed: form.breed, photoURL: form.photoURLs[0], formSnapshot: { ...form } });
+      addSavedDog({
+        id: dogId,
+        name: justSavedName,
+        breed: form.breed,
+        photoURL: form.photoURLs[0],
+        formSnapshot: { ...form, photoURLs: [...form.photoURLs] },
+      });
       setTransitionDogName(justSavedName);
       setTransitionMode('addAnother');
       setShowTransition(true);
@@ -363,19 +429,27 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => {
-            // Discard current form, pop previous dog and restore its data
-            const popped = popLastSavedDog();
-            if (popped?.id) {
-              deleteDog(popped.id).catch(() => {});
+          onPress: async () => {
+            try {
+              // A newly started dog has no document yet. A previously restored
+              // dog does, and only that current document should be deleted.
+              if (currentDogId) {
+                await deleteDog(currentDogId);
+              }
+              popLastSavedDog();
+              setTimeout(() => {
+                scrollRef.current?.scrollTo({ y: 0, animated: false });
+              }, 50);
+              setTimeout(() => {
+                scrollRef.current?.scrollTo({ y: 0, animated: false });
+              }, 300);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (error: unknown) {
+              Alert.alert(
+                'Error',
+                error instanceof Error ? error.message : 'Failed to remove dog',
+              );
             }
-            setTimeout(() => {
-              scrollRef.current?.scrollTo({ y: 0, animated: false });
-            }, 50);
-            setTimeout(() => {
-              scrollRef.current?.scrollTo({ y: 0, animated: false });
-            }, 300);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           },
         },
       ]
@@ -661,7 +735,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
       <TouchableOpacity
         style={[styles.btn, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
         onPress={handleContinue}
-        disabled={loading}
+        disabled={loading || uploadingPhoto}
         accessibilityLabel={loading ? 'Saving...' : 'Continue to next step'}
         accessibilityRole="button"
       >
@@ -673,7 +747,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity
           style={[styles.addAnotherBtn, { borderColor: colors.primary, opacity: loading ? 0.5 : 1 }]}
           onPress={handleAddAnother}
-          disabled={loading}
+          disabled={loading || uploadingPhoto}
           accessibilityLabel="Add another dog"
           accessibilityRole="button"
         >
@@ -719,7 +793,7 @@ const AddDogScreen: React.FC<Props> = ({ navigation }) => {
             setShowTransition(false);
             if (transitionMode === 'continue') {
               didNavigateForward.current = true;
-              navigation.navigate('Paywall');
+              void continueAfterDogSetup();
             } else {
               resetDogForm();
               setTimeout(() => {

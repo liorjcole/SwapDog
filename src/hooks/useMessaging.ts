@@ -1,7 +1,5 @@
 import {
   collection,
-  addDoc,
-  getDoc,
   getDocs,
   onSnapshot,
   query,
@@ -9,14 +7,18 @@ import {
   orderBy,
   limit,
   limitToLast,
-  serverTimestamp,
   updateDoc,
   deleteDoc,
   doc,
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { auth, db } from '../config/firebase';
 import { Message, Conversation } from '../models/types';
 import { toDate } from '../utils/firestoreConverters';
+import {
+  getOrCreateConversationSecure,
+  SecureMessageOptions,
+  sendMessageSecure,
+} from '../services/secureOperations';
 
 const parseMessage = (id: string, data: Record<string, unknown>): Message => ({
   id,
@@ -41,33 +43,15 @@ const parseConversation = (id: string, data: Record<string, unknown>): Conversat
   updatedAt: toDate(data.updatedAt as Parameters<typeof toDate>[0]),
 });
 
-const conversationParticipantKey = (userIdA: string, userIdB: string): string =>
-  [userIdA, userIdB].sort().join('__');
-
 export const useMessaging = () => {
   const sendMessage = async (
     convId: string,
-    senderId: string,
+    _senderId: string,
     text: string,
-    options?: { type?: string; metadata?: Record<string, string> }
+    options?: SecureMessageOptions,
   ): Promise<void> => {
-    // Add the message
-    const msgData: Record<string, unknown> = {
-      conversationId: convId,
-      senderId,
-      text,
-      read: false,
-      createdAt: serverTimestamp(),
-    };
-    if (options?.type) msgData.type = options.type;
-    if (options?.metadata) msgData.metadata = options.metadata;
-    await addDoc(collection(db, 'conversations', convId, 'messages'), msgData);
-    // Update conversation metadata
-    await updateDoc(doc(db, 'conversations', convId), {
-      lastMessage: text,
-      lastMessageAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+    if (!auth.currentUser?.uid) throw new Error('Sign in to send a message.');
+    await sendMessageSecure(convId, text, options);
   };
 
   const subscribeToMessages = (
@@ -146,39 +130,12 @@ export const useMessaging = () => {
     userIdB: string,
     swapRequestId?: string
   ): Promise<string> => {
-    const participantKey = conversationParticipantKey(userIdA, userIdB);
-
-    const keyQuery = query(
-      collection(db, 'conversations'),
-      where('participantKey', '==', participantKey),
-      limit(1)
-    );
-    const keySnap = await getDocs(keyQuery);
-    if (!keySnap.empty) return keySnap.docs[0].id;
-
-    // Legacy fallback for conversations created before participantKey existed.
-    const legacyQuery = query(
-      collection(db, 'conversations'),
-      where('participantIds', 'array-contains', userIdA),
-      limit(100)
-    );
-    const snap = await getDocs(legacyQuery);
-    const existing = snap.docs.find((d) => {
-      const participants = (d.data().participantIds as string[]) ?? [];
-      return participants.includes(userIdB);
-    });
-    if (existing) return existing.id;
-
-    // Create a new conversation
-    const ref = await addDoc(collection(db, 'conversations'), {
-      participantIds: [userIdA, userIdB],
-      participantKey,
-      swapRequestId: swapRequestId ?? null,
-      unreadCounts: { [userIdA]: 0, [userIdB]: 0 },
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    return ref.id;
+    const currentUserId = auth.currentUser?.uid;
+    if (!currentUserId || currentUserId !== userIdA) {
+      throw new Error('Sign in to start a conversation.');
+    }
+    const result = await getOrCreateConversationSecure(userIdB, swapRequestId);
+    return result.conversationId;
   };
 
   /**
@@ -194,37 +151,6 @@ export const useMessaging = () => {
       // Non-fatal — don't surface to user
     }
   };
-
-
-
-  /**
-   * Subscribe to ALL conversations where 'swapdog-team' is a participant.
-   * Used by admin users to see every user's WatchDog Team chat.
-   */
-  const subscribeToTeamConversations = (
-    cb: (conversations: Conversation[]) => void
-  ): (() => void) => {
-    const q = query(
-      collection(db, 'conversations'),
-      where('participantIds', 'array-contains', SYSTEM_SENDER_ID),
-      orderBy('updatedAt', 'desc'),
-      limit(100)
-    );
-    return onSnapshot(
-      q,
-      (snap) => {
-        const convs = snap.docs
-          .map((d) => parseConversation(d.id, d.data() as Record<string, unknown>))
-          .sort((a, b) => (b.updatedAt?.getTime() ?? 0) - (a.updatedAt?.getTime() ?? 0));
-        cb(convs);
-      },
-      (error) => {
-        console.warn('[useMessaging] subscribeToTeamConversations error:', error.message);
-        cb([]);
-      }
-    );
-  };
-
   /** Delete a specific message from a conversation */
   const deleteMessage = async (conversationId: string, messageId: string): Promise<void> => {
     await deleteDoc(doc(db, 'conversations', conversationId, 'messages', messageId));
@@ -239,132 +165,4 @@ export const useMessaging = () => {
     getOrCreateConversation,
     markConversationRead,
   };
-};
-
-// ── System sender constants ───────────────────────────────────────────────────
-const SYSTEM_SENDER_ID = 'swapdog-team';
-
-const WELCOME_TEXT =
-  'Welcome to WatchDog! 🐾\n\n' +
-  "We're so happy to have you in the family! You're now part of a trusted " +
-  "community of dog lovers who look out for each other's pups.\n\n" +
-  "We've given you 5 points to get started — use them to post your first " +
-  "pet sitting request or save them up!\n\n" +
-  'If you ever need help or have questions, reach out to us at hi@joinwatchdog.com.\n\n' +
-  'Happy watching! 🐕';
-
-/**
- * Send a system message to a user from the WatchDog Team account.
- * Finds (or creates) the swapdog-team conversation with the user
- * and adds the message. Bumps unreadCounts so the user sees it.
- */
-export const sendSystemMessageToUser = async (
-  userId: string,
-  text: string,
-): Promise<void> => {
-  const participantKey = conversationParticipantKey(userId, SYSTEM_SENDER_ID);
-
-  const q = query(
-    collection(db, 'conversations'),
-    where('participantKey', '==', participantKey),
-    limit(1),
-  );
-  const snap = await getDocs(q);
-  let convId: string | null = null;
-  if (!snap.empty) {
-    convId = snap.docs[0].id;
-  } else {
-    const legacyQuery = query(
-      collection(db, 'conversations'),
-      where('participantIds', 'array-contains', userId),
-      limit(100),
-    );
-    const legacySnap = await getDocs(legacyQuery);
-    for (const d of legacySnap.docs) {
-      const participants = (d.data().participantIds as string[]) ?? [];
-      if (participants.includes(SYSTEM_SENDER_ID)) {
-        convId = d.id;
-        break;
-      }
-    }
-  }
-
-  // Create one if it doesn't exist
-  if (!convId) {
-    const ref = await addDoc(collection(db, 'conversations'), {
-      participantIds: [userId, SYSTEM_SENDER_ID],
-      participantKey,
-      swapRequestId: null,
-      unreadCounts: { [userId]: 1 },
-      lastMessage: text.slice(0, 100),
-      lastMessageAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    convId = ref.id;
-  } else {
-    // Bump unread count and update last message
-    const convRef = doc(db, 'conversations', convId);
-    const convSnap = await getDoc(convRef);
-    const currentUnread = convSnap.exists()
-      ? ((convSnap.data().unreadCounts as Record<string, number>)?.[userId] ?? 0)
-      : 0;
-    await updateDoc(convRef, {
-      [`unreadCounts.${userId}`]: currentUnread + 1,
-      lastMessage: text.slice(0, 100),
-      lastMessageAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  // Add the message
-  await addDoc(collection(db, 'conversations', convId, 'messages'), {
-    conversationId: convId,
-    senderId: SYSTEM_SENDER_ID,
-    text,
-    read: false,
-    createdAt: serverTimestamp(),
-  });
-};
-
-/**
- * Creates a welcome conversation from WatchDog Team the first time a user
- * completes onboarding (contract signed). Safe to call multiple times —
- * it checks for an existing welcome conversation before creating one.
- */
-export const sendWelcomeMessageIfNeeded = async (userId: string): Promise<void> => {
-  const participantKey = conversationParticipantKey(userId, SYSTEM_SENDER_ID);
-
-  // Check whether the welcome conversation already exists
-  const q = query(
-    collection(db, 'conversations'),
-    where('participantKey', '==', participantKey),
-    limit(1),
-  );
-  const snap = await getDocs(q);
-  const alreadyExists = !snap.empty;
-  if (alreadyExists) return;
-
-  // Create the welcome conversation
-  const convRef = await addDoc(collection(db, 'conversations'), {
-    participantIds: [userId, SYSTEM_SENDER_ID],
-    participantKey,
-    swapRequestId: null,
-    unreadCounts: { [userId]: 1 },
-    lastMessage: 'Welcome to WatchDog! 🐾',
-    lastMessageAt: serverTimestamp(),
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-
-  // Add the welcome message itself.
-  // Security rules allow senderId === 'swapdog-team' when written by an
-  // authenticated participant, so this is permitted without a Cloud Function.
-  await addDoc(collection(db, 'conversations', convRef.id, 'messages'), {
-    conversationId: convRef.id,
-    senderId: SYSTEM_SENDER_ID,
-    text: WELCOME_TEXT,
-    read: false,
-    createdAt: serverTimestamp(),
-  });
 };

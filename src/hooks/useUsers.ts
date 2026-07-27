@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 import {
   doc,
   getDoc,
-  updateDoc,
   collection,
   query,
   getDocs,
@@ -10,10 +9,11 @@ import {
   startAt,
   endAt,
 } from 'firebase/firestore';
-import { geohashForLocation, geohashQueryBounds } from 'geofire-common';
+import { geohashQueryBounds } from 'geofire-common';
 import { db } from '../config/firebase';
 import { User, GeoPoint, AccountStatus } from '../models/types';
 import { toDate } from '../utils/firestoreConverters';
+import { updateMyProfileSecure } from '../services/secureOperations';
 
 const parseUser = (id: string, data: Record<string, unknown>): User => ({
   id,
@@ -24,8 +24,6 @@ const parseUser = (id: string, data: Record<string, unknown>): User => ({
   location: data.location as GeoPoint | undefined,
   locationGeohash: data.locationGeohash as string | undefined,
   locationName: data.locationName as string | undefined,
-  pushToken: data.pushToken as string | undefined,
-  pushTokens: data.pushTokens as string[] | undefined,
   isOnboarded: (data.isOnboarded as boolean) ?? false,
   createdAt: toDate(data.createdAt as Parameters<typeof toDate>[0]),
   updatedAt: toDate(data.updatedAt as Parameters<typeof toDate>[0]),
@@ -52,19 +50,20 @@ export const useUsers = () => {
   // Stable references — wrapped in useCallback so callers can include them in
   // dependency arrays without triggering infinite re-render loops.
   const getUser = useCallback(async (id: string): Promise<User | null> => {
-    const snap = await getDoc(doc(db, 'users', id));
+    const snap = await getDoc(doc(db, 'publicProfiles', id));
     if (!snap.exists()) return null;
     return parseUser(snap.id, snap.data() as Record<string, unknown>);
   }, []);
 
   const updateUser = useCallback(async (id: string, data: Partial<User>): Promise<void> => {
-    const locationGeohash = data.location
-      ? geohashForLocation([data.location.latitude, data.location.longitude])
-      : undefined;
-    await updateDoc(doc(db, 'users', id), {
-      ...data,
-      ...(locationGeohash ? { locationGeohash } : {}),
-      updatedAt: new Date(),
+    void id;
+    await updateMyProfileSecure({
+      ...(data.displayName !== undefined ? { displayName: data.displayName } : {}),
+      ...(data.bio !== undefined ? { bio: data.bio } : {}),
+      ...(data.instagramHandle !== undefined
+        ? { instagramHandle: data.instagramHandle }
+        : {}),
+      ...(data.photoURL !== undefined ? { photoURL: data.photoURL } : {}),
     });
   }, []);
 
@@ -78,7 +77,7 @@ export const useUsers = () => {
         radiusKm * 1000,
       ).map(([start, end]) =>
         getDocs(query(
-          collection(db, 'users'),
+          collection(db, 'publicProfiles'),
           orderBy('locationGeohash'),
           startAt(start),
           endAt(end),

@@ -12,13 +12,14 @@ import {
   Alert,
   Platform } from 'react-native';
 import * as Haptics from 'expo-haptics'
-import { doc, updateDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
-import { sendWelcomeMessageIfNeeded } from '../../hooks/useMessaging';
-import { db } from '../../config/firebase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { spacing, borderRadius, typography, shadow } from '../../config/theme';
 import { useKeyboardScroll } from '../../hooks/useKeyboardScroll';
+import {
+  finalizeOnboardingSecure,
+  signMembershipAgreementSecure,
+} from '../../services/secureOperations';
 
 interface ContractScreenProps {
   /**
@@ -31,7 +32,6 @@ interface ContractScreenProps {
   onSigned?: () => void;
 }
 
-const CONTRACT_VERSION = '1.0';
 const today = new Date();
 const FORMATTED_DATE = today.toLocaleDateString('en-US', {
   year: 'numeric',
@@ -100,31 +100,20 @@ const ContractScreen: React.FC<ContractScreenProps> = ({
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setLoading(true);
     try {
-      // 1. Update user profile
-      await updateDoc(doc(db, 'users', user.uid), {
-        contractSignedAt: serverTimestamp(),
-        contractSignedName: fullName.trim(),
-        contractVersion: CONTRACT_VERSION,
-        updatedAt: serverTimestamp() });
-
-      // 2. Save a durable copy in signed-agreements (survives account deletion)
-      await addDoc(collection(db, 'signed-agreements'), {
-        userId: user.uid,
-        userEmail: userProfile?.email ?? '',
-        userPhoneNumber: userProfile?.phoneNumber ?? '',
-        signedName: fullName.trim(),
-        contractVersion: CONTRACT_VERSION,
-        agreementSections: CONTRACT_SECTIONS.map(s => s.number + ' ' + s.title + ': ' + s.body),
-        signedAt: serverTimestamp(),
-        ipAddress: null, // could be populated server-side if needed
-      });
-
-      // Send welcome message the first time (idempotent)
-      await sendWelcomeMessageIfNeeded(user.uid);
+      await signMembershipAgreementSecure(fullName.trim());
+      await finalizeOnboardingSecure();
       await refreshUserProfile();
       onSigned?.();
-    } catch {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : 'Something went wrong. Please try again.';
+      Alert.alert(
+        'Could Not Finish Setup',
+        message.includes('subscription')
+          ? 'Your purchase is still being confirmed. Wait a moment, then tap Sign again.'
+          : message,
+      );
     } finally {
       setLoading(false);
     }

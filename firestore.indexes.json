@@ -25,6 +25,38 @@
       ]
     },
     {
+      "collectionGroup": "swapPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "claimedBy", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "swapPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "posterId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "publicSwapPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "posterGeohash", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "postResponses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "responderId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "conversations",
       "queryScope": "COLLECTION",
       "fields": [

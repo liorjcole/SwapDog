@@ -12,6 +12,7 @@ import { db } from '../../config/firebase';
 import { registerForPushNotifications, savePushToken } from '../../services/NotificationService';
 import { spacing, borderRadius, typography } from '../../config/theme';
 import { useOnboarding } from '../../contexts/OnboardingContext';
+import { shouldShowDeferredSignUpIntro } from '../../utils/signUpIntroFlow';
 
 type Props = {
   navigation: NativeStackNavigationProp<OnboardingStackParamList, 'LocationSetup'>;
@@ -22,6 +23,11 @@ const LocationSetupScreen: React.FC<Props> = ({ navigation }) => {
   const { user, refreshUserProfile } = useAuthContext();
   const { locationName, setLocationName } = useOnboarding();
   const [loading, setLoading] = useState(false);
+
+  const continueAfterSetup = async () => {
+    const showDeferredIntro = await shouldShowDeferredSignUpIntro().catch(() => false);
+    navigation.navigate(showDeferredIntro ? 'DeferredSignUpIntro' : 'Paywall');
+  };
 
   const handleGetLocation = async () => {
     setLoading(true);
@@ -43,7 +49,7 @@ const LocationSetupScreen: React.FC<Props> = ({ navigation }) => {
         location: coords,
         locationGeohash: geohashForLocation([coords.latitude, coords.longitude]),
         locationName: name,
-        isOnboarded: true,
+        profileSetupComplete: true,
         updatedAt: serverTimestamp(),
       });
 
@@ -55,7 +61,7 @@ const LocationSetupScreen: React.FC<Props> = ({ navigation }) => {
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await refreshUserProfile();
-      navigation.navigate('Paywall');
+      await continueAfterSetup();
     } catch (error: unknown) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Failed to get location');
     } finally {
@@ -68,9 +74,10 @@ const LocationSetupScreen: React.FC<Props> = ({ navigation }) => {
     setLoading(true);
     try {
       await updateDoc(doc(db, 'users', user.uid), {
+        profileSetupComplete: true,
         updatedAt: serverTimestamp(),
       });
-      navigation.navigate('Paywall');
+      await continueAfterSetup();
     } catch (error: unknown) {
       Alert.alert('Error', error instanceof Error ? error.message : 'Failed to complete setup');
     } finally {
@@ -83,7 +90,8 @@ const LocationSetupScreen: React.FC<Props> = ({ navigation }) => {
       <Text style={styles.emoji} accessibilityElementsHidden>📍</Text>
       <Text style={[styles.title, { color: colors.text }]}>Set your location</Text>
       <Text style={[styles.sub, { color: colors.textSecondary }]}>
-        Find dog owners near you. We only store your approximate location.
+        Find dog owners near you. Your exact location stays private; nearby members
+        only see an approximate area.
       </Text>
       {locationName && (
         <Text style={[styles.locationName, { color: colors.success }]} accessibilityLabel={`Location set to ${locationName}`}>

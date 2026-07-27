@@ -1,14 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as ImagePicker from 'expo-image-picker';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../../config/firebase';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Platform, KeyboardAvoidingView, Alert, Modal, Image, ActivityIndicator, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RouteProp } from '@react-navigation/native';
+import { NavigationProp, RouteProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
-import { MessagesStackParamList } from '../../navigation/types';
+import { MainTabParamList, MessagesStackParamList } from '../../navigation/types';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import AvatarImage from '../../components/common/AvatarImage';
@@ -17,10 +15,12 @@ import { useSwaps } from '../../hooks/useSwaps';
 import { useFavorites } from '../../hooks/useFavorites';
 import { setActiveConversation } from '../../services/NotificationService';
 import { Message } from '../../models/types';
-import { collection, query, where, getDocs, getDoc, doc as firestoreDoc, updateDoc as firestoreUpdateDoc, serverTimestamp as fsServerTimestamp, addDoc as fsAddDoc, deleteDoc, deleteField, limit as firestoreLimit } from 'firebase/firestore';
+import { getDoc, doc as firestoreDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { spacing, borderRadius } from '../../config/theme';
 import MessageBubble from '../../components/common/MessageBubble';
+import { uploadPhotoToStorage } from '../../utils/uploadHelper';
+import { reopenPostSecure } from '../../services/secureOperations';
 
 type Props = {
   navigation: NativeStackNavigationProp<MessagesStackParamList, 'Chat'>;
@@ -55,7 +55,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
       setOtherUserName(otherUserId === 'swapdog-team' ? '🐾 WatchDog Team' : 'Chat');
       return;
     }
-    getDoc(firestoreDoc(db, 'users', otherUserId)).then((snap) => {
+    getDoc(firestoreDoc(db, 'publicProfiles', otherUserId)).then((snap) => {
       const data = snap.data();
       if (data?.displayName) setOtherUserName(data.displayName);
       if (data?.photoURL) setOtherUserPhoto(data.photoURL);
@@ -153,27 +153,13 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
     if (!user) return;
     setSendingPhoto(true);
     try {
-      const response = await fetch(uri);
-      if (!response) throw new Error('Failed to read image');
-      const blob = await response.blob();
-      const fileRef = storageRef(storage, `chat-images/${conversationId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
-      await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
-      const downloadURL = await getDownloadURL(fileRef);
-
-      const msgData = {
-        conversationId,
-        senderId: user.uid,
-        text: '',
+      const path =
+        `chat-images/${conversationId}/${Date.now()}_`
+        + `${Math.random().toString(36).slice(2)}.jpg`;
+      const downloadURL = await uploadPhotoToStorage(uri, path);
+      await sendMessage(conversationId, user.uid, '', {
         type: 'image',
         imageURL: downloadURL,
-        createdAt: fsServerTimestamp(),
-        read: false,
-      };
-      await fsAddDoc(collection(db, 'conversations', conversationId, 'messages'), msgData);
-      await firestoreUpdateDoc(firestoreDoc(db, 'conversations', conversationId), {
-        lastMessage: '📷 Photo',
-        lastMessageAt: fsServerTimestamp(),
-        updatedAt: fsServerTimestamp(),
       });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
@@ -190,7 +176,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
     } else {
       // Cross-tab navigation: came from another stack.
       // Navigate to the ConversationsList in MessagesTab.
-      (navigation as any).getParent()?.navigate('MessagesTab', {
+      navigation.getParent<NavigationProp<MainTabParamList>>()?.navigate('MessagesTab', {
         screen: 'ConversationsList' });
     }
   };
@@ -355,18 +341,6 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
                       // Delete the help_request message
                       await deleteMessage(conversationId, item.id);
 
-                      // Check remaining messages in this conversation
-                      const msgsSnap = await getDocs(
-                        query(collection(db, 'conversations', conversationId, 'messages'), firestoreLimit(1))
-                      );
-
-                      if (msgsSnap.empty) {
-                        // No other messages — delete the entire conversation
-                        await deleteDoc(firestoreDoc(db, 'conversations', conversationId));
-                        // Navigate back to messages list
-                        navigation.goBack();
-                      }
-
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     } catch (err: unknown) {
                       Alert.alert('Error', err instanceof Error ? err.message : 'Failed to remove request');
@@ -409,12 +383,7 @@ const ChatScreen: React.FC<Props> = ({ navigation, route }) => {
                   onPress: async () => {
                     try {
                       setRespondedRescheduleIds((prev) => new Set(prev).add(item.id));
-                      await firestoreUpdateDoc(firestoreDoc(db, 'swapPosts', postId), {
-                        status: 'open',
-                        claimedBy: deleteField(),
-                        respondedBy: [],
-                        updatedAt: fsServerTimestamp(),
-                      });
+                      await reopenPostSecure(postId);
                       const dateLabel = item.metadata?.dateLabel ?? 'the new time';
                       const eventLabel = item.metadata?.eventLabel ?? 'the booking';
                       const msgText = `WatchDog update: ${otherUserName} can't make ${dateLabel} for ${eventLabel}, so the post is back on Discover. Previous helper requests were cleared so you can choose fresh responses.`;

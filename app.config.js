@@ -1,18 +1,22 @@
-// app.config.js — extends app.json with runtime env vars.
-// All static config lives in app.json; this file only adds values that must
-// be injected at build time (EAS secrets / local .env).
-//
-// Lior: set the EAS secret once:
-//   eas secret:create --scope project --name GOOGLE_PLACES_API_KEY --value <key> --type string
+// Keep runtime configuration limited to values safe to ship in the app bundle.
+// Private API keys are consumed only by Cloud Functions secrets.
 
 module.exports = ({ config }) => ({
   expo: {
     ...config,
-    extra: {
-      ...config.extra,
-      // Injected from EAS secret GOOGLE_PLACES_API_KEY (or a local .env).
-      // Never commit a real key here.
-      googlePlacesApiKey: process.env.GOOGLE_PLACES_API_KEY ?? '',
+    ios: {
+      ...config.ios,
+      googleServicesFile: './firebase-config/GoogleService-Info.plist',
+      entitlements: {
+        ...config.ios?.entitlements,
+        'com.apple.developer.devicecheck.appattest-environment': 'production',
+      },
     },
+    plugins: [
+      ...(config.plugins ?? []),
+      '@react-native-firebase/app',
+      '@react-native-firebase/app-check',
+    ],
+    extra: { ...config.extra },
   },
 });

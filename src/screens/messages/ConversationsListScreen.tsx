@@ -56,7 +56,7 @@ const ConversationsListScreen: React.FC<Props> = ({ navigation }) => {
 
     unique.forEach(async (uid) => {
       try {
-        const snap = await getDoc(doc(db, 'users', uid));
+        const snap = await getDoc(doc(db, 'publicProfiles', uid));
         const data = snap.data();
         if (data?.displayName) {
           setNameCache((prev) => ({ ...prev, [uid]: data.displayName }));

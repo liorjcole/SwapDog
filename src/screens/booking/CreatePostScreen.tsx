@@ -1214,7 +1214,7 @@ const MAX_PLAY_SESSIONS = 5;
   }, [selectedDogIds, primaryCareType, addOnCareTypes, startDateSelected, endDateSelected, careDetails, careAddress, pointsOffered, paymentAmount]);
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (e: { data: { action: any }; preventDefault: () => void }) => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
       if (!hasAnyProgress() || postSucceededRef.current) return;
 
       e.preventDefault();

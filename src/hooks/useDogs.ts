@@ -1,18 +1,17 @@
+import { useCallback } from 'react';
 import {
   doc,
   getDoc,
   getDocs,
-  addDoc,
-  updateDoc,
   deleteDoc,
   collection,
   query,
   where,
-  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Dog, DogSex, EnergyLevel } from '../models/types';
 import { toDate } from '../utils/firestoreConverters';
+import { createDogSecure, updateDogSecure } from '../services/secureOperations';
 
 const parseDog = (id: string, data: Record<string, unknown>): Dog => {
   // Backward-compat: legacy `age` (single number) → ageYears, ageMonths=0
@@ -53,34 +52,41 @@ const parseDog = (id: string, data: Record<string, unknown>): Dog => {
 };
 
 export const useDogs = () => {
-  const getDog = async (id: string): Promise<Dog | null> => {
+  const getDog = useCallback(async (id: string): Promise<Dog | null> => {
     const snap = await getDoc(doc(db, 'dogs', id));
     if (!snap.exists()) return null;
     return parseDog(snap.id, snap.data() as Record<string, unknown>);
-  };
+  }, []);
 
-  const getDogsByOwner = async (ownerId: string): Promise<Dog[]> => {
+  const getDogsByOwner = useCallback(async (ownerId: string): Promise<Dog[]> => {
     const q = query(collection(db, 'dogs'), where('ownerId', '==', ownerId));
     const snap = await getDocs(q);
     return snap.docs.map((d) => parseDog(d.id, d.data() as Record<string, unknown>));
-  };
+  }, []);
 
-  const createDog = async (data: Omit<Dog, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
-    const ref = await addDoc(collection(db, 'dogs'), {
-      ...data,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    return ref.id;
-  };
+  const createDog = useCallback(async (
+    data: Omit<Dog, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<string> => {
+    const result = await createDogSecure(data);
+    return result.dogId;
+  }, []);
 
-  const updateDog = async (id: string, data: Partial<Dog>): Promise<void> => {
-    await updateDoc(doc(db, 'dogs', id), { ...data, updatedAt: serverTimestamp() });
-  };
+  const updateDog = useCallback(async (id: string, data: Partial<Dog>): Promise<void> => {
+    const {
+      id: _id,
+      ownerId: _ownerId,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      rating: _rating,
+      reviewCount: _reviewCount,
+      ...editable
+    } = data;
+    await updateDogSecure(id, editable);
+  }, []);
 
-  const deleteDog = async (id: string): Promise<void> => {
+  const deleteDog = useCallback(async (id: string): Promise<void> => {
     await deleteDoc(doc(db, 'dogs', id));
-  };
+  }, []);
 
   return { getDog, getDogsByOwner, createDog, updateDog, deleteDog };
 };
