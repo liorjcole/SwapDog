@@ -3,6 +3,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -32,8 +33,10 @@ export default function App() {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [securityReady, setSecurityReady] = useState(false);
   const [securityError, setSecurityError] = useState<string | null>(null);
+  const [securityAttempt, setSecurityAttempt] = useState(0);
 
   useEffect(() => {
+    setSecurityError(null);
     initializeAppSecurity()
       .then(() => setSecurityReady(true))
       .catch((error: unknown) => {
@@ -44,7 +47,7 @@ export default function App() {
             : 'WatchDog could not verify this app installation. Please reinstall or contact support.',
         );
       });
-  }, []);
+  }, [securityAttempt]);
 
   useEffect(() => {
     if (!securityReady) return undefined;
@@ -162,6 +165,16 @@ export default function App() {
           <>
             <Text style={styles.securityTitle}>Unable to Verify App</Text>
             <Text style={styles.securityBody}>{securityError}</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setSecurityAttempt((attempt) => attempt + 1)}
+              style={({ pressed }) => [
+                styles.securityRetryButton,
+                pressed && styles.securityRetryButtonPressed,
+              ]}
+            >
+              <Text style={styles.securityRetryText}>Try Again</Text>
+            </Pressable>
           </>
         ) : (
           <ActivityIndicator size="large" color="#FF2D55" />
@@ -209,5 +222,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 23,
     textAlign: 'center',
+  },
+  securityRetryButton: {
+    minHeight: 48,
+    minWidth: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    backgroundColor: '#FF2D55',
+  },
+  securityRetryButtonPressed: {
+    opacity: 0.75,
+  },
+  securityRetryText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

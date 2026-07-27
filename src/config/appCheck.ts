@@ -41,10 +41,6 @@ async function initializeNativeBridge(): Promise<void> {
     provider,
     isTokenAutoRefreshEnabled: true,
   });
-  const initialToken = await appCheck.getToken(nativeInstance, true);
-  if (!initialToken.token) {
-    throw new Error('Firebase App Check returned an empty token.');
-  }
 
   const webProvider = new CustomProvider({
     getToken: async () => {
@@ -68,7 +64,11 @@ async function initializeNativeBridge(): Promise<void> {
 }
 
 export function initializeAppSecurity(): Promise<void> {
-  initialization ??= initializeNativeBridge();
+  initialization ??= initializeNativeBridge().catch((error: unknown) => {
+    initialization = null;
+    webAppCheck = null;
+    throw error;
+  });
   return initialization;
 }
 
