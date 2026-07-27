@@ -3918,7 +3918,7 @@ const MAX_PLAY_SESSIONS = 5;
 	                        blurOnSubmit={true}
 	                      />
 	                    </View>
-	                    <Text style={{ fontSize: 12, color: detailsComplete ? RED : colors.textSecondary, marginTop: 4, marginLeft: 4 }}>
+	                    <Text style={{ fontSize: 12, color: detailsComplete ? colors.success : colors.textSecondary, marginTop: 4, marginLeft: 4 }}>
 	                      {detailsComplete ? '✓ ' : ''}{slot.details.trim().length}/10 characters minimum
 	                    </Text>
 

@@ -231,7 +231,7 @@ const ProfileSetupScreen: React.FC<Props> = ({ navigation }) => {
         <Text
           style={[
             styles.fieldHint,
-            { color: trimmedBioLength >= 20 ? colors.primary : colors.textSecondary },
+            { color: trimmedBioLength >= 20 ? colors.success : colors.textSecondary },
           ]}
           accessibilityLiveRegion="polite"
         >
