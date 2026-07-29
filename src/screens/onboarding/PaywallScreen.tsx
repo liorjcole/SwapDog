@@ -7,6 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { OnboardingStackParamList } from '../../navigation/types';
 import { spacing } from '../../config/theme';
+import { shouldShowDeferredSignUpIntro } from '../../utils/signUpIntroFlow';
 
 const RED = '#FF2D55';
 
@@ -26,6 +27,7 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
   const { userProfile } = useAuthContext();
   const [dismissed, setDismissed] = useState(false);
+  const [tutorialGateResolved, setTutorialGateResolved] = useState(false);
   const triggered = useRef(false);
 
   const configError = useSuperwall((state) => state.configurationError);
@@ -51,6 +53,27 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
     },
   });
 
+  useEffect(() => {
+    let mounted = true;
+
+    shouldShowDeferredSignUpIntro()
+      .then((tutorialPending) => {
+        if (!mounted) return;
+        if (tutorialPending) {
+          navigation.replace('DeferredSignUpIntro');
+          return;
+        }
+        setTutorialGateResolved(true);
+      })
+      .catch(() => {
+        if (mounted) setTutorialGateResolved(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [navigation]);
+
   const showPaywall = useCallback(async () => {
     setDismissed(false);
     try {
@@ -68,6 +91,7 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
   }, [continueToAgreements, registerPlacement]);
 
   useEffect(() => {
+    if (!tutorialGateResolved) return;
     if (triggered.current) return;
     if (configError || !isSuperwallAvailable) {
       triggered.current = true;
@@ -88,16 +112,18 @@ const PaywallScreen: React.FC<Props> = ({ navigation }) => {
     isConfigured,
     isLoading,
     showPaywall,
+    tutorialGateResolved,
     userProfile?.freeAccessUntil,
   ]);
 
   useEffect(() => {
+    if (!tutorialGateResolved) return undefined;
     if (configError || isConfigured || !isSuperwallAvailable) return undefined;
     const timeout = setTimeout(() => {
       if (!triggered.current) setDismissed(true);
     }, 8000);
     return () => clearTimeout(timeout);
-  }, [configError, isConfigured]);
+  }, [configError, isConfigured, tutorialGateResolved]);
 
   if (dismissed || configError) {
     return (

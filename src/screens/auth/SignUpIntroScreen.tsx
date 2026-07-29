@@ -216,12 +216,14 @@ export const SignUpIntroExperience: React.FC<SignUpIntroExperienceProps> = ({
   const exitOpacity = useRef(new Animated.Value(1)).current;
   const progress = useRef(new Animated.Value(0)).current;
   const totalProgress = useRef(new Animated.Value(0)).current;
+  const totalProgressPulse = useRef(new Animated.Value(0)).current;
   const pulseScale = useRef(new Animated.Value(1)).current;
   const coinBurstProgress = useRef(new Animated.Value(0)).current;
   const animationFadeRef = useRef<Animated.CompositeAnimation | undefined>(undefined);
   const readyBackdropAnimationRef = useRef<Animated.CompositeAnimation | undefined>(undefined);
   const progressAnimationRef = useRef<Animated.CompositeAnimation | undefined>(undefined);
   const totalProgressAnimationRef = useRef<Animated.CompositeAnimation | undefined>(undefined);
+  const totalProgressPulseAnimationRef = useRef<Animated.CompositeAnimation | undefined>(undefined);
   const pulseAnimationRef = useRef<Animated.CompositeAnimation | undefined>(undefined);
   const coinBurstAnimationRef = useRef<Animated.CompositeAnimation | undefined>(undefined);
   const stepTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -233,6 +235,7 @@ export const SignUpIntroExperience: React.FC<SignUpIntroExperienceProps> = ({
   const phaseRef = useRef<IntroPhase>('title');
   const isHoldingRef = useRef(false);
   const holdModeRef = useRef<HoldMode | undefined>(undefined);
+  const tapEligibleRef = useRef(false);
   const pausedProgressRef = useRef(0);
   const pausedTotalProgressRef = useRef(0);
   const [isStepReady, setIsStepReady] = useState(false);
@@ -659,14 +662,56 @@ export const SignUpIntroExperience: React.FC<SignUpIntroExperienceProps> = ({
     pulseAnimationRef.current?.stop();
   }, [clearStepTimer, getStepPlayer, progress, restartVideoFromStoppedProgress, screenWidth, totalProgress]);
 
+  const pulseTotalProgress = useCallback(() => {
+    totalProgressPulseAnimationRef.current?.stop();
+    totalProgressPulse.setValue(0);
+    totalProgressPulseAnimationRef.current = Animated.sequence([
+      Animated.timing(totalProgressPulse, {
+        toValue: 1,
+        duration: 140,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(totalProgressPulse, {
+        toValue: 0,
+        duration: 190,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(totalProgressPulse, {
+        toValue: 1,
+        duration: 140,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(totalProgressPulse, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]);
+    totalProgressPulseAnimationRef.current.start();
+  }, [totalProgressPulse]);
+
   const handlePressIn = useCallback((event: GestureResponderEvent) => {
     clearHoldActivationTimer();
+    tapEligibleRef.current = true;
     const pageX = event.nativeEvent.pageX;
     holdActivationTimerRef.current = setTimeout(() => {
       holdActivationTimerRef.current = undefined;
+      tapEligibleRef.current = false;
       activateHold(pageX);
     }, HOLD_ACTIVATION_MS);
   }, [activateHold, clearHoldActivationTimer]);
+
+  const handleTutorialTap = useCallback(() => {
+    if (!tapEligibleRef.current || isHoldingRef.current) {
+      return;
+    }
+    tapEligibleRef.current = false;
+    pulseTotalProgress();
+  }, [pulseTotalProgress]);
 
   const handlePressOut = useCallback(() => {
     if (holdActivationTimerRef.current) {
@@ -677,6 +722,7 @@ export const SignUpIntroExperience: React.FC<SignUpIntroExperienceProps> = ({
     if (!isHoldingRef.current) {
       return;
     }
+    tapEligibleRef.current = false;
     isHoldingRef.current = false;
     const holdMode = holdModeRef.current;
     holdModeRef.current = undefined;
@@ -720,9 +766,12 @@ export const SignUpIntroExperience: React.FC<SignUpIntroExperienceProps> = ({
     finalCtaOpacity.setValue(0);
     progress.setValue(0);
     pulseScale.setValue(1);
+    totalProgressPulseAnimationRef.current?.stop();
+    totalProgressPulse.setValue(0);
     pausedProgressRef.current = 0;
     isHoldingRef.current = false;
     holdModeRef.current = undefined;
+    tapEligibleRef.current = false;
     clearHoldActivationTimer();
     phaseRef.current = 'title';
     setIntroPhase('title');
@@ -750,6 +799,7 @@ export const SignUpIntroExperience: React.FC<SignUpIntroExperienceProps> = ({
       progressAnimationRef.current?.stop();
       pulseAnimationRef.current?.stop();
       totalProgressAnimationRef.current?.stop();
+      totalProgressPulseAnimationRef.current?.stop();
       pauseAllPlayers();
     };
   }, [
@@ -770,6 +820,7 @@ export const SignUpIntroExperience: React.FC<SignUpIntroExperienceProps> = ({
     titleOpacity,
     titleScale,
     titleTranslateY,
+    totalProgressPulse,
   ]));
 
   const handleBack = () => {
@@ -891,6 +942,7 @@ export const SignUpIntroExperience: React.FC<SignUpIntroExperienceProps> = ({
   return (
     <Pressable
       style={styles.container}
+      onPress={handleTutorialTap}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       delayLongPress={0}
@@ -910,11 +962,25 @@ export const SignUpIntroExperience: React.FC<SignUpIntroExperienceProps> = ({
         style={[styles.darkOverlay, { opacity: darkOverlayOpacity }]}
         pointerEvents="none"
       />
-      <View
+      <Animated.View
         style={[
           styles.totalProgressTrack,
           {
             top: insets.top + spacing.xs,
+            transform: [
+              {
+                scaleY: totalProgressPulse.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [1, 6],
+                }),
+              },
+              {
+                scaleX: totalProgressPulse.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [1, 1.04],
+                }),
+              },
+            ],
           },
         ]}
         pointerEvents="none"
@@ -930,7 +996,7 @@ export const SignUpIntroExperience: React.FC<SignUpIntroExperienceProps> = ({
             },
           ]}
         />
-      </View>
+      </Animated.View>
 
       <TouchableOpacity
         onPress={handleBack}
